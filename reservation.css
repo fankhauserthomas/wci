@@ -1,0 +1,791 @@
+/* ===========================
+   Reservation-Detail Styles
+   =========================== */
+
+/* Header über volle Breite */
+body.reservation > header {
+  width: 100%;
+}
+
+/* Zentrales Layout */
+body.reservation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+main.reservation {
+  width: 100%;
+  max-width: none; /* allow full width for table */
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Grüner Info-Header */
+.res-header {
+  width: 100%;
+  background: var(--primary);
+  color: #fff;
+  padding: 0.5rem 1rem;     /* Reduziertes vertikales Padding */
+  font-size: 1rem;
+  line-height: 1.2;         /* Kompaktere Zeilenhöhe */
+  margin-bottom: 0.75rem;   /* Weniger Abstand nach unten */
+}
+
+/* Namensliste-Tabelle */
+.names-list {
+  /* Auto width based on content for proper horizontal scrolling */
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  display: inline-table;   /* allow table to size to content */
+  min-width: 100%;         /* at least container width */
+}
+.names-list th,
+.names-list td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ccc;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.names-list th {
+  background: #34495e;
+  color: #ecf0f1;
+  font-weight: bold;
+}
+.names-list tbody tr:nth-child(odd) {
+  background: var(--light-gray);
+}
+
+/* Checkbox-Spalte */
+#selectAll {
+  transform: scale(1.2);
+  margin: 0;
+}
+.rowCheckbox {
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+/* Icons für fehlende Daten */
+.notyet-icon {
+  width: 1em;
+  vertical-align: middle;
+}
+
+/* Icons for new details column */
+.detail-icon {
+  width: 1em;
+  height: auto;
+  vertical-align: middle;
+  margin: 0 0.2em;
+}
+
+/* <details>-Box */
+#addNamesDetails {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  margin-top: 1.5rem;
+}
+#addNamesDetails summary {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-weight: bold;
+  background: #ecf0f1;
+  border-bottom: 1px solid #ccc;
+  list-style: none;
+}
+#addNamesDetails[open] summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+#addNamesDetails textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border: none;
+  resize: vertical;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background: #fff;
+  border-top: 1px solid #ccc;
+}
+
+/* Import format selector */
+.import-format-selector {
+  padding: 0.75rem 1rem;
+  background: #f9f9f9;
+  border-top: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.import-format-selector label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.import-format-selector select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+/* Action-Bar unter der Tabelle */
+.action-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Löschen-Button (rot) */
+#deleteBtn {
+  padding: 0.5rem 1rem;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+#deleteBtn:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+/* Drucken-Button (gelb) */
+#printBtn {
+  padding: 0.5rem 1rem;
+  background: #f1c40f;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+#printBtn:hover:not(:disabled) {
+  background: #d4ac0d;
+}
+
+/* Zurück-Button (grün) */
+#backBtn {
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+#backBtn:hover {
+  background: #1e8449;
+}
+
+/* Bulk Check-in/Check-out Buttons */
+.btn-bulk {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+#bulkCheckinBtn {
+  background: #3498db;
+  color: #fff;
+}
+
+#bulkCheckinBtn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+#bulkCheckoutBtn {
+  background: #e67e22;
+  color: #fff;
+}
+
+#bulkCheckoutBtn:hover:not(:disabled) {
+  background: #d35400;
+}
+
+.btn-bulk:disabled {
+  background: #bdc3c7;
+  color: #7f8c8d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Toggle button states */
+.btn-bulk.btn-undo {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.btn-bulk.btn-undo:hover:not(:disabled) {
+  background: #c0392b;
+}
+
+.btn-bulk.btn-mixed {
+  background: #f39c12;
+  color: #fff;
+}
+
+.btn-bulk.btn-mixed:hover:not(:disabled) {
+  background: #e67e22;
+}
+
+/* Disabled state for all action bar buttons */
+.action-bar button:disabled {
+  background: #bdc3c7;
+  color: #7f8c8d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.action-bar button:disabled:hover {
+  background: #bdc3c7;
+  transform: none;
+}
+
+/* Importieren-Button */
+#importNamesBtn {
+  display: inline-block;
+  margin: 0.75rem auto 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: center;
+}
+#importNamesBtn:hover {
+  background: #1e8449;
+}
+
+/* Modal-Grundgerüst */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.hidden {
+  display: none;
+}
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+}
+.modal-content {
+  position: relative;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  z-index: 1001;
+  max-width: 400px;
+  width: 90%;
+}
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.arr-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.arr-buttons button {
+  flex: 1 1 45%;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+.arr-buttons button:hover {
+  background: #e0e0e0;
+}
+/* Arrangement-Button (lila) */
+.btn-arrangement {
+  padding: 0.5rem 1rem;
+  background: rebeccapurple;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-arrangement:hover:not(:disabled) {
+  background: indigo;
+}
+/* -----------------------------------
+   Modal-Buttons (Arrangement & Drucker)
+   ----------------------------------- */
+
+/* alle Buttons in .modal-content */
+.modal-content button {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.6rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.modal-content button:hover {
+  background: #1e8449;
+}
+
+/* optional: einen spezifischen Klassennamen für Drucker-Buttons */
+.printer-btn {
+  background: #f1c40f;
+  color: #333;
+}
+.printer-btn:hover {
+  background: #d4ac0d;
+}
+
+/* ===========================
+   Reservation-Detail Styles
+   =========================== */
+/* (... bestehender Inhalt wie filecite turn13file0 ...) */
+
+/* Diät-Zelle wie Arrangement */
+.names-list td .diet-cell,
+.names-list td .arr-cell {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Globaler Diät-Button (lila) */
+.btn-diet {
+  padding: 0.5rem 1rem;
+  background: steelblue;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-diet:hover:not(:disabled) {
+  background: #3b6c95;
+}
+/* Check-in/Check-out Zellen */
+.names-list td.checked-in {
+  background: #d4edda;  /* hellgrün */
+}
+.names-list td.checked-out {
+  background: #d1ecf1;  /* hellblau */
+}
+
+/* Icon für noch nicht gecheckt */
+.notyet-icon {
+  width: 1em;
+  vertical-align: middle;
+}
+/* Check-in/Check-out Zellen – immer klickbar */
+.checkin-cell,
+.checkout-cell {
+  cursor: pointer;
+}
+
+/* Hintergrundfarben bleiben wie gehabt */
+.names-list td.checked-in {
+  background: #d4edda;
+}
+.names-list td.checked-out {
+  background: #d1ecf1;
+}
+/* Guide-Zelle klickbar machen */
+.names-list td.guide-cell {
+  cursor: pointer;
+}
+td.arr-cell {
+  cursor: pointer;
+}
+td.diet-cell {
+  cursor: pointer;
+}
+.header-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.room-list {
+  max-height: calc(1.5em * 4); /* 4 Zeilen */
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.5em;
+  border: 1px solid var(--light-gray);
+  padding: 0.5rem;
+  background: var(--bg);
+}
+.header-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* deine rechte Spalte */
+.header-right {
+  background: var(--light-gray);
+  color: var(--text);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+/* optional: Abstand zwischen den Zeilen */
+.room-item {
+  margin-bottom: 0.5rem;
+}
+/* Header-Grid: zwei Spalten */
+.header-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Linke Spalte: Name, Datum, Arrangement etc. */
+.header-left {
+  /* Basis-Schriftgröße etwas anheben */
+  font-size: 1.2rem;
+  line-height: 1.4;
+}
+/* Name fett und deutlich größer */
+.header-left strong {
+  display: block;
+  font-size: 1.6rem;
+  margin-bottom: 0.25em;
+}
+
+/* Keine Scrollbars mehr auf der äußeren Box */
+.header-right {
+  background: rgba(0,0,0,0.2);
+  border: none;
+  color: var(--text);
+  padding: 0.75rem;
+  border-radius: 6px;
+  /* max-height/overflow entfernen */
+}
+
+.room-list {
+  max-height: 200px;
+    border: none;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.2em;  /* engerer Zeilenabstand */
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.room-list .room-item {
+    color: #fff;         /* weißer Text */
+  font-size: 1rem;     /* etwas größere Schrift */
+  line-height: 1.4;    /* Abstand zwischen den Zeilen */
+  background: transparent;
+  padding: 0.1rem 0;    /* weniger vertikaler Abstand */
+  margin-bottom: 0.1rem;/* optional: minimaler Abstand zwischen den Items */
+  border-bottom: none;
+}
+
+
+/* Dezente Scrollbar nur für WebKit-Browser */
+.room-list::-webkit-scrollbar {
+  width: 6px;
+}
+.room-list::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+/* ----------------------------------------
+   Reservation-Detail: Header-Left Semantic
+   ---------------------------------------- */
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;         /* Minimaler Abstand zwischen den Blöcken */
+  font-size: 1rem;
+  color: #fff;
+}
+
+/* Name */
+.header-left .rd-name {
+  font-size: 1.4rem;    /* Etwas kleinere Schrift */
+  font-weight: bold;
+  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+}
+
+/* Schlafkategorien */
+.header-left .rd-cats {
+  font-style: italic;
+  font-size: 0.85rem;   /* Kleinere Schrift */
+  opacity: 0.8;
+  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+}
+
+/* Datum */
+.header-left .rd-dates {
+  font-size: 1rem;      /* Kleinere Schrift */
+  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+}
+
+/* Label-Span (Arrangement, Herkunft, Bemerkung) */
+.header-left .rd-label {
+  font-weight: 600;
+}
+
+/* Arrangement / Herkunft / Bemerkung */
+.header-left .rd-arr,
+.header-left .rd-origin,
+.header-left .rd-remark {
+  font-size: 0.9rem;    /* Kleinere Schrift */
+  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+}
+
+/* Arrangement Button im Header */
+.arrangement-btn {
+  background: #3498db;
+  border: 1px solid #2980b9;
+  color: #fff;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 4px 8px;
+  margin: 0;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.arrangement-btn:hover {
+  background: #2980b9;
+  border-color: #1c5a85;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+}
+
+.arrangement-btn:active {
+  background: #1c5a85;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Name-Spalte links ausrichten und klickbar machen */
+.names-list .name-cell {
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Bemerkung-Spalte klickbar machen */
+.names-list .bem-cell {
+  cursor: pointer;
+}
+
+/* Three-dot menu styling */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.header-menu {
+  position: relative;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  z-index: 1000;
+  margin-top: 0.25rem;
+}
+
+.dropdown-menu.hidden {
+  display: none;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.dropdown-item:first-child {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.dropdown-item:last-child {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* Custom Confirmation Modal */
+#confirmModal .modal-content {
+  max-width: 450px;
+  text-align: center;
+}
+
+#confirmModalTitle {
+  color: #e74c3c;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+#confirmModalMessage {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: #333;
+}
+
+#confirmModalQuestion {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-confirm {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-confirm:hover {
+  background: #c0392b;
+}
+
+.btn-cancel {
+  background: #95a5a6;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #7f8c8d;
+}
+
+/* Verbindungsstatus in der Navigation */
+.connection-status-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  color: rgba(255,255,255,0.9);
+  margin-right: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.connection-status-nav:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.4);
+}
+
+.connection-status-nav .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+  background-color: #6c757d;
+  transition: background-color 0.3s ease;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.connection-status-nav .status-text {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

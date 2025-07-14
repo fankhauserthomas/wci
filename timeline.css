@@ -1,0 +1,690 @@
+/* Timeline Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 10px;
+    background-color: #f5f5f5;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.date-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-group label {
+    font-weight: bold;
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+}
+
+.date-group input {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 12px;
+    min-width: 120px;
+}
+
+.btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    background: #0056b3;
+}
+
+.timeline-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 400px; /* Feste Höhe für Resize */
+}
+
+/* Hauptcontainer für alle Timeline-Bereiche */
+.main-areas-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px); /* Volle Höhe minus Header */
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 20px;
+    position: relative; /* Wichtig für absolute Positionierung des Separators */
+}
+
+/* 1. Datumsheader-Bereich (fixiert oben) */
+.timeline-header-area {
+    flex: none;
+    height: 40px; /* Gleiche Höhe wie room-header für Konsistenz */
+    background: #f8f9fa;
+    border-bottom: 2px solid #ddd;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* 2. Master-Reservierungen-Bereich */
+.master-reservations-area {
+    flex: 2;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 3. Zimmerzuteilung-Bereich */
+/* Zimmerbereich: Hintergrund hellblau für Sichtbarkeit */
+.room-assignment-area {
+    position: relative;
+    flex: 3;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #eee;
+    overflow-y: auto; /* Zentraler vertikaler Scroll für den gesamten Zimmerbereich */
+    overflow-x: hidden;
+}
+
+/* Room Content - Flex Layout für Labels + Timeline */
+.room-content {
+    display: flex;
+    flex: 1;
+    min-height: 100%; /* Stellt sicher, dass der Inhalt scrollbar ist */
+}
+
+/* Room Labels Column - Links vor dem vertikalen Separator */
+.room-labels-column {
+    width: 80px; /* Wird durch vertikalen Separator überschrieben */
+    background: #f5f5f5;
+    border-right: 1px solid #ddd;
+    padding: 2px;
+    font-size: 10px;
+    overflow: visible; /* Kein eigener Scroll mehr */
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+/* Room Timeline Column - Rechts nach dem vertikalen Separator */
+.room-timeline-column {
+    flex: 1;
+    overflow: visible; /* Kein eigener Scroll mehr */
+    background: transparent;
+}
+
+/* ENTFERNT: Alte Room-Header Struktur */
+
+/* Zimmer-Labels Items */
+.room-label-item {
+    padding: 2px 4px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 9px;
+    color: #333;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 1px;
+    min-height: 16px; /* Minimale Höhe, wird durch JavaScript angepasst */
+    height: 16px; /* Standard-Höhe, wird durch JavaScript überschrieben */
+    display: flex;
+    align-items: center; /* Vertikal zentriert */
+    box-sizing: border-box;
+    transition: height 0.3s ease; /* Sanfte Höhenänderung */
+}
+
+.room-label-item:last-child {
+    border-bottom: none;
+}
+
+/* Force dynamic height for room labels - high specificity */
+.room-label-item[style*="height"] {
+    height: var(--dynamic-height) !important;
+    min-height: var(--dynamic-height) !important;
+    line-height: var(--dynamic-height) !important;
+}
+
+/* 4. Histogramm-Bereich */
+.histogram-area {
+    flex: 1;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #eee;
+}
+
+/* Container für mehrere Zimmer-Zeilen - NUR vertikaler Scroll */
+.timeline-rows-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden; /* Kein horizontaler Scroll hier */
+    background: transparent !important;
+    /* ENTFERNT: margin-left nicht mehr nötig, da in room-timeline-column */
+}
+
+/* Zimmer-Zeilen im room-assignment-area haben kein eigenes Label mehr */
+.room-assignment-area .timeline-row {
+    display: block; /* Nicht flex, da kein Label */
+    width: 100%;
+    border-bottom: 1px solid #ccc; /* Graue horizontale Linie zwischen Zimmern */
+    margin-bottom: 1px; /* Kleiner Abstand */
+}
+
+.room-assignment-area .timeline-row:last-child {
+    border-bottom: none; /* Letzte Zeile ohne Linie */
+}
+
+.room-assignment-area .room-timeline-content {
+    width: 100% !important; /* Volle Breite */
+    margin-left: 0 !important; /* Kein Abstand links */
+}
+
+/* Alle Timeline-Content Bereiche MIT horizontalem Scroll (aber unsichtbar) */
+.timeline-content, 
+#timeline-content-master,
+#timeline-content-histogram {
+    flex: 1;
+    position: relative;
+    overflow-x: auto; /* Horizontaler Scroll aktiviert */
+    overflow-y: hidden;
+    background: transparent !important;
+    min-height: 40px;
+}
+
+/* Scrollbar verstecken aber Scroll-Funktionalität behalten */
+.timeline-content::-webkit-scrollbar,
+#timeline-content-master::-webkit-scrollbar,
+#timeline-content-histogram::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+    display: none;
+}
+
+/* Zimmer-Timeline-Content mit horizontalem Scroll (aber unsichtbar) */
+.room-timeline-content {
+    flex: 1;
+    position: relative;
+    overflow-x: auto; /* Horizontaler Scroll aktiviert */
+    overflow-y: hidden;
+    height: 40px; /* Testweise erhöht für Sichtbarkeit der Layer */
+    min-height: 40px;
+    margin: 0;
+    padding: 0;
+}
+/* Debug-Overlay sichtbar machen, falls JS-Style überschrieben wird */
+.debug-foreground {
+    position: absolute !important;
+    left: 40px !important;
+    top: 10px !important;
+    width: 120px !important;
+    height: 40px !important;
+    background: rgba(255,0,0,0.5) !important;
+    z-index: 10000 !important;
+    pointer-events: none !important;
+    border: 2px solid #900 !important;
+    color: #fff;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Scrollbar verstecken für Zimmer-Content */
+.room-timeline-content::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+    display: none;
+}
+
+/* Scroll-Synchronisation - Header MIT horizontalem Scroll (aber unsichtbar) */
+.timeline-dates {
+    flex: 1;
+    display: flex;
+    padding: 5px 0; /* Reduziert von 10px auf 5px */
+    overflow-x: auto; /* Horizontaler Scroll aktiviert */
+    overflow-y: hidden;
+}
+
+/* Scrollbar verstecken für timeline-dates */
+.timeline-dates::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+    display: none;
+}
+
+.timeline-header {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    height: 100%; /* Volle Höhe der timeline-header-area nutzen */
+}
+
+.timeline-sidebar {
+    width: var(--day-width, 80px); /* Standard-Breite, wird durch vertikalen Separator angepasst */
+    padding: 8px 5px; /* Reduziert von 15px auf 8px */
+    border-right: 1px solid #ddd;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333; /* Sichtbarer Text */
+    background: #f5f5f5;
+}
+
+.date-column {
+    width: var(--day-width, 80px);
+    min-width: var(--day-width, 80px);
+    max-width: var(--day-width, 80px);
+    flex: none !important; /* Verhindert Flex-Verhalten */
+    text-align: center;
+    border-right: 1px solid #ddd; /* Stärkere Gitternetzlinie */
+    padding: 2px; /* Reduziert von 5px auf 2px */
+    font-size: 11px; /* Reduziert von 12px auf 11px */
+    font-weight: bold;
+    box-sizing: border-box;
+    margin: 0;
+    border: none;
+    outline: none;
+}
+
+.timeline-row {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    height: 14px; /* Feste Höhe statt min-height */
+    margin: 0;
+    padding: 0;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* Master-Bereich: Hohe Zeile für Stacking aller Reservierungen */
+.master-reservations-area .timeline-row {
+    min-height: 300px; /* Hohe Zeile für Stacking */
+}
+
+.row-label {
+    width: var(--day-width, 80px);
+    padding: 0;
+    margin: 0;
+    border-right: 1px solid #ddd;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: 14px;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.row-label span {
+    /* HORIZONTAL für alle Zimmer-Captions */
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: bold;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 70px;
+    /* Kein Transform mehr - horizontal schreiben */
+}
+
+/* Master-Reservierungen Label (bleibt rotiert) */
+.master-reservations-area .row-label span {
+    transform: rotate(-90deg);
+    font-size: 12px;
+}
+
+.timeline-content {
+    flex: 1;
+    position: relative;
+    overflow-x: auto;
+    overflow-y: hidden; /* Kein vertikaler Scroll in Timeline */
+    background: transparent !important;
+    /* Gitternetzlinien werden als DOM-Elemente erstellt */
+}
+
+.reservation-bar {
+    position: absolute;
+    height: 14px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: white;
+    padding: 2px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none; /* Text nicht selektierbar */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    z-index: 10; /* Reservierungs-Balken über allen Hintergründen */
+}
+
+/* Indicator-Icons Container (rechtsbündig im Vordergrund) */
+.reservation-indicators {
+    position: absolute;
+    right: 2px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.reservation-indicator {
+    width: 12px;
+    height: 12px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.9;
+}
+
+.indicator-dog {
+    background-image: url('pic/dog.svg');
+}
+
+/* Weitere Indikatoren für die Zukunft */
+.indicator-wifi {
+    background-image: url('pic/wifi.svg');
+}
+
+.indicator-food {
+    background-image: url('pic/food.svg');
+}
+
+.indicator-parking {
+    background-image: url('pic/parking.svg');
+}
+
+.reservation-bar:hover {
+    transform: scale(1.05);
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Farbcodierung nach Kapazität */
+.capacity-1-2 { background-color: #28a745; }
+.capacity-3-5 { background-color: #17a2b8; }
+.capacity-6-10 { background-color: #ffc107; color: #000; }
+.capacity-11-20 { background-color: #fd7e14; }
+.capacity-20-plus { background-color: #dc3545; }
+
+/* Horizontaler Separator (draggable) */
+.horizontal-separator {
+    height: 4px;
+    background: #ddd;
+    cursor: row-resize;
+    position: relative;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    flex: none;
+}
+
+.horizontal-separator:hover {
+    background: #bbb;
+}
+
+.horizontal-separator::after {
+    content: '⋯';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+
+/* Container für den zentralen Scrollbar */
+.main-scrollbar-container {
+    position: relative;
+    width: 100%;
+    flex: none;
+    border-top: 1px solid #ddd;
+}
+
+/* Zentraler Scrollbar (sichtbar für horizontales Scrollen!) */
+.main-scrollbar {
+    height: 15px;
+    background: #f8f9fa;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: none;
+    width: 100%;
+}
+
+.scroll-track {
+    height: 1px;
+    background: transparent;
+    /* Breite wird dynamisch gesetzt */
+}
+
+/* Vertikaler Separator für Caption-Breite (draggable) */
+.vertical-separator {
+    position: absolute;
+    left: 80px; /* Standard-Breite der Caption-Fläche */
+    top: 0; /* Beginnt am absoluten Anfang (teilt auch den Header) */
+    bottom: 15px; /* Endet vor dem Scrollbar */
+    width: 4px;
+    background: #ddd;
+    cursor: col-resize;
+    z-index: 200;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+}
+
+.vertical-separator:hover {
+    background: #bbb;
+}
+
+.vertical-separator::after {
+    content: '⋮';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    color: #666;
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+
+/* Hauptcontainer für alle Timeline-Bereiche */
+
+/* Timeline-Header exakt wie Timeline-Content ausrichten */
+.timeline-dates {
+    display: flex;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    flex: none;
+}
+
+.date-column {
+    flex: none !important;
+    box-sizing: border-box;
+    padding: 2px;
+    margin: 0;
+    border: none;
+    outline: none;
+    text-align: center;
+    border-right: 1px solid #ddd;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+/* Timeline-Content Container gleiche Ausrichtung */
+.timeline-content,
+#timeline-content-master,
+#timeline-content-histogram,
+.room-timeline-content {
+    position: relative;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+}
+
+/* Alle Container gleiche Scroll-Ausrichtung */
+.timeline-dates,
+.timeline-content,
+#timeline-content-master,
+#timeline-content-histogram,
+.room-timeline-content {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.timeline-dates::-webkit-scrollbar,
+.timeline-content::-webkit-scrollbar,
+#timeline-content-master::-webkit-scrollbar,
+#timeline-content-histogram::-webkit-scrollbar,
+.room-timeline-content::-webkit-scrollbar {
+    display: none;
+}
+
+/* Debug-Konsole verstecken */
+#debug-console {
+    display: none !important;
+}
+
+/* Zimmer-Reservierungs-Balken */
+.room-reservation-bar {
+    transition: all 0.2s ease;
+    font-family: Arial, sans-serif;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+}
+
+.room-reservation-bar:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 20 !important;
+}
+
+/* CSS für gestapelte Zimmerreservierungen */
+.room-row {
+    transition: height 0.3s ease;
+    overflow: visible;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.room-timeline-content {
+    overflow: visible !important;
+    position: relative;
+}
+
+/* Gestapelte Zimmer-Reservierungs-Balken */
+.room-reservation-bar {
+    transition: all 0.2s ease;
+    font-family: Arial, sans-serif;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.room-reservation-bar:hover {
+    transform: scale(1.02) !important;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25) !important;
+    z-index: 100 !important;
+}
+
+/* Verschiedene Farben für gestapelte Balken zur besseren Unterscheidung */
+.room-reservation-bar:nth-child(2n) {
+    filter: brightness(1.1);
+}
+
+.room-reservation-bar:nth-child(3n) {
+    filter: brightness(0.9);
+}
+
+/* Arrangement-Anzeige in gestapelten Balken */
+.room-reservation-bar .arrangement {
+    font-size: 8px;
+    opacity: 0.9;
+    font-style: italic;
+}
+
+/* Disposition Status Styles */
+.reservation-item.disposed {
+    opacity: 0.6;
+    border-left: 3px solid #27ae60;
+    background-color: #e8f5e8 !important;
+}
+
+.reservation-item.undisposed {
+    border-left: 3px solid #e74c3c;
+    background-color: #fdf2f2 !important;
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+}
+
+.reservation-item.disposed .reservation-content {
+    color: #2d5a2d;
+}
+
+.reservation-item.undisposed .reservation-content {
+    color: #8b0000;
+    font-weight: bold;
+}
+
+/* Hover effects for disposition status */
+.reservation-item.disposed:hover {
+    opacity: 0.8;
+    border-left-color: #219a52;
+}
+
+.reservation-item.undisposed:hover {
+    border-left-color: #c0392b;
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* Filter Info Styles */
+.filter-info {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+}
+
+.filter-info small {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Hauptcontainer für alle Timeline-Bereiche */

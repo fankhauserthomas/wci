@@ -1,0 +1,522 @@
+/* Zimmerplan CSS */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-group label {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+input[type="date"], select {
+    padding: 0.5rem;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 0.9rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.btn.primary {
+    background: #4CAF50;
+}
+
+.btn.primary:hover {
+    background: #45a049;
+}
+
+.main-content {
+    padding: 2rem;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.timeline-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.timeline-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.timeline-info {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+#timeline {
+    height: 600px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.stats {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+}
+
+.stats h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 6px;
+    background: #f8f9fa;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.legend {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.legend h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.legend-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-color {
+    width: 20px;
+    height: 15px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+.legend-color.cap-1-2 { background-color: #4CAF50; }
+.legend-color.cap-3-5 { background-color: #9E9E9E; }
+.legend-color.cap-6-10 { background-color: #FF9800; }
+.legend-color.cap-11-20 { background-color: #FF5722; }
+.legend-color.cap-20-plus { background-color: #F44336; }
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 400px;
+    font-size: 1.1rem;
+    color: #666;
+}
+
+.error {
+    background: #ffe6e6;
+    color: #d63031;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+    border-left: 4px solid #d63031;
+}
+
+.back-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    z-index: 1000;
+    transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+    background: rgba(0,0,0,0.9);
+}
+
+/* VIS.JS Timeline Anpassungen für optimale Raumausnutzung mit Greedy-Stacking */
+.vis-timeline {
+    font-size: 9px; /* Kleinere Schrift */
+}
+
+.vis-item {
+    border-radius: 2px !important;
+    border-width: 1px !important;
+    font-size: 9px !important; /* Kleinere Schrift */
+    font-weight: 500 !important;
+    color: white !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.4) !important;
+    height: 18px !important; /* 18px für 20px Zeilenhöhe */
+    line-height: 18px !important; /* Perfekte vertikale Zentrierung */
+    padding: 0px 3px !important; /* Nur horizontales Padding */
+    margin: 1px 0 !important; /* 1px oben/unten für Zentrierung in 20px Zeile */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important; /* CSS Flexbox für vertikale Zentrierung */
+    justify-content: flex-start !important; /* Text linksbündig */
+    box-sizing: border-box !important;
+    position: relative !important;
+    top: 1px !important; /* Zentriert in 20px Zeile */
+}
+
+.vis-item .vis-item-content {
+    height: 18px !important;
+    line-height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.vis-item.vis-box {
+    height: 18px !important;
+    line-height: 16px !important;
+    top: 1px !important;
+}
+
+.vis-item.vis-range {
+    height: 18px !important;
+    line-height: 16px !important;
+    top: 1px !important;
+}
+
+/* Kapazitäts-basierte Farbcodierung */
+.vis-item.cap-1-2 {
+    background-color: #4CAF50;
+    border-color: #45a049;
+}
+
+.vis-item.cap-3-5 {
+    background-color: #9E9E9E;
+    border-color: #757575;
+}
+
+.vis-item.cap-6-10 {
+    background-color: #FF9800;
+    border-color: #F57C00;
+}
+
+.vis-item.cap-11-20 {
+    background-color: #FF5722;
+    border-color: #E64A19;
+}
+
+.vis-item.cap-20-plus {
+    background-color: #F44336;
+    border-color: #D32F2F;
+}
+
+.vis-item:hover {
+    opacity: 0.8;
+    z-index: 999;
+    transform: scale(1.02); /* Leichter Zoom-Effekt beim Hover */
+}
+
+.vis-item.vis-selected {
+    background-color: #2196F3 !important;
+    border-color: #1976D2 !important;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* Timeline-Gruppen für 20px Zeilenhöhe optimiert */
+.vis-labelset .vis-label {
+    height: 20px !important; /* Exakt 20px Zeilenhöhe */
+    line-height: 20px !important; /* Vertikale Zentrierung */
+    font-size: 8px !important; /* Sehr kleine Schrift für Labels */
+    padding: 0px 3px !important; /* Nur horizontales Padding */
+    font-weight: 600;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important; /* Flexbox Zentrierung */
+    justify-content: center !important;
+    box-sizing: border-box !important;
+}
+
+.vis-itemset .vis-group {
+    height: 20px !important; /* Exakt 20px */
+    line-height: 20px !important;
+    margin: 0 !important; /* Kein Margin zwischen Gruppen */
+    padding: 0 !important; /* Kein Padding */
+    border: none !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+}
+
+/* Wichtige Overrides für die Group-Container */
+.vis-panel.vis-center .vis-group {
+    height: 20px !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+.vis-groupset {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.vis-group .vis-inner {
+    height: 20px !important;
+    line-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Minimaler Abstand zwischen Ebenen */
+.vis-panel.vis-center .vis-group {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Ebenen-spezifische Styles */
+.vis-labelset .vis-label[data-groupid^="stack_"] {
+    color: #495057;
+    text-align: center;
+}
+
+/* Alternating background für bessere visuelle Trennung */
+.vis-itemset .vis-group:nth-child(even) {
+    background-color: rgba(248, 249, 250, 0.2);
+}
+
+.vis-itemset .vis-group:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Zeitachse kompakter */
+.vis-time-axis .vis-text {
+    font-size: 9px;
+}
+
+.vis-time-axis .vis-text.vis-major {
+    font-weight: bold;
+    font-size: 10px;
+}
+
+/* Minimale Abstände für maximale Raumausnutzung */
+.vis-panel.vis-center {
+    margin-top: 0;
+    padding: 0;
+}
+
+.vis-itemset {
+    padding: 0;
+    margin: 0;
+}
+
+.vis-panel.vis-center .vis-groupset {
+    border-top: 1px solid #dee2e6;
+}
+
+/* Entferne überflüssige Abstände */
+.vis-panel.vis-center .vis-itemset .vis-background {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.vis-panel.vis-center .vis-itemset .vis-foreground {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Kompakte Timeline ohne Abstände */
+.vis-panel.vis-center {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.vis-itemset {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.vis-panel.vis-center .vis-groupset {
+    border-top: 1px solid #dee2e6;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Timeline-Container ohne Abstände */
+.vis-timeline {
+    border: 1px solid #dee2e6 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Wichtige Overrides für kompakte Darstellung */
+.vis-item.vis-range .vis-drag-center {
+    height: 18px !important;
+    line-height: 16px !important;
+    top: 0 !important;
+}
+
+.vis-item.vis-range .vis-drag-left,
+.vis-item.vis-range .vis-drag-right {
+    height: 18px !important;
+    top: 0 !important;
+}
+
+.vis-panel.vis-center .vis-itemset .vis-foreground {
+    margin: 0;
+}
+
+/* Optimierte Scrollbar */
+.vis-panel.vis-center::-webkit-scrollbar {
+    width: 6px;
+}
+
+.vis-panel.vis-center::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.vis-panel.vis-center::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.vis-panel.vis-center::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+    .header {
+        padding: 1rem;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-group {
+        justify-content: space-between;
+    }
+
+    #timeline {
+        height: 500px;
+    }
+
+    .timeline-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .legend-items {
+        grid-template-columns: 1fr;
+    }
+}

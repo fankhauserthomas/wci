@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Zimmerplan - Canvas Version</title>
+    <link rel="stylesheet" href="timeline-canvas.css">
+</head>
+<body>
+    <div class="header">
+        <div class="controls">
+            <div class="control-group">
+                <label for="startDate">Von:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="control-group">
+                <label for="endDate">Bis:</label>
+                <input type="date" id="endDate">
+            </div>
+            <button class="btn" onclick="loadRealData()">Echte Daten laden</button>
+            <button class="btn" onclick="resetDates()">Standard-Bereich</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <!-- Canvas für die gesamte Timeline -->
+        <canvas id="timeline-canvas"></canvas>
+        
+        <!-- Horizontaler Scrollbar -->
+        <div class="canvas-scrollbar" id="canvas-scrollbar">
+            <div class="canvas-scroll-track" id="canvas-scroll-track"></div>
+        </div>
+        <!-- Vertikaler Scrollbar fürs Master-Feld -->
+        <div class="master-scrollbar" id="master-scrollbar">
+            <div class="master-scroll-track" id="master-scroll-track"></div>
+        </div>
+        
+        <!-- Bereichs-Info (optional) -->
+        <div class="area-info" id="area-info">
+            Header: 50px | Master: 300px | Rooms: 400px | Histogram: 100px
+        </div>
+        
+        <!-- Details-Panel für Reservierungen -->
+        <div class="reservation-details" id="reservation-details">
+            <button class="close-btn" onclick="hideReservationDetails()">&times;</button>
+            <h3 id="detail-title">Reservierung</h3>
+            <div class="detail-grid" id="detail-content">
+                <!-- Details werden hier eingefügt -->
+            </div>
+        </div>
+    </div>
+
+    <script src="timeline-canvas.js"></script>
+    
+    <script>
+        // Zusätzliche UI-Funktionen
+        function hideReservationDetails() {
+            document.getElementById('reservation-details').classList.remove('visible');
+        }
+        
+        function showReservationDetails(reservation) {
+            const panel = document.getElementById('reservation-details');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+            
+            title.textContent = `${reservation.nachname || reservation.name}, ${reservation.vorname || ''}`;
+            
+            content.innerHTML = `
+                <div class="detail-item">
+                    <strong>Kapazität:</strong>
+                    ${reservation.capacity} Personen
+                </div>
+                <div class="detail-item">
+                    <strong>Arrangement:</strong>
+                    ${reservation.arrangement || 'Nicht zugewiesen'}
+                </div>
+                <div class="detail-item">
+                    <strong>Check-in:</strong>
+                    ${reservation.start.toLocaleDateString('de-DE')}
+                </div>
+                <div class="detail-item">
+                    <strong>Check-out:</strong>
+                    ${reservation.end.toLocaleDateString('de-DE')}
+                </div>
+                <div class="detail-item">
+                    <strong>Aufenthalt:</strong>
+                    ${Math.ceil((reservation.end - reservation.start) / (1000 * 60 * 60 * 24))} Tage
+                </div>
+                <div class="detail-item">
+                    <strong>Mit Hund:</strong>
+                    ${(reservation.fullData && reservation.fullData.has_dog) || reservation.hund ? '🐕 Ja' : 'Nein'}
+                </div>
+            `;
+            
+            if (reservation.fullData && reservation.fullData.notes) {
+                content.innerHTML += `
+                    <div class="detail-item" style="grid-column: 1 / -1;">
+                        <strong>Bemerkung:</strong>
+                        ${reservation.fullData.notes}
+                    </div>
+                `;
+            }
+            
+            panel.classList.add('visible');
+        }
+        
+        // Bereichshöhen-Info aktualisieren
+        function updateAreaInfo() {
+            const info = document.getElementById('area-info');
+            if (info && typeof HEADER_HEIGHT !== 'undefined') {
+                info.textContent = `Header: ${HEADER_HEIGHT}px | Master: ${MASTER_HEIGHT}px | Rooms: ${ROOM_HEIGHT}px | Histogram: ${HISTOGRAM_HEIGHT}px`;
+            }
+        }
+        
+        // Canvas-Resize-Handler
+        window.addEventListener('resize', () => {
+            if (typeof initializeCanvas === 'function') {
+                initializeCanvas();
+                if (typeof renderTimeline === 'function') {
+                    renderTimeline();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

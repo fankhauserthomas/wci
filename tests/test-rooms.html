@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Rooms API</title>
+</head>
+<body>
+    <h1>Test Rooms API</h1>
+    <div id="result"></div>
+    
+    <script>
+    async function testRooms() {
+        try {
+            console.log('Teste getRooms.php...');
+            
+            const result = window.HttpUtils
+                ? await HttpUtils.request('getRooms.php', {}, { retries: 2, timeout: 8000 }).then(r => r.text())
+                : await fetch('getRooms.php').then(response => {
+                    console.log('Response status:', response.status);
+                    return response.text();
+                });
+            
+            console.log('Response text:', result);
+            
+            const jsonResult = JSON.parse(result);
+            console.log('Parsed JSON:', jsonResult);
+            
+            document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(jsonResult, null, 2) + '</pre>';
+            
+        } catch (error) {
+            console.error('Fehler:', error);
+            document.getElementById('result').innerHTML = '<div style="color: red;">Fehler: ' + error.message + '</div>';
+        }
+    }
+    
+    // Automatisch beim Laden testen
+    testRooms();
+    </script>
+    <script src="js/http-utils.js"></script>
+</body>
+</html>

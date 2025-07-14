@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservierung anzeigen</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="reservation.css">
+</head>
+<body class="reservation">
+  <header>
+    <div id="resHeader" class="res-header">
+      <div class="header-content">
+        <div class="header-info"></div>
+        <div class="header-menu">
+          <div id="nav-connection-status" class="connection-status-nav">
+            <div class="status-dot"></div>
+            <span class="status-text">Unbekannt</span>
+          </div>
+          <button id="menuBtn" class="menu-btn">⋮</button>
+          <div id="dropdownMenu" class="dropdown-menu hidden">
+            <button id="editBtn" class="dropdown-item">Bearbeiten</button>
+            <button id="stornoBtn" class="dropdown-item">Storno</button>
+            <button id="backMenuBtn" class="dropdown-item">Zurück</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="reservation">
+
+    <div id="actionBar" class="action-bar">
+      <button id="deleteBtn">Löschen</button>
+      <button id="printBtn">Drucken</button>
+      <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
+      <button id="dietBtn" class="btn-diet">Diät…</button>  <!-- NEU -->
+      <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
+      <button id="bulkCheckoutBtn" class="btn-bulk" disabled>Bulk Check-out</button>
+      <button id="backBtn">Zurück zur Liste</button>
+    </div>
+
+    <div class="table-container">
+      <table id="namesTable" class="names-list">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>Name</th>
+            <th>Details</th>
+            <th>Alter</th>
+            <th>Bemerkung</th>
+            <th>BF</th>
+            <th>Arr</th>
+            <th>Diät</th>                <!-- NEU -->
+            <th>Check-in</th>
+            <th>Check-out</th>
+          </tr>
+        </thead>
+        <tbody><!-- via JS --></tbody>
+      </table>
+    </div>
+
+    <!-- Arrangement Modal -->
+    <div id="arrangementModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <span id="closeArrModal" class="modal-close">&times;</span>
+        <h2>Arrangement wählen</h2>
+        <div id="arrButtonsContainer" class="arr-buttons"></div>
+      </div>
+    </div>
+
+    <!-- Diet Modal -->
+    <div id="dietModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <span id="closeDietModal" class="modal-close">&times;</span>
+        <h2>Diät wählen</h2>
+        <div id="dietButtonsContainer" class="arr-buttons"></div>
+      </div>
+    </div>
+
+    <details id="addNamesDetails">
+      <summary>Namen hinzufügen</summary>
+      <div class="import-format-selector">
+        <label for="importFormat">Format:</label>
+        <select id="importFormat">
+          <option value="firstname-lastname">Vorname Nachname</option>
+          <option value="lastname-firstname">Nachname Vorname</option>
+        </select>
+      </div>
+      <textarea id="newNamesTextarea" rows="5"
+        placeholder="pro Zeile ein Eintrag"></textarea>
+      <button id="importNamesBtn">Importieren</button>
+    </details>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <span class="modal-close" id="confirmModalClose">&times;</span>
+        <h3 id="confirmModalTitle">Bestätigung</h3>
+        <div id="confirmModalMessage"></div>
+        <div id="confirmModalQuestion"></div>
+        <div class="modal-buttons">
+          <button id="confirmModalYes" class="btn-confirm">Ja</button>
+          <button id="confirmModalNo" class="btn-cancel">Nein</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- HTTP Utils für stabilere Verbindungen -->
+  <script src="js/http-utils.js"></script>
+  <!-- Loading Overlay für GUI-Sperrung -->
+  <script src="js/loading-overlay.js"></script>
+  <script src="reservation.js"></script>
+</body>
+</html>

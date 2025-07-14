@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Overlay Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔄 Loading Overlay System - Test</h1>
+        <p>Teste die verschiedenen Loading-Funktionen:</p>
+        
+        <h3>Basis-Tests:</h3>
+        <button onclick="testBasicLoading()">Einfaches Loading (3s)</button>
+        <button onclick="testWithMessage()">Custom Message (2s)</button>
+        <button onclick="testProgressBar()">Progress Bar Test</button>
+        
+        <h3>Erweiterte Tests:</h3>
+        <button onclick="testMultipleOperations()">Mehrere Operationen</button>
+        <button onclick="testBatchRequest()">Batch Request Simulation</button>
+        <button onclick="testWrapFunction()">Wrap Function Test</button>
+        
+        <h3>Fehler-Tests:</h3>
+        <button onclick="testErrorHandling()">Fehlerbehandlung</button>
+        <button onclick="testTimeout()">Timeout Test</button>
+        
+        <h3>Debug:</h3>
+        <button onclick="emergencyHide()">Emergency Hide (Ctrl+Shift+Esc)</button>
+        <button onclick="showCurrentState()">Status anzeigen</button>
+        
+        <div class="results" id="results">Bereit für Tests...\n</div>
+    </div>
+
+    <script src="js/loading-overlay.js"></script>
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            results.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // Basis Tests
+        async function testBasicLoading() {
+            log('🔄 Starte Basic Loading Test...');
+            LoadingOverlay.show('Laden...');
+            await delay(3000);
+            LoadingOverlay.hide();
+            log('✅ Basic Loading Test abgeschlossen');
+        }
+        
+        async function testWithMessage() {
+            log('💬 Starte Custom Message Test...');
+            LoadingOverlay.show('Verarbeite Daten...');
+            await delay(1000);
+            LoadingOverlay.updateMessage('Fast fertig...');
+            await delay(1000);
+            LoadingOverlay.hide();
+            log('✅ Custom Message Test abgeschlossen');
+        }
+        
+        async function testProgressBar() {
+            log('📊 Starte Progress Bar Test...');
+            LoadingOverlay.show('Progress Test...');
+            
+            for (let i = 0; i <= 10; i++) {
+                LoadingOverlay.showProgress(i, 10, `Schritt ${i}/10`);
+                await delay(300);
+            }
+            
+            LoadingOverlay.hideProgress();
+            LoadingOverlay.hide();
+            log('✅ Progress Bar Test abgeschlossen');
+        }
+        
+        // Erweiterte Tests
+        async function testMultipleOperations() {
+            log('🔀 Starte Multiple Operations Test...');
+            
+            const op1 = LoadingOverlay.registerOperation('op1', 'Operation 1 läuft...');
+            const op2 = LoadingOverlay.registerOperation('op2', 'Operation 2 läuft...');
+            
+            await delay(1000);
+            LoadingOverlay.unregisterOperation(op1);
+            log('📝 Operation 1 beendet');
+            
+            await delay(1000);
+            LoadingOverlay.unregisterOperation(op2);
+            log('✅ Multiple Operations Test abgeschlossen');
+        }
+        
+        async function testBatchRequest() {
+            log('📦 Starte Batch Request Simulation...');
+            
+            // Simuliere 8 Requests
+            const requests = Array.from({length: 8}, (_, i) => ({
+                url: `fake-request-${i}`,
+                options: { method: 'POST' }
+            }));
+            
+            const result = await LoadingOverlay.batchRequestWithLoading(requests, {
+                concurrency: 3
+            }, 'Batch-Verarbeitung läuft...');
+            
+            log(`📊 Batch Result: ${result.successCount}/${requests.length} erfolgreich`);
+            log('✅ Batch Request Test abgeschlossen');
+        }
+        
+        async function testWrapFunction() {
+            log('🎁 Starte Wrap Function Test...');
+            
+            const result = await LoadingOverlay.wrap(async () => {
+                await delay(2000);
+                return 'Erfolgreich!';
+            }, 'Wrapped Operation...');
+            
+            log(`📤 Wrap Result: ${result}`);
+            log('✅ Wrap Function Test abgeschlossen');
+        }
+        
+        // Fehler Tests
+        async function testErrorHandling() {
+            log('⚠️ Starte Error Handling Test...');
+            
+            try {
+                await LoadingOverlay.wrap(async () => {
+                    await delay(1000);
+                    throw new Error('Simulierter Fehler');
+                }, 'Fehler-Test...');
+            } catch (error) {
+                log(`❌ Erwarteter Fehler abgefangen: ${error.message}`);
+            }
+            
+            log('✅ Error Handling Test abgeschlossen');
+        }
+        
+        async function testTimeout() {
+            log('⏱️ Starte Timeout Test...');
+            LoadingOverlay.show('Timeout Test - sollte nach 5s verschwinden...');
+            
+            setTimeout(() => {
+                LoadingOverlay.hide();
+                log('⏰ Timeout erreicht - Overlay versteckt');
+            }, 5000);
+        }
+        
+        // Debug Functions
+        function emergencyHide() {
+            log('🆘 Emergency Hide ausgelöst');
+            LoadingOverlay.currentOperations.clear();
+            LoadingOverlay.hide();
+        }
+        
+        function showCurrentState() {
+            const state = {
+                isVisible: LoadingOverlay.isVisible,
+                operationsCount: LoadingOverlay.currentOperations.size,
+                operations: Array.from(LoadingOverlay.currentOperations)
+            };
+            log(`📊 Current State: ${JSON.stringify(state, null, 2)}`);
+        }
+        
+        // Initial State
+        log('🚀 Loading Overlay Test Page geladen');
+        log('💡 Tipp: Drücke Ctrl+Shift+Esc für Emergency Hide');
+    </script>
+</body>
+</html>

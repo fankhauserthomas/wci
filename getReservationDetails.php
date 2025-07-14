@@ -1,0 +1,93 @@
+<?php
+// getReservationDetails.php
+header('Content-Type: application/json; charset=utf-8');
+require 'config.php';
+
+// 0) ID validieren
+$id = $_GET['id'] ?? '';
+if (!ctype_digit($id)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Ungültige Reservierungs-ID']);
+    exit;
+}
+
+// 1) Reservierungs-Basisdaten abfragen (inkl. Betten/DZ/Lager/Sonder)
+$sql1 = "
+SELECT
+    r.id,
+    DATE_FORMAT(r.anreise, '%Y-%m-%dT%H:%i:%s') AS anreise,
+    DATE_FORMAT(r.abreise, '%Y-%m-%dT%H:%i:%s') AS abreise,
+    r.betten,
+    r.dz,
+    r.lager,
+    r.sonder,
+    (r.betten + r.dz + r.lager + r.sonder) AS anzahl,
+    IFNULL(r.nachname, '') AS nachname,
+    IFNULL(r.vorname, '')  AS vorname,
+    a.kbez                AS arrangement,
+    r.bem,
+    r.bem_av,
+    o.country             AS origin
+FROM `AV-Res` r
+LEFT JOIN arr    a ON r.arr    = a.ID
+LEFT JOIN origin o ON r.origin = o.id
+WHERE r.id = ?
+LIMIT 1
+";
+$stmt1 = $mysqli->prepare($sql1);
+if (!$stmt1) {
+    http_response_code(500);
+    echo json_encode(['error' => 'DB-Fehler (prepare1): '.$mysqli->error], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+$stmt1->bind_param('i', $id);
+$stmt1->execute();
+$res1 = $stmt1->get_result();
+if ($res1->num_rows === 0) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Reservierung nicht gefunden']);
+    exit;
+}
+$detail = $res1->fetch_assoc();
+$stmt1->close();
+
+// 2) Zimmer-Details abfragen
+$sql2 = "
+SELECT
+    z.caption,
+    z.kapazitaet,
+    z.kategorie,
+    d.bez   AS gast,
+    d.anz
+FROM `AV_ResDet` d
+JOIN `zp_zimmer` z ON z.id = d.zimID
+WHERE d.resid = ?
+ORDER BY z.caption
+";
+$stmt2 = $mysqli->prepare($sql2);
+if (!$stmt2) {
+    http_response_code(500);
+    echo json_encode(['error' => 'DB-Fehler (prepare2): '.$mysqli->error], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+$stmt2->bind_param('i', $id);
+$stmt2->execute();
+$stmt2->bind_result($caption, $kapazitaet, $kategorie, $gast, $anz);
+
+$rooms = [];
+while ($stmt2->fetch()) {
+    $rooms[] = [
+        'caption'    => $caption,
+        'kapazitaet' => (int)$kapazitaet,
+        'kategorie'  => $kategorie,
+        'gast'       => $gast,
+        'anz'        => (int)$anz,
+    ];
+}
+$stmt2->close();
+
+// 3) Ausgabe
+echo json_encode([
+    'detail' => $detail,
+    'rooms'  => $rooms,
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

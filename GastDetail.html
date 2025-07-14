@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gast-Details bearbeiten</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="reservation.css">
+</head>
+<body>
+  <header>
+    <h1>Gast-Details</h1>
+  </header>
+  <main>
+    <div class="form-container">
+      <form id="gastForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nachname">Nachname:</label>
+            <input type="text" id="nachname" name="nachname">
+          </div>
+          <div class="form-group">
+            <label for="vorname">Vorname:</label>
+            <input type="text" id="vorname" name="vorname">
+          </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="gebdat">Geburtsdatum:</label>
+                <input type="date" id="gebdat" name="gebdat">
+            </div>
+            <div class="form-group">
+                <label for="herkunft">Herkunft:</label>
+                <select id="herkunft" name="herkunft"></select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group form-group-checkbox">
+                <input type="checkbox" id="guide" name="guide">
+                <label for="guide">Guide</label>
+            </div>
+            <div class="form-group">
+                <label for="arrangement">Arrangement:</label>
+                <select id="arrangement" name="arrangement"></select>
+            </div>
+            <div class="form-group">
+                <label for="diet">Diät:</label>
+                <select id="diet" name="diet"></select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group full-width">
+                <label for="dietInfo">Info Küche</label>
+                <input type="text" id="dietInfo" name="dietInfo" placeholder="Zusatzinfos für die Küche...">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group transport-group">
+                <label for="transport">Transport (€)</label>
+                <div class="transport-controls">
+                    <input type="text" id="transport" name="transport" class="transport-input"
+                           placeholder="0,00 €"
+                           pattern="^\d+(?:[\.,]\d{1,2})?$"
+                           title="Nur Zahlen mit optionalem , oder . und zwei Nachkommastellen">
+                    <div class="transport-buttons">
+                        <button type="button" class="transport-btn" data-value="-10">-10</button>
+                        <button type="button" class="transport-btn" data-value="-5">-5</button>
+                        <button type="button" class="transport-btn" data-value="-1">-1</button>
+                        <button type="button" class="transport-btn clear" data-value="0">C</button>
+                        <button type="button" class="transport-btn" data-value="+1">+1</button>
+                        <button type="button" class="transport-btn" data-value="+5">+5</button>
+                        <button type="button" class="transport-btn" data-value="+10">+10</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group full-width">
+                <label for="bem">Bemerkung</label>
+                <textarea id="bem" name="bem" rows="3"></textarea>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn-save">Speichern</button>
+            <button type="button" class="btn-close" onclick="history.back()">Schließen</button>
+        </div>
+      </form>
+    </div>
+  </main>
+  <script>
+    // ID aus URL holen
+    const urlParams = new URLSearchParams(window.location.search);
+    const gastId = urlParams.get('id');
+
+    let gastData = null;
+    let countriesLoaded = false;
+    let arrangementsLoaded = false;
+    let dietsLoaded = false;
+
+    // Länder laden
+    const loadCountries = async () => {
+      try {
+        const countries = window.HttpUtils
+          ? await HttpUtils.requestJson('getCountries.php', {}, { retries: 2, timeout: 8000 })
+          : await fetch('getCountries.php').then(r => r.json());
+        
+        const select = document.getElementById('herkunft');
+        countries.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          select.appendChild(opt);
+        });
+        countriesLoaded = true;
+        checkAllLoaded();
+      } catch (error) {
+        console.error('Fehler beim Laden der Länder:', error);
+        countriesLoaded = true; // Set to true to not block the app
+        checkAllLoaded();
+      }
+    };
+    loadCountries();
+
+    // Arrangements laden
+    const loadArrangements = async () => {
+      try {
+        const arrangements = window.HttpUtils
+          ? await HttpUtils.requestJson('getArrangements.php', {}, { retries: 2, timeout: 8000 })
+          : await fetch('getArrangements.php').then(r => r.json());
+        
+        const select = document.getElementById('arrangement');
+        // Empty option für "keine Auswahl"
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Auswählen --';
+        select.appendChild(emptyOpt);
+        
+        arrangements.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = a.kbez;
+          select.appendChild(opt);
+        });
+        arrangementsLoaded = true;
+        checkAllLoaded();
+      } catch (error) {
+        console.error('Fehler beim Laden der Arrangements:', error);
+        arrangementsLoaded = true; // Set to true to not block the app
+        checkAllLoaded();
+      }
+    };
+    loadArrangements();
+
+    // Diäten laden
+    const loadDiets = async () => {
+      try {
+        const diets = window.HttpUtils
+          ? await HttpUtils.requestJson('getDiets.php', {}, { retries: 2, timeout: 8000 })
+          : await fetch('getDiets.php').then(r => r.json());
+        
+        const select = document.getElementById('diet');
+        // Empty option für "keine Auswahl"
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Auswählen --';
+        select.appendChild(emptyOpt);
+        
+        diets.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = d.bez;
+          select.appendChild(opt);
+        });
+        dietsLoaded = true;
+        checkAllLoaded();
+      } catch (error) {
+        console.error('Fehler beim Laden der Diäten:', error);
+        dietsLoaded = true; // Set to true to not block the app
+        checkAllLoaded();
+      }
+    };
+    loadDiets();
+
+    function checkAllLoaded() {
+      if (countriesLoaded && arrangementsLoaded && dietsLoaded && gastData) {
+        fillForm();
+      }
+    }
+    // Daten laden
+    const loadGastData = async () => {
+      try {
+        const data = window.HttpUtils
+          ? await HttpUtils.requestJson(`getGastDetail.php?id=${gastId}`, {}, { retries: 3, timeout: 10000 })
+          : await fetch(`getGastDetail.php?id=${gastId}`).then(r => r.json());
+        
+        gastData = data;
+        checkAllLoaded();
+      } catch (error) {
+        console.error('Fehler beim Laden der Gastdaten:', error);
+        alert('Fehler beim Laden der Daten. Bitte Seite neu laden.');
+      }
+    };
+    loadGastData();
+
+    function fillForm() {
+      document.getElementById('nachname').value = gastData.nachname || '';
+      document.getElementById('vorname').value = gastData.vorname || '';
+      document.getElementById('gebdat').value = gastData.gebdat ? gastData.gebdat.substr(0,10) : '';
+      document.getElementById('herkunft').value = gastData.herkunft || '';
+      document.getElementById('arrangement').value = gastData.arr || '';
+      document.getElementById('diet').value = gastData.diet_id || '';
+      document.getElementById('dietInfo').value = gastData.dietInfo || '';
+      document.getElementById('transport').value = gastData.transport || '';
+      document.getElementById('bem').value = gastData.bem || '';
+      document.getElementById('guide').checked = !!gastData.guide;
+    }
+
+    // Speichern
+    document.getElementById('gastForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = {
+        id: gastId,
+        nachname: document.getElementById('nachname').value,
+        vorname: document.getElementById('vorname').value,
+        gebdat: document.getElementById('gebdat').value,
+        herkunft: document.getElementById('herkunft').value,
+        arr: document.getElementById('arrangement').value,
+        diet_id: document.getElementById('diet').value,
+        dietInfo: document.getElementById('dietInfo').value,
+        transport: document.getElementById('transport').value,
+        bem: document.getElementById('bem').value,
+        guide: document.getElementById('guide').checked ? 1 : 0
+      };
+
+      // Leere Strings für numerische Felder in null umwandeln, damit die DB es akzeptiert
+      if (formData.diet_id === '') formData.diet_id = null;
+      if (formData.herkunft === '') formData.herkunft = null;
+      if (formData.transport === '') {
+         formData.transport = null;
+      } else {
+         // Replace comma with dot for server-side float parsing
+         formData.transport = formData.transport.replace(',', '.');
+      }
+
+      // Ensure empty strings for text fields remain as ""
+      if (formData.bem === '') formData.bem = '';
+      if (formData.dietInfo === '') formData.dietInfo = '';
+
+
+      const updatePromise = window.HttpUtils
+        ? HttpUtils.postJson('updateGastDetail.php', formData, { retries: 2, timeout: 8000 })
+        : fetch('updateGastDetail.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(formData)
+          }).then(r => r.json());
+      
+      updatePromise
+        .then(j => {
+        if (j.success) {
+          history.back();
+        } else {
+          alert('Fehler: ' + j.error);
+        }
+      });
+    });
+
+    // Transport-Button-Funktionalität
+    document.addEventListener('DOMContentLoaded', () => {
+      const transportInput = document.getElementById('transport');
+      const transportButtons = document.querySelectorAll('.transport-btn');
+
+      // Helper function to get current value as number
+      function getCurrentValue() {
+        const value = transportInput.value.replace(',', '.').replace('€', '').trim();
+        return value === '' ? 0 : parseFloat(value) || 0;
+      }
+
+      // Helper function to format and set value
+      function setValue(newValue) {
+        // Ensure value is not below 0
+        const finalValue = Math.max(0, newValue);
+        transportInput.value = finalValue.toFixed(2).replace('.', ',');
+      }
+
+      // Add event listeners to all transport buttons
+      transportButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-value');
+          const currentValue = getCurrentValue();
+          
+          if (action === '0') {
+            // Clear button
+            setValue(0);
+          } else {
+            // Add/subtract value
+            const change = parseFloat(action);
+            setValue(currentValue + change);
+          }
+        });
+      });
+    });
+  </script>
+  <script src="js/http-utils.js"></script>
+</body>
+</html>

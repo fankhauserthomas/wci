@@ -1,0 +1,83 @@
+<!-- reservierungen.html -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservierungsliste - WebCheckin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Reservierungen</h1>
+  <div class="controls">
+    <!-- Typ-Toggle -->
+    <button id="toggleType" class="toggle-btn arrival">Anreise</button>
+
+    <!-- Datum -->
+    <input type="date" id="filterDate">
+
+    <!-- Storno-Toggle -->
+    <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
+
+    <!-- Alle/Offen-Toggle -->
+    <button id="toggleOpen" class="toggle-btn all">Alle</button>
+
+    <!-- Verbindungsstatus -->
+    <div id="nav-connection-status" class="connection-status-nav" style="margin-left: auto;">
+      <div class="status-dot"></div>
+      <span class="status-text">Unbekannt</span>
+    </div>
+
+    <!-- Zurück zum Dashboard -->
+    <button id="dashboardBtn" class="toggle-btn dashboard" onclick="window.location.href='index.php'">Dashboard</button>
+
+    <!-- Suche -->
+    <input type="text" id="searchInput" placeholder="Suche Name…">
+  </div>
+</header>
+
+  <main>
+    <table id="resTable">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Anreise</th>
+          <th>Abreise</th>
+          <th>Anzahl</th>
+          <th>Name</th>
+          <th>arr</th>
+          <th>ANam</th>
+          <th>Bem</th>
+          <th>Orig</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- wird per script.js befüllt -->
+      </tbody>
+    </table>
+  </main>
+
+  <!-- Info-Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="close">&times;</span>
+      <div id="modalText"></div>
+    </div>
+  </div>
+
+  <!-- QR-Modal -->
+  <div id="qrModal" class="modal">
+    <div class="modal-content">
+      <span id="qrClose" class="close">&times;</span>
+      <div id="qrContainer" style="text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- QRCode.js (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/http-utils.js"></script>
+  <script src="js/loading-overlay.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
