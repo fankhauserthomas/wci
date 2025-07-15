@@ -1,8 +1,13 @@
 <?php
 // config.php – hier die Zugangsdaten zur MySQL-Datenbank
-$dbHost = 'booking.franzsennhuette.at';
-$dbUser = 'booking_franzsen';
-$dbPass = '~2Y@76';
+// $dbHost = 'booking.franzsennhuette.at';
+// $dbUser = 'booking_franzsen';
+// $dbPass = '~2Y@76';
+// $dbName = 'booking_franzsen';
+
+$dbHost = '192.168.15.14';
+$dbUser = 'root';
+$dbPass = 'Fsh2147m!1';
 $dbName = 'booking_franzsen';
 
 // Verbindung herstellen

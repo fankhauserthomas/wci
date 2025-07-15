@@ -4,6 +4,9 @@
 header('Content-Type: application/json');
 require 'config.php';
 
+// MySQL Error Mode lockern
+$mysqli->query("SET sql_mode = 'ALLOW_INVALID_DATES'");
+
 // GET-Parameter: date (YYYY-MM-DD), type ('arrival'|'departure')
 $date = $_GET['date']   ?? '';
 $type = $_GET['type']   ?? 'arrival';
@@ -61,8 +64,18 @@ LEFT JOIN (
     SELECT
       av_id,
       COUNT(*) AS count_names,
-      SUM(CASE WHEN checked_in  IS NOT NULL AND checked_in  <> '' THEN 1 ELSE 0 END) AS count_logged_in,
-      SUM(CASE WHEN checked_out IS NOT NULL AND checked_out <> '' THEN 1 ELSE 0 END) AS count_logged_out
+      SUM(CASE 
+        WHEN checked_in IS NOT NULL 
+        AND CAST(checked_in AS CHAR) != '' 
+        AND CAST(checked_in AS CHAR) != '0000-00-00 00:00:00'
+        AND checked_in > '1970-01-01 00:00:00'
+        THEN 1 ELSE 0 END) AS count_logged_in,
+      SUM(CASE 
+        WHEN checked_out IS NOT NULL 
+        AND CAST(checked_out AS CHAR) != '' 
+        AND CAST(checked_out AS CHAR) != '0000-00-00 00:00:00'
+        AND checked_out > '1970-01-01 00:00:00'
+        THEN 1 ELSE 0 END) AS count_logged_out
     FROM `AV-ResNamen`
     GROUP BY av_id
 ) c ON r.id = c.av_id

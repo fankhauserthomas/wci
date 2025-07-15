@@ -1,24 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const resId        = new URLSearchParams(location.search).get('id');
+  const resId = new URLSearchParams(location.search).get('id');
   let currentReservationData = null; // Global variable to store current reservation data
-  const headerDiv    = document.getElementById('resHeader');
-  const tbody        = document.querySelector('#namesTable tbody');
-  const selectAll    = document.getElementById('selectAll');
-  const deleteBtn    = document.getElementById('deleteBtn');
-  const printBtn     = document.getElementById('printBtn');
-  const arrBtn       = document.getElementById('arrangementBtn');
-  const dietBtn      = document.getElementById('dietBtn');
-  const backBtn      = document.getElementById('backBtn');
-  const importBtn    = document.getElementById('importNamesBtn');
-  const newArea      = document.getElementById('newNamesTextarea');
+  const headerDiv = document.getElementById('resHeader');
+  const tbody = document.querySelector('#namesTable tbody');
+  const selectAll = document.getElementById('selectAll');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const printBtn = document.getElementById('printBtn');
+  const arrBtn = document.getElementById('arrangementBtn');
+  const dietBtn = document.getElementById('dietBtn');
+  const backBtn = document.getElementById('backBtn');
+  const importBtn = document.getElementById('importNamesBtn');
+  const newArea = document.getElementById('newNamesTextarea');
   const formatSelect = document.getElementById('importFormat');
 
   // Three-dot menu elements
-  const menuBtn      = document.getElementById('menuBtn');
+  const menuBtn = document.getElementById('menuBtn');
   const dropdownMenu = document.getElementById('dropdownMenu');
-  const editBtn      = document.getElementById('editBtn');
-  const stornoBtn    = document.getElementById('stornoBtn');
-  const backMenuBtn  = document.getElementById('backMenuBtn');
+  const editBtn = document.getElementById('editBtn');
+  const stornoBtn = document.getElementById('stornoBtn');
+  const backMenuBtn = document.getElementById('backMenuBtn');
 
   // Custom confirmation modal elements
   const confirmModal = document.getElementById('confirmModal');
@@ -38,51 +38,51 @@ document.addEventListener('DOMContentLoaded', () => {
   // Hilfsfunktionen zum Formatieren
   const fmtDate = iso => {
     if (!iso) return '';
-    const [y,m,d] = iso.split('T')[0].split('-');
+    const [y, m, d] = iso.split('T')[0].split('-');
     return `${d}.${m}.`;
   };
   const fmtDateTime = iso => {
     if (!iso) return '';
     const [date, time] = iso.split('T');
-    const [y,m,d]    = date.split('-');
-    const [hh, mm]   = time.split(':');
+    const [y, m, d] = date.split('-');
+    const [hh, mm] = time.split(':');
     return `${d}.${m} ${hh}:${mm}`;
   };
 
   // 1) Load reservation header + Zimmerliste
   const loadReservationData = async () => {
     try {
-      const data = await (window.HttpUtils 
-        ? HttpUtils.requestJsonWithLoading(`getReservationDetails.php?id=${resId}`, {}, {retries: 3, timeout: 12000}, 'Reservierungsdetails werden geladen...')
-        : window.LoadingOverlay 
+      const data = await (window.HttpUtils
+        ? HttpUtils.requestJsonWithLoading(`getReservationDetails.php?id=${resId}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsdetails werden geladen...')
+        : window.LoadingOverlay
           ? LoadingOverlay.wrapFetch(() => fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json()), 'Reservierungsdetails')
           : fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json())
       );
-      
+
       // Store reservation data globally
       currentReservationData = data;
-      
+
       // je nach Rückgabe-Format entweder data.names[0] oder direkt data
       // neu: wenn data.detail existiert, nimm das, sonst fall auf altes Verhalten zurück
       const detail = data.detail
         ? data.detail
         : (Array.isArray(data.names) && data.names.length
-            ? data.names[0]
-            : data);
+          ? data.names[0]
+          : data);
 
-         // Schlafkategorien (nur >0) sammeln
-          const cats = [];
-          if (detail.betten  > 0) cats.push(`${detail.betten} Betten`);
-          if (detail.dz      > 0) cats.push(`${detail.dz} DZ`);
-          if (detail.lager   > 0) cats.push(`${detail.lager} Lager`);
-          if (detail.sonder  > 0) cats.push(`${detail.sonder} Sonder`);
-          const catsText = cats.join(', ');
+      // Schlafkategorien (nur >0) sammeln
+      const cats = [];
+      if (detail.betten > 0) cats.push(`${detail.betten} Betten`);
+      if (detail.dz > 0) cats.push(`${detail.dz} DZ`);
+      if (detail.lager > 0) cats.push(`${detail.lager} Lager`);
+      if (detail.sonder > 0) cats.push(`${detail.sonder} Sonder`);
+      const catsText = cats.join(', ');
 
-        // linke Spalte: Basisdaten (neu mit semantic classes statt <br>)
-        const leftHtml = `
+      // linke Spalte: Basisdaten (neu mit semantic classes statt <br>)
+      const leftHtml = `
           <div class="rd-name">
-            ${(detail.nachname||'').trim()} ${(detail.vorname||'').trim()
-          }</div>
+            ${(detail.nachname || '').trim()} ${(detail.vorname || '').trim()
+        }</div>
           ${catsText ? `<div class="rd-cats">${catsText}</div>` : ''}
           <div class="rd-dates">
             ${fmtDate(detail.anreise)} – ${fmtDate(detail.abreise)}
@@ -179,13 +179,13 @@ document.addEventListener('DOMContentLoaded', () => {
       selectAll.checked = false;
       selectAll.indeterminate = false;
 
-      const list = await (window.HttpUtils 
-        ? HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, {retries: 3, timeout: 10000}, 'Namensliste wird geladen...')
-        : window.LoadingOverlay 
+      const list = await (window.HttpUtils
+        ? HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Namensliste wird geladen...')
+        : window.LoadingOverlay
           ? LoadingOverlay.wrapFetch(() => fetch(`getReservationNames.php?id=${resId}`).then(r => r.json()), 'Namensliste')
           : fetch(`getReservationNames.php?id=${resId}`).then(r => r.json())
       );
-      
+
       list.forEach(n => {
         const tr = document.createElement('tr');
         tr.dataset.id = n.id;
@@ -197,6 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (n.dietInfo && n.dietInfo.trim() !== '') {
           detailIcons += `<img src="./pic/food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
+        }
+        if (n.bem && n.bem.trim() !== '') {
+          detailIcons += `<img src="./pic/info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
         }
         if (detailIcons === '') {
           detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
@@ -213,15 +216,15 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td class="arr-cell">${n.arr || '–'}</td>
           <td class="diet-cell">${n.diet_text || '–'}</td>
-          <td class="checkin-cell ${n.checked_in  ? 'checked-in'  : ''}">
+          <td class="checkin-cell ${n.checked_in ? 'checked-in' : ''}">
             ${n.checked_in
-              ? fmtDateTime(n.checked_in)
-              : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+            ? fmtDateTime(n.checked_in)
+            : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
           </td>
           <td class="checkout-cell ${n.checked_out ? 'checked-out' : ''}">
             ${n.checked_out
-              ? fmtDateTime(n.checked_out)
-              : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+            ? fmtDateTime(n.checked_out)
+            : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
           </td>
         `;
         tbody.appendChild(tr);
@@ -245,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checked = boxes.filter(b => b.checked).length;
     selectAll.checked = checked === boxes.length;
     selectAll.indeterminate = checked > 0 && checked < boxes.length;
-    
+
     // Update bulk button states
     updateBulkButtonStates();
   }
@@ -263,10 +266,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
     const hasSelection = selectedRows.length > 0;
-    
+
     // Verwende ausgewählte Zeilen oder alle Zeilen falls keine Auswahl
     const targetRows = hasSelection ? selectedRows : allRows;
-    
+
     if (targetRows.length === 0) {
       // Keine Zeilen vorhanden - alle Buttons deaktivieren
       bulkCheckinBtn.disabled = true;
@@ -301,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check-in button logic - immer aktiv
     bulkCheckinBtn.disabled = false;
     const selectionText = hasSelection ? ` (${selectedRows.length})` : ` (alle ${allRows.length})`;
-    
+
     if (allCheckedIn) {
       bulkCheckinBtn.textContent = `Undo Check-in${selectionText}`;
       bulkCheckinBtn.className = 'btn-bulk btn-undo';
@@ -316,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check-out button logic - immer aktiv wenn möglich
     const eligibleForCheckout = checkinStates.filter(state => state.isCheckedIn && !state.isCheckedOut).length;
     const eligibleForUndoCheckout = checkinStates.filter(state => state.isCheckedOut).length;
-    
+
     if (eligibleForCheckout === 0 && eligibleForUndoCheckout === 0) {
       bulkCheckoutBtn.disabled = true;
       bulkCheckoutBtn.textContent = 'Bulk Check-out';
@@ -337,11 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkCheckoutBtn.className = 'btn-bulk btn-mixed';
       }
     }
-    
+
     // Nur Löschen und Drucken erfordern eine Auswahl
     deleteBtn.disabled = !hasSelection;
     printBtn.disabled = !hasSelection;
-    
+
     // Arrangement und Diät sind immer aktiv (arbeiten mit Auswahl oder allen)
     arrBtn.disabled = false;
     dietBtn.disabled = false;
@@ -368,10 +371,10 @@ document.addEventListener('DOMContentLoaded', () => {
   bulkCheckinBtn.addEventListener('click', async () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
-    
+
     // Verwende ausgewählte Zeilen oder alle Zeilen falls keine Auswahl
     const targetRows = selectedRows.length > 0 ? selectedRows : allRows;
-    
+
     if (targetRows.length === 0) return;
 
     // Determine what action to take based on current button state
@@ -386,8 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
       eligibleRows = targetRows.filter(row => {
         const checkinCell = row.querySelector('.checkin-cell');
         const checkoutCell = row.querySelector('.checkout-cell');
-        return checkinCell.classList.contains('checked-in') && 
-               !checkoutCell.classList.contains('checked-out');
+        return checkinCell.classList.contains('checked-in') &&
+          !checkoutCell.classList.contains('checked-out');
       });
       action = 'clear';
     } else {
@@ -416,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ids = eligibleRows.map(row => row.dataset.id);
     const actionText = action === 'set' ? 'Check-in' : 'Check-in Rücknahme';
-    
+
     try {
       // Verwende robuste Batch-Verarbeitung mit Loading-Overlay
       if (window.HttpUtils) {
@@ -424,8 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
           url: 'updateReservationNamesCheckin.php',
           options: {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action })
           }
         }));
 
@@ -440,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         results.forEach((result, index) => {
           const row = eligibleRows[index];
           const id = ids[index];
-          
+
           if (result.success && result.data.success) {
             const cell = row.querySelector('.checkin-cell');
             if (action === 'set') {
@@ -467,15 +470,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fallback mit Loading-Overlay
         const fallbackOperation = async () => {
           console.warn('[BULK-CHECKIN-TOGGLE] HttpUtils not available, using fallback method');
-          
-          const results = await Promise.allSettled(ids.map(id => 
+
+          const results = await Promise.allSettled(ids.map(id =>
             fetch('updateReservationNamesCheckin.php', {
               method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({id, action})
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, action })
             }).then(r => r.json()).then(j => {
               if (!j.success) throw new Error(j.error);
-              return {id, result: j};
+              return { id, result: j };
             })
           ));
 
@@ -485,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
           results.forEach((result, index) => {
             const row = eligibleRows[index];
             const id = ids[index];
-            
+
             if (result.status === 'fulfilled') {
               const cell = row.querySelector('.checkin-cell');
               if (action === 'set') {
@@ -527,10 +530,10 @@ document.addEventListener('DOMContentLoaded', () => {
   bulkCheckoutBtn.addEventListener('click', async () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
-    
+
     // Verwende ausgewählte Zeilen oder alle Zeilen falls keine Auswahl
     const targetRows = selectedRows.length > 0 ? selectedRows : allRows;
-    
+
     if (targetRows.length === 0) return;
 
     // Determine what action to take based on current button state
@@ -552,8 +555,8 @@ document.addEventListener('DOMContentLoaded', () => {
       eligibleRows = targetRows.filter(row => {
         const checkinCell = row.querySelector('.checkin-cell');
         const checkoutCell = row.querySelector('.checkout-cell');
-        return checkinCell.classList.contains('checked-in') && 
-               !checkoutCell.classList.contains('checked-out');
+        return checkinCell.classList.contains('checked-in') &&
+          !checkoutCell.classList.contains('checked-out');
       });
       action = 'set';
     }
@@ -574,15 +577,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ids = eligibleRows.map(row => row.dataset.id);
     const actionText = action === 'set' ? 'Check-out' : 'Check-out Rücknahme';
-    
+
     try {
       if (window.HttpUtils) {
         const requests = ids.map(id => ({
           url: 'updateReservationNamesCheckout.php',
           options: {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action })
           }
         }));
 
@@ -596,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         results.forEach((result, index) => {
           const row = eligibleRows[index];
           const id = ids[index];
-          
+
           if (result.success && result.data.success) {
             const cell = row.querySelector('.checkout-cell');
             if (action === 'set') {
@@ -623,15 +626,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fallback mit Loading-Overlay
         const fallbackOperation = async () => {
           console.warn('[BULK-CHECKOUT-TOGGLE] HttpUtils not available, using fallback method');
-          
-          const results = await Promise.allSettled(ids.map(id => 
+
+          const results = await Promise.allSettled(ids.map(id =>
             fetch('updateReservationNamesCheckout.php', {
               method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({id, action})
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, action })
             }).then(r => r.json()).then(j => {
               if (!j.success) throw new Error(j.error);
-              return {id, result: j};
+              return { id, result: j };
             })
           ));
 
@@ -641,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
           results.forEach((result, index) => {
             const row = eligibleRows[index];
             const id = ids[index];
-            
+
             if (result.status === 'fulfilled') {
               const cell = row.querySelector('.checkout-cell');
               if (action === 'set') {
@@ -716,22 +719,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const guideCell = e.target.closest('td.guide-cell');
     if (guideCell) {
       const icon = guideCell.querySelector('.guide-icon');
-      
+
       const toggleOperation = async () => {
         const response = await fetch('toggleGuideFlag.php', {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
         });
         const j = await response.json();
-        
+
         if (j.success) {
           icon.textContent = j.newValue ? '✓' : '○';
         } else {
           throw new Error(j.error);
         }
       };
-      
+
       if (window.LoadingOverlay) {
         LoadingOverlay.wrap(toggleOperation, 'Guide-Flag wird geändert...').catch(() => alert('Netzwerkfehler beim Umschalten.'));
       } else {
@@ -752,7 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dietCell = e.target.closest('td.diet-cell');
     if (dietCell) {
       openDietModal([id], newLabel => {
-       dietCell.textContent = newLabel;
+        dietCell.textContent = newLabel;
       });
       return;
     }
@@ -768,11 +771,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const checkinOperation = async () => {
           const response = await fetch('updateReservationNamesCheckin.php', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action:'set'})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action: 'set' })
           });
           const j = await response.json();
-          
+
           if (j.success) {
             cell.classList.add('checked-in');
             cell.textContent = fmtDateTime(j.newValue);
@@ -780,7 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(j.error);
           }
         };
-        
+
         if (window.LoadingOverlay) {
           LoadingOverlay.wrap(checkinOperation, 'Check-in wird gesetzt...').catch(err => alert('Fehler Check-in setzen:\n' + err.message));
         } else {
@@ -791,11 +794,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const checkinClearOperation = async () => {
           const response = await fetch('updateReservationNamesCheckin.php', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action:'clear'})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action: 'clear' })
           });
           const j = await response.json();
-          
+
           if (j.success) {
             cell.classList.remove('checked-in');
             cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
@@ -803,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(j.error);
           }
         };
-        
+
         if (window.LoadingOverlay) {
           LoadingOverlay.wrap(checkinClearOperation, 'Check-in wird zurückgenommen...').catch(err => alert('Fehler Check-in löschen:\n' + err.message));
         } else {
@@ -824,11 +827,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const checkoutOperation = async () => {
           const response = await fetch('updateReservationNamesCheckout.php', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action:'set'})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action: 'set' })
           });
           const j = await response.json();
-          
+
           if (j.success) {
             cell.classList.add('checked-out');
             cell.textContent = fmtDateTime(j.newValue);
@@ -836,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(j.error);
           }
         };
-        
+
         if (window.LoadingOverlay) {
           LoadingOverlay.wrap(checkoutOperation, 'Check-out wird gesetzt...').catch(err => alert('Fehler Check-out setzen:\n' + err.message));
         } else {
@@ -847,11 +850,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const checkoutClearOperation = async () => {
           const response = await fetch('updateReservationNamesCheckout.php', {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({id, action:'clear'})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action: 'clear' })
           });
           const j = await response.json();
-          
+
           if (j.success) {
             cell.classList.remove('checked-out');
             cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
@@ -859,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(j.error);
           }
         };
-        
+
         if (window.LoadingOverlay) {
           LoadingOverlay.wrap(checkoutClearOperation, 'Check-out wird zurückgenommen...').catch(err => alert('Fehler Check-out löschen:\n' + err.message));
         } else {
@@ -879,26 +882,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fetch('deleteReservationNames.php', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ids})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
     })
-    .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t) }); return r.json(); })
-    .then(resp => {
-      if (resp.success) {
-        ids.forEach(id => {
-          const tr = document.querySelector(`tr[data-id="${id}"]`);
-          if (tr) tr.remove();
-        });
-        // Update button states after deletion
-        updateBulkButtonStates();
-      } else {
-        throw new Error(resp.error);
-      }
-    })
-    .catch(err => {
-      console.error('Löschen fehlgeschlagen:', err);
-      alert('Fehler beim Löschen:\n' + err.message);
-    });
+      .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t) }); return r.json(); })
+      .then(resp => {
+        if (resp.success) {
+          ids.forEach(id => {
+            const tr = document.querySelector(`tr[data-id="${id}"]`);
+            if (tr) tr.remove();
+          });
+          // Update button states after deletion
+          updateBulkButtonStates();
+        } else {
+          throw new Error(resp.error);
+        }
+      })
+      .catch(err => {
+        console.error('Löschen fehlgeschlagen:', err);
+        alert('Fehler beim Löschen:\n' + err.message);
+      });
   });
 
   // 6) Print selected
@@ -916,60 +919,60 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
 
-function showPrintModal(printers, ids) {
-  const backdrop = document.createElement('div');
-  backdrop.className = 'modal';
-  document.body.appendChild(backdrop);
+  function showPrintModal(printers, ids) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal';
+    document.body.appendChild(backdrop);
 
-  const content = document.createElement('div');
-  content.className = 'modal-content';
-  backdrop.appendChild(content);
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    backdrop.appendChild(content);
 
-  const close = document.createElement('span');
-  close.className = 'modal-close';
-  close.innerHTML = '&times;';
-  content.appendChild(close);
+    const close = document.createElement('span');
+    close.className = 'modal-close';
+    close.innerHTML = '&times;';
+    content.appendChild(close);
 
-  const title = document.createElement('h2');
-  title.textContent = 'Drucker wählen';
-  content.appendChild(title);
+    const title = document.createElement('h2');
+    title.textContent = 'Drucker wählen';
+    content.appendChild(title);
 
-  printers.forEach(p => {
-    const btn = document.createElement('button');
-    btn.textContent = p.bez;
-    btn.addEventListener('click', () => {
-      document.body.removeChild(backdrop);
-      const q  = ids.map(i => `id[]=${i}`).join('&');
-      const url = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
-      // Im selben Tab darauf navigieren:
-      window.location.href = url;
+    printers.forEach(p => {
+      const btn = document.createElement('button');
+      btn.textContent = p.bez;
+      btn.addEventListener('click', () => {
+        document.body.removeChild(backdrop);
+        const q = ids.map(i => `id[]=${i}`).join('&');
+        const url = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+        // Im selben Tab darauf navigieren:
+        window.location.href = url;
+      });
+      content.appendChild(btn);
     });
-    content.appendChild(btn);
-  });
 
-  backdrop.addEventListener('click', e => {
-    if (e.target === backdrop) document.body.removeChild(backdrop);
-  });
-  close.addEventListener('click', () => document.body.removeChild(backdrop));
-}
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) document.body.removeChild(backdrop);
+    });
+    close.addEventListener('click', () => document.body.removeChild(backdrop));
+  }
 
 
   // 7) Global arrangement
   arrBtn.addEventListener('click', () => {
     const selectedIds = Array.from(document.querySelectorAll('.rowCheckbox:checked'))
       .map(cb => cb.closest('tr').dataset.id);
-    
+
     // Wenn keine Auswahl, dann alle Namen verwenden
-    const ids = selectedIds.length > 0 
-      ? selectedIds 
+    const ids = selectedIds.length > 0
+      ? selectedIds
       : Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'))
-          .map(row => row.dataset.id);
-    
+        .map(row => row.dataset.id);
+
     if (!ids.length) {
       alert('Keine Namen vorhanden.');
       return;
     }
-    
+
     openArrModal(ids, loadNames);
   });
 
@@ -1005,27 +1008,27 @@ function showPrintModal(printers, ids) {
   function applyArrangement(arrId, label, ids, onDone) {
     fetch('updateReservationNamesArrangement.php', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ids, arr: arrId})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, arr: arrId })
     })
-    .then(r => { if (!r.ok) return r.text().then(t => {throw new Error(t)}); return r.json(); })
-    .then(j => {
-      if (!j.success) throw new Error(j.error);
-      if (ids.length === 1) {
-        document.querySelector(`tr[data-id="${ids[0]}"] .arr-cell`).textContent = label;
-      } else {
-        onDone();
-      }
-      document.getElementById('arrangementModal').classList.add('hidden');
-    })
-    .catch(e => alert('Fehler beim Speichern: ' + e.message));
+      .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t) }); return r.json(); })
+      .then(j => {
+        if (!j.success) throw new Error(j.error);
+        if (ids.length === 1) {
+          document.querySelector(`tr[data-id="${ids[0]}"] .arr-cell`).textContent = label;
+        } else {
+          onDone();
+        }
+        document.getElementById('arrangementModal').classList.add('hidden');
+      })
+      .catch(e => alert('Fehler beim Speichern: ' + e.message));
   }
 
   // Funktion um Reservierungs-Arrangement allen Namen zuzuweisen
   async function applyArrangementToAllNames(arrangementLabel) {
     // Alle Namen in der Tabelle sammeln
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
-    
+
     if (allRows.length === 0) {
       alert('Keine Namen in der Tabelle gefunden.');
       return;
@@ -1039,8 +1042,8 @@ function showPrintModal(printers, ids) {
 
     // Erst das Arrangement aus der Datenbank laden, um die ID zu bekommen
     try {
-      const arrangements = await (window.LoadingOverlay ? 
-        LoadingOverlay.wrapFetch(() => 
+      const arrangements = await (window.LoadingOverlay ?
+        LoadingOverlay.wrapFetch(() =>
           fetch('getArrangements.php').then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return r.json();
@@ -1066,8 +1069,8 @@ function showPrintModal(printers, ids) {
           url: 'updateReservationNamesArrangement.php',
           options: {
             method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ids: [id], arr: arrangement.id})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [id], arr: arrangement.id })
           }
         }));
 
@@ -1083,7 +1086,7 @@ function showPrintModal(printers, ids) {
         results.forEach((result, index) => {
           const row = allRows[index];
           const id = ids[index];
-          
+
           if (result.success && result.data.success) {
             // Arrangement-Zelle in der Tabelle aktualisieren
             const arrCell = row.querySelector('.arr-cell');
@@ -1112,14 +1115,14 @@ function showPrintModal(printers, ids) {
       } else {
         // Fallback mit Loading-Overlay
         const fallbackOperation = async () => {
-          const results = await Promise.allSettled(ids.map(id => 
+          const results = await Promise.allSettled(ids.map(id =>
             fetch('updateReservationNamesArrangement.php', {
               method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({ids: [id], arr: arrangement.id})
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: [id], arr: arrangement.id })
             }).then(r => r.json()).then(j => {
               if (!j.success) throw new Error(j.error);
-              return {id, result: j};
+              return { id, result: j };
             })
           ));
 
@@ -1128,7 +1131,7 @@ function showPrintModal(printers, ids) {
 
           results.forEach((result, index) => {
             const row = allRows[index];
-            
+
             if (result.status === 'fulfilled') {
               const arrCell = row.querySelector('.arr-cell');
               if (arrCell) {
@@ -1165,18 +1168,18 @@ function showPrintModal(printers, ids) {
   dietBtn.addEventListener('click', () => {
     const selectedIds = Array.from(document.querySelectorAll('.rowCheckbox:checked'))
       .map(cb => cb.closest('tr').dataset.id);
-    
+
     // Wenn keine Auswahl, dann alle Namen verwenden
-    const ids = selectedIds.length > 0 
-      ? selectedIds 
+    const ids = selectedIds.length > 0
+      ? selectedIds
       : Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'))
-          .map(row => row.dataset.id);
-    
+        .map(row => row.dataset.id);
+
     if (!ids.length) {
       alert('Keine Namen vorhanden.');
       return;
     }
-    
+
     openDietModal(ids, loadNames);
   });
 
@@ -1212,35 +1215,35 @@ function showPrintModal(printers, ids) {
   function applyDiet(dietId, label, ids, onDone) {
     fetch('updateReservationNamesDiet.php', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ids, diet: dietId})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, diet: dietId })
     })
-    .then(r => { if (!r.ok) return r.text().then(t => {throw new Error(t)}); return r.json(); })
-    .then(j => {
-      if (!j.success) throw new Error(j.error);
-      if (ids.length === 1) {
-        document.querySelector(`tr[data-id="${ids[0]}"] .diet-cell`).textContent = label;
-      } else {
-        onDone();
-      }
-      document.getElementById('dietModal').classList.add('hidden');
-    })
-    .catch(e => alert('Fehler beim Speichern: ' + e.message));
+      .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t) }); return r.json(); })
+      .then(j => {
+        if (!j.success) throw new Error(j.error);
+        if (ids.length === 1) {
+          document.querySelector(`tr[data-id="${ids[0]}"] .diet-cell`).textContent = label;
+        } else {
+          onDone();
+        }
+        document.getElementById('dietModal').classList.add('hidden');
+      })
+      .catch(e => alert('Fehler beim Speichern: ' + e.message));
   }
 
   // 9) Import names
   importBtn.addEventListener('click', () => {
     const text = newArea.value.trim();
     if (!text) return alert('Bitte mindestens einen Namen eingeben.');
-    
+
     const importFormat = document.getElementById('importFormat').value;
     const entries = text.split('\n').map(line => {
       const trimmedLine = line.trim();
       if (!trimmedLine) return null;
-      
+
       let vorname = '';
       let nachname = '';
-      
+
       if (importFormat === 'lastname-firstname') {
         // Format: "Nachname Vorname"
         const parts = trimmedLine.split(/\s+/);
@@ -1262,28 +1265,28 @@ function showPrintModal(printers, ids) {
           vorname = parts[0];
         }
       }
-      
+
       return { vorname: vorname.trim(), nachname: nachname.trim() };
     }).filter(entry => entry && (entry.vorname || entry.nachname)); // Filter out empty entries
-    
+
     if (entries.length === 0) {
       return alert('Keine gültigen Namen gefunden.');
     }
-    
+
     fetch('addReservationNames.php', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id:resId, entries})
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: resId, entries })
     })
-    .then(r => r.json())
-    .then(j => {
-      if (j.success) {
-        newArea.value = '';
-        document.getElementById('addNamesDetails').removeAttribute('open');
-        loadNames();
-      } else alert('Fehler: ' + j.error);
-    })
-    .catch(() => alert('Netzwerkfehler beim Hinzufügen.'));
+      .then(r => r.json())
+      .then(j => {
+        if (j.success) {
+          newArea.value = '';
+          document.getElementById('addNamesDetails').removeAttribute('open');
+          loadNames();
+        } else alert('Fehler: ' + j.error);
+      })
+      .catch(() => alert('Netzwerkfehler beim Hinzufügen.'));
   });
 
   // Update placeholder text based on format selection
@@ -1295,7 +1298,7 @@ function showPrintModal(printers, ids) {
       newArea.placeholder = 'Vorname Nachname – pro Zeile ein Eintrag';
     }
   }
-  
+
   // Initialize placeholder and add event listener
   if (formatSelect) {
     updatePlaceholder();
@@ -1327,6 +1330,34 @@ function showPrintModal(printers, ids) {
     window.location.href = `ReservationDetails.html?id=${resId}`;
   });
 
+  // Email button - send email to guest
+  const emailBtn = document.getElementById('emailBtn');
+  emailBtn.addEventListener('click', () => {
+    // Get the current reservation data to extract email information
+    if (currentReservationData && currentReservationData.detail) {
+      const detail = currentReservationData.detail;
+      const reservationForEmail = {
+        id: resId,
+        nachname: detail.nachname || '',
+        vorname: detail.vorname || '',
+        email: detail.email || '',
+        anreise: detail.anreise || '',
+        abreise: detail.abreise || ''
+      };
+
+      if (window.EmailUtils) {
+        window.EmailUtils.sendNameListEmail(reservationForEmail);
+      } else {
+        alert('Email-Funktionalität nicht verfügbar.');
+      }
+
+      // Close dropdown menu
+      dropdownMenu.classList.add('hidden');
+    } else {
+      alert('Reservierungsdaten konnten nicht geladen werden.');
+    }
+  });
+
   // Storno button - toggle storno flag with confirmation
   stornoBtn.addEventListener('click', () => {
     // Make a quick API call to get current storno status
@@ -1335,34 +1366,34 @@ function showPrintModal(printers, ids) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: resId, checkOnly: true })
     })
-    .then(r => r.json())
-    .then(statusData => {
-      const currentStorno = statusData.currentStorno || false;
-      const action = currentStorno ? 'Storno zurücksetzen' : 'stornieren';
-      const title = currentStorno ? 'Storno zurücksetzen' : 'Reservierung stornieren';
-      const question = `Möchten Sie diese Reservierung wirklich ${action}?`;
-      
-      showCustomConfirmModal(
-        title, 
-        question, 
-        '', 
-        () => {
-          // User confirmed, proceed with storno
-          toggleStornoStatus(false);
-        }
-      );
-    })
-    .catch(err => {
-      // Fallback: use simple confirmation
-      showCustomConfirmModal(
-        'Storno-Status ändern', 
-        'Möchten Sie den Storno-Status dieser Reservierung ändern?', 
-        '', 
-        () => {
-          toggleStornoStatus(false);
-        }
-      );
-    });
+      .then(r => r.json())
+      .then(statusData => {
+        const currentStorno = statusData.currentStorno || false;
+        const action = currentStorno ? 'Storno zurücksetzen' : 'stornieren';
+        const title = currentStorno ? 'Storno zurücksetzen' : 'Reservierung stornieren';
+        const question = `Möchten Sie diese Reservierung wirklich ${action}?`;
+
+        showCustomConfirmModal(
+          title,
+          question,
+          '',
+          () => {
+            // User confirmed, proceed with storno
+            toggleStornoStatus(false);
+          }
+        );
+      })
+      .catch(err => {
+        // Fallback: use simple confirmation
+        showCustomConfirmModal(
+          'Storno-Status ändern',
+          'Möchten Sie den Storno-Status dieser Reservierung ändern?',
+          '',
+          () => {
+            toggleStornoStatus(false);
+          }
+        );
+      });
   });
 
   function getCurrentStornoStatus() {
@@ -1388,23 +1419,23 @@ function showPrintModal(printers, ids) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData)
     })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        location.href = 'reservierungen.html';
-      } else if (data.requiresConfirmation) {
-        // Room assignments found, show custom modal
-        showCustomConfirmModal(data.title || 'Bestätigung', data.message, data.question, () => {
-          // User confirmed, retry with deleteRoomAssignments = true
-          toggleStornoStatus(true);
-        });
-      } else {
-        alert('Fehler beim Ändern des Storno-Status: ' + (data.error || 'Unbekannter Fehler'));
-      }
-    })
-    .catch(err => {
-      alert('Netzwerkfehler beim Ändern des Storno-Status');
-    });
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          location.href = 'reservierungen.html';
+        } else if (data.requiresConfirmation) {
+          // Room assignments found, show custom modal
+          showCustomConfirmModal(data.title || 'Bestätigung', data.message, data.question, () => {
+            // User confirmed, retry with deleteRoomAssignments = true
+            toggleStornoStatus(true);
+          });
+        } else {
+          alert('Fehler beim Ändern des Storno-Status: ' + (data.error || 'Unbekannter Fehler'));
+        }
+      })
+      .catch(err => {
+        alert('Netzwerkfehler beim Ändern des Storno-Status');
+      });
   }
 
   // Back button - return to list
@@ -1416,7 +1447,7 @@ function showPrintModal(printers, ids) {
   function showCustomConfirmModal(title, message, question, onConfirm) {
     confirmModalTitle.textContent = title;
     confirmModalMessage.textContent = message;
-    
+
     // Hide question if empty
     if (question && question.trim()) {
       confirmModalQuestion.textContent = question;
@@ -1424,23 +1455,23 @@ function showPrintModal(printers, ids) {
     } else {
       confirmModalQuestion.style.display = 'none';
     }
-    
+
     confirmModal.classList.remove('hidden');
 
     // Remove any existing event listeners
     confirmModalYes.replaceWith(confirmModalYes.cloneNode(true));
     confirmModalNo.replaceWith(confirmModalNo.cloneNode(true));
-    
+
     // Get new references after cloning
     const newYesBtn = document.getElementById('confirmModalYes');
     const newNoBtn = document.getElementById('confirmModalNo');
-    
+
     // Add new event listeners
     newYesBtn.addEventListener('click', () => {
       confirmModal.classList.add('hidden');
       onConfirm();
     });
-    
+
     newNoBtn.addEventListener('click', () => {
       confirmModal.classList.add('hidden');
     });
@@ -1459,7 +1490,28 @@ function showPrintModal(printers, ids) {
 
   // Initial load
   loadNames();
-    // === Inaktivitäts-Timer ===
+
+  // === Auto-Refresh nach dem Speichern ===
+  // Wenn der Benutzer von GastDetail.html zurückkommt, automatisch die Namensliste aktualisieren
+  window.addEventListener('pageshow', (event) => {
+    // event.persisted = true bedeutet die Seite kam aus dem Browser Cache (history.back())
+    if (event.persisted) {
+      console.log('Page shown from cache - refreshing names list');
+      loadNames();
+    }
+  });
+
+  // === Focus Event für zusätzliche Sicherheit ===
+  // Falls pageshow nicht funktioniert, zusätzlich auf Focus-Event hören
+  window.addEventListener('focus', () => {
+    // Prüfe ob die Seite in den letzten 2 Sekunden im Hintergrund war
+    if (document.hidden === false) {
+      console.log('Window focused - refreshing names list');
+      loadNames();
+    }
+  });
+
+  // === Inaktivitäts-Timer ===
   let inactivityTimeout;
   function resetInactivityTimer() {
     clearTimeout(inactivityTimeout);
@@ -1467,8 +1519,8 @@ function showPrintModal(printers, ids) {
       history.back();
     }, 30_000); // 30 Sekunden
   }
-  ['click','mousemove','keydown','scroll','touchstart'].forEach(evt =>
-    document.addEventListener(evt, resetInactivityTimer, {passive: true})
+  ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt =>
+    document.addEventListener(evt, resetInactivityTimer, { passive: true })
   );
   // starte direkt den Timer
   resetInactivityTimer();
@@ -1483,10 +1535,10 @@ function showPrintModal(printers, ids) {
 
     const dot = navStatus.querySelector('.status-dot');
     const text = navStatus.querySelector('.status-text');
-    
+
     const quality = monitor.getQuality();
     const isOnline = monitor.isOnline();
-    
+
     if (!isOnline) {
       dot.style.backgroundColor = '#dc3545';
       text.textContent = 'Offline';
@@ -1532,21 +1584,21 @@ function showPrintModal(printers, ids) {
 
   // Update Navigation Status alle 5 Sekunden
   setInterval(updateNavigationStatus, 5000);
-  
+
   // Initial Status Update nach kurzer Verzögerung
   setTimeout(updateNavigationStatus, 2000);
 
   // === Universelle Verbindungsstatus-Funktionen ===
   // Stelle sicher, dass updateNavigationStatus global verfügbar ist, auch wenn keine Navigation vorhanden
   if (!window.updateNavigationStatus) {
-    window.updateNavigationStatus = function() {
+    window.updateNavigationStatus = function () {
       // Fallback für Seiten ohne Navigation-Status
       console.log('[CONNECTION] Navigation status not available on this page');
     };
   }
-  
+
   // Stelle globale Connection-Update-Funktion zur Verfügung
-  window.updateConnectionStatus = function() {
+  window.updateConnectionStatus = function () {
     if (window.connectionMonitor && window.HttpUtils) {
       window.connectionMonitor.testConnection().then(() => {
         HttpUtils.updatePermanentIndicator(window.connectionMonitor);

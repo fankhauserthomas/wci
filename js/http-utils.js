@@ -30,7 +30,7 @@ class HttpUtils {
     for (let attempt = 0; attempt <= opts.retries; attempt++) {
       try {
         console.log(`[HTTP] ${attempt > 0 ? `Retry ${attempt}: ` : ''}${fetchOptions.method || 'GET'} ${url}`);
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), opts.timeout);
 
@@ -73,7 +73,7 @@ class HttpUtils {
    */
   static async requestJson(url, options = {}, retryOptions = {}) {
     const response = await this.request(url, options, retryOptions);
-    
+
     try {
       const data = await response.json();
       return data;
@@ -99,7 +99,7 @@ class HttpUtils {
    * Batch-Request mit Parallelisierung und Fehlerbehandlung
    */
   static async batchRequest(requests, options = {}) {
-    const { 
+    const {
       concurrency = 3,     // Max parallel requests
       retryOptions = {},
       onProgress = null    // Progress callback
@@ -112,7 +112,7 @@ class HttpUtils {
     // Process requests in batches
     for (let i = 0; i < requests.length; i += concurrency) {
       const batch = requests.slice(i, i + concurrency);
-      
+
       const batchPromises = batch.map(async (request, batchIndex) => {
         const globalIndex = i + batchIndex;
         try {
@@ -123,7 +123,7 @@ class HttpUtils {
           results[globalIndex] = { success: false, error: error.message, request };
           errors.push({ index: globalIndex, error, request });
         }
-        
+
         completed++;
         if (onProgress) {
           onProgress(completed, requests.length, results[globalIndex]);
@@ -152,9 +152,9 @@ class HttpUtils {
     }
 
     // Other network-related errors
-    return error.message.includes('fetch') || 
-           error.message.includes('network') ||
-           error.message.includes('timeout');
+    return error.message.includes('fetch') ||
+      error.message.includes('network') ||
+      error.message.includes('timeout');
   }
 
   /**
@@ -174,24 +174,24 @@ class HttpUtils {
     const monitor = {
       isOnline: () => isOnline,
       getQuality: () => connectionQuality,
-      
+
       // Test connection quality
       async testConnection() {
         try {
           const start = performance.now();
           // Use a small HEAD request to test connection
-          const response = await fetch(window.location.origin + '/ping.php', { 
+          const response = await fetch(window.location.origin + '/wci/ping.php', {
             method: 'HEAD',
             cache: 'no-cache'
           });
           const end = performance.now();
           const latency = end - start;
-          
+
           if (latency < 100) connectionQuality = 'excellent';
           else if (latency < 500) connectionQuality = 'good';
           else if (latency < 1000) connectionQuality = 'fair';
           else connectionQuality = 'poor';
-          
+
           return { latency, quality: connectionQuality };
         } catch {
           connectionQuality = 'offline';
@@ -238,24 +238,24 @@ class HttpUtils {
       status.style.backgroundColor = '#dc3545';
     } else {
       switch (quality) {
-        case 'excellent': 
-          status.textContent = '🟢 Ausgezeichnet'; 
-          status.style.backgroundColor = '#28a745'; 
+        case 'excellent':
+          status.textContent = '🟢 Ausgezeichnet';
+          status.style.backgroundColor = '#28a745';
           break;
-        case 'good': 
-          status.textContent = '🟡 Gut'; 
-          status.style.backgroundColor = '#ffc107'; 
+        case 'good':
+          status.textContent = '🟡 Gut';
+          status.style.backgroundColor = '#ffc107';
           break;
-        case 'fair': 
-          status.textContent = '🟠 Mäßig'; 
-          status.style.backgroundColor = '#fd7e14'; 
+        case 'fair':
+          status.textContent = '🟠 Mäßig';
+          status.style.backgroundColor = '#fd7e14';
           break;
-        case 'poor': 
-          status.textContent = '🔴 Schlecht'; 
-          status.style.backgroundColor = '#dc3545'; 
+        case 'poor':
+          status.textContent = '🔴 Schlecht';
+          status.style.backgroundColor = '#dc3545';
           break;
-        default: 
-          status.textContent = '⚪ Unbekannt'; 
+        default:
+          status.textContent = '⚪ Unbekannt';
           status.style.backgroundColor = '#6c757d';
       }
     }
@@ -292,7 +292,7 @@ class HttpUtils {
 
     // Tooltip für Details
     indicator.title = 'Verbindungsqualität: Unbekannt - Klicken für Details';
-    
+
     // Click für Details
     indicator.addEventListener('click', () => {
       if (window.connectionMonitor) {
@@ -452,10 +452,10 @@ class HttpUtils {
   static init() {
     // Connection Monitor starten
     const monitor = this.createConnectionMonitor();
-    
+
     // Globale Variable für anderen Code
     window.connectionMonitor = monitor;
-    
+
     // Permanente Statusanzeige erstellen
     if (document.body) {
       this.createPermanentStatusIndicator();
@@ -464,13 +464,13 @@ class HttpUtils {
         this.createPermanentStatusIndicator();
       });
     }
-    
+
     // Globale Update-Funktion für alle Indikatoren
     const updateAllIndicators = async () => {
       try {
         await monitor.testConnection();
         this.updatePermanentIndicator(monitor);
-        
+
         // Update Navigation-Status falls vorhanden
         if (window.updateNavigationStatus && typeof window.updateNavigationStatus === 'function') {
           window.updateNavigationStatus();
@@ -479,10 +479,10 @@ class HttpUtils {
         // Silent fail für Background-Tests
       }
     };
-    
+
     // Globale Update-Funktion verfügbar machen
     window.updateConnectionStatus = updateAllIndicators;
-    
+
     // Verbindungstest alle 30 Sekunden mit Update
     setInterval(updateAllIndicators, 30000);
 
@@ -490,7 +490,7 @@ class HttpUtils {
     setTimeout(updateAllIndicators, 1000);
 
     console.log('[HTTP] HttpUtils initialized with permanent status indicator');
-    
+
     return monitor;
   }
 
@@ -499,8 +499,8 @@ class HttpUtils {
    */
   static async requestWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
-    
-    return window.LoadingOverlay ? 
+
+    return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.request(url, options, retryOptions);
       }, operationType) :
@@ -512,8 +512,8 @@ class HttpUtils {
    */
   static async requestJsonWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
-    
-    return window.LoadingOverlay ? 
+
+    return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.requestJson(url, options, retryOptions);
       }, operationType) :
@@ -525,8 +525,8 @@ class HttpUtils {
    */
   static async postJsonWithLoading(url, data, retryOptions = {}, loadingMessage = null) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
-    
-    return window.LoadingOverlay ? 
+
+    return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.postJson(url, data, retryOptions);
       }, operationType) :
@@ -537,7 +537,7 @@ class HttpUtils {
    * Batch-Request mit Progress-Anzeige und Loading-Overlay
    */
   static async batchRequestWithLoading(requests, options = {}, loadingMessage = 'Batch-Operation läuft...') {
-    const { 
+    const {
       concurrency = 3,
       retryOptions = {},
       onProgress = null
@@ -580,7 +580,7 @@ class HttpUtils {
 // Auto-initialize wenn im Browser geladen
 if (typeof window !== 'undefined') {
   window.HttpUtils = HttpUtils;
-  
+
   // Auto-init nach DOM ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => HttpUtils.init());

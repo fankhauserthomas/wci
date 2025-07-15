@@ -54,7 +54,7 @@ try {
     }
     
     $data = $result->fetch_assoc();
-    $stmt->close();
+    // $stmt->close(); // Entfernt - wird im finally Block gemacht
     
     // Datentypen konvertieren
     $data['id'] = (int)$data['id'];
@@ -81,7 +81,7 @@ try {
         'error' => $e->getMessage()
     ]);
 } finally {
-    if (isset($stmt)) {
+    if (isset($stmt) && $stmt instanceof mysqli_stmt) {
         $stmt->close();
     }
 }

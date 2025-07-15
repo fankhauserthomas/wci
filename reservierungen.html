@@ -71,11 +71,17 @@
     <div class="modal-content">
       <span id="qrClose" class="close">&times;</span>
       <div id="qrContainer" style="text-align:center;"></div>
+      <div style="text-align:center; margin-top: 20px;">
+        <button id="emailGuestBtn" class="btn-email" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          📧 E-Mail an Gast senden
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- QRCode.js (CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
   <script src="script.js"></script>

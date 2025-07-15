@@ -1,14 +1,24 @@
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Keine Fehlerausgaben - würde JSON kaputt machen
+ini_set('display_errors', 0);
+error_reporting(0);
 
 require_once 'config.php';
 header('Content-Type: application/json');
 
+// MySQL Error Mode lockern
+$mysqli->query("SET sql_mode = ''");
+$mysqli->query("SET SESSION sql_mode = ''");
+
 // 1. Daten aus dem Request-Body lesen
-$data = json_decode(file_get_contents('php://input'), true);
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+
+if ($data === null) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Ungültiges JSON']);
+    exit;
+}
 
 // 2. ID prüfen
 $id = isset($data['id']) ? (int)$data['id'] : 0;
@@ -69,11 +79,16 @@ $stmt->bind_param(
 );
 
 // 6. Statement ausführen und Ergebnis prüfen
-if ($stmt->execute()) {
-    echo json_encode(['success' => true]);
-} else {
+try {
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Fehler beim Speichern: ' . $stmt->error]);
+    }
+} catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Fehler beim Speichern: ' . $stmt->error]);
+    echo json_encode(['success' => false, 'error' => 'Unerwarteter Fehler: ' . $e->getMessage()]);
 }
 
 // 7. Statement schließen

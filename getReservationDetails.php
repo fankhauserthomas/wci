@@ -24,6 +24,7 @@ SELECT
     (r.betten + r.dz + r.lager + r.sonder) AS anzahl,
     IFNULL(r.nachname, '') AS nachname,
     IFNULL(r.vorname, '')  AS vorname,
+    IFNULL(r.email, '') AS email,
     a.kbez                AS arrangement,
     r.bem,
     r.bem_av,
