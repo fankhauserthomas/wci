@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,24 +12,24 @@
       margin: 0 auto;
       padding: 20px;
     }
-    
+
     .stats-header {
       text-align: center;
       margin-bottom: 40px;
     }
-    
+
     .stats-title {
       font-size: 2.5rem;
       color: var(--primary);
       margin-bottom: 10px;
     }
-    
+
     .stats-subtitle {
       font-size: 1.2rem;
       color: var(--text-muted);
       margin-bottom: 20px;
     }
-    
+
     .back-button {
       background: var(--secondary);
       color: white;
@@ -41,20 +42,20 @@
       display: inline-block;
       margin-bottom: 30px;
     }
-    
+
     .back-button:hover {
       background: #0056b3;
       text-decoration: none;
       color: white;
     }
-    
+
     .quick-stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 25px;
       margin-bottom: 40px;
     }
-    
+
     .stat-card {
       background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       color: white;
@@ -64,26 +65,26 @@
       box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    
+
     .stat-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
     }
-    
+
     .stat-number {
       font-size: 2.5rem;
       font-weight: bold;
       margin-bottom: 8px;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    
+
     .stat-label {
       font-size: 1rem;
       opacity: 0.95;
       font-weight: 500;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
-    
+
     .detailed-stats {
       background: white;
       border-radius: 12px;
@@ -92,19 +93,19 @@
       border: 1px solid var(--border);
       margin-bottom: 30px;
     }
-    
+
     .detailed-stats h3 {
       color: var(--primary);
       margin-bottom: 20px;
       font-size: 1.5rem;
     }
-    
+
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 30px;
     }
-    
+
     .date-selector {
       background: white;
       border-radius: 12px;
@@ -114,7 +115,7 @@
       margin-bottom: 30px;
       text-align: center;
     }
-    
+
     .date-input {
       padding: 10px;
       border: 1px solid var(--border);
@@ -122,7 +123,7 @@
       margin: 0 10px;
       font-size: 1rem;
     }
-    
+
     .refresh-button {
       background: var(--primary);
       color: white;
@@ -133,51 +134,48 @@
       cursor: pointer;
       margin-left: 10px;
     }
-    
+
     .refresh-button:hover {
       background: var(--primary-dark);
     }
-    
+
     @media (max-width: 768px) {
       .stats-container {
         padding: 15px;
       }
-      
+
       .stats-title {
         font-size: 2rem;
       }
-      
+
       .quick-stats {
         grid-template-columns: repeat(2, 1fr);
         gap: 15px;
       }
-      
+
       .stat-card {
         padding: 20px 15px;
       }
-      
+
       .stat-number {
         font-size: 2rem;
       }
     }
   </style>
 </head>
+
 <body>
-  <header>
-    <div class="connection-indicator" id="connection-indicator">
-      <div class="status-dot"></div>
-      <span class="status-text">Verbindung prüfen...</span>
-    </div>
-    
-    <div class="nav-status" id="nav-connection-status">
-      <div class="status-dot"></div>
-      <span class="status-text">Unbekannt</span>
-    </div>
-  </header>
+
 
   <main class="stats-container">
     <a href="index.php" class="back-button">← Zurück zum Dashboard</a>
-    
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connection-indicator">
+      <div class="status-dot"></div>
+      <span class="status-text">Verbindung prüfen...</span>
+    </div>
+
     <div class="stats-header">
       <h1 class="stats-title">📊 Statistiken</h1>
       <p class="stats-subtitle">Detaillierte Übersicht über Reservierungen und Auslastung</p>
@@ -218,7 +216,7 @@
           <p>Lade Daten...</p>
         </div>
       </div>
-      
+
       <div class="detailed-stats">
         <h3>Heutige Abreisen</h3>
         <div id="departures-details">
@@ -238,30 +236,30 @@
   <!-- Scripts -->
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
-  
+
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       // Set today's date
       const today = new Date().toISOString().slice(0, 10);
       document.getElementById('statsDate').value = today;
-      
+
       // Load initial stats
       await loadStatsForDate();
-      
+
       // Set up connection monitoring
       setupConnectionMonitoring();
     });
 
     async function loadStatsForDate() {
       const selectedDate = document.getElementById('statsDate').value || new Date().toISOString().slice(0, 10);
-      
+
       try {
         // Load basic stats
         await loadQuickStats(selectedDate);
-        
+
         // Load detailed data
         await loadDetailedStats(selectedDate);
-        
+
       } catch (error) {
         console.error('Error loading statistics:', error);
       }
@@ -273,22 +271,22 @@
         const arrivalsPromise = window.HttpUtils
           ? HttpUtils.requestJsonWithLoading(`data.php?date=${date}&type=arrival`, {}, {}, 'Anreisen werden geladen...')
           : LoadingOverlay.wrapFetch(() => fetch(`data.php?date=${date}&type=arrival`).then(r => r.json()), 'Anreisen');
-        
+
         // Load departures for selected date  
         const departuresPromise = window.HttpUtils
           ? HttpUtils.requestJsonWithLoading(`data.php?date=${date}&type=departure`, {}, {}, 'Abreisen werden geladen...')
           : LoadingOverlay.wrapFetch(() => fetch(`data.php?date=${date}&type=departure`).then(r => r.json()), 'Abreisen');
 
         const [arrivals, departures] = await Promise.all([arrivalsPromise, departuresPromise]);
-        
+
         // Update stats
         document.getElementById('todayArrivals').textContent = arrivals.length || 0;
         document.getElementById('todayDepartures').textContent = departures.length || 0;
-        
+
         // Calculate other stats
         const totalGuests = arrivals.reduce((sum, res) => sum + (parseInt(res.anz) || 0), 0);
         const pendingCheckins = arrivals.filter(res => !res.checked_in).length;
-        
+
         document.getElementById('totalGuests').textContent = totalGuests;
         document.getElementById('pendingCheckins').textContent = pendingCheckins;
 
@@ -307,9 +305,9 @@
         // Load detailed arrivals
         const arrivals = await fetch(`data.php?date=${date}&type=arrival`).then(r => r.json());
         const departures = await fetch(`data.php?date=${date}&type=departure`).then(r => r.json());
-        
+
         // Display arrivals details
-        const arrivalsHtml = arrivals.length > 0 
+        const arrivalsHtml = arrivals.length > 0
           ? arrivals.map(res => `
               <div style="padding: 10px; border-bottom: 1px solid #eee;">
                 <strong>${res.name || 'Unbekannt'}</strong><br>
@@ -317,9 +315,9 @@
               </div>
             `).join('')
           : '<p>Keine Anreisen für dieses Datum.</p>';
-        
+
         document.getElementById('arrivals-details').innerHTML = arrivalsHtml;
-        
+
         // Display departures details
         const departuresHtml = departures.length > 0
           ? departures.map(res => `
@@ -329,12 +327,12 @@
               </div>
             `).join('')
           : '<p>Keine Abreisen für dieses Datum.</p>';
-        
+
         document.getElementById('departures-details').innerHTML = departuresHtml;
-        
+
         // Load weekly overview
         await loadWeeklyOverview(date);
-        
+
       } catch (error) {
         console.error('Error loading detailed stats:', error);
         document.getElementById('arrivals-details').innerHTML = '<p>Fehler beim Laden der Daten.</p>';
@@ -346,18 +344,18 @@
       try {
         const startDate = new Date(date);
         startDate.setDate(startDate.getDate() - startDate.getDay()); // Start of week
-        
+
         const weekData = [];
         for (let i = 0; i < 7; i++) {
           const currentDate = new Date(startDate);
           currentDate.setDate(startDate.getDate() + i);
           const dateStr = currentDate.toISOString().slice(0, 10);
-          
+
           const [arrivals, departures] = await Promise.all([
             fetch(`data.php?date=${dateStr}&type=arrival`).then(r => r.json()).catch(() => []),
             fetch(`data.php?date=${dateStr}&type=departure`).then(r => r.json()).catch(() => [])
           ]);
-          
+
           weekData.push({
             date: dateStr,
             dayName: currentDate.toLocaleDateString('de-DE', { weekday: 'short' }),
@@ -365,7 +363,7 @@
             departures: departures.length
           });
         }
-        
+
         const weeklyHtml = `
           <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 15px; text-align: center;">
             ${weekData.map(day => `
@@ -380,9 +378,9 @@
             `).join('')}
           </div>
         `;
-        
+
         document.getElementById('weekly-overview').innerHTML = weeklyHtml;
-        
+
       } catch (error) {
         console.error('Error loading weekly overview:', error);
         document.getElementById('weekly-overview').innerHTML = '<p>Fehler beim Laden der Wochendaten.</p>';
@@ -397,17 +395,17 @@
 
         const indicator = document.getElementById('connection-indicator');
         const navStatus = document.getElementById('nav-connection-status');
-        
+
         if (!indicator || !navStatus) return;
 
         const dot = indicator.querySelector('.status-dot');
         const text = indicator.querySelector('.status-text');
         const navDot = navStatus.querySelector('.status-dot');
         const navText = navStatus.querySelector('.status-text');
-        
+
         const quality = monitor.getQuality();
         const isOnline = monitor.isOnline();
-        
+
         if (!isOnline) {
           dot.style.backgroundColor = '#dc3545';
           text.textContent = 'Offline';
@@ -462,4 +460,5 @@
     }
   </script>
 </body>
+
 </html>

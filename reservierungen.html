@@ -1,41 +1,38 @@
 <!-- reservierungen.html -->
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservierungsliste - WebCheckin</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<header>
-  <h1>Reservierungen</h1>
-  <div class="controls">
-    <!-- Typ-Toggle -->
-    <button id="toggleType" class="toggle-btn arrival">Anreise</button>
+  <header>
+    <h1>Reservierungen</h1>
+    <div class="controls">
+      <!-- Typ-Toggle -->
+      <button id="toggleType" class="toggle-btn arrival">Anreise</button>
 
-    <!-- Datum -->
-    <input type="date" id="filterDate">
+      <!-- Datum -->
+      <input type="date" id="filterDate">
 
-    <!-- Storno-Toggle -->
-    <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
+      <!-- Storno-Toggle -->
+      <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
 
-    <!-- Alle/Offen-Toggle -->
-    <button id="toggleOpen" class="toggle-btn all">Alle</button>
+      <!-- Alle/Offen-Toggle -->
+      <button id="toggleOpen" class="toggle-btn all">Alle</button>
 
-    <!-- Verbindungsstatus -->
-    <div id="nav-connection-status" class="connection-status-nav" style="margin-left: auto;">
-      <div class="status-dot"></div>
-      <span class="status-text">Unbekannt</span>
+      <!-- Zurück zum Dashboard -->
+      <button id="dashboardBtn" class="toggle-btn dashboard"
+        onclick="window.location.href='index.php'">Dashboard</button>
+
+      <!-- Suche -->
+      <input type="text" id="searchInput" placeholder="Suche Name…">
     </div>
-
-    <!-- Zurück zum Dashboard -->
-    <button id="dashboardBtn" class="toggle-btn dashboard" onclick="window.location.href='index.php'">Dashboard</button>
-
-    <!-- Suche -->
-    <input type="text" id="searchInput" placeholder="Suche Name…">
-  </div>
-</header>
+  </header>
 
   <main>
     <table id="resTable">
@@ -72,11 +69,18 @@
       <span id="qrClose" class="close">&times;</span>
       <div id="qrContainer" style="text-align:center;"></div>
       <div style="text-align:center; margin-top: 20px;">
-        <button id="emailGuestBtn" class="btn-email" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        <button id="emailGuestBtn" class="btn-email"
+          style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
           📧 E-Mail an Gast senden
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Connection Status -->
+  <div class="connection-status" id="connection-indicator">
+    <div class="status-dot"></div>
+    <span class="status-text">Verbindung prüfen...</span>
   </div>
 
   <!-- QRCode.js (CDN) -->
@@ -85,5 +89,19 @@
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
   <script src="script.js"></script>
+
+  <script>
+    // Connection Status für diese Seite initialisieren
+    document.addEventListener('DOMContentLoaded', function () {
+      const indicator = document.getElementById('connection-indicator');
+      if (indicator && window.connectionMonitor) {
+        // Initial update
+        if (window.updateConnectionStatus) {
+          window.updateConnectionStatus();
+        }
+      }
+    });
+  </script>
 </body>
+
 </html>

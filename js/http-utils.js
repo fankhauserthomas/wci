@@ -273,22 +273,36 @@ class HttpUtils {
    * Permanente Verbindungsqualität-Anzeige
    */
   static createPermanentStatusIndicator() {
-    const indicator = document.createElement('div');
+    // Prüfe ob bereits ein HTML-Indikator existiert
+    let indicator = document.getElementById('connection-indicator');
+    if (indicator) {
+      console.log('[HTTP] Using existing HTML connection indicator');
+      // Click-Handler hinzufügen falls noch nicht vorhanden
+      if (!indicator.hasAttribute('data-click-handler')) {
+        indicator.addEventListener('click', () => {
+          if (window.connectionMonitor) {
+            HttpUtils.showDetailedConnectionStatus(window.connectionMonitor);
+          }
+        });
+        indicator.setAttribute('data-click-handler', 'true');
+      }
+      return indicator;
+    }
+
+    // Fallback: JavaScript-Indikator erstellen
+    indicator = document.createElement('div');
     indicator.id = 'connection-indicator';
-    indicator.style.cssText = `
-      position: fixed; 
-      bottom: 8px; 
-      left: 8px; 
-      z-index: 10000;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.8);
-      transition: all 0.3s ease;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      backdrop-filter: blur(2px);
-    `;
+    indicator.className = 'connection-status';
+
+    const statusDot = document.createElement('div');
+    statusDot.className = 'status-dot';
+
+    const statusText = document.createElement('span');
+    statusText.className = 'status-text';
+    statusText.textContent = 'Verbindung prüfen...';
+
+    indicator.appendChild(statusDot);
+    indicator.appendChild(statusText);
 
     // Tooltip für Details
     indicator.title = 'Verbindungsqualität: Unbekannt - Klicken für Details';
@@ -314,35 +328,39 @@ class HttpUtils {
     const isOnline = monitor.isOnline();
     const quality = monitor.getQuality();
 
+    // Status-Dot finden
+    const statusDot = indicator.querySelector('.status-dot');
+    const statusText = indicator.querySelector('.status-text');
+
     if (!isOnline) {
-      indicator.style.backgroundColor = '#dc3545';
-      indicator.style.borderColor = 'rgba(220,53,69,0.3)';
+      if (statusDot) statusDot.style.backgroundColor = '#dc3545';
+      if (statusText) statusText.textContent = 'Offline';
       indicator.title = 'Verbindungsqualität: Offline - Klicken für Details';
     } else {
       switch (quality) {
         case 'excellent':
-          indicator.style.backgroundColor = '#28a745';
-          indicator.style.borderColor = 'rgba(40,167,69,0.3)';
+          if (statusDot) statusDot.style.backgroundColor = '#28a745';
+          if (statusText) statusText.textContent = 'Ausgezeichnet';
           indicator.title = 'Verbindungsqualität: Ausgezeichnet - Klicken für Details';
           break;
         case 'good':
-          indicator.style.backgroundColor = '#28a745';
-          indicator.style.borderColor = 'rgba(40,167,69,0.3)';
+          if (statusDot) statusDot.style.backgroundColor = '#28a745';
+          if (statusText) statusText.textContent = 'Gut';
           indicator.title = 'Verbindungsqualität: Gut - Klicken für Details';
           break;
         case 'fair':
-          indicator.style.backgroundColor = '#ffc107';
-          indicator.style.borderColor = 'rgba(255,193,7,0.3)';
+          if (statusDot) statusDot.style.backgroundColor = '#ffc107';
+          if (statusText) statusText.textContent = 'Mäßig';
           indicator.title = 'Verbindungsqualität: Mäßig - Klicken für Details';
           break;
         case 'poor':
-          indicator.style.backgroundColor = '#fd7e14';
-          indicator.style.borderColor = 'rgba(253,126,20,0.3)';
+          if (statusDot) statusDot.style.backgroundColor = '#fd7e14';
+          if (statusText) statusText.textContent = 'Schlecht';
           indicator.title = 'Verbindungsqualität: Schlecht - Klicken für Details';
           break;
         default:
-          indicator.style.backgroundColor = '#6c757d';
-          indicator.style.borderColor = 'rgba(108,117,125,0.3)';
+          if (statusDot) statusDot.style.backgroundColor = '#6c757d';
+          if (statusText) statusText.textContent = 'Verbindung prüfen...';
           indicator.title = 'Verbindungsqualität: Unbekannt - Klicken für Details';
       }
     }
@@ -357,45 +375,38 @@ class HttpUtils {
 
     const modal = document.createElement('div');
     modal.id = 'detailed-connection-status';
-    modal.style.cssText = `
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      z-index: 10001; background: white; border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 20px; min-width: 320px;
-      border: 1px solid #ddd; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.zIndex = '10001';
+    modal.style.background = 'white';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+    modal.style.padding = '20px';
+    modal.style.minWidth = '320px';
+    modal.style.border = '1px solid #ddd';
+    modal.style.fontFamily = 'Arial, sans-serif';
 
     const quality = monitor.getQuality();
     const isOnline = monitor.isOnline();
 
-    modal.innerHTML = `
-      <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🌐 Verbindungsstatus</h3>
-      <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <strong>Status:</strong> 
-        <span style="display: inline-flex; align-items: center; gap: 5px;">
-          ${isOnline ? '🟢 Online' : '🔴 Offline'}
-        </span>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <strong>Qualität:</strong> ${this.getQualityLabel(quality)}
-      </div>
-      <div style="margin-bottom: 15px; font-size: 13px; color: #666; line-height: 1.4;">
-        ${this.getQualityDescription(quality)}
-      </div>
-      <div style="text-align: right;">
-        <button onclick="this.parentElement.remove(); document.getElementById('connection-backdrop').remove();" style="
-          background: #007bff; color: white; border: none; padding: 8px 16px;
-          border-radius: 4px; cursor: pointer; font-size: 14px;
-        ">OK</button>
-      </div>
-    `;
+    modal.innerHTML = '<h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">🌐 Verbindungsstatus</h3>' +
+      '<div style="margin-bottom: 10px;"><strong>Status:</strong> ' + (isOnline ? '🟢 Online' : '🔴 Offline') + '</div>' +
+      '<div style="margin-bottom: 10px;"><strong>Qualität:</strong> ' + this.getQualityLabel(quality) + '</div>' +
+      '<div style="margin-bottom: 15px; font-size: 13px; color: #666;">' + this.getQualityDescription(quality) + '</div>' +
+      '<div style="text-align: right;"><button id="connectionStatusOkBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">OK</button></div>';
 
     // Backdrop
     const backdrop = document.createElement('div');
     backdrop.id = 'connection-backdrop';
-    backdrop.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5); z-index: 10000;
-    `;
+    backdrop.style.position = 'fixed';
+    backdrop.style.top = '0';
+    backdrop.style.left = '0';
+    backdrop.style.right = '0';
+    backdrop.style.bottom = '0';
+    backdrop.style.background = 'rgba(0,0,0,0.5)';
+    backdrop.style.zIndex = '10000';
     backdrop.onclick = () => {
       modal.remove();
       backdrop.remove();
@@ -403,6 +414,17 @@ class HttpUtils {
 
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
+
+    // Event-Listener für OK-Button
+    setTimeout(() => {
+      const okBtn = document.getElementById('connectionStatusOkBtn');
+      if (okBtn) {
+        okBtn.addEventListener('click', () => {
+          modal.remove();
+          backdrop.remove();
+        });
+      }
+    }, 100);
   }
 
   static getQualityLabel(quality) {

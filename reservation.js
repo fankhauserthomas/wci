@@ -1527,60 +1527,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Navigation Status Update ===
   function updateNavigationStatus() {
-    const monitor = window.connectionMonitor;
-    if (!monitor) return;
-
-    const navStatus = document.getElementById('nav-connection-status');
-    if (!navStatus) return;
-
-    const dot = navStatus.querySelector('.status-dot');
-    const text = navStatus.querySelector('.status-text');
-
-    const quality = monitor.getQuality();
-    const isOnline = monitor.isOnline();
-
-    if (!isOnline) {
-      dot.style.backgroundColor = '#dc3545';
-      text.textContent = 'Offline';
-      navStatus.title = 'Verbindung: Offline - Klicken für Details';
-    } else {
-      switch (quality) {
-        case 'excellent':
-        case 'good':
-          dot.style.backgroundColor = '#28a745';
-          text.textContent = 'Online';
-          navStatus.title = `Verbindung: ${quality === 'excellent' ? 'Ausgezeichnet' : 'Gut'} - Klicken für Details`;
-          break;
-        case 'fair':
-          dot.style.backgroundColor = '#ffc107';
-          text.textContent = 'Langsam';
-          navStatus.title = 'Verbindung: Mäßig - Klicken für Details';
-          break;
-        case 'poor':
-          dot.style.backgroundColor = '#fd7e14';
-          text.textContent = 'Sehr langsam';
-          navStatus.title = 'Verbindung: Schlecht - Klicken für Details';
-          break;
-        default:
-          dot.style.backgroundColor = '#6c757d';
-          text.textContent = 'Unbekannt';
-          navStatus.title = 'Verbindung: Unbekannt - Klicken für Details';
-      }
-    }
+    // Navigation-Status-Indikator wurde entfernt - nur für Kompatibilität
+    return;
   }
 
   // Globale Funktion verfügbar machen
   window.updateNavigationStatus = updateNavigationStatus;
-
-  // Navigation Status Click Handler
-  const navStatus = document.getElementById('nav-connection-status');
-  if (navStatus) {
-    navStatus.addEventListener('click', () => {
-      if (window.connectionMonitor && window.HttpUtils) {
-        HttpUtils.showDetailedConnectionStatus(window.connectionMonitor);
-      }
-    });
-  }
 
   // Update Navigation Status alle 5 Sekunden
   setInterval(updateNavigationStatus, 5000);

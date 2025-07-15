@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,16 +8,13 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="reservation.css">
 </head>
+
 <body class="reservation">
   <header>
     <div id="resHeader" class="res-header">
       <div class="header-content">
         <div class="header-info"></div>
         <div class="header-menu">
-          <div id="nav-connection-status" class="connection-status-nav">
-            <div class="status-dot"></div>
-            <span class="status-text">Unbekannt</span>
-          </div>
           <button id="menuBtn" class="menu-btn">⋮</button>
           <div id="dropdownMenu" class="dropdown-menu hidden">
             <button id="editBtn" class="dropdown-item">Bearbeiten</button>
@@ -35,7 +33,7 @@
       <button id="deleteBtn">Löschen</button>
       <button id="printBtn">Drucken</button>
       <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
-      <button id="dietBtn" class="btn-diet">Diät…</button>  <!-- NEU -->
+      <button id="dietBtn" class="btn-diet">Diät…</button> <!-- NEU -->
       <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
       <button id="bulkCheckoutBtn" class="btn-bulk" disabled>Bulk Check-out</button>
       <button id="backBtn">Zurück zur Liste</button>
@@ -52,7 +50,7 @@
             <th>Bemerkung</th>
             <th>BF</th>
             <th>Arr</th>
-            <th>Diät</th>                <!-- NEU -->
+            <th>Diät</th> <!-- NEU -->
             <th>Check-in</th>
             <th>Check-out</th>
           </tr>
@@ -90,8 +88,7 @@
           <option value="lastname-firstname">Nachname Vorname</option>
         </select>
       </div>
-      <textarea id="newNamesTextarea" rows="5"
-        placeholder="pro Zeile ein Eintrag"></textarea>
+      <textarea id="newNamesTextarea" rows="5" placeholder="pro Zeile ein Eintrag"></textarea>
       <button id="importNamesBtn">Importieren</button>
     </details>
 
@@ -111,11 +108,31 @@
     </div>
   </main>
 
+  <!-- Connection Status -->
+  <div class="connection-status" id="connection-indicator">
+    <div class="status-dot"></div>
+    <span class="status-text">Verbindung prüfen...</span>
+  </div>
+
   <!-- HTTP Utils für stabilere Verbindungen -->
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <!-- Loading Overlay für GUI-Sperrung -->
   <script src="js/loading-overlay.js"></script>
   <script src="reservation.js"></script>
+
+  <script>
+    // Connection Status für diese Seite initialisieren
+    document.addEventListener('DOMContentLoaded', function () {
+      const indicator = document.getElementById('connection-indicator');
+      if (indicator && window.connectionMonitor) {
+        // Initial update
+        if (window.updateConnectionStatus) {
+          window.updateConnectionStatus();
+        }
+      }
+    });
+  </script>
 </body>
+
 </html>

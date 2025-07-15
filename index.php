@@ -152,7 +152,7 @@ if (!AuthManager::checkSession()) {
     .connection-status {
       position: fixed;
       bottom: 20px;
-      right: 20px;
+      left: 20px;
       background: white;
       border: 1px solid #e9ecef;
       border-radius: 8px;

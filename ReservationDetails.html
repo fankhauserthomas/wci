@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,16 +12,16 @@
             background-color: var(--bg);
             color: var(--text);
         }
-        
+
         .reservation-form {
             max-width: 900px;
             margin: 0 auto;
             padding: 1rem;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .form-header {
             background: var(--primary);
             color: #fff;
@@ -31,16 +32,16 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .form-title {
             font-size: 1.4rem;
             margin: 0;
         }
-        
+
         .form-section {
             margin-bottom: 1.5rem;
         }
-        
+
         .section-title {
             font-size: 1.1rem;
             font-weight: bold;
@@ -49,31 +50,31 @@
             padding-bottom: 0.5rem;
             border-bottom: 2px solid var(--primary);
         }
-        
+
         .form-row {
             display: flex;
             gap: 1rem;
             margin-bottom: 1rem;
             align-items: flex-start;
         }
-        
+
         .form-group {
             flex: 1;
             min-width: 0;
         }
-        
+
         .form-group.half {
             flex: 0 0 calc(50% - 0.5rem);
         }
-        
+
         .form-group.quarter {
             flex: 0 0 calc(25% - 0.75rem);
         }
-        
+
         .form-group.readonly {
             opacity: 0.7;
         }
-        
+
         label {
             display: block;
             margin-bottom: 0.3rem;
@@ -81,8 +82,10 @@
             color: var(--text);
             font-size: 0.9rem;
         }
-        
-        input, select, textarea {
+
+        input,
+        select,
+        textarea {
             width: 100%;
             padding: 0.5rem;
             border: 1px solid var(--light-gray);
@@ -92,37 +95,40 @@
             box-sizing: border-box;
             font-family: inherit;
         }
-        
-        input:focus, select:focus, textarea:focus {
+
+        input:focus,
+        select:focus,
+        textarea:focus {
             border-color: var(--primary);
             outline: none;
             box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
         }
-        
-        input:read-only, select:disabled {
+
+        input:read-only,
+        select:disabled {
             background-color: var(--light-gray);
             color: var(--secondary);
             cursor: not-allowed;
         }
-        
+
         .checkbox-group {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             margin-top: 1.5rem;
         }
-        
+
         .checkbox-group input[type="checkbox"] {
             width: auto;
             margin: 0;
         }
-        
+
         .sleeping-categories {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1rem;
         }
-        
+
         .action-buttons {
             display: flex;
             gap: 0.5rem;
@@ -131,7 +137,7 @@
             padding-top: 1rem;
             border-top: 1px solid var(--light-gray);
         }
-        
+
         .btn {
             padding: 0.6rem 1.2rem;
             border: none;
@@ -142,25 +148,25 @@
             transition: background-color 0.3s;
             font-family: inherit;
         }
-        
+
         .btn-primary {
             background-color: var(--primary);
             color: white;
         }
-        
+
         .btn-primary:hover {
             background-color: #27ae60;
         }
-        
+
         .btn-secondary {
             background-color: var(--secondary);
             color: white;
         }
-        
+
         .btn-secondary:hover {
             background-color: #7f8c8d;
         }
-        
+
         .status-indicator {
             display: inline-block;
             padding: 0.3rem 0.8rem;
@@ -169,67 +175,23 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        
+
         .status-active {
             background-color: var(--light-green);
             color: #155724;
         }
-        
+
         .status-cancelled {
             background-color: var(--light-salmon);
             color: #721c24;
         }
-        
-        /* Verbindungsstatus in der Navigation */
-        .connection-status-nav {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.3);
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            color: rgba(255,255,255,0.9);
-            margin-left: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
 
-        .connection-status-nav:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.4);
-        }
-
-        .connection-status-nav .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-            background-color: #6c757d;
-            transition: background-color 0.3s ease;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-
-        .connection-status-nav .status-text {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
         .loading {
             text-align: center;
             padding: 2rem;
             color: var(--secondary);
         }
-        
+
         .error {
             background-color: var(--light-salmon);
             color: #721c24;
@@ -238,7 +200,7 @@
             margin-bottom: 1rem;
             border: 1px solid #f5c6cb;
         }
-        
+
         .success {
             background-color: var(--light-green);
             color: #155724;
@@ -253,46 +215,43 @@
                 margin: 0.5rem;
                 padding: 0.8rem;
             }
-            
+
             .form-row {
                 flex-direction: column;
                 gap: 0.8rem;
             }
-            
+
             .form-group.half,
             .form-group.quarter {
                 flex: 1;
             }
-            
+
             .sleeping-categories {
                 grid-template-columns: 1fr 1fr;
             }
-            
+
             .action-buttons {
                 flex-direction: column;
             }
         }
     </style>
 </head>
+
 <body class="reservation-details">
     <div class="reservation-form">
         <div class="form-header">
             <h1 class="form-title">Reservierungsdetails</h1>
             <div style="display: flex; align-items: center;">
-                <div id="nav-connection-status" class="connection-status-nav">
-                    <div class="status-dot"></div>
-                    <span class="status-text">Unbekannt</span>
-                </div>
                 <div id="statusIndicator"></div>
             </div>
         </div>
-        
+
         <div id="messageArea"></div>
-        
+
         <div id="loadingIndicator" class="loading">
             Lade Reservierungsdetails...
         </div>
-        
+
         <form id="reservationForm" style="display: none;">
             <!-- Basic Info Section -->
             <div class="form-section">
@@ -314,7 +273,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Personal Data Section -->
             <div class="form-section">
                 <h2 class="section-title">Persönliche Daten</h2>
@@ -353,7 +312,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Booking Dates Section -->
             <div class="form-section">
                 <h2 class="section-title">Aufenthaltsdaten</h2>
@@ -368,7 +327,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Sleeping Categories Section -->
             <div class="form-section">
                 <h2 class="section-title">Schlafkategorien</h2>
@@ -391,7 +350,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Arrangement Section -->
             <div class="form-section">
                 <h2 class="section-title">Arrangement</h2>
@@ -404,7 +363,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Notes Section -->
             <div class="form-section">
                 <h2 class="section-title">Bemerkungen</h2>
@@ -421,7 +380,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Action Buttons -->
             <div class="action-buttons">
                 <button type="button" class="btn btn-secondary" onclick="goBack()">Zurück</button>
@@ -429,9 +388,29 @@
             </div>
         </form>
     </div>
-    
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connection-indicator">
+        <div class="status-dot"></div>
+        <span class="status-text">Verbindung prüfen...</span>
+    </div>
+
     <script src="js/http-utils.js"></script>
     <script src="js/loading-overlay.js"></script>
     <script src="ReservationDetails.js"></script>
+
+    <script>
+        // Connection Status für diese Seite initialisieren
+        document.addEventListener('DOMContentLoaded', function () {
+            const indicator = document.getElementById('connection-indicator');
+            if (indicator && window.connectionMonitor) {
+                // Initial update
+                if (window.updateConnectionStatus) {
+                    window.updateConnectionStatus();
+                }
+            }
+        });
+    </script>
 </body>
+
 </html>

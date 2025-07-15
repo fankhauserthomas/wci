@@ -32,6 +32,7 @@ header {
   color: #fff;
   padding: 1rem;
 }
+
 header h1 {
   font-size: 1.4rem;
   margin-bottom: 0.5rem;
@@ -43,6 +44,7 @@ header h1 {
   flex-wrap: wrap;
   align-items: center;
 }
+
 .controls input,
 .controls select {
   padding: 0.5rem;
@@ -62,17 +64,21 @@ main {
   border-collapse: collapse;
   margin-bottom: 1rem;
 }
+
 #resTable th,
 #resTable td {
   padding: 0.5rem;
   border: 1px solid var(--light-gray);
-  text-align: center; /* alle Spalten zentrieren */
+  text-align: center;
+  /* alle Spalten zentrieren */
 }
+
 /* Name-Spalte (4. Spalte) links ausrichten */
 #resTable th:nth-child(5),
 #resTable td:nth-child(5) {
   text-align: left;
-  cursor: pointer; /* Mauszeiger ändern bei Hover über Name-Spalte */
+  cursor: pointer;
+  /* Mauszeiger ändern bei Hover über Name-Spalte */
 }
 
 /* Bemerkung-Spalte (8. Spalte) klickbar machen */
@@ -96,6 +102,7 @@ main {
 tr[data-storno="true"] {
   background-color: var(--light-salmon);
 }
+
 tr[data-storno="false"] {
   background-color: var(--light-green);
 }
@@ -105,17 +112,20 @@ tr[data-storno="false"] {
 .pie-chart {
   vertical-align: middle;
 }
+
 .info-icon,
 .dog-icon {
   width: 1.5em;
   cursor: pointer;
 }
+
 /* Pie-Chart (kein Cursor-Pointer, da nicht klickbar) */
 .pie-chart {
   width: 1.5em;
   height: 1.5em;
   vertical-align: middle;
-  cursor: default; /* explizit auf default setzen */
+  cursor: default;
+  /* explizit auf default setzen */
 }
 
 /* ===========================
@@ -123,15 +133,19 @@ tr[data-storno="false"] {
    =========================== */
 /* beide Modals (#modal und #qrModal) haben class="modal" */
 .modal {
-  display: none;               /* initial versteckt */
+  display: none;
+  /* initial versteckt */
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.5);
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
+
 /* wenn per JS .visible dran, wird eingeblendet */
 .modal.visible {
   display: flex;
@@ -144,7 +158,7 @@ tr[data-storno="false"] {
   padding: 1rem 1.5rem;
   max-width: 90%;
   width: 360px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   position: relative;
 }
 
@@ -175,20 +189,26 @@ tr[data-storno="false"] {
 .originBtn {
   cursor: pointer;
 }
+
 /* Container für Hinweis und QR-Code – flex & zentriert */
 #qrContainer {
   display: flex;
   flex-direction: column;
-  align-items: center;     /* horizontal zentrieren */
-  justify-content: center; /* vertikal zentrieren, falls nötig */
-  text-align: center;      /* Fallback, falls kein Flex */
+  align-items: center;
+  /* horizontal zentrieren */
+  justify-content: center;
+  /* vertikal zentrieren, falls nötig */
+  text-align: center;
+  /* Fallback, falls kein Flex */
 }
 
 /* Das <div id="qrCode"> selbst als Block zentrieren */
 #qrCode {
-  display: inline-block; /* damit margin:auto wirkt */
+  display: inline-block;
+  /* damit margin:auto wirkt */
   margin: 0 auto;
 }
+
 /* Toggle-Button für Anreise/Abreise */
 .toggle-btn {
   padding: 0.5rem 1rem;
@@ -198,28 +218,39 @@ tr[data-storno="false"] {
   font-size: 1rem;
   margin-right: 0.5rem;
 }
+
 .toggle-btn.arrival {
-  background-color: var(--light-green);  /* hellgrün */
+  background-color: var(--light-green);
+  /* hellgrün */
   color: var(--text);
 }
+
 .toggle-btn.departure {
-  background-color: #d0ebff;             /* hellblau */
+  background-color: #d0ebff;
+  /* hellblau */
   color: var(--text);
 }
+
 /* Storno-Toggle */
 .toggle-btn.no-storno {
-  background-color: var(--light-green); /* hellgrün */
+  background-color: var(--light-green);
+  /* hellgrün */
 }
+
 .toggle-btn.storno {
-  background-color: var(--light-salmon); /* hellrot */
+  background-color: var(--light-salmon);
+  /* hellrot */
 }
 
 /* Alle/Offen-Toggle */
 .toggle-btn.all {
-  background-color: var(--light-green); /* hellgrün */
+  background-color: var(--light-green);
+  /* hellgrün */
 }
+
 .toggle-btn.open {
-  background-color: #d0ebff;             /* hellblau */
+  background-color: #d0ebff;
+  /* hellblau */
 }
 
 /* GastDetail.html Formular */
@@ -244,28 +275,28 @@ tr[data-storno="false"] {
 }
 
 #gastForm .form-group-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    justify-content: center;
-    flex-direction: column;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+  flex-direction: column;
 }
 
 #gastForm .form-row .form-group-checkbox {
-    margin-bottom: 0;
-    justify-content: flex-start;
-    flex-direction: row;
+  margin-bottom: 0;
+  justify-content: flex-start;
+  flex-direction: row;
 }
 
 #gastForm .form-group-checkbox input[type="checkbox"] {
-    width: auto;
-    margin: 0;
+  width: auto;
+  margin: 0;
 }
 
 #gastForm .form-group-checkbox label {
-    margin-bottom: 0;
-    font-weight: normal;
+  margin-bottom: 0;
+  font-weight: normal;
 }
 
 #gastForm label {
@@ -286,7 +317,7 @@ tr[data-storno="false"] {
 }
 
 #gastForm textarea {
-    resize: vertical;
+  resize: vertical;
 }
 
 #gastForm .form-actions {
@@ -296,73 +327,74 @@ tr[data-storno="false"] {
   margin-top: 1.5rem;
 }
 
-#gastForm .btn-save, #gastForm .btn-close {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
+#gastForm .btn-save,
+#gastForm .btn-close {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
 }
 
 #gastForm .btn-save {
-    background-color: var(--primary);
-    color: white;
+  background-color: var(--primary);
+  color: white;
 }
 
 #gastForm .btn-close {
-    background-color: var(--secondary);
-    color: white;
+  background-color: var(--secondary);
+  color: white;
 }
 
 /* Transport-Controls Styling */
 .transport-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .transport-input {
-    width: 100px !important;
-    margin-bottom: 0 !important;
-    flex-shrink: 0;
+  width: 100px !important;
+  margin-bottom: 0 !important;
+  flex-shrink: 0;
 }
 
 .transport-buttons {
-    display: flex;
-    gap: 0.25rem;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
 }
 
 .transport-btn {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    background-color: #f8f8f8;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: bold;
-    min-width: 2rem;
-    text-align: center;
-    transition: background-color 0.2s;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background-color: #f8f8f8;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+  min-width: 2rem;
+  text-align: center;
+  transition: background-color 0.2s;
 }
 
 .transport-btn:hover {
-    background-color: #e0e0e0;
+  background-color: #e0e0e0;
 }
 
 .transport-btn:active {
-    background-color: #d0d0d0;
+  background-color: #d0d0d0;
 }
 
 .transport-btn.clear {
-    background-color: #ff6b6b;
-    color: white;
-    border-color: #e55656;
+  background-color: #ff6b6b;
+  color: white;
+  border-color: #e55656;
 }
 
 .transport-btn.clear:hover {
-    background-color: #e55656;
+  background-color: #e55656;
 }
 
 /* Verbindungsstatus in der Navigation */
@@ -374,17 +406,17 @@ tr[data-storno="false"] {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .connection-status-nav:hover {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .connection-status-nav .status-dot {
@@ -397,13 +429,54 @@ tr[data-storno="false"] {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .connection-status-nav .status-text {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Connection Status Indicator */
+.connection-status {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 10px 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  z-index: 1000;
+}
+
+.connection-status:hover {
+  transform: translateY(-1px);
+}
+
+.connection-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6c757d;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.connection-status .status-text {
+  font-size: 0.85rem;
+  color: #2c3e50;
 }

@@ -16,37 +16,38 @@ window.EmailUtils = {
    */
   async sendNameListEmail(reservationData) {
     const { id, nachname = '', vorname = '', email = '', anreise = '', abreise = '' } = reservationData;
-    
+
     // Datum formatieren (für deutsche Anzeige)
     const fmtDate = iso => {
       if (!iso) return '';
       const [y, m, d] = iso.split('T')[0].split('-');
       return `${d}.${m}.`;
     };
-    
+
     const arrivalDate = fmtDate(anreise);
     const departureDate = fmtDate(abreise);
-    
+
     try {
       // Get booking URL
       const bookingResponse = await fetch(`getBookingUrl.php?id=${id}`);
       const bookingData = await bookingResponse.json();
-      
+
       let bookingLink = '';
       if (bookingData.url) {
         bookingLink = bookingData.url;
       } else {
         bookingLink = 'https://booking.franzsennhuette.at'; // Fallback
       }
-      
+
       // Create email subject and body
       const subject = `Namensliste für Ihre Reservierung - Name List for Your Reservation`;
-      
+
       const body = `Hallo!
 
 Vielen Dank für Ihre Reservierung vom ${arrivalDate} bis ${departureDate}.
 
 Bitte geben Sie die Namen aller Teilnehmer / Mitreisenden in unserem Online-Formular ein:
+
 ${bookingLink}
 
 Alternativ können Sie uns die Namensliste auch per E-Mail zurücksenden - wir tragen sie dann gerne für Sie ein.
@@ -55,13 +56,14 @@ Mit freundlichen Grüßen
 Franz-Senn-Hütte
 office@franzsennhuette.at
 
----
+═══════════════════════════════════════════════════════════════════
 
 Hello!
 
 Thank you for your reservation from ${arrivalDate} to ${departureDate}.
 
 Please enter the names of all participants / fellow travelers in our online form:
+
 ${bookingLink}
 
 Alternatively, you can send us the name list by email - we will be happy to enter it for you.
@@ -69,26 +71,27 @@ Alternatively, you can send us the name list by email - we will be happy to ente
 Best regards
 Franz-Senn-Hütte
 office@franzsennhuette.at`;
-      
+
       // Create mailto link
       let mailtoLink;
       if (email && email.trim() !== '') {
         mailtoLink = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       } else {
         mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        
+
         // Show info that no email address is available
         setTimeout(() => {
           alert('Hinweis: Für diese Reservierung ist keine E-Mail-Adresse hinterlegt.\nBitte geben Sie die E-Mail-Adresse manuell ein.');
         }, 100);
       }
-      
+
       // Open email client
+      console.log('Opening email client with:', mailtoLink.substring(0, 100) + '...');
       window.location.href = mailtoLink;
-      
+
     } catch (error) {
       console.error('Error fetching booking URL:', error);
-      
+
       // Fallback email without booking link
       const subject = `Namensliste für Ihre Reservierung - Name List for Your Reservation`;
       const body = `Hallo!
@@ -101,7 +104,7 @@ Mit freundlichen Grüßen
 Franz-Senn-Hütte
 office@franzsennhuette.at
 
----
+═══════════════════════════════════════════════════════════════════
 
 Hello!
 
@@ -112,7 +115,7 @@ Please send us the names of all participants / fellow travelers by email - we wi
 Best regards
 Franz-Senn-Hütte
 office@franzsennhuette.at`;
-      
+
       let mailtoLink;
       if (email && email.trim() !== '') {
         mailtoLink = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -122,7 +125,8 @@ office@franzsennhuette.at`;
           alert('Hinweis: Für diese Reservierung ist keine E-Mail-Adresse hinterlegt.\nBitte geben Sie die E-Mail-Adresse manuell ein.');
         }, 100);
       }
-      
+
+      console.log('Opening fallback email client with:', mailtoLink.substring(0, 100) + '...');
       window.location.href = mailtoLink;
     }
   }

@@ -3,7 +3,7 @@
    =========================== */
 
 /* Header über volle Breite */
-body.reservation > header {
+body.reservation>header {
   width: 100%;
 }
 
@@ -13,9 +13,11 @@ body.reservation {
   flex-direction: column;
   align-items: center;
 }
+
 main.reservation {
   width: 100%;
-  max-width: none; /* allow full width for table */
+  max-width: none;
+  /* allow full width for table */
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -27,10 +29,13 @@ main.reservation {
   width: 100%;
   background: var(--primary);
   color: #fff;
-  padding: 0.5rem 1rem;     /* Reduziertes vertikales Padding */
+  padding: 0.5rem 1rem;
+  /* Reduziertes vertikales Padding */
   font-size: 1rem;
-  line-height: 1.2;         /* Kompaktere Zeilenhöhe */
-  margin-bottom: 0.75rem;   /* Weniger Abstand nach unten */
+  line-height: 1.2;
+  /* Kompaktere Zeilenhöhe */
+  margin-bottom: 0.75rem;
+  /* Weniger Abstand nach unten */
 }
 
 /* Namensliste-Tabelle */
@@ -38,9 +43,12 @@ main.reservation {
   /* Auto width based on content for proper horizontal scrolling */
   border-collapse: collapse;
   margin-bottom: 1.5rem;
-  display: inline-table;   /* allow table to size to content */
-  min-width: 100%;         /* at least container width */
+  display: inline-table;
+  /* allow table to size to content */
+  min-width: 100%;
+  /* at least container width */
 }
+
 .names-list th,
 .names-list td {
   padding: 0.6rem 0.8rem;
@@ -48,11 +56,13 @@ main.reservation {
   text-align: center;
   font-size: 0.9rem;
 }
+
 .names-list th {
   background: #34495e;
   color: #ecf0f1;
   font-weight: bold;
 }
+
 .names-list tbody tr:nth-child(odd) {
   background: var(--light-gray);
 }
@@ -62,6 +72,7 @@ main.reservation {
   transform: scale(1.2);
   margin: 0;
 }
+
 .rowCheckbox {
   transform: scale(1.1);
   cursor: pointer;
@@ -89,6 +100,7 @@ main.reservation {
   background: #f9f9f9;
   margin-top: 1.5rem;
 }
+
 #addNamesDetails summary {
   padding: 0.6rem 1rem;
   cursor: pointer;
@@ -97,10 +109,12 @@ main.reservation {
   border-bottom: 1px solid #ccc;
   list-style: none;
 }
+
 #addNamesDetails[open] summary {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
+
 #addNamesDetails textarea {
   width: 100%;
   box-sizing: border-box;
@@ -154,6 +168,7 @@ main.reservation {
   cursor: pointer;
   font-size: 0.9rem;
 }
+
 #deleteBtn:hover:not(:disabled) {
   background: #c0392b;
 }
@@ -168,6 +183,7 @@ main.reservation {
   cursor: pointer;
   font-size: 0.9rem;
 }
+
 #printBtn:hover:not(:disabled) {
   background: #d4ac0d;
 }
@@ -183,6 +199,7 @@ main.reservation {
   cursor: pointer;
   font-size: 0.9rem;
 }
+
 #backBtn:hover {
   background: #1e8449;
 }
@@ -267,6 +284,7 @@ main.reservation {
   font-size: 0.9rem;
   text-align: center;
 }
+
 #importNamesBtn:hover {
   background: #1e8449;
 }
@@ -283,27 +301,31 @@ main.reservation {
   justify-content: center;
   z-index: 1000;
 }
+
 .hidden {
   display: none;
 }
+
 .modal-backdrop {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
 }
+
 .modal-content {
   position: relative;
   background: #fff;
   padding: 1.5rem;
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 1001;
   max-width: 400px;
   width: 90%;
 }
+
 .modal-close {
   position: absolute;
   top: 0.5rem;
@@ -311,12 +333,14 @@ main.reservation {
   font-size: 1.2rem;
   cursor: pointer;
 }
+
 .arr-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 1rem;
 }
+
 .arr-buttons button {
   flex: 1 1 45%;
   padding: 0.5rem;
@@ -325,9 +349,11 @@ main.reservation {
   background: #f9f9f9;
   cursor: pointer;
 }
+
 .arr-buttons button:hover {
   background: #e0e0e0;
 }
+
 /* Arrangement-Button (lila) */
 .btn-arrangement {
   padding: 0.5rem 1rem;
@@ -338,9 +364,11 @@ main.reservation {
   cursor: pointer;
   font-size: 0.9rem;
 }
+
 .btn-arrangement:hover:not(:disabled) {
   background: indigo;
 }
+
 /* -----------------------------------
    Modal-Buttons (Arrangement & Drucker)
    ----------------------------------- */
@@ -368,6 +396,7 @@ main.reservation {
   background: #f1c40f;
   color: #333;
 }
+
 .printer-btn:hover {
   background: #d4ac0d;
 }
@@ -394,15 +423,20 @@ main.reservation {
   cursor: pointer;
   font-size: 0.9rem;
 }
+
 .btn-diet:hover:not(:disabled) {
   background: #3b6c95;
 }
+
 /* Check-in/Check-out Zellen */
 .names-list td.checked-in {
-  background: #d4edda;  /* hellgrün */
+  background: #d4edda;
+  /* hellgrün */
 }
+
 .names-list td.checked-out {
-  background: #d1ecf1;  /* hellblau */
+  background: #d1ecf1;
+  /* hellblau */
 }
 
 /* Icon für noch nicht gecheckt */
@@ -410,6 +444,7 @@ main.reservation {
   width: 1em;
   vertical-align: middle;
 }
+
 /* Check-in/Check-out Zellen – immer klickbar */
 .checkin-cell,
 .checkout-cell {
@@ -420,27 +455,34 @@ main.reservation {
 .names-list td.checked-in {
   background: #d4edda;
 }
+
 .names-list td.checked-out {
   background: #d1ecf1;
 }
+
 /* Guide-Zelle klickbar machen */
 .names-list td.guide-cell {
   cursor: pointer;
 }
+
 td.arr-cell {
   cursor: pointer;
 }
+
 td.diet-cell {
   cursor: pointer;
 }
+
 .header-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .room-list {
-  max-height: calc(1.5em * 4); /* 4 Zeilen */
+  max-height: calc(1.5em * 4);
+  /* 4 Zeilen */
   overflow-y: auto;
   font-size: 0.9rem;
   line-height: 1.5em;
@@ -448,6 +490,7 @@ td.diet-cell {
   padding: 0.5rem;
   background: var(--bg);
 }
+
 .header-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -466,6 +509,7 @@ td.diet-cell {
 .room-item {
   margin-bottom: 0.5rem;
 }
+
 /* Header-Grid: zwei Spalten */
 .header-grid {
   display: grid;
@@ -479,6 +523,7 @@ td.diet-cell {
   font-size: 1.2rem;
   line-height: 1.4;
 }
+
 /* Name fett und deutlich größer */
 .header-left strong {
   display: block;
@@ -488,7 +533,7 @@ td.diet-cell {
 
 /* Keine Scrollbars mehr auf der äußeren Box */
 .header-right {
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   border: none;
   color: var(--text);
   padding: 0.75rem;
@@ -498,22 +543,28 @@ td.diet-cell {
 
 .room-list {
   max-height: 200px;
-    border: none;
+  border: none;
   overflow-y: auto;
   font-size: 0.9rem;
-  line-height: 1.2em;  /* engerer Zeilenabstand */
+  line-height: 1.2em;
+  /* engerer Zeilenabstand */
   background: transparent;
   padding: 0;
   margin: 0;
 }
 
 .room-list .room-item {
-    color: #fff;         /* weißer Text */
-  font-size: 1rem;     /* etwas größere Schrift */
-  line-height: 1.4;    /* Abstand zwischen den Zeilen */
+  color: #fff;
+  /* weißer Text */
+  font-size: 1rem;
+  /* etwas größere Schrift */
+  line-height: 1.4;
+  /* Abstand zwischen den Zeilen */
   background: transparent;
-  padding: 0.1rem 0;    /* weniger vertikaler Abstand */
-  margin-bottom: 0.1rem;/* optional: minimaler Abstand zwischen den Items */
+  padding: 0.1rem 0;
+  /* weniger vertikaler Abstand */
+  margin-bottom: 0.1rem;
+  /* optional: minimaler Abstand zwischen den Items */
   border-bottom: none;
 }
 
@@ -522,40 +573,49 @@ td.diet-cell {
 .room-list::-webkit-scrollbar {
   width: 6px;
 }
+
 .room-list::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
+
 /* ----------------------------------------
    Reservation-Detail: Header-Left Semantic
    ---------------------------------------- */
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 0.1em;         /* Minimaler Abstand zwischen den Blöcken */
+  gap: 0.1em;
+  /* Minimaler Abstand zwischen den Blöcken */
   font-size: 1rem;
   color: #fff;
 }
 
 /* Name */
 .header-left .rd-name {
-  font-size: 1.4rem;    /* Etwas kleinere Schrift */
+  font-size: 1.4rem;
+  /* Etwas kleinere Schrift */
   font-weight: bold;
-  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+  line-height: 1.1;
+  /* Kompaktere Zeilenhöhe */
 }
 
 /* Schlafkategorien */
 .header-left .rd-cats {
   font-style: italic;
-  font-size: 0.85rem;   /* Kleinere Schrift */
+  font-size: 0.85rem;
+  /* Kleinere Schrift */
   opacity: 0.8;
-  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+  line-height: 1.1;
+  /* Kompaktere Zeilenhöhe */
 }
 
 /* Datum */
 .header-left .rd-dates {
-  font-size: 1rem;      /* Kleinere Schrift */
-  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+  font-size: 1rem;
+  /* Kleinere Schrift */
+  line-height: 1.1;
+  /* Kompaktere Zeilenhöhe */
 }
 
 /* Label-Span (Arrangement, Herkunft, Bemerkung) */
@@ -567,8 +627,10 @@ td.diet-cell {
 .header-left .rd-arr,
 .header-left .rd-origin,
 .header-left .rd-remark {
-  font-size: 0.9rem;    /* Kleinere Schrift */
-  line-height: 1.1;     /* Kompaktere Zeilenhöhe */
+  font-size: 0.9rem;
+  /* Kleinere Schrift */
+  line-height: 1.1;
+  /* Kompaktere Zeilenhöhe */
 }
 
 /* Arrangement Button im Header */
@@ -755,18 +817,18 @@ td.diet-cell {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   margin-right: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .connection-status-nav:hover {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .connection-status-nav .status-dot {
@@ -779,13 +841,54 @@ td.diet-cell {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .connection-status-nav .status-text {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Connection Status Indicator */
+.connection-status {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 10px 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  z-index: 1000;
+}
+
+.connection-status:hover {
+  transform: translateY(-1px);
+}
+
+.connection-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6c757d;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.connection-status .status-text {
+  font-size: 0.85rem;
+  color: #2c3e50;
 }
