@@ -196,6 +196,21 @@ class SyncManager {
         return $this->queueTablesExist();
     }
     
+    // Zentrale Primary Key Erkennung für verschiedene Tabellen
+    private function getPrimaryKey($tableName) {
+        switch ($tableName) {
+            case 'AV_ResDet':
+                return 'ID'; // AV_ResDet verwendet großgeschriebenes ID
+            default:
+                return 'id'; // Standard für alle anderen Tabellen
+        }
+    }
+    
+    // Öffentliche Test-Methode für Primary Key
+    public function testGetPrimaryKey($tableName) {
+        return $this->getPrimaryKey($tableName);
+    }
+    
     // Queue-Verarbeitung mit Multi-Table Support
     private function processQueue($sourceDb, $queueTable, $targetDb, $from, $to) {
         $result = $this->processQueueDetailed($sourceDb, $queueTable, $targetDb, $from, $to);
@@ -602,10 +617,12 @@ class SyncManager {
     // Multi-Table UPDATE Methode
     private function updateRecordDynamicMultiTable($db, $data, $tableName, $source, $sourceColumns, $targetColumns) {
         try {
-            // Nur Spalten verwenden die in beiden Tabellen existieren (außer id und sync_timestamp)
+            $primaryKey = $this->getPrimaryKey($tableName);
+            
+            // Nur Spalten verwenden die in beiden Tabellen existieren (außer primary key und sync_timestamp)
             $commonColumns = array_intersect($sourceColumns, $targetColumns);
-            $commonColumns = array_filter($commonColumns, function($col) {
-                return $col !== 'id' && $col !== 'sync_timestamp';
+            $commonColumns = array_filter($commonColumns, function($col) use ($primaryKey) {
+                return $col !== $primaryKey && $col !== 'sync_timestamp';
             });
             
             $this->log("UPDATE $tableName using columns: " . implode(', ', $commonColumns));
@@ -616,7 +633,7 @@ class SyncManager {
             }
             $setClause[] = "`sync_timestamp` = NOW()";
             
-            $sql = "UPDATE `$tableName` SET " . implode(', ', $setClause) . " WHERE id = ?";
+            $sql = "UPDATE `$tableName` SET " . implode(', ', $setClause) . " WHERE `$primaryKey` = ?";
             $stmt = $db->prepare($sql);
             
             if (!$stmt) {
@@ -631,7 +648,8 @@ class SyncManager {
                 $values[] = $data[$col] ?? null;
                 $types .= 's';
             }
-            $values[] = $data['id']; // für WHERE clause
+            // Primary Key für WHERE clause (dynamisch je nach Tabelle)
+            $values[] = $data[$primaryKey];
             $types .= 'i';
             
             $stmt->bind_param($types, ...$values);
@@ -644,7 +662,7 @@ class SyncManager {
             }
             
             $stmt->close();
-            $this->log("UPDATE SUCCESS for $tableName record {$data['id']}");
+            $this->log("UPDATE SUCCESS for $tableName record {$data[$primaryKey]}");
             return true;
             
         } catch (Exception $e) {

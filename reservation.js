@@ -1527,16 +1527,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Initial load
-  loadNames();
-
   // === Auto-Refresh nach dem Speichern ===
+  // Debounce-Mechanismus um mehrfache Ladungen zu verhindern
+  let loadNamesDebounce = null;
+  
+  function debounceLoadNames(reason = 'unknown') {
+    if (loadNamesDebounce) {
+      clearTimeout(loadNamesDebounce);
+    }
+    loadNamesDebounce = setTimeout(() => {
+      console.log('Loading names:', reason);
+      loadNames();
+      loadNamesDebounce = null;
+    }, 100); // 100ms debounce
+  }
+
+  // Initial load
+  debounceLoadNames('initial');
+
   // Wenn der Benutzer von GastDetail.html zurückkommt, automatisch die Namensliste aktualisieren
   window.addEventListener('pageshow', (event) => {
     // event.persisted = true bedeutet die Seite kam aus dem Browser Cache (history.back())
     if (event.persisted) {
       console.log('Page shown from cache - refreshing names list');
-      loadNames();
+      debounceLoadNames('pageshow-cache');
     }
   });
 
@@ -1546,7 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Prüfe ob die Seite in den letzten 2 Sekunden im Hintergrund war
     if (document.hidden === false) {
       console.log('Window focused - refreshing names list');
-      loadNames();
+      debounceLoadNames('window-focus');
     }
   });
 
