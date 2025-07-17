@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Checkout Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-button {
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            background-color: #007cba;
+            color: white;
+        }
+        
+        .test-button:hover {
+            background-color: #005a87;
+        }
+        
+        .info {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .console-output {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bulk Checkout Loading Test</h1>
+    
+    <div class="info">
+        <strong>Test-Szenario:</strong> Simuliert das Bulk-Checkout Problem mit 15 parallelen Requests.
+        Prüft, ob Loading-Overlay korrekt angezeigt und versteckt wird.
+    </div>
+    
+    <button class="test-button" onclick="testBulkCheckout()">
+        🔄 Test Bulk Checkout (15 Requests)
+    </button>
+    
+    <button class="test-button" onclick="testBatchRequest()">
+        📦 Test Batch Request (HttpUtils)
+    </button>
+    
+    <button class="test-button" onclick="clearConsole()">
+        🗑️ Console leeren
+    </button>
+    
+    <div class="info">
+        <strong>Debug:</strong>
+        <br>• <kbd>Ctrl+Shift+Escape</kbd> - Emergency Hide
+        <br>• <kbd>Ctrl+Shift+D</kbd> - Debug Operationen
+    </div>
+    
+    <h3>Console Output:</h3>
+    <div class="console-output" id="console-output"></div>
+
+    <!-- Loading der JavaScript-Module -->
+    <script src="js/loading-overlay.js"></script>
+    <script src="js/http-utils.js"></script>
+    
+    <script>
+        // Console Output fangen
+        const consoleOutput = document.getElementById('console-output');
+        
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+            consoleOutput.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        // Console methods überschreiben
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+        
+        function clearConsole() {
+            consoleOutput.textContent = '';
+        }
+        
+        // Simuliere eine HTTP-Request mit variabler Dauer
+        function simulateRequest(id, duration = 1000) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        success: true,
+                        id: id,
+                        newValue: new Date().toISOString(),
+                        duration: duration
+                    });
+                }, duration);
+            });
+        }
+        
+        // Test Bulk Checkout (wie in reservation.js)
+        async function testBulkCheckout() {
+            console.log('[TEST] Starting Bulk Checkout Test with 15 requests');
+            
+            try {
+                const requests = [];
+                for (let i = 1; i <= 15; i++) {
+                    requests.push({
+                        url: 'mock://updateReservationNamesCheckout.php',
+                        options: {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: i, action: 'set' })
+                        }
+                    });
+                }
+                
+                // Simuliere den echten HttpUtils.batchRequestWithLoading call
+                const startTime = Date.now();
+                
+                // Überschreibe fetch für Mock-Requests
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options) {
+                    const id = JSON.parse(options.body).id;
+                    const mockDuration = Math.random() * 800 + 200; // 200-1000ms
+                    console.log(`[MOCK] Request ${id} starting (${mockDuration.toFixed(0)}ms)`);
+                    return simulateRequest(id, mockDuration).then(result => ({
+                        ok: true,
+                        json: () => Promise.resolve(result)
+                    }));
+                };
+                
+                const { results, errors, successCount } = await HttpUtils.batchRequestWithLoading(requests, {
+                    concurrency: 2
+                }, 'Check-out für 15 Gäste...');
+                
+                // Fetch zurücksetzen
+                window.fetch = originalFetch;
+                
+                const totalDuration = Date.now() - startTime;
+                
+                console.log(`[TEST] Bulk Checkout completed in ${totalDuration}ms`);
+                console.log(`[TEST] Success: ${successCount}, Errors: ${errors.length}`);
+                
+                // Performance Stats anzeigen
+                const stats = LoadingOverlay.getPerformanceStats();
+                console.log(`[STATS] Active Operations: ${stats.activeOperations}, Delayed: ${stats.delayedOperations}`);
+                
+            } catch (error) {
+                console.error('[TEST] Bulk Checkout failed:', error.message);
+            }
+        }
+        
+        // Test Batch Request direkt
+        async function testBatchRequest() {
+            console.log('[TEST] Starting Direct Batch Request Test');
+            
+            try {
+                const requests = [];
+                for (let i = 1; i <= 5; i++) {
+                    requests.push({
+                        url: 'mock://test-request',
+                        options: { method: 'GET' }
+                    });
+                }
+                
+                // Mock fetch
+                const originalFetch = window.fetch;
+                window.fetch = function(url, options) {
+                    const mockDuration = Math.random() * 1200 + 300; // 300-1500ms
+                    console.log(`[MOCK] Batch request starting (${mockDuration.toFixed(0)}ms)`);
+                    return simulateRequest('batch', mockDuration).then(result => ({
+                        ok: true,
+                        json: () => Promise.resolve(result)
+                    }));
+                };
+                
+                const startTime = Date.now();
+                const result = await LoadingOverlay.batchRequestWithLoading(requests, {
+                    concurrency: 2
+                }, 'Batch Request Test...');
+                
+                window.fetch = originalFetch;
+                
+                const totalDuration = Date.now() - startTime;
+                console.log(`[TEST] Batch Request completed in ${totalDuration}ms`);
+                console.log(`[TEST] Results: ${result.successCount} success, ${result.errors.length} errors`);
+                
+            } catch (error) {
+                console.error('[TEST] Batch Request failed:', error.message);
+            }
+        }
+        
+        // Initial info
+        console.log('[TEST] Bulk Checkout Test Page loaded');
+        console.log('[TEST] LoadingOverlay delay threshold:', LoadingOverlay.DELAY_THRESHOLD + 'ms');
+    </script>
+</body>
+</html>

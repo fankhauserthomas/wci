@@ -517,41 +517,41 @@ class HttpUtils {
   }
 
   /**
-   * Erweiterte Request-Methode mit automatischem Loading-Overlay
+   * Erweiterte Request-Methode mit automatischem Loading-Overlay (Performance-optimiert)
    */
-  static async requestWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
+  static async requestWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null, useDelay = true) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
 
     return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.request(url, options, retryOptions);
-      }, operationType) :
+      }, operationType, useDelay) :
       this.request(url, options, retryOptions);
   }
 
   /**
-   * JSON-Request mit automatischem Loading-Overlay
+   * JSON-Request mit automatischem Loading-Overlay (Performance-optimiert)
    */
-  static async requestJsonWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
+  static async requestJsonWithLoading(url, options = {}, retryOptions = {}, loadingMessage = null, useDelay = true) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
 
     return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.requestJson(url, options, retryOptions);
-      }, operationType) :
+      }, operationType, useDelay) :
       this.requestJson(url, options, retryOptions);
   }
 
   /**
-   * POST JSON mit automatischem Loading-Overlay
+   * POST JSON mit automatischem Loading-Overlay (Performance-optimiert)
    */
-  static async postJsonWithLoading(url, data, retryOptions = {}, loadingMessage = null) {
+  static async postJsonWithLoading(url, data, retryOptions = {}, loadingMessage = null, useDelay = true) {
     const operationType = loadingMessage || this.getOperationTypeFromUrl(url);
 
     return window.LoadingOverlay ?
       LoadingOverlay.wrap(async () => {
         return this.postJson(url, data, retryOptions);
-      }, operationType) :
+      }, operationType, useDelay) :
       this.postJson(url, data, retryOptions);
   }
 
@@ -595,6 +595,46 @@ class HttpUtils {
     if (url.includes('Checkin')) return 'Check-in wird verarbeitet...';
     if (url.includes('Checkout')) return 'Check-out wird verarbeitet...';
     return 'Daten werden verarbeitet...';
+  }
+
+  /**
+   * Immediate Loading für kritische Operationen (immer sofort anzeigen)
+   */
+  static async requestWithImmediateLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
+    return this.requestWithLoading(url, options, retryOptions, loadingMessage, false);
+  }
+
+  static async requestJsonWithImmediateLoading(url, options = {}, retryOptions = {}, loadingMessage = null) {
+    return this.requestJsonWithLoading(url, options, retryOptions, loadingMessage, false);
+  }
+
+  static async postJsonWithImmediateLoading(url, data, retryOptions = {}, loadingMessage = null) {
+    return this.postJsonWithLoading(url, data, retryOptions, loadingMessage, false);
+  }
+
+  /**
+   * Direkte HTTP-Request mit Performance-optimiertem Loading
+   */
+  static async httpRequest(url, options = {}, message = null, useDelay = true) {
+    return window.LoadingOverlay ?
+      LoadingOverlay.httpRequest(url, options, message, useDelay) :
+      fetch(url, options).then(r => r.json());
+  }
+
+  /**
+   * Konfiguriert die Performance-Einstellungen
+   */
+  static configurePerformance(delayThreshold = 800) {
+    if (window.LoadingOverlay) {
+      LoadingOverlay.setDelayThreshold(delayThreshold);
+    }
+  }
+
+  /**
+   * Performance-Statistiken abrufen
+   */
+  static getPerformanceStats() {
+    return window.LoadingOverlay ? LoadingOverlay.getPerformanceStats() : null;
   }
 
 }

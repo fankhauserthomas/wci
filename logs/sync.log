@@ -3911,3 +3911,63 @@
 [2025-07-17 11:54:25] Record 6973: SYNC SUCCESS ✓
 [2025-07-17 11:54:25] === Completed syncFromTimestamp: remote → local for AV-Res, synced 1 records ===
 [2025-07-17 11:54:25] === Force Sync completed: {"local_to_remote":0,"remote_to_local":1,"conflicts":0} ===
+[2025-07-17 15:43:24] === Sync triggered by: manual ===
+[2025-07-17 15:43:24] Queue tables exist - Local: YES, Remote: YES
+[2025-07-17 15:43:24] Queue tables found, using QUEUE-BASED sync
+[2025-07-17 15:43:24] === Queue-based Sync started ===
+[2025-07-17 15:43:24] --- Processing Local Queue → Remote ---
+[2025-07-17 15:43:24] Found 1 pending queue items in sync_queue_local
+[2025-07-17 15:43:24] 🛡️ Sync flag SET - triggers disabled
+[2025-07-17 15:43:24] UPDATE AV_ResDet using columns: ID, tab, zimID, resid, bez, anz, von, bis, arr, col, note, dx, dy, ParentID, hund, ts_auto, sync_hash, sync_source, sync_version
+[2025-07-17 15:43:25] UPDATE SUCCESS for AV_ResDet record 
+[2025-07-17 15:43:25] 🛡️ Sync flag CLEARED - triggers enabled
+[2025-07-17 15:43:25] Queue item 262: update AV_ResDet record 100 SUCCESS
+[2025-07-17 15:43:25] --- Processing Remote Queue → Local ---
+[2025-07-17 15:43:25] Found 0 pending queue items in sync_queue_remote
+[2025-07-17 15:43:25] === Queue Sync completed ===
+[2025-07-17 15:43:25] 📊 ===== SYNC RESULTS SUMMARY =====
+[2025-07-17 15:43:25] 🔧 Sync Mode: QUEUE-BASED
+[2025-07-17 15:43:25] 📅 Timestamp: 2025-07-17 15:43:24
+[2025-07-17 15:43:25] 📋 Configured Tables: AV-ResNamen, AV-Res, AV_ResDet, zp_zimmer
+[2025-07-17 15:43:25] 📈 Total Operations: Local→Remote: 1, Remote→Local: 0
+[2025-07-17 15:43:25] 📊 Tables with Activity: AV_ResDet
+[2025-07-17 15:43:25]   📋 AV_ResDet: Total=1 | L→R=1 | R→L=0 | I=0 U=1 D=0
+[2025-07-17 15:43:25] 📊 ===== END SYNC SUMMARY =====
+[2025-07-17 15:44:30] === Sync triggered by: manual ===
+[2025-07-17 15:44:30] Queue tables exist - Local: YES, Remote: YES
+[2025-07-17 15:44:30] Queue tables found, using QUEUE-BASED sync
+[2025-07-17 15:44:30] === Queue-based Sync started ===
+[2025-07-17 15:44:30] --- Processing Local Queue → Remote ---
+[2025-07-17 15:44:30] Found 1 pending queue items in sync_queue_local
+[2025-07-17 15:44:30] 🛡️ Sync flag SET - triggers disabled
+[2025-07-17 15:44:31] UPDATE AV_ResDet using columns: ID, tab, zimID, resid, bez, anz, von, bis, arr, col, note, dx, dy, ParentID, hund, ts_auto, sync_hash, sync_source, sync_version
+[2025-07-17 15:44:31] UPDATE SUCCESS for AV_ResDet record 
+[2025-07-17 15:44:31] 🛡️ Sync flag CLEARED - triggers enabled
+[2025-07-17 15:44:31] Queue item 263: update AV_ResDet record 100 SUCCESS
+[2025-07-17 15:44:31] --- Processing Remote Queue → Local ---
+[2025-07-17 15:44:31] Found 0 pending queue items in sync_queue_remote
+[2025-07-17 15:44:31] === Queue Sync completed ===
+[2025-07-17 15:44:31] 📊 ===== SYNC RESULTS SUMMARY =====
+[2025-07-17 15:44:31] 🔧 Sync Mode: QUEUE-BASED
+[2025-07-17 15:44:31] 📅 Timestamp: 2025-07-17 15:44:30
+[2025-07-17 15:44:31] 📋 Configured Tables: AV-ResNamen, AV-Res, AV_ResDet, zp_zimmer
+[2025-07-17 15:44:31] 📈 Total Operations: Local→Remote: 1, Remote→Local: 0
+[2025-07-17 15:44:31] 📊 Tables with Activity: AV_ResDet
+[2025-07-17 15:44:31]   📋 AV_ResDet: Total=1 | L→R=1 | R→L=0 | I=0 U=1 D=0
+[2025-07-17 15:44:31] 📊 ===== END SYNC SUMMARY =====
+[2025-07-17 15:46:32] === Sync triggered by: manual ===
+[2025-07-17 15:46:32] Queue tables exist - Local: YES, Remote: YES
+[2025-07-17 15:46:32] Queue tables found, using QUEUE-BASED sync
+[2025-07-17 15:46:32] === Queue-based Sync started ===
+[2025-07-17 15:46:32] --- Processing Local Queue → Remote ---
+[2025-07-17 15:46:32] Found 0 pending queue items in sync_queue_local
+[2025-07-17 15:46:32] --- Processing Remote Queue → Local ---
+[2025-07-17 15:46:32] Found 0 pending queue items in sync_queue_remote
+[2025-07-17 15:46:32] === Queue Sync completed ===
+[2025-07-17 15:46:32] 📊 ===== SYNC RESULTS SUMMARY =====
+[2025-07-17 15:46:32] 🔧 Sync Mode: QUEUE-BASED
+[2025-07-17 15:46:32] 📅 Timestamp: 2025-07-17 15:46:32
+[2025-07-17 15:46:32] 📋 Configured Tables: AV-ResNamen, AV-Res, AV_ResDet, zp_zimmer
+[2025-07-17 15:46:32] 📈 Total Operations: Local→Remote: 0, Remote→Local: 0
+[2025-07-17 15:46:32] ✅ No sync operations needed - all tables up to date
+[2025-07-17 15:46:32] 📊 ===== END SYNC SUMMARY =====

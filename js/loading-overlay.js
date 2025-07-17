@@ -6,17 +6,35 @@ class LoadingOverlay {
   static overlay = null;
   static isVisible = false;
   static currentOperations = new Set();
+  static delayedOperations = new Map(); // RequestId -> {timeout, startTime}
+  static DELAY_THRESHOLD = 800; // 800ms threshold for showing loading
 
   /**
-   * Zeigt das Loading-Overlay
+   * Zeigt das Loading-Overlay mit optionaler Verzögerung
    */
-  static show(message = 'Lade Daten...') {
+  static show(message = 'Lade Daten...', immediate = false) {
     if (this.isVisible) {
       // Nur Message aktualisieren wenn bereits sichtbar
       this.updateMessage(message);
       return;
     }
 
+    // Sofort anzeigen wenn immediate=true
+    if (immediate) {
+      this.showImmediate(message);
+      return;
+    }
+
+    // Prüfen ob verzögert angezeigt werden soll
+    const requestId = `show-${Date.now()}-${Math.random()}`;
+    this.scheduleDelayedShow(requestId, message);
+    return requestId;
+  }
+
+  /**
+   * Zeigt das Loading-Overlay sofort an
+   */
+  static showImmediate(message = 'Lade Daten...') {
     this.createOverlay();
     this.updateMessage(message);
     this.overlay.classList.add('visible');
@@ -29,17 +47,104 @@ class LoadingOverlay {
     document.body.classList.add('loading-active');
     this.overlay.style.pointerEvents = 'auto'; // Overlay selbst kann Events empfangen
     
-    console.log('[LOADING] Overlay shown:', message);
+    console.log('[LOADING] Overlay shown immediately:', message);
   }
 
   /**
-   * Versteckt das Loading-Overlay
+   * Zeigt das Loading-Overlay mit Verzögerung an (nur wenn länger als DELAY_THRESHOLD)
+   */
+  static showWithDelay(message = 'Lade Daten...', delayMs = this.DELAY_THRESHOLD) {
+    const requestId = `delayed-${Date.now()}-${Math.random()}`;
+    const startTime = Date.now();
+    
+    const timeoutId = setTimeout(() => {
+      // Nur anzeigen wenn Request noch läuft
+      if (this.delayedOperations.has(requestId)) {
+        this.showImmediate(message);
+        const operation = this.delayedOperations.get(requestId);
+        operation.shown = true;
+        console.log(`[LOADING] Delayed overlay shown after ${Date.now() - startTime}ms:`, message);
+      }
+    }, delayMs);
+
+    this.delayedOperations.set(requestId, {
+      timeout: timeoutId,
+      startTime: startTime,
+      shown: false,
+      message: message
+    });
+
+    return requestId;
+  }
+
+  /**
+   * Plant verzögerte Anzeige
+   */
+  static scheduleDelayedShow(requestId, message) {
+    const startTime = Date.now();
+    
+    const timeoutId = setTimeout(() => {
+      if (this.delayedOperations.has(requestId)) {
+        this.showImmediate(message);
+        const operation = this.delayedOperations.get(requestId);
+        operation.shown = true;
+        console.log(`[LOADING] Delayed overlay shown after ${Date.now() - startTime}ms:`, message);
+      }
+    }, this.DELAY_THRESHOLD);
+
+    this.delayedOperations.set(requestId, {
+      timeout: timeoutId,
+      startTime: startTime,
+      shown: false,
+      message: message
+    });
+  }
+
+  /**
+   * Versteckt das Loading-Overlay für eine spezifische Anfrage
+   */
+  static hideForRequest(requestId) {
+    if (!requestId) {
+      return this.hide();
+    }
+
+    // Verzögerte Operation abbrechen falls noch nicht angezeigt
+    if (this.delayedOperations.has(requestId)) {
+      const operation = this.delayedOperations.get(requestId);
+      const duration = Date.now() - operation.startTime;
+      
+      clearTimeout(operation.timeout);
+      this.delayedOperations.delete(requestId);
+      
+      // Nur verstecken wenn diese Operation das Overlay angezeigt hat
+      if (operation.shown) {
+        this.forceHide();
+        console.log(`[LOADING] Fast operation completed in ${duration}ms, overlay was shown`);
+      } else {
+        console.log(`[LOADING] Fast operation completed in ${duration}ms, overlay was not shown`);
+      }
+      return;
+    }
+
+    // Fallback auf normale hide-Logik
+    this.hide();
+  }
+
+  /**
+   * Versteckt das Loading-Overlay (normal)
    */
   static hide() {
     if (!this.isVisible || this.currentOperations.size > 0) {
       return;
     }
 
+    this.forceHide();
+  }
+
+  /**
+   * Versteckt das Loading-Overlay sofort (ignoriert aktive Operationen)
+   */
+  static forceHide() {
     if (this.overlay) {
       this.overlay.classList.remove('visible');
       setTimeout(() => {
@@ -57,7 +162,7 @@ class LoadingOverlay {
     document.body.classList.remove('loading-active');
     
     this.isVisible = false;
-    console.log('[LOADING] Overlay hidden');
+    console.log('[LOADING] Overlay hidden (forced)');
   }
 
   /**
@@ -141,41 +246,107 @@ class LoadingOverlay {
   /**
    * Operation registrieren (für mehrere parallele Operationen)
    */
-  static registerOperation(operationId, message = 'Operation läuft...') {
+  static registerOperation(operationId, message = 'Operation läuft...', useDelay = true) {
     this.currentOperations.add(operationId);
-    this.show(message);
-    return operationId;
+    
+    if (useDelay) {
+      const requestId = this.showWithDelay(message);
+      // Verbinde Operation mit Request-ID für cleanup
+      this.currentOperations.add(`${operationId}:${requestId}`);
+      return { operationId, requestId };
+    } else {
+      this.showImmediate(message);
+      return { operationId, requestId: null };
+    }
   }
 
   /**
    * Operation abmelden
    */
-  static unregisterOperation(operationId) {
+  static unregisterOperation(operationData) {
+    if (typeof operationData === 'string') {
+      // Legacy support
+      this.currentOperations.delete(operationData);
+      if (this.currentOperations.size === 0) {
+        setTimeout(() => this.hide(), 100);
+      }
+      return;
+    }
+
+    if (!operationData) {
+      console.warn('[LOADING] unregisterOperation called with null/undefined operationData');
+      return;
+    }
+
+    const { operationId, requestId } = operationData;
+    
+    // Cleanup alle verwandten Operations
     this.currentOperations.delete(operationId);
+    if (requestId) {
+      this.currentOperations.delete(`${operationId}:${requestId}`);
+      this.hideForRequest(requestId);
+    } else {
+      // Bei immediate operations (kein requestId) force hide verwenden
+      if (this.currentOperations.size === 0) {
+        setTimeout(() => this.forceHide(), 100);
+      }
+    }
+    
+    // Verstecke Overlay wenn keine aktiven Operationen mehr
     if (this.currentOperations.size === 0) {
-      setTimeout(() => this.hide(), 500); // Kurze Verzögerung für bessere UX
+      setTimeout(() => this.hide(), 100);
     }
   }
 
   /**
-   * Wrapper für Async-Operationen
+   * Wrapper für Async-Operationen mit verbesserter Performance
    */
-  static async wrap(operation, message = 'Operation läuft...') {
-    const operationId = this.registerOperation(`op-${Date.now()}`, message);
+  static async wrap(operation, message = 'Operation läuft...', useDelay = true) {
+    const operationData = this.registerOperation(`op-${Date.now()}`, message, useDelay);
     
     try {
       const result = await operation();
       return result;
     } finally {
-      this.unregisterOperation(operationId);
+      this.unregisterOperation(operationData);
     }
   }
 
   /**
-   * Wrapper für Fetch-Operationen mit automatischer Message-Generierung
+   * Wrapper für Fetch-Operationen mit automatischer Message-Generierung und optimierter Performance
    */
-  static async wrapFetch(fetchOperation, operationType = 'Daten') {
-    return this.wrap(fetchOperation, `${operationType} werden geladen...`);
+  static async wrapFetch(fetchOperation, operationType = 'Daten', useDelay = true) {
+    return this.wrap(fetchOperation, `${operationType} werden geladen...`, useDelay);
+  }
+
+  /**
+   * Performance-optimierter HTTP Request Wrapper
+   */
+  static async httpRequest(url, options = {}, message = null, useDelay = true) {
+    const autoMessage = message || this.getOperationTypeFromUrl(url);
+    const requestId = useDelay ? this.showWithDelay(autoMessage) : null;
+    
+    if (!useDelay) {
+      this.showImmediate(autoMessage);
+    }
+
+    try {
+      const response = await fetch(url, options);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      return result;
+      
+    } finally {
+      if (requestId) {
+        this.hideForRequest(requestId);
+      } else {
+        this.hide();
+      }
+    }
   }
 
   /**
@@ -188,7 +359,8 @@ class LoadingOverlay {
       onProgress = null
     } = options;
 
-    const operationId = this.registerOperation(`batch-${Date.now()}`, loadingMessage);
+    // Verwende immediate Loading für Batch-Operationen
+    const operationData = this.registerOperation(`batch-${Date.now()}`, loadingMessage, false);
 
     try {
       const results = [];
@@ -237,8 +409,42 @@ class LoadingOverlay {
 
     } finally {
       this.hideProgress();
-      this.unregisterOperation(operationId);
+      this.unregisterOperation(operationData);
     }
+  }
+
+  /**
+   * Konfiguriert das Delay-Verhalten
+   */
+  static setDelayThreshold(delayMs) {
+    this.DELAY_THRESHOLD = delayMs;
+    console.log(`[LOADING] Delay threshold set to ${delayMs}ms`);
+  }
+
+  /**
+   * Performance-Statistiken abrufen
+   */
+  static getPerformanceStats() {
+    return {
+      activeOperations: this.currentOperations.size,
+      delayedOperations: this.delayedOperations.size,
+      delayThreshold: this.DELAY_THRESHOLD,
+      isVisible: this.isVisible
+    };
+  }
+
+  /**
+   * Debug-Informationen für aktive Operationen
+   */
+  static debugOperations() {
+    console.log('[LOADING DEBUG] Current Operations:', Array.from(this.currentOperations));
+    console.log('[LOADING DEBUG] Delayed Operations:', Array.from(this.delayedOperations.entries()).map(([id, op]) => ({
+      id,
+      duration: Date.now() - op.startTime,
+      shown: op.shown,
+      message: op.message
+    })));
+    console.log('[LOADING DEBUG] Performance Stats:', this.getPerformanceStats());
   }
 
   /**
@@ -270,11 +476,21 @@ class LoadingOverlay {
       if (e.key === 'Escape' && e.ctrlKey && e.shiftKey) {
         console.log('[LOADING] Emergency hide triggered');
         this.currentOperations.clear();
-        this.hide();
+        // Alle delayed operations abbrechen
+        this.delayedOperations.forEach((op, id) => {
+          clearTimeout(op.timeout);
+        });
+        this.delayedOperations.clear();
+        this.forceHide();
+      }
+      
+      // Debug-Shortcut: Ctrl+Shift+D
+      if (e.key === 'D' && e.ctrlKey && e.shiftKey) {
+        this.debugOperations();
       }
     });
 
-    console.log('[LOADING] LoadingOverlay initialized');
+    console.log(`[LOADING] LoadingOverlay initialized with ${this.DELAY_THRESHOLD}ms delay threshold`);
   }
 
   /**
