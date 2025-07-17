@@ -80,6 +80,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let rawData = [];
 
+  // Neue Reservierung: Button & Modal
+  const newReservationBtn = document.getElementById('newReservationBtn');
+  const newReservationModal = document.getElementById('newReservationModal');
+  const newResModalClose = document.getElementById('newResModalClose');
+  const newResCancelBtn = document.getElementById('newResCancelBtn');
+  const newReservationForm = document.getElementById('newReservationForm');
+
+  // Öffnen des Modals
+  if (newReservationBtn) {
+    newReservationBtn.addEventListener('click', () => {
+      // Herkunft und Arrangement Dropdowns laden
+      fetch('getOrigins.php')
+        .then(r => r.json())
+        .then(origins => {
+          const herkunftSel = document.getElementById('newResHerkunft');
+          herkunftSel.innerHTML = '<option value="">Bitte wählen...</option>' +
+            origins.map(o => `<option value="${o.id}">${o.bez}</option>`).join('');
+        })
+        .catch(err => console.error('Fehler beim Laden der Herkunft:', err));
+
+      fetch('getArrangements.php')
+        .then(r => r.json())
+        .then(arrs => {
+          const arrSel = document.getElementById('newResArrangement');
+          arrSel.innerHTML = '<option value="">Bitte wählen...</option>' +
+            arrs.map(a => `<option value="${a.id}">${a.kbez}</option>`).join('');
+        })
+        .catch(err => console.error('Fehler beim Laden der Arrangements:', err));
+
+      // Default-Daten setzen
+      const today = new Date().toISOString().slice(0, 10);
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      document.getElementById('newResAnreise').value = today;
+      document.getElementById('newResAbreise').value = tomorrow;
+      newReservationModal.style.display = 'block';
+    });
+  }
+
+  // Schließen des Modals
+  if (newResModalClose) {
+    newResModalClose.addEventListener('click', () => {
+      newReservationModal.style.display = 'none';
+    });
+  }
+
+  if (newResCancelBtn) {
+    newResCancelBtn.addEventListener('click', () => {
+      newReservationModal.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('click', e => {
+    if (e.target === newReservationModal) newReservationModal.style.display = 'none';
+  });
+
+  // Formular absenden
+  if (newReservationForm) {
+    newReservationForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      // Felder auslesen
+      const nachname = document.getElementById('newResNachname').value.trim();
+      if (!nachname) {
+        alert('Nachname ist ein Pflichtfeld!');
+        return;
+      }
+
+      const vorname = document.getElementById('newResVorname').value.trim();
+      const herkunft = document.getElementById('newResHerkunft').value;
+      const anreise = document.getElementById('newResAnreise').value;
+      const abreise = document.getElementById('newResAbreise').value;
+      const arrangement = document.getElementById('newResArrangement').value;
+      const dz = parseInt(document.getElementById('newResDZ').value) || 0;
+      const betten = parseInt(document.getElementById('newResBetten').value) || 0;
+      const lager = parseInt(document.getElementById('newResLager').value) || 0;
+      const sonder = parseInt(document.getElementById('newResSonder').value) || 0;
+      const bemerkung = document.getElementById('newResBemerkung').value.trim();
+
+      // AJAX-Request an addReservation.php
+      fetch('addReservation.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nachname, vorname, herkunft, anreise, abreise, arrangement,
+          dz, betten, lager, sonder, bemerkung
+        })
+      })
+        .then(r => r.json())
+        .then(result => {
+          if (result.success) {
+            alert('Reservierung erfolgreich angelegt!');
+            newReservationModal.style.display = 'none';
+            // Formular zurücksetzen
+            newReservationForm.reset();
+            // Tabelle neu laden
+            loadData();
+          } else {
+            alert('Fehler: ' + (result.error || 'Unbekannter Fehler'));
+          }
+        })
+        .catch(err => {
+          console.error('Netzwerkfehler:', err);
+          alert('Netzwerkfehler: ' + err.message);
+        });
+    });
+  }
+
   // 4-Stufen Toggle initialisieren
   initDateToggle(toggleType, filterDate, loadData);
 

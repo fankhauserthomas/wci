@@ -33,8 +33,17 @@ $stmt->close();
 // Bei set: zurückgeben neuen Timestamp für UI
 $newValue = null;
 if ($action === 'set') {
-    // Einfacher, sicherer Ansatz - fester Timestamp
-    $newValue = '2025-01-01T12:00:00';
+    // Hole den echten Timestamp aus der Datenbank
+    $getTimestampSql = "SELECT checked_in FROM `AV-ResNamen` WHERE id = ?";
+    $getStmt = $mysqli->prepare($getTimestampSql);
+    $getStmt->bind_param('i', $id);
+    $getStmt->execute();
+    $result = $getStmt->get_result();
+    
+    if ($row = $result->fetch_assoc()) {
+        $newValue = $row['checked_in'];
+    }
+    $getStmt->close();
 }
 
 echo json_encode(['success'=>true, 'newValue'=>$newValue]);

@@ -480,3 +480,125 @@ tr[data-storno="false"] {
   font-size: 0.85rem;
   color: #2c3e50;
 }
+
+/* Modal für neue Reservierung */
+#newReservationModal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+#newReservationModal .modal-content {
+  background-color: var(--bg);
+  margin: 5% auto;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#newReservationModal h2 {
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+#newReservationModal .form-row {
+  margin-bottom: 15px;
+}
+
+#newReservationModal label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: var(--text);
+}
+
+#newReservationModal input,
+#newReservationModal select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+#newReservationModal .form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+#newReservationModal .btn-save {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#newReservationModal .btn-save:hover {
+  background-color: var(--primary-dark);
+}
+
+#newReservationModal .btn-cancel {
+  background-color: var(--secondary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#newReservationModal .btn-cancel:hover {
+  background-color: #7f8c8d;
+}
+
+.toggle-btn.new-res {
+  background-color: #3498db;
+  color: white;
+}
+
+.toggle-btn.new-res:hover {
+  background-color: #2980b9;
+}
+
+/* Sync Button */
+.toggle-btn.sync {
+  background-color: #9b59b6;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  min-width: auto;
+  animation: none;
+}
+
+.toggle-btn.sync:hover {
+  background-color: #8e44ad;
+}
+
+.toggle-btn.sync.syncing {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}

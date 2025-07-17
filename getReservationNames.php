@@ -38,8 +38,8 @@ SELECT
   d.bez AS diet_text,
   n.dietInfo,
   n.transport,
-  '' AS checked_in_raw,
-  '' AS checked_out_raw,
+  n.checked_in,
+  n.checked_out,
   '' AS alter_bez,
   0 AS ageGrp
 
@@ -82,37 +82,36 @@ while ($row = $res->fetch_assoc()) {
     // Boolean cast für JS
     $row['guide'] = (bool)$row['guide'];
     
-    // Check-in-Zustand separat und sicher laden
-    $nameId = $row['id'];
-    try {
-        $checkQuery = "SELECT 
-            CASE WHEN checked_in IS NULL OR checked_in = '' OR checked_in = '0000-00-00 00:00:00' THEN 0 ELSE 1 END as has_checkin,
-            CASE WHEN checked_out IS NULL OR checked_out = '' OR checked_out = '0000-00-00 00:00:00' THEN 0 ELSE 1 END as has_checkout
-            FROM `AV-ResNamen` WHERE id = ?";
-        $checkStmt = $mysqli->prepare($checkQuery);
-        $checkStmt->bind_param('i', $nameId);
-        $checkStmt->execute();
-        $checkResult = $checkStmt->get_result();
-        $checkData = $checkResult->fetch_assoc();
-        $checkStmt->close();
-        
-        // Setze Check-in/Check-out basierend auf Boolean-Flags
-        $row['checked_in'] = $checkData['has_checkin'] ? '2025-01-01T12:00:00' : null;
-        $row['checked_out'] = $checkData['has_checkout'] ? '2025-01-01T13:00:00' : null;
-        
-    } catch (Exception $e) {
-        // Fallback bei Fehlern
+    // Check-in/Check-out-Werte normalisieren
+    // NULL, leerer String oder 0000-00-00 00:00:00 = nicht eingecheckt
+    if (empty($row['checked_in']) || $row['checked_in'] === '0000-00-00 00:00:00') {
         $row['checked_in'] = null;
+    }
+    
+    if (empty($row['checked_out']) || $row['checked_out'] === '0000-00-00 00:00:00') {
         $row['checked_out'] = null;
     }
     
-    // Raw-Werte entfernen
-    unset($row['checked_in_raw']);
-    unset($row['checked_out_raw']);
+    // Debug: Log die ersten paar Datensätze
+    if (count($data) < 2) {
+        error_log("Debug row " . count($data) . ": checked_in=" . var_export($row['checked_in'], true) . ", checked_out=" . var_export($row['checked_out'], true));
+    }
     
     $data[] = $row;
 }
 $stmt->close();
 
 // === 6) Ausgabe ===
+// Debug: Zeige die ersten 2 Datensätze zur Kontrolle
+if (count($data) > 0) {
+    $debugInfo = [
+        'first_row_checked_in' => $data[0]['checked_in'] ?? 'NOT_SET',
+        'first_row_checked_out' => $data[0]['checked_out'] ?? 'NOT_SET',
+        'first_row_checked_in_type' => gettype($data[0]['checked_in'] ?? null),
+        'total_rows' => count($data)
+    ];
+    // Temporär Debug-Info in Response Header
+    header('X-Debug-Info: ' . json_encode($debugInfo));
+}
+
 echo json_encode($data);
