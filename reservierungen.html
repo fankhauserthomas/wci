@@ -31,6 +31,12 @@
 
       <!-- Suche -->
       <input type="text" id="searchInput" placeholder="Suche Name…">
+
+      <!-- Neue Reservierung Button -->
+      <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
+
+      <!-- Sync Button -->
+      <button id="syncBtn" class="toggle-btn sync" onclick="triggerManualSync()">🔄</button>
     </div>
   </header>
 
@@ -88,7 +94,70 @@
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
+  <script src="js/sync-utils.js"></script>
   <script src="script.js"></script>
+
+  <!-- Modal für neue Reservierung -->
+  <div id="newReservationModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 500px;">
+      <span id="newResModalClose" class="close">&times;</span>
+      <h2>Neue Reservierung</h2>
+      <form id="newReservationForm">
+        <div class="form-row">
+          <label>Nachname*:</label>
+          <input type="text" id="newResNachname" required>
+        </div>
+        <div class="form-row">
+          <label>Vorname:</label>
+          <input type="text" id="newResVorname">
+        </div>
+        <div class="form-row">
+          <label>Herkunft:</label>
+          <select id="newResHerkunft">
+            <option value="">Bitte wählen...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Anreise:</label>
+          <input type="date" id="newResAnreise">
+        </div>
+        <div class="form-row">
+          <label>Abreise:</label>
+          <input type="date" id="newResAbreise">
+        </div>
+        <div class="form-row">
+          <label>Arrangement:</label>
+          <select id="newResArrangement">
+            <option value="">Bitte wählen...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Anzahl DZ:</label>
+          <input type="number" id="newResDZ" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>Anzahl Betten:</label>
+          <input type="number" id="newResBetten" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>Anzahl Lager:</label>
+          <input type="number" id="newResLager" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>Anzahl Sonder:</label>
+          <input type="number" id="newResSonder" min="0" value="0">
+        </div>
+        <div class="form-row">
+          <label>Bemerkung:</label>
+          <input type="text" id="newResBemerkung">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-save">Speichern</button>
+          <button type="button" id="newResCancelBtn" class="btn-cancel">Abbrechen</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     // Connection Status für diese Seite initialisieren

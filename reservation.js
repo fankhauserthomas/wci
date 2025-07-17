@@ -37,16 +37,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hilfsfunktionen zum Formatieren
   const fmtDate = iso => {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('T')[0].split('-');
-    return `${d}.${m}.`;
+    if (!iso || iso === null || iso === 'null' || iso === undefined || typeof iso !== 'string') return '';
+    try {
+      // Handle both MySQL format (YYYY-MM-DD HH:MM:SS) and ISO format (YYYY-MM-DDTHH:MM:SS)
+      let datePart;
+      if (iso.includes('T')) {
+        datePart = iso.split('T')[0];
+      } else {
+        datePart = iso.split(' ')[0];
+      }
+
+      const [y, m, d] = datePart.split('-');
+      return `${d}.${m}.`;
+    } catch (e) {
+      console.log('fmtDate error with value:', iso, e);
+      return '';
+    }
   };
   const fmtDateTime = iso => {
-    if (!iso) return '';
-    const [date, time] = iso.split('T');
-    const [y, m, d] = date.split('-');
-    const [hh, mm] = time.split(':');
-    return `${d}.${m} ${hh}:${mm}`;
+    if (!iso || iso === null || iso === 'null' || iso === undefined || typeof iso !== 'string') return '';
+    try {
+      // Handle both MySQL format (YYYY-MM-DD HH:MM:SS) and ISO format (YYYY-MM-DDTHH:MM:SS)
+      let dateTimeParts;
+      if (iso.includes('T')) {
+        // ISO format
+        dateTimeParts = iso.split('T');
+      } else {
+        // MySQL format - replace space with T to make it ISO-like
+        dateTimeParts = iso.split(' ');
+      }
+
+      const [date, time] = dateTimeParts;
+      const [y, m, d] = date.split('-');
+      const [hh, mm] = time.split(':');
+      return `${d}.${m} ${hh}:${mm}`;
+    } catch (e) {
+      console.log('fmtDateTime error with value:', iso, e);
+      return '';
+    }
   };
 
   // 1) Load reservation header + Zimmerliste
@@ -187,6 +215,17 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
       list.forEach(n => {
+        // Debug: Log die ersten paar Check-in/Check-out Werte
+        if (list.indexOf(n) < 2) {
+          console.log('Debug name entry:', {
+            id: n.id,
+            name: n.vorname + ' ' + n.nachname,
+            checked_in: n.checked_in,
+            checked_out: n.checked_out,
+            checked_in_type: typeof n.checked_in
+          });
+        }
+
         const tr = document.createElement('tr');
         tr.dataset.id = n.id;
 
