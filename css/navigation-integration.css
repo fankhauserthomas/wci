@@ -1,0 +1,88 @@
+/* 
+ * Spezifische Fixes für Navigation Integration 
+ */
+
+/* Verstecke page-actions in reservation.html da bereits Action Bar vorhanden */
+body.reservation-page .page-actions,
+.page-actions.reservation-actions,
+.page-actions.reservations-actions,
+.page-actions {
+    display: none !important;
+}
+
+/* Legacy controls wieder sichtbar machen, aber Sync Button verstecken */
+.legacy-controls {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin: 15px 0;
+}
+
+/* Nur den Sync Button in legacy-controls verstecken */
+.legacy-controls #syncBtn {
+    display: none !important;
+}
+
+/* Toggle Button Styles sicherstellen */
+.legacy-controls .toggle-btn {
+    padding: 8px 16px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.legacy-controls .toggle-btn.no-storno {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+.legacy-controls .toggle-btn.storno {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: #dc3545 !important;
+}
+
+.legacy-controls .toggle-btn.all {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+.legacy-controls .toggle-btn.open {
+    background-color: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
+}
+
+/* Modal Verbesserungen - echtes Modal-Verhalten */
+#newReservationModal.modal {
+    z-index: 2000 !important; /* Höher als Navigation */
+    background-color: rgba(0, 0, 0, 0.6) !important; /* Dunklerer Hintergrund */
+    backdrop-filter: blur(2px); /* Unschärfe-Effekt */
+}
+
+#newReservationModal .modal-content {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; /* Stärkerer Schatten */
+    border: none !important;
+    border-radius: 8px !important;
+    animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

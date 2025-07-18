@@ -1,0 +1,341 @@
+/* 
+ * Integration der neuen Navigation mit bestehendem Design
+ * Anpassungen für legacy Komponenten
+ */
+
+/* ===== MAIN CONTENT ANPASSUNGEN ===== */
+.main-content {
+    margin-top: 60px; /* Platz für Navigation schaffen */
+    padding: 10px; /* Weniger Padding */
+    padding-bottom: 80px; /* Weniger Platz für Connection-Status */
+    min-height: calc(100vh - 140px); /* Weniger Raum */
+    width: 100%; /* Explizit volle Breite */
+    max-width: 100%; /* Kein Maximum */
+}
+
+/* Body Anpassung für Navigation */
+body {
+    margin: 0;
+    padding: 0;
+    padding-top: 0; /* Entfernt eventuellen Top-Padding */
+    width: 100%; /* Volle Body-Breite */
+}
+
+/* Navigation über volle Breite zwingen */
+.main-navigation {
+    width: 100vw !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+}
+
+/* ===== LEGACY HEADER ANPASSUNGEN ===== */
+.legacy-header {
+    display: none !important; /* Versteckt doppelte Header */
+}
+
+/* Reservation Header über volle Breite */
+.res-header {
+    width: calc(100% + 40px) !important;
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+.legacy-controls {
+    display: none !important; /* Versteckt unnötige Controls */
+}
+
+/* ===== RESERVIERUNGEN INTEGRATION ===== */
+.content-header {
+    padding: 10px 0 5px 0; /* Weniger Padding */
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 10px; /* Weniger Margin */
+}
+
+.content-header h1 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.8rem;
+}
+
+/* ===== ACTION BAR INTEGRATION ===== */
+.action-bar {
+    padding: 8px 0; /* Weniger Padding */
+    margin: 8px 0; /* Weniger Margin */
+    background: #f8f9fa;
+    border-radius: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-bar button {
+    padding: 6px 12px; /* Kompaktere Buttons */
+    font-size: 0.85rem;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* ===== BUTTON INTEGRATION ===== */
+.toggle-btn {
+    padding: 8px 16px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 4px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.toggle-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.toggle-btn.active,
+.toggle-btn.arrival,
+.toggle-btn.departure {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.toggle-btn.no-storno {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.toggle-btn.storno {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+/* ===== CONNECTION STATUS INTEGRATION ===== */
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 999;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    max-width: 150px; /* Begrenzt die Breite */
+}
+
+.connection-status:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28a745;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.offline {
+    background: #dc3545;
+}
+
+.status-dot.warning {
+    background: #ffc107;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* ===== RESPONSIVE NAVIGATION FIXES ===== */
+@media (max-width: 768px) {
+    .connection-status {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: 10px 20px;
+        justify-content: center;
+    }
+    
+    .content-header {
+        padding: 10px 0;
+    }
+    
+    .content-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .legacy-controls {
+        padding: 10px;
+        margin: 10px 0;
+    }
+    
+    .toggle-btn {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        margin: 2px;
+    }
+}
+
+/* ===== TABLE INTEGRATION ===== */
+.reservations-table {
+    margin-top: 20px;
+}
+
+/* ===== MODAL INTEGRATION ===== */
+.modal {
+    z-index: 10000; /* Über Navigation */
+}
+
+/* ===== PRINT ANPASSUNGEN ===== */
+@media print {
+    .main-navigation,
+    .breadcrumb-nav,
+    .page-actions,
+    .mobile-navigation,
+    .connection-status {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-top: 0 !important;
+    }
+}
+
+/* ===== FOCUS STYLES ===== */
+.nav-item:focus,
+.filter-btn:focus,
+.action-primary:focus,
+.action-secondary:focus,
+.action-back:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* ===== LOADING STATES ===== */
+.nav-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.nav-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ===== DROPDOWN MENU INTEGRATION ===== */
+.dropdown-menu {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 1001;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background: #f8f9fa;
+}
+
+/* ===== ACCESSIBILITY ===== */
+@media (prefers-reduced-motion: reduce) {
+    .main-navigation,
+    .breadcrumb-nav,
+    .page-actions,
+    .nav-item,
+    .action-primary,
+    .action-secondary,
+    .filter-btn {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+@media (prefers-contrast: high) {
+    .main-navigation {
+        border-bottom: 2px solid white;
+    }
+    
+    .nav-item {
+        border: 1px solid transparent;
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        border-color: white;
+    }
+}
+
+/* ===== DARK MODE UNTERSTÜTZUNG ===== */
+@media (prefers-color-scheme: dark) {
+    .breadcrumb-nav {
+        background: #1a1a1a;
+        border-color: #333;
+        color: #e9ecef;
+    }
+    
+    .page-actions {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+    
+    .connection-status {
+        background: #1a1a1a;
+        border-color: #333;
+        color: #e9ecef;
+    }
+    
+    .dashboard-card {
+        background: #1a1a1a;
+        border-color: #333;
+    }
+    
+    .card-title {
+        color: #e9ecef;
+    }
+}

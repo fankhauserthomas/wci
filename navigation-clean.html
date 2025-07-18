@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Clean Test</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+    <style>
+        /* Force ensure no overlays */
+        .loading-overlay,
+        [class*="loading"],
+        [style*="position: fixed"][style*="z-index"] {
+            display: none !important;
+        }
+        
+        body {
+            overflow: auto !important;
+            user-select: auto !important;
+            pointer-events: auto !important;
+        }
+        
+        .test-section {
+            background: white;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="index.html">🏨 WebCheckin</a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="reservierungen.html" class="nav-link active">Reservierungen</a>
+                <a href="statistiken.html" class="nav-link">Statistiken</a>
+            </div>
+            <div class="nav-actions">
+                <button id="syncBtn" class="btn btn-sync">
+                    <span class="sync-icon">🔄</span>
+                    <span class="sync-text">Sync</span>
+                </button>
+                <button class="mobile-toggle">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Breadcrumbs -->
+        <nav class="breadcrumbs">
+            <a href="index.html">Dashboard</a>
+            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-current">Navigation Test</span>
+        </nav>
+
+        <!-- Page Actions -->
+        <div class="page-actions">
+            <div class="actions-left">
+                <button class="btn btn-back" onclick="history.back()">
+                    ← Zurück
+                </button>
+            </div>
+            <div class="actions-right">
+                <button class="btn btn-primary" onclick="testFunction()">
+                    Test Button
+                </button>
+                <button class="btn btn-secondary" onclick="location.href='index.html'">
+                    Zum Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h1 class="success">✅ Navigation funktioniert!</h1>
+            <p>Diese Seite zeigt die neue Navigation ohne Loading-Overlay Probleme.</p>
+            
+            <h2>Navigation Komponenten:</h2>
+            <ul>
+                <li>✅ Hauptnavigation (oben)</li>
+                <li>✅ Breadcrumbs</li>
+                <li>✅ Page Actions</li>
+                <li>✅ Mobile-responsive Design</li>
+            </ul>
+            
+            <h2>Test-Links:</h2>
+            <div style="margin: 20px 0;">
+                <a href="index.html" class="btn" style="margin: 5px;">🏠 Dashboard</a>
+                <a href="reservierungen.html" class="btn" style="margin: 5px;">📋 Reservierungen</a>
+                <a href="reservation.html" class="btn" style="margin: 5px;">📝 Reservation Details</a>
+                <a href="statistiken.html" class="btn" style="margin: 5px;">📊 Statistiken</a>
+            </div>
+            
+            <h2>Mobile Navigation Test:</h2>
+            <p>Verkleinere das Browserfenster um das mobile Menü zu testen.</p>
+            
+            <h2>Keyboard Shortcuts:</h2>
+            <ul>
+                <li><kbd>Alt + H</kbd> - Zum Dashboard</li>
+                <li><kbd>Alt + R</kbd> - Zu Reservierungen</li>
+                <li><kbd>Ctrl + Shift + Escape</kbd> - Emergency Overlay Hide</li>
+            </ul>
+        </div>
+    </main>
+
+    <!-- Clean Navigation Script (NO LoadingOverlay!) -->
+    <script>
+        // Simplified Navigation without LoadingOverlay dependency
+        const CleanNavigation = {
+            setupMobileToggle() {
+                const toggle = document.querySelector('.mobile-toggle');
+                const nav = document.querySelector('.main-navigation');
+                
+                if (toggle && nav) {
+                    toggle.addEventListener('click', () => {
+                        nav.classList.toggle('mobile-open');
+                    });
+                }
+            },
+            
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    // Alt + H = Home
+                    if (e.altKey && e.key === 'h') {
+                        e.preventDefault();
+                        location.href = 'index.html';
+                    }
+                    
+                    // Alt + R = Reservations
+                    if (e.altKey && e.key === 'r') {
+                        e.preventDefault();
+                        location.href = 'reservierungen.html';
+                    }
+                    
+                    // Emergency overlay hide
+                    if (e.ctrlKey && e.shiftKey && e.key === 'Escape') {
+                        document.body.style.overflow = '';
+                        document.body.style.userSelect = '';
+                        document.body.style.pointerEvents = '';
+                        alert('Emergency overlay reset!');
+                    }
+                });
+            },
+            
+            init() {
+                this.setupMobileToggle();
+                this.setupKeyboardShortcuts();
+                console.log('✅ Clean Navigation initialized');
+            }
+        };
+        
+        function testFunction() {
+            alert('✅ Navigation Test erfolgreich!\n\nDie Navigation funktioniert ohne Overlay-Probleme.');
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            CleanNavigation.init();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Demo - WebCheckin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+    <style>
+        .demo-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .demo-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .demo-link {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            margin: 5px;
+            transition: background-color 0.2s;
+        }
+
+        .demo-link:hover {
+            background: #0056b3;
+        }
+
+        .feature-list {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .feature-list h4 {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .code-example {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ok { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation wird automatisch durch JavaScript eingefügt -->
+    
+    <main class="demo-container main-content">
+        <h1 class="demo-title">🧭 Navigation System Demo</h1>
+        <p>Diese Seite demonstriert das neue einheitliche Navigation-System für das WCI Buchungssystem.</p>
+
+        <!-- Navigation Features -->
+        <div class="demo-section">
+            <h2 class="demo-title">🎯 Navigation Features</h2>
+            
+            <div class="feature-list">
+                <h4>✅ Implementiert:</h4>
+                <ul>
+                    <li><strong>Hauptnavigation:</strong> Konsistente Menüleiste auf allen Seiten</li>
+                    <li><strong>Breadcrumbs:</strong> Kontextuelle Navigation mit Pfad-Anzeige</li>
+                    <li><strong>Page Actions:</strong> Seitenspezifische Aktions-Buttons</li>
+                    <li><strong>Mobile Support:</strong> Responsive Design mit kollabierender Navigation</li>
+                    <li><strong>Sync Integration:</strong> Globaler Sync-Button mit Status-Anzeige</li>
+                    <li><strong>Performance:</strong> Automatische Integration mit LoadingOverlay</li>
+                </ul>
+            </div>
+
+            <div class="feature-list">
+                <h4>🔄 Integrationen:</h4>
+                <ul>
+                    <li><strong>Bestehende Filter:</strong> Integration mit vorhandenen Filter-Funktionen</li>
+                    <li><strong>Bulk-Operationen:</strong> Einheitliche Bulk Check-in/Check-out Buttons</li>
+                    <li><strong>Print-System:</strong> Integration mit Print-Funktionen</li>
+                    <li><strong>Connection Status:</strong> Verbindungsüberwachung</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Seiten-Navigation -->
+        <div class="demo-section">
+            <h2 class="demo-title">📄 Seiten-Navigation</h2>
+            <p>Teste die Navigation zwischen den verschiedenen Seiten:</p>
+            
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h4>📊 Dashboard</h4>
+                    <p>Hauptübersicht</p>
+                    <a href="index.html" class="demo-link">Öffnen</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>📋 Reservierungen</h4>
+                    <p>Buchungsliste</p>
+                    <a href="reservierungen.html" class="demo-link">Öffnen</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>📝 Reservation</h4>
+                    <p>Einzelne Reservierung</p>
+                    <a href="reservation.html?id=6837" class="demo-link">Öffnen</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>📈 Statistiken</h4>
+                    <p>Reports und Auswertungen</p>
+                    <a href="statistiken.html" class="demo-link">Öffnen</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="demo-section">
+            <h2 class="demo-title">⚙️ System Status</h2>
+            
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h4>Navigation System</h4>
+                    <span class="status-indicator" id="nav-status"></span>
+                    <span id="nav-status-text">Wird geprüft...</span>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>Loading Overlay</h4>
+                    <span class="status-indicator" id="loading-status"></span>
+                    <span id="loading-status-text">Wird geprüft...</span>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>HTTP Utils</h4>
+                    <span class="status-indicator" id="http-status"></span>
+                    <span id="http-status-text">Wird geprüft...</span>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>Mobile Navigation</h4>
+                    <span class="status-indicator" id="mobile-status"></span>
+                    <span id="mobile-status-text">Wird geprüft...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Funktionen -->
+        <div class="demo-section">
+            <h2 class="demo-title">🔧 Navigation Funktionen</h2>
+            
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h4>🔄 Sync Test</h4>
+                    <button class="demo-link" onclick="testSync()">Sync auslösen</button>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>📱 Mobile Toggle</h4>
+                    <button class="demo-link" onclick="testMobileNav()">Mobile Nav</button>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>🏠 Zurück Navigation</h4>
+                    <button class="demo-link" onclick="testGoBack()">Zurück</button>
+                </div>
+                
+                <div class="demo-card">
+                    <h4>📊 Performance Stats</h4>
+                    <button class="demo-link" onclick="showStats()">Stats anzeigen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Examples -->
+        <div class="demo-section">
+            <h2 class="demo-title">💻 Code Examples</h2>
+            
+            <h4>Navigation Setup:</h4>
+            <div class="code-example">
+&lt;!-- HTML Head --&gt;
+&lt;link rel="stylesheet" href="css/navigation.css"&gt;
+&lt;link rel="stylesheet" href="css/navigation-integration.css"&gt;
+
+&lt;!-- HTML Body --&gt;
+&lt;main class="main-content"&gt;
+  &lt;!-- Seiteninhalt --&gt;
+&lt;/main&gt;
+
+&lt;!-- JavaScript --&gt;
+&lt;script src="js/navigation.js"&gt;&lt;/script&gt;
+            </div>
+
+            <h4>Navigation Functions:</h4>
+            <div class="code-example">
+// Navigation System verwenden
+NavigationSystem.goBack();
+NavigationSystem.triggerSync();
+NavigationSystem.bulkCheckin();
+NavigationSystem.bulkCheckout();
+
+// Status abrufen
+const stats = NavigationSystem.getPerformanceStats();
+            </div>
+
+            <h4>Page Actions Integration:</h4>
+            <div class="code-example">
+// Automatische Page Actions werden erstellt basierend auf:
+// - dashboard: Dashboard-spezifische Actions
+// - reservations: Filter, Suche, Export
+// - reservation: Bulk-Operationen, Print, Zurück
+// - reports: Report-spezifische Actions
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="demo-section">
+            <h2 class="demo-title">⌨️ Keyboard Shortcuts</h2>
+            
+            <div class="feature-list">
+                <h4>Verfügbare Shortcuts:</h4>
+                <ul>
+                    <li><kbd>Ctrl+Shift+Escape</kbd> - Emergency Hide (alle Loading-Overlays verstecken)</li>
+                    <li><kbd>Ctrl+Shift+D</kbd> - Debug-Informationen in Konsole ausgeben</li>
+                    <li><kbd>Alt+H</kbd> - Zur Startseite (Dashboard)</li>
+                    <li><kbd>Alt+R</kbd> - Zu Reservierungen</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Emergency Fix (load FIRST to prevent overlay issues) -->
+    <script src="js/emergency-fix.js"></script>
+    
+    <!-- Navigation System -->
+    <script src="js/navigation.js"></script>
+    <script src="js/loading-overlay.js"></script>
+    <script src="js/http-utils.js"></script>
+
+    <script>
+        // Demo Functions
+        function testSync() {
+            if (window.NavigationSystem) {
+                NavigationSystem.triggerSync();
+            } else {
+                alert('Navigation System nicht verfügbar');
+            }
+        }
+
+        function testMobileNav() {
+            if (window.NavigationSystem) {
+                NavigationSystem.toggleMobileNav();
+            } else {
+                alert('Navigation System nicht verfügbar');
+            }
+        }
+
+        function testGoBack() {
+            if (window.NavigationSystem) {
+                NavigationSystem.goBack();
+            } else {
+                alert('Navigation System nicht verfügbar');
+            }
+        }
+
+        function showStats() {
+            const stats = {
+                navigation: window.NavigationSystem ? 'Aktiv' : 'Inaktiv',
+                loadingOverlay: window.LoadingOverlay ? 'Aktiv' : 'Inaktiv',
+                httpUtils: window.HttpUtils ? 'Aktiv' : 'Inaktiv',
+                currentPage: window.NavigationSystem ? NavigationSystem.currentPage : 'Unbekannt'
+            };
+            
+            alert(`Navigation System Stats:
+
+Navigation: ${stats.navigation}
+Loading Overlay: ${stats.loadingOverlay}
+HTTP Utils: ${stats.httpUtils}
+Aktuelle Seite: ${stats.currentPage}
+
+Performance Threshold: ${window.LoadingOverlay ? LoadingOverlay.DELAY_THRESHOLD + 'ms' : 'N/A'}`);
+        }
+
+        // System Status Check
+        function updateSystemStatus() {
+            // Navigation Status
+            const navStatus = document.getElementById('nav-status');
+            const navText = document.getElementById('nav-status-text');
+            if (window.NavigationSystem) {
+                navStatus.className = 'status-indicator status-ok';
+                navText.textContent = 'Aktiv';
+            } else {
+                navStatus.className = 'status-indicator status-error';
+                navText.textContent = 'Nicht verfügbar';
+            }
+
+            // Loading Overlay Status
+            const loadingStatus = document.getElementById('loading-status');
+            const loadingText = document.getElementById('loading-status-text');
+            if (window.LoadingOverlay) {
+                loadingStatus.className = 'status-indicator status-ok';
+                loadingText.textContent = 'Aktiv';
+            } else {
+                loadingStatus.className = 'status-indicator status-warning';
+                loadingText.textContent = 'Nicht geladen';
+            }
+
+            // HTTP Utils Status
+            const httpStatus = document.getElementById('http-status');
+            const httpText = document.getElementById('http-status-text');
+            if (window.HttpUtils) {
+                httpStatus.className = 'status-indicator status-ok';
+                httpText.textContent = 'Aktiv';
+            } else {
+                httpStatus.className = 'status-indicator status-warning';
+                httpText.textContent = 'Nicht geladen';
+            }
+
+            // Mobile Navigation Status
+            const mobileStatus = document.getElementById('mobile-status');
+            const mobileText = document.getElementById('mobile-status-text');
+            const mobileNav = document.querySelector('.mobile-navigation');
+            if (mobileNav) {
+                mobileStatus.className = 'status-indicator status-ok';
+                mobileText.textContent = 'Verfügbar';
+            } else {
+                mobileStatus.className = 'status-indicator status-warning';
+                mobileText.textContent = 'Wird geladen...';
+            }
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.altKey) {
+                switch (e.key) {
+                    case 'h':
+                        e.preventDefault();
+                        location.href = 'index.html';
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        location.href = 'reservierungen.html';
+                        break;
+                }
+            }
+        });
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(updateSystemStatus, 500);
+            
+            console.log('[DEMO] Navigation Demo loaded');
+            console.log('[DEMO] Test navigation between pages using the top menu');
+        });
+    </script>
+</body>
+</html>

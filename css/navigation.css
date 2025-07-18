@@ -1,0 +1,490 @@
+/* 
+ * Einheitliches Navigation-System für WCI Buchungssystem
+ * Konsistente, intuitive Navigation zwischen allen Seiten
+ */
+
+/* ===== HAUPTNAVIGATION ===== */
+.main-navigation {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.nav-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+}
+
+.nav-title {
+    white-space: nowrap;
+}
+
+.nav-primary {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-item {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    background-color: rgba(255,255,255,0.15);
+    transform: translateY(-1px);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.nav-sync,
+.nav-settings {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-sync:hover,
+.nav-settings:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
+
+/* ===== BREADCRUMB NAVIGATION ===== */
+.breadcrumb-nav {
+    display: none !important; /* Breadcrumb ist unnötig */
+}
+
+.breadcrumb-item a {
+    color: #007bff;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb-item a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    color: #6c757d;
+    margin: 0 0.25rem;
+}
+
+.breadcrumb-current {
+    color: #495057;
+    font-weight: 500;
+}
+
+/* ===== PAGE ACTIONS ===== */
+.page-actions {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    min-height: 60px;
+}
+
+.action-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-group.filters {
+    gap: 0.25rem;
+}
+
+.action-group.search {
+    background: #f8f9fa;
+    padding: 0.25rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+/* ===== BUTTONS ===== */
+.action-primary {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-primary:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.action-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-secondary:hover {
+    background: #545b62;
+    transform: translateY(-1px);
+}
+
+.action-back {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-back:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+.action-bulk {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-bulk:hover {
+    background: #138496;
+    transform: translateY(-1px);
+}
+
+.action-print {
+    background: #fd7e14;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-print:hover {
+    background: #e55a04;
+    transform: translateY(-1px);
+}
+
+.action-save {
+    background: #20c997;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-save:hover {
+    background: #1a9972;
+    transform: translateY(-1px);
+}
+
+/* ===== FILTER BUTTONS ===== */
+.filter-btn {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.filter-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.filter-date {
+    border: 1px solid #dee2e6;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-date:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.1rem rgba(0, 123, 255, 0.25);
+}
+
+/* ===== SEARCH INPUT ===== */
+.search-input {
+    border: none;
+    background: transparent;
+    padding: 0.4rem 0.8rem;
+    outline: none;
+    font-size: 0.9rem;
+    min-width: 200px;
+}
+
+.search-btn {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.search-btn:hover {
+    color: #007bff;
+}
+
+/* ===== CURRENT RESERVATION INDICATOR ===== */
+.current-reservation {
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+/* ===== MOBILE NAVIGATION ===== */
+.mobile-nav-toggle {
+    display: none;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.mobile-navigation {
+    display: none;
+    background: #2c3e50;
+    padding: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.mobile-nav-item {
+    display: block;
+    color: white;
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item.active {
+    background-color: rgba(255,255,255,0.1);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .main-navigation {
+        flex-wrap: wrap;
+        padding: 0.5rem 1rem;
+    }
+    
+    .nav-primary {
+        display: none;
+    }
+    
+    .mobile-nav-toggle {
+        display: block;
+    }
+    
+    .mobile-navigation.active {
+        display: block;
+    }
+    
+    .page-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .action-group {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .action-group.search {
+        order: -1;
+    }
+    
+    .breadcrumb-nav {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .search-input {
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-navigation {
+        padding: 0.5rem;
+    }
+    
+    .nav-brand {
+        font-size: 1rem;
+    }
+    
+    .nav-logo {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .page-actions {
+        padding: 0.75rem 1rem;
+    }
+    
+    .action-group {
+        width: 100%;
+        justify-content: space-around;
+    }
+    
+    .breadcrumb-nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* ===== UTILITY CLASSES ===== */
+.nav-hidden {
+    display: none !important;
+}
+
+.nav-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.nav-success {
+    background: #28a745 !important;
+}
+
+.nav-warning {
+    background: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.nav-error {
+    background: #dc3545 !important;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes navFadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.main-navigation {
+    animation: navFadeIn 0.3s ease-out;
+}
+
+.breadcrumb-nav {
+    animation: navFadeIn 0.3s ease-out 0.1s both;
+}
+
+.page-actions {
+    animation: navFadeIn 0.3s ease-out 0.2s both;
+}

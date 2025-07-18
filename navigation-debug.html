@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Test - Debug</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+    <style>
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 99999;
+            font-size: 12px;
+            max-width: 300px;
+        }
+        
+        .quick-fix {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            background: orange;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 99999;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .test-content {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Emergency Debug Info -->
+    <div class="debug-info" id="debugInfo">
+        Debug Loading...
+    </div>
+    
+    <!-- Quick Fix Button -->
+    <div class="quick-fix" onclick="forceHideAllOverlays()">
+        🚨 FORCE HIDE OVERLAYS
+    </div>
+
+    <!-- Navigation wird hier eingefügt -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="index.html">🏨 WebCheckin</a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+                <a href="statistiken.html" class="nav-link">Statistiken</a>
+            </div>
+            <div class="nav-actions">
+                <button id="syncBtn" class="btn btn-sync">
+                    <span class="sync-icon">🔄</span>
+                    <span class="sync-text">Sync</span>
+                </button>
+                <button class="mobile-toggle">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="test-content">
+            <h1>🧪 Navigation Test - Debug Mode</h1>
+            
+            <h2>Debug Information:</h2>
+            <ul>
+                <li>LoadingOverlay Status: <span id="overlayStatus">Checking...</span></li>
+                <li>Navigation CSS: <span id="navCssStatus">Checking...</span></li>
+                <li>Body Classes: <span id="bodyClasses">Checking...</span></li>
+                <li>Visible Overlays: <span id="visibleOverlays">Checking...</span></li>
+            </ul>
+            
+            <h2>Quick Actions:</h2>
+            <button onclick="checkLoadingOverlay()" class="btn">Check LoadingOverlay</button>
+            <button onclick="forceHideAllOverlays()" class="btn">Force Hide All</button>
+            <button onclick="resetBodyStyles()" class="btn">Reset Body Styles</button>
+            <button onclick="showDebugInfo()" class="btn">Show Debug Info</button>
+            
+            <h2>Navigation Links Test:</h2>
+            <div style="margin: 20px 0;">
+                <a href="index.html" class="btn" style="margin: 5px;">Dashboard</a>
+                <a href="reservierungen.html" class="btn" style="margin: 5px;">Reservierungen</a>
+                <a href="reservation.html" class="btn" style="margin: 5px;">Reservation</a>
+                <a href="navigation-demo.html" class="btn" style="margin: 5px;">Demo Page</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="js/loading-overlay.js"></script>
+    <script src="js/http-utils.js"></script>
+    <script src="js/navigation.js"></script>
+    
+    <script>
+        // Emergency functions to debug and fix overlay issues
+        function forceHideAllOverlays() {
+            console.log('🚨 EMERGENCY: Force hiding all overlays');
+            
+            // Hide LoadingOverlay if exists
+            if (typeof LoadingOverlay !== 'undefined') {
+                LoadingOverlay.hide();
+                LoadingOverlay.isVisible = false;
+                if (LoadingOverlay.overlay) {
+                    LoadingOverlay.overlay.style.display = 'none';
+                    LoadingOverlay.overlay.classList.remove('visible');
+                }
+            }
+            
+            // Reset body styles
+            resetBodyStyles();
+            
+            // Hide any other overlays
+            const overlays = document.querySelectorAll('.loading-overlay, .modal, [style*="position: fixed"]');
+            overlays.forEach(overlay => {
+                if (overlay.style.zIndex > 100) {
+                    overlay.style.display = 'none';
+                }
+            });
+            
+            updateDebugInfo();
+            alert('✅ All overlays forced hidden!');
+        }
+        
+        function resetBodyStyles() {
+            document.body.style.overflow = '';
+            document.body.style.userSelect = '';
+            document.body.style.pointerEvents = '';
+            document.body.classList.remove('loading-active');
+        }
+        
+        function checkLoadingOverlay() {
+            if (typeof LoadingOverlay !== 'undefined') {
+                console.log('LoadingOverlay Status:', {
+                    isVisible: LoadingOverlay.isVisible,
+                    currentOperations: LoadingOverlay.currentOperations,
+                    delayedOperations: LoadingOverlay.delayedOperations,
+                    overlay: LoadingOverlay.overlay
+                });
+            } else {
+                console.log('LoadingOverlay class not found');
+            }
+            updateDebugInfo();
+        }
+        
+        function showDebugInfo() {
+            const info = {
+                loadingOverlay: typeof LoadingOverlay !== 'undefined' ? LoadingOverlay.isVisible : 'NOT_FOUND',
+                bodyClasses: document.body.className,
+                bodyStyle: document.body.style.cssText,
+                visibleOverlays: document.querySelectorAll('[style*="position: fixed"]:not([style*="display: none"])').length
+            };
+            
+            console.log('🔍 Debug Info:', info);
+            alert('Check console for debug info');
+        }
+        
+        function updateDebugInfo() {
+            // Update debug status
+            const overlayStatus = document.getElementById('overlayStatus');
+            const bodyClasses = document.getElementById('bodyClasses');
+            const visibleOverlays = document.getElementById('visibleOverlays');
+            
+            if (overlayStatus) {
+                const status = typeof LoadingOverlay !== 'undefined' ? 
+                    (LoadingOverlay.isVisible ? '🔴 ACTIVE' : '🟢 HIDDEN') : 
+                    '❓ NOT_FOUND';
+                overlayStatus.textContent = status;
+                overlayStatus.style.color = LoadingOverlay?.isVisible ? 'red' : 'green';
+            }
+            
+            if (bodyClasses) {
+                bodyClasses.textContent = document.body.className || 'none';
+            }
+            
+            if (visibleOverlays) {
+                const count = document.querySelectorAll('[style*="position: fixed"]:not([style*="display: none"])').length;
+                visibleOverlays.textContent = count;
+                visibleOverlays.style.color = count > 3 ? 'red' : 'green';
+            }
+        }
+        
+        // Initialize debug info
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDebugInfo();
+            
+            // Check every 2 seconds for overlay issues
+            setInterval(updateDebugInfo, 2000);
+            
+            // Setup navigation if available
+            if (typeof NavigationSystem !== 'undefined') {
+                NavigationSystem.setupNavigation();
+            }
+            
+            console.log('🧪 Debug Navigation Test loaded');
+        });
+        
+        // Add emergency keyboard shortcut
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Shift+Escape = Emergency hide all overlays
+            if (e.ctrlKey && e.shiftKey && e.key === 'Escape') {
+                forceHideAllOverlays();
+            }
+        });
+    </script>
+</body>
+</html>

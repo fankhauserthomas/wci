@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation Quick Fix</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="reservation.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+    <style>
+        .quick-fix-info {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="index.html">🏨 WebCheckin</a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+                <a href="reservation.html" class="nav-link active">Reservation</a>
+                <a href="statistiken.html" class="nav-link">Statistiken</a>
+            </div>
+            <div class="nav-actions">
+                <button id="syncBtn" class="btn btn-sync">
+                    <span class="sync-icon">🔄</span>
+                    <span class="sync-text">Sync</span>
+                </button>
+                <button class="mobile-toggle">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="quick-fix-info">
+            <h3>✅ Quick Fix Version - Namen werden geladen</h3>
+            <p>Diese Version lädt die Namen automatisch nach 1 Sekunde.</p>
+        </div>
+
+        <!-- Reservation Header -->
+        <div id="resHeader" class="res-header">
+            <div class="header-content">
+                <div class="header-info" id="headerInfo">
+                    Lädt Reservierung...
+                </div>
+                <div class="header-menu">
+                    <button id="menuBtn" class="menu-btn">⋮</button>
+                    <div id="dropdownMenu" class="dropdown-menu hidden">
+                        <button id="editBtn" class="dropdown-item">Bearbeiten</button>
+                        <button id="emailBtn" class="dropdown-item">📧 E-Mail senden</button>
+                        <button id="stornoBtn" class="dropdown-item">Storno</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div id="actionBar" class="action-bar">
+            <button id="deleteBtn">Löschen</button>
+            <button id="printBtn">Drucken</button>
+            <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
+            <button id="dietBtn" class="btn-diet">Diät…</button>
+            <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
+            <button id="bulkCheckoutBtn" class="btn-bulk" disabled>Bulk Check-out</button>
+            <button onclick="history.back()" class="btn">Zurück zur Liste</button>
+        </div>
+
+        <!-- Namen-Tabelle -->
+        <div class="table-container">
+            <table id="namesTable" class="names-list">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll"></th>
+                        <th>Name</th>
+                        <th>Details</th>
+                        <th>Alter</th>
+                        <th>Bemerkung</th>
+                        <th>BF</th>
+                        <th>Arr</th>
+                        <th>Diät</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                    </tr>
+                </thead>
+                <tbody id="namesTableBody">
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 20px;">
+                            🔄 Namen werden geladen...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Status -->
+        <div id="loadStatus" style="margin: 20px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+            Status: Initialisierung...
+        </div>
+    </main>
+
+    <!-- Connection Status -->
+    <div class="connection-status">
+        <div class="status-dot"></div>
+        <span class="status-text">Quick Fix</span>
+    </div>
+
+    <!-- Modals (vereinfacht) -->
+    <div id="arrangementModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close" onclick="document.getElementById('arrangementModal').classList.add('hidden')">&times;</span>
+            <h2>Arrangement wählen</h2>
+            <div id="arrButtonsContainer"></div>
+        </div>
+    </div>
+
+    <div id="dietModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close" onclick="document.getElementById('dietModal').classList.add('hidden')">&times;</span>
+            <h2>Diät wählen</h2>
+            <div id="dietButtonsContainer"></div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close" id="confirmModalClose">&times;</span>
+            <h3 id="confirmModalTitle">Bestätigung</h3>
+            <div id="confirmModalMessage"></div>
+            <div id="confirmModalQuestion"></div>
+            <div class="modal-buttons">
+                <button id="confirmModalYes" class="btn-confirm">Ja</button>
+                <button id="confirmModalNo" class="btn-cancel">Nein</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/http-utils.js"></script>
+    <script src="js/loading-overlay.js"></script>
+    
+    <script>
+        // Quick Fix Script - lädt Namen sofort
+        let resId = new URLSearchParams(window.location.search).get('id') || '8423';
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('loadStatus');
+            const colors = {
+                info: '#17a2b8',
+                success: '#28a745',
+                error: '#dc3545',
+                warning: '#ffc107'
+            };
+            status.style.color = colors[type] || colors.info;
+            status.textContent = `Status: ${message}`;
+            console.log(`[QUICK-FIX] ${message}`);
+        }
+        
+        async function loadReservationDetails() {
+            try {
+                updateStatus('Lade Reservierungsdetails...');
+                const response = await fetch(`getReservationDetails.php?id=${resId}`);
+                const data = await response.json();
+                
+                if (data && data.vorname) {
+                    const headerInfo = document.getElementById('headerInfo');
+                    headerInfo.innerHTML = `
+                        <strong>${data.vorname} ${data.nachname}</strong> - 
+                        ${data.anzahl_personen} ${data.zimmertyp || 'Personen'} - 
+                        ${data.anreise} bis ${data.abreise}<br>
+                        Arrangement: ${data.arrangement || '-'} | 
+                        Herkunft: ${data.herkunft || '-'} | 
+                        Bemerkung: ${data.bemerkung || '-'}
+                    `;
+                    updateStatus('Reservierungsdetails geladen', 'success');
+                } else {
+                    updateStatus('Keine Reservierungsdetails gefunden', 'warning');
+                }
+            } catch (error) {
+                updateStatus(`Fehler beim Laden der Details: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadNames() {
+            try {
+                updateStatus('Lade Namen...');
+                const response = await fetch(`getReservationNames.php?id=${resId}`);
+                const names = await response.json();
+                
+                const tbody = document.getElementById('namesTableBody');
+                tbody.innerHTML = '';
+                
+                if (names && Array.isArray(names) && names.length > 0) {
+                    names.forEach(name => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><input type="checkbox"></td>
+                            <td class="name-cell">${name.vorname || ''} ${name.nachname || ''}</td>
+                            <td><button class="btn-details">Details</button></td>
+                            <td>${name.age || '-'}</td>
+                            <td class="bem-cell">${name.bemerkung || '-'}</td>
+                            <td>${name.bf || '-'}</td>
+                            <td class="arr-cell">${name.arrangement || '-'}</td>
+                            <td class="diet-cell">${name.diet || '-'}</td>
+                            <td class="checkin-cell">
+                                ${name.checked_in ? `✅ ${name.checked_in}` : '<button class="btn-checkin">Check-in</button>'}
+                            </td>
+                            <td class="checkout-cell">
+                                ${name.checked_out ? `✅ ${name.checked_out}` : '<button class="btn-checkout">Check-out</button>'}
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    updateStatus(`${names.length} Namen erfolgreich geladen`, 'success');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">Keine Namen gefunden</td></tr>';
+                    updateStatus('Keine Namen in der Antwort gefunden', 'warning');
+                }
+            } catch (error) {
+                updateStatus(`Fehler beim Laden der Namen: ${error.message}`, 'error');
+                const tbody = document.getElementById('namesTableBody');
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Fehler beim Laden der Namen</td></tr>';
+            }
+        }
+        
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', async function() {
+            updateStatus('Seite initialisiert');
+            
+            // Mobile toggle
+            const toggle = document.querySelector('.mobile-toggle');
+            const nav = document.querySelector('.main-navigation');
+            if (toggle && nav) {
+                toggle.addEventListener('click', () => {
+                    nav.classList.toggle('mobile-open');
+                });
+            }
+            
+            updateStatus('Lade Daten...');
+            
+            // Reservierungsdetails laden
+            await loadReservationDetails();
+            
+            // Namen laden nach kurzer Verzögerung
+            setTimeout(async () => {
+                await loadNames();
+            }, 1000);
+            
+            updateStatus('Initialisierung abgeschlossen', 'success');
+        });
+    </script>
+</body>
+</html>

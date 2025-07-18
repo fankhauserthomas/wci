@@ -6,12 +6,17 @@
   <title>Gast-Details bearbeiten</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="reservation.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/navigation-integration.css">
 </head>
 <body>
-  <header>
-    <h1>Gast-Details</h1>
-  </header>
-  <main>
+  <!-- Navigation wird durch JavaScript eingefügt -->
+  
+  <main class="main-content">
+    <header class="legacy-header">
+      <h1>Gast-Details</h1>
+    </header>
+    
     <div class="form-container">
       <form id="gastForm">
         <div class="form-row">
@@ -306,5 +311,8 @@
     });
   </script>
   <script src="js/http-utils.js"></script>
+  
+  <!-- Navigation System -->
+  <script src="js/navigation.js"></script>
 </body>
 </html>
