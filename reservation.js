@@ -200,6 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Lade Reservierungsdaten
   loadReservationData();
 
+  // Lade Namen nach Reservierungsdaten
+  setTimeout(() => {
+    loadNames();
+  }, 500); // Kurze Verzögerung, damit Reservierungsdaten zuerst geladen werden
+
   // 2) Load names list
   async function loadNames() {
     try {
@@ -1477,10 +1482,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
-  // Back button - return to list
-  backMenuBtn.addEventListener('click', () => {
-    location.href = 'reservierungen.html';
-  });
+  // Back button - return to list (falls vorhanden)
+  if (backMenuBtn) {
+    backMenuBtn.addEventListener('click', () => {
+      location.href = 'reservierungen.html';
+    });
+  } else {
+    console.warn('[RESERVATION] backMenuBtn element not found - using fallback');
+  }
 
   // Custom confirmation modal functions
   function showCustomConfirmModal(title, message, question, onConfirm) {

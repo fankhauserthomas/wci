@@ -3,25 +3,21 @@
    =========================== */
 
 /* Header über volle Breite */
-body.reservation>header {
+.main-content .legacy-header {
   width: 100%;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 /* Zentrales Layout */
-body.reservation {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-main.reservation {
+.main-content {
   width: 100%;
   max-width: none;
   /* allow full width for table */
-  padding: 1rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
 /* Grüner Info-Header */
@@ -40,13 +36,18 @@ main.reservation {
 
 /* Namensliste-Tabelle */
 .names-list {
-  /* Auto width based on content for proper horizontal scrolling */
+  width: 100%;
   border-collapse: collapse;
   margin-bottom: 1.5rem;
-  display: inline-table;
-  /* allow table to size to content */
-  min-width: 100%;
-  /* at least container width */
+  /* Remove display: inline-table - causes width problems */
+}
+
+/* Table Container für horizontales Scrollen bei kleinen Bildschirmen */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 0 -20px; /* Negiert main-content padding */
+  padding: 0 20px;
 }
 
 .names-list th,
@@ -156,6 +157,8 @@ main.reservation {
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 1rem;
+  width: 100%;
+  /* Volle Breite für Action Bar */
 }
 
 /* Löschen-Button (rot) */

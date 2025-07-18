@@ -70,6 +70,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('searchInput');
   const tbody = document.querySelector('#resTable tbody');
 
+  // Debug: Prüfe ob Elemente gefunden wurden
+  console.log('Debug - Toggle Elements:', {
+    toggleType: !!toggleType,
+    toggleStorno: !!toggleStorno,
+    toggleOpen: !!toggleOpen,
+    filterDate: !!filterDate
+  });
+
+  // Flag um doppelte Listener zu vermeiden
+  let toggleListenersSetup = false;
+
+  // Setup Toggle Listeners nur einmal
+  if (toggleStorno && toggleOpen && !toggleListenersSetup) {
+    console.log('Setting up toggle listeners immediately');
+    setupToggleListeners(toggleStorno, toggleOpen);
+    toggleListenersSetup = true;
+  }
+
+  // Fallback: Suche Elemente später nochmal falls nicht gefunden
+  if (!toggleStorno || !toggleOpen) {
+    console.log('Toggle elements not found initially, retrying...');
+    setTimeout(() => {
+      if (!toggleListenersSetup) {
+        const retryStorno = document.getElementById('toggleStorno');
+        const retryOpen = document.getElementById('toggleOpen');
+        if (retryStorno && retryOpen) {
+          console.log('Found toggle elements on retry');
+          setupToggleListeners(retryStorno, retryOpen);
+          toggleListenersSetup = true;
+        }
+      }
+    }, 1000);
+  }
+
   const modal = document.getElementById('modal');
   const modalText = document.getElementById('modalText');
   const modalClose = document.getElementById('modalClose');
@@ -131,9 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ENTFERNT: Modal schließen durch Hintergrund-Click
+  // Das Modal soll nur durch X oder Abbrechen-Button geschlossen werden
+  /*
   window.addEventListener('click', e => {
     if (e.target === newReservationModal) newReservationModal.style.display = 'none';
   });
+  */
 
   // Formular absenden
   if (newReservationForm) {
@@ -363,14 +401,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let view = rawData.slice();
 
     // Storno-Filter
-    if (toggleStorno.classList.contains('storno')) {
+    const stornoElement = toggleStorno || document.getElementById('toggleStorno');
+    if (stornoElement && stornoElement.classList.contains('storno')) {
       view = view.filter(r => r.storno);
-    } else {
+    } else if (stornoElement) {
       view = view.filter(r => !r.storno);
     }
 
     // Offen-Filter
-    if (toggleOpen.classList.contains('open')) {
+    const openElement = toggleOpen || document.getElementById('toggleOpen');
+    if (openElement && openElement.classList.contains('open')) {
       view = view.filter(r => {
         const pct = getType() === 'arrival' ? r.percent_logged_in : r.percent_logged_out;
         return pct < 100;
@@ -599,28 +639,65 @@ document.addEventListener('DOMContentLoaded', () => {
     // });
   }
 
-  // Event-Listener für Storno & Offen
-  toggleStorno.addEventListener('click', () => {
-    if (toggleStorno.classList.contains('no-storno')) {
-      toggleStorno.classList.replace('no-storno', 'storno');
-      toggleStorno.textContent = 'Storno';
-    } else {
-      toggleStorno.classList.replace('storno', 'no-storno');
-      toggleStorno.textContent = 'Ohne Storno';
+  // Separate Funktion für Toggle-Listener Setup
+  function setupToggleListeners(stornoEl, openEl) {
+    if (!stornoEl || !openEl) {
+      console.log('setupToggleListeners: Elements not found', { stornoEl: !!stornoEl, openEl: !!openEl });
+      return;
     }
-    loadData();
-  });
+    
+    // Prüfe ob bereits Event-Listener vorhanden sind
+    if (stornoEl.hasAttribute('data-listeners-setup')) {
+      console.log('Toggle listeners already setup, skipping');
+      return;
+    }
+    
+    console.log('Setting up toggle listeners for:', stornoEl.id, openEl.id);
+    
+    // Event-Listener für Storno
+    stornoEl.addEventListener('click', (e) => {
+      console.log('Storno button clicked, current classes:', stornoEl.className);
+      
+      if (stornoEl.classList.contains('no-storno')) {
+        stornoEl.classList.replace('no-storno', 'storno');
+        stornoEl.textContent = 'Storno';
+        console.log('Changed to storno mode');
+      } else {
+        stornoEl.classList.replace('storno', 'no-storno');
+        stornoEl.textContent = 'Ohne Storno';
+        console.log('Changed to no-storno mode');
+      }
+      
+      console.log('New classes after toggle:', stornoEl.className);
+      saveFiltersToStorage();
+      renderTable(); // NUR renderTable(), nicht loadData()!
+    });
 
-  toggleOpen.addEventListener('click', () => {
-    if (toggleOpen.classList.contains('all')) {
-      toggleOpen.classList.replace('all', 'open');
-      toggleOpen.textContent = 'Offen';
-    } else {
-      toggleOpen.classList.replace('open', 'all');
-      toggleOpen.textContent = 'Alle';
-    }
-    loadData();
-  });
+    // Event-Listener für Offen
+    openEl.addEventListener('click', (e) => {
+      console.log('Open button clicked, current classes:', openEl.className);
+      
+      if (openEl.classList.contains('all')) {
+        openEl.classList.replace('all', 'open');
+        openEl.textContent = 'Offen';
+        console.log('Changed to open mode');
+      } else {
+        openEl.classList.replace('open', 'all');
+        openEl.textContent = 'Alle';
+        console.log('Changed to all mode');
+      }
+      
+      console.log('New classes after toggle:', openEl.className);
+      saveFiltersToStorage();
+      renderTable(); // NUR renderTable(), nicht loadData()!
+    });
+    
+    // Markiere Elemente als setup
+    stornoEl.setAttribute('data-listeners-setup', 'true');
+    openEl.setAttribute('data-listeners-setup', 'true');
+  }
+
+  // ENTFERNT: Event-Listener Setup erfolgt bereits oben mit Flag-Protection
 
   filterDate.addEventListener('change', loadData);
   searchInput.addEventListener('input', () => {

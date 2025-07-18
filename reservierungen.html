@@ -7,12 +7,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservierungsliste - WebCheckin</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/navigation-integration.css">
 </head>
 
 <body>
-  <header>
-    <h1>Reservierungen</h1>
-    <div class="controls">
+  <!-- Navigation wird durch JavaScript eingefügt -->
+  
+  <main class="main-content">
+    <div class="content-header">
+      <h1>Reservierungen</h1>
+    </div>
+    
+    <div class="controls legacy-controls">
       <!-- Typ-Toggle -->
       <button id="toggleType" class="toggle-btn arrival">Anreise</button>
 
@@ -25,22 +32,15 @@
       <!-- Alle/Offen-Toggle -->
       <button id="toggleOpen" class="toggle-btn all">Alle</button>
 
-      <!-- Zurück zum Dashboard -->
-      <button id="dashboardBtn" class="toggle-btn dashboard"
-        onclick="window.location.href='index.php'">Dashboard</button>
-
+      <!-- Entferne Dashboard-Button (wird durch Navigation ersetzt) -->
+      
       <!-- Suche -->
       <input type="text" id="searchInput" placeholder="Suche Name…">
 
       <!-- Neue Reservierung Button -->
       <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
-
-      <!-- Sync Button -->
-      <button id="syncBtn" class="toggle-btn sync" onclick="triggerManualSync()">🔄</button>
     </div>
-  </header>
 
-  <main>
     <table id="resTable">
       <thead>
         <tr>
@@ -158,7 +158,12 @@
       </form>
     </div>
   </div>
+  </main>
 
+  <!-- Navigation System -->
+  <script src="js/navigation.js"></script>
+  <script src="script.js"></script>
+  
   <script>
     // Connection Status für diese Seite initialisieren
     document.addEventListener('DOMContentLoaded', function () {

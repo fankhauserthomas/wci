@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation Debug - Namen Laden</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="reservation.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+    <style>
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .debug-section {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .status-ok { color: #28a745; }
+        .status-error { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-navigation">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="index.html">🏨 WebCheckin</a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+                <a href="reservation.html" class="nav-link active">Reservation</a>
+                <a href="statistiken.html" class="nav-link">Statistiken</a>
+            </div>
+            <div class="nav-actions">
+                <button id="syncBtn" class="btn btn-sync">
+                    <span class="sync-icon">🔄</span>
+                    <span class="sync-text">Sync</span>
+                </button>
+                <button class="mobile-toggle">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="debug-info">
+            <h2>🔍 Reservation Debug - Namen laden</h2>
+            <div id="debugStatus">Initialisierung...</div>
+        </div>
+
+        <!-- Reservation Header -->
+        <div id="resHeader" class="res-header">
+            <div class="header-content">
+                <div class="header-info">
+                    <strong>Test Reservation</strong> - Debug Mode
+                </div>
+                <div class="header-menu">
+                    <button id="menuBtn" class="menu-btn">⋮</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div id="actionBar" class="action-bar">
+            <button onclick="testNameLoad()" class="btn">🔄 Namen laden testen</button>
+            <button onclick="testDirectAPI()" class="btn">🌐 API direkt testen</button>
+            <button onclick="checkConsole()" class="btn">📝 Console Log</button>
+        </div>
+
+        <!-- Namen-Tabelle -->
+        <div class="table-container">
+            <table id="namesTable" class="names-list">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll"></th>
+                        <th>Name</th>
+                        <th>Details</th>
+                        <th>Alter</th>
+                        <th>Bemerkung</th>
+                        <th>BF</th>
+                        <th>Arr</th>
+                        <th>Diät</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                    </tr>
+                </thead>
+                <tbody id="namesTableBody">
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 20px; color: #666;">
+                            Keine Namen geladen - Teste die Debug-Funktionen oben
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="debug-section">
+            <h3>Debug-Funktionen:</h3>
+            <button onclick="simulateNames()" class="btn">🎭 Namen simulieren</button>
+            <button onclick="checkResId()" class="btn">🔍 Reservierungs-ID prüfen</button>
+            <button onclick="testHttpUtils()" class="btn">📡 HttpUtils testen</button>
+        </div>
+        
+        <div id="apiTestResult" class="debug-section" style="display: none;">
+            <h4>API Test Ergebnis:</h4>
+            <pre id="apiResponse"></pre>
+        </div>
+    </main>
+
+    <!-- Connection Status -->
+    <div class="connection-status">
+        <div class="status-dot"></div>
+        <span class="status-text">Debug Mode</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/navigation.js"></script>
+    <script src="js/http-utils.js"></script>
+    <script src="js/loading-overlay.js"></script>
+    
+    <script>
+        let debugLog = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLog.push(`[${timestamp}] ${message}`);
+            console.log(`[DEBUG] ${message}`);
+            updateDebugStatus();
+        }
+        
+        function updateDebugStatus() {
+            const status = document.getElementById('debugStatus');
+            if (status) {
+                status.innerHTML = debugLog.slice(-5).map(log => 
+                    `<div>${log}</div>`
+                ).join('');
+            }
+        }
+        
+        function getResId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id') || '8511'; // Fallback
+        }
+        
+        function testNameLoad() {
+            log('🔄 Starte Namen-Load Test...');
+            const resId = getResId();
+            log(`Reservierungs-ID: ${resId}`);
+            
+            if (typeof fetch !== 'undefined') {
+                log('✅ fetch() verfügbar');
+                
+                fetch(`getReservationNames.php?id=${resId}`)
+                    .then(response => {
+                        log(`📡 Response Status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        log(`✅ Namen erhalten: ${JSON.stringify(data).substring(0, 100)}...`);
+                        displayNames(data);
+                    })
+                    .catch(error => {
+                        log(`❌ Fehler: ${error.message}`, 'error');
+                    });
+            } else {
+                log('❌ fetch() nicht verfügbar', 'error');
+            }
+        }
+        
+        function testDirectAPI() {
+            log('🌐 Teste API direkt...');
+            const resId = getResId();
+            const url = `getReservationNames.php?id=${resId}`;
+            
+            fetch(url)
+                .then(response => response.text())
+                .then(text => {
+                    log(`📡 Raw Response erhalten: ${text.length} Zeichen`);
+                    document.getElementById('apiTestResult').style.display = 'block';
+                    document.getElementById('apiResponse').textContent = text.substring(0, 500) + '...';
+                    
+                    try {
+                        const json = JSON.parse(text);
+                        log(`✅ JSON geparst: ${Object.keys(json).length} Eigenschaften`);
+                    } catch (e) {
+                        log(`❌ JSON Parse Fehler: ${e.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    log(`❌ API Fehler: ${error.message}`, 'error');
+                });
+        }
+        
+        function testHttpUtils() {
+            log('📡 Teste HttpUtils...');
+            if (typeof HttpUtils !== 'undefined') {
+                log('✅ HttpUtils verfügbar');
+                const resId = getResId();
+                
+                HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, 
+                    { retries: 1, timeout: 5000 }, 'Namen laden...')
+                    .then(data => {
+                        log(`✅ HttpUtils erfolgreich: ${JSON.stringify(data).substring(0, 100)}...`);
+                        displayNames(data);
+                    })
+                    .catch(error => {
+                        log(`❌ HttpUtils Fehler: ${error.message}`, 'error');
+                    });
+            } else {
+                log('❌ HttpUtils nicht verfügbar', 'error');
+            }
+        }
+        
+        function simulateNames() {
+            log('🎭 Simuliere Namen...');
+            const fakeData = {
+                names: [
+                    { id: 1, firstname: 'Max', lastname: 'Mustermann', age: 30 },
+                    { id: 2, firstname: 'Anna', lastname: 'Schmidt', age: 25 }
+                ]
+            };
+            displayNames(fakeData);
+            log('✅ Fake Namen angezeigt');
+        }
+        
+        function displayNames(data) {
+            const tbody = document.getElementById('namesTableBody');
+            if (!tbody) {
+                log('❌ Tabelle nicht gefunden', 'error');
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            if (data && data.names && Array.isArray(data.names)) {
+                data.names.forEach(name => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox"></td>
+                        <td>${name.firstname || ''} ${name.lastname || ''}</td>
+                        <td><button class="btn-details">Details</button></td>
+                        <td>${name.age || '-'}</td>
+                        <td>${name.bemerkung || '-'}</td>
+                        <td>${name.bf || '-'}</td>
+                        <td>${name.arrangement || '-'}</td>
+                        <td>${name.diet || '-'}</td>
+                        <td><button class="btn-checkin">Check-in</button></td>
+                        <td><button class="btn-checkout">Check-out</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                log(`✅ ${data.names.length} Namen in Tabelle angezeigt`);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px;">Keine Namen in Response gefunden</td></tr>';
+                log('⚠️ Keine Namen in Response', 'warning');
+            }
+        }
+        
+        function checkResId() {
+            const resId = getResId();
+            log(`🔍 Aktuelle Reservierungs-ID: ${resId}`);
+            
+            if (resId) {
+                log('✅ ID gefunden in URL');
+            } else {
+                log('❌ Keine ID in URL gefunden', 'error');
+            }
+        }
+        
+        function checkConsole() {
+            log('📝 Debug Log:');
+            debugLog.forEach(entry => console.log(entry));
+            alert('Debug Log in Browser-Konsole ausgegeben (F12)');
+        }
+        
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Debug-Seite initialisiert');
+            
+            // Navigation Setup
+            if (typeof NavigationSystem !== 'undefined') {
+                NavigationSystem.setupNavigation();
+                log('✅ Navigation eingerichtet');
+            } else {
+                log('⚠️ NavigationSystem nicht gefunden', 'warning');
+            }
+            
+            // Mobile toggle
+            const toggle = document.querySelector('.mobile-toggle');
+            const nav = document.querySelector('.main-navigation');
+            if (toggle && nav) {
+                toggle.addEventListener('click', () => {
+                    nav.classList.toggle('mobile-open');
+                });
+            }
+            
+            checkResId();
+            log('✅ Bereit für Tests');
+        });
+    </script>
+</body>
+</html>

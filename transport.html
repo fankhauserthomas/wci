@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Transport - WCI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .date-selector {
+            background: white;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .date-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .search-container {
+            padding: 1rem;
+            background: white;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 60px;
+            z-index: 99;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #f8f9fa;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #007bff;
+            background: white;
+        }
+
+        .guest-list {
+            padding: 0;
+        }
+
+        .guest-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .guest-item:hover, .guest-item:active {
+            background: #f8f9fa;
+        }
+
+        .guest-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .luggage-icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
+
+        .reservation-name {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .transport-cost {
+            color: #28a745;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .no-results {
+            padding: 2rem;
+            text-align: center;
+            color: #666;
+        }
+
+        .loading {
+            padding: 2rem;
+            text-align: center;
+            color: #666;
+        }
+
+        /* Transport Detail Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 5%;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            width: 100%;
+            max-width: 380px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .modal-subtitle {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+
+        .reservation-dates {
+            color: #007bff;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            padding: 0.4rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .transport-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .transport-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .transport-input {
+            width: 100%;
+            padding: 0.7rem;
+            border: 3px solid #007bff;
+            border-radius: 8px;
+            font-size: 1.4rem;
+            text-align: center;
+            font-weight: bold;
+            min-height: 55px;
+            background: #f8f9fa;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .transport-input:focus {
+            outline: none;
+            border-color: #0056b3;
+            box-shadow: 0 0 0 4px rgba(0,123,255,0.25);
+            background: white;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .number-btn {
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 1.3rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            min-height: 45px;
+            touch-action: manipulation;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .number-btn:hover, .number-btn:active {
+            background: #6c757d;
+            color: white;
+            border-color: #6c757d;
+            transform: translateY(-1px);
+        }
+
+        .number-btn.zero {
+            grid-column: span 2;
+        }
+
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+            grid-column: span 3;
+            margin-top: 0.5rem;
+        }
+
+        .clear-btn:hover, .clear-btn:active {
+            background: #c82333;
+            border-color: #c82333;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.7rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            min-height: 45px;
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            .modal {
+                padding: 2%;
+            }
+            
+            .modal-content {
+                max-width: 96%;
+                padding: 0.75rem;
+            }
+            
+            .transport-buttons {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.3rem;
+            }
+            
+            .transport-btn {
+                font-size: 0.75rem;
+                min-height: 35px;
+                padding: 0.4rem 0.2rem;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+                gap: 0.4rem;
+            }
+            
+            .btn {
+                min-height: 40px;
+                font-size: 0.85rem;
+            }
+            
+            .transport-input {
+                font-size: 1rem;
+                min-height: 40px;
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Transportkosten</h1>
+        </div>
+
+        <div class="date-selector">
+            <input type="date" id="dateInput" class="date-input" />
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Gast suchen (Name oder Vorname)..." />
+        </div>
+
+        <div id="guestList" class="guest-list">
+            <div class="loading">Lade Gäste...</div>
+        </div>
+    </div>
+
+    <!-- Transport Modal -->
+    <div id="transportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalGuestName">-</div>
+                <div class="modal-subtitle" id="modalReservationName">-</div>
+                <div class="reservation-dates" id="modalReservationDates">-</div>
+            </div>
+
+            <div class="transport-section">
+                <label class="transport-label">Transportkosten (€)</label>
+                
+                <div class="transport-input" id="displayInput">0</div>
+                
+                <div class="number-pad">
+                    <button class="number-btn" data-number="1">1</button>
+                    <button class="number-btn" data-number="2">2</button>
+                    <button class="number-btn" data-number="3">3</button>
+                    <button class="number-btn" data-number="4">4</button>
+                    <button class="number-btn" data-number="5">5</button>
+                    <button class="number-btn" data-number="6">6</button>
+                    <button class="number-btn" data-number="7">7</button>
+                    <button class="number-btn" data-number="8">8</button>
+                    <button class="number-btn" data-number="9">9</button>
+                    <button class="number-btn zero" data-number="0">0</button>
+                    <button class="number-btn" data-number=",">.</button>
+                    <button class="number-btn clear-btn" data-value="clear">C</button>
+                </div>
+
+                <input type="hidden" id="transportInput" value="0" />
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveTransport()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allGuests = [];
+        let currentGuest = null;
+        let currentValue = '0';
+
+        function updateDisplay() {
+            // Verhindere negative Werte
+            const numValue = parseFloat(currentValue.replace(',', '.'));
+            if (numValue < 0) {
+                currentValue = '0';
+            }
+            
+            document.getElementById('displayInput').textContent = currentValue;
+            document.getElementById('transportInput').value = currentValue.replace(',', '.');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set today's date
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('dateInput').value = today;
+
+            // Event listeners
+            document.getElementById('dateInput').addEventListener('change', loadGuests);
+            document.getElementById('searchInput').addEventListener('input', filterGuests);
+
+            // Number pad
+            document.querySelectorAll('.number-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.value === 'clear') {
+                        // Clear button
+                        currentValue = '0';
+                        updateDisplay();
+                    } else {
+                        const number = btn.dataset.number;
+                        if (number === ',') {
+                            if (!currentValue.includes(',')) {
+                                currentValue += ',';
+                            }
+                        } else {
+                            if (currentValue === '0' || currentValue === '0,0') {
+                                currentValue = number;
+                            } else {
+                                currentValue += number;
+                            }
+                        }
+                        updateDisplay();
+                    }
+                });
+            });
+
+            // Close modal on background click
+            document.getElementById('transportModal').addEventListener('click', (e) => {
+                if (e.target.id === 'transportModal') {
+                    closeModal();
+                }
+            });
+
+            // Load initial data
+            loadGuests();
+        });
+
+        async function loadGuests() {
+            const date = document.getElementById('dateInput').value;
+            const listEl = document.getElementById('guestList');
+            
+            listEl.innerHTML = '<div class="loading">Lade Gäste...</div>';
+
+            try {
+                const response = await fetch(`transport-api.php?action=get_arrivals&date=${date}`);
+                allGuests = await response.json();
+                
+                if (allGuests.length === 0) {
+                    listEl.innerHTML = '<div class="no-results">Keine Anreisen für dieses Datum gefunden.</div>';
+                } else {
+                    renderGuests(allGuests);
+                }
+            } catch (error) {
+                console.error('Error loading guests:', error);
+                listEl.innerHTML = '<div class="no-results">Fehler beim Laden der Gäste.</div>';
+            }
+        }
+
+        function renderGuests(guests) {
+            const listEl = document.getElementById('guestList');
+            
+            if (guests.length === 0) {
+                listEl.innerHTML = '<div class="no-results">Keine Gäste gefunden.</div>';
+                return;
+            }
+
+            listEl.innerHTML = guests.map(guest => `
+                <div class="guest-item" onclick="openTransportModal(${guest.name_id})">
+                    <div class="guest-name">
+                        ${guest.guest_name}
+                        ${guest.transport > 0 ? '<img src="pic/luggage.svg" class="luggage-icon" alt="Transport">' : ''}
+                    </div>
+                    <div class="reservation-name">Reservierung: ${guest.reservation_name}</div>
+                    ${guest.transport > 0 ? `<div class="transport-cost">Transportkosten: €${guest.transport.toFixed(2)}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function filterGuests() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!query) {
+                renderGuests(allGuests);
+                return;
+            }
+
+            // Ultra-tolerante Suche
+            const filtered = allGuests.filter(guest => {
+                const name = guest.guest_name.toLowerCase();
+                const words = name.split(' ');
+                
+                // Exact match
+                if (name.includes(query)) return true;
+                
+                // Word starts with query
+                if (words.some(word => word.startsWith(query))) return true;
+                
+                // Character-by-character substring match (toleriert Lücken)
+                if (words.some(word => containsCharacters(word, query))) return true;
+                
+                // Erweiterte phonetische Ersetzungen
+                const phoneticQuery = normalizeString(query);
+                const phoneticName = normalizeString(name);
+                
+                if (phoneticName.includes(phoneticQuery)) return true;
+                
+                // Fuzzy match für jeden Teil des Namens
+                if (query.length >= 3) {
+                    for (let word of words) {
+                        // Mehr Toleranz für kürzere Begriffe
+                        const maxDistance = query.length <= 4 ? 1 : Math.ceil(query.length / 2.5);
+                        
+                        if (levenshteinDistance(word, query) <= maxDistance) {
+                            return true;
+                        }
+                        if (levenshteinDistance(normalizeString(word), phoneticQuery) <= maxDistance) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // Initials matching (z.B. "jm" für "Johann Mueller")
+                const initials = words.map(w => w[0]).join('');
+                if (initials.includes(query) || query.includes(initials)) return true;
+                
+                return false;
+            });
+
+            renderGuests(filtered);
+        }
+
+        // Normalisiert String für phonetische Suche
+        function normalizeString(str) {
+            return str
+                .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+                .replace(/ß/g, 'ss').replace(/ph/g, 'f').replace(/th/g, 't')
+                .replace(/ck/g, 'k').replace(/z/g, 's').replace(/c/g, 'k')
+                .replace(/ie/g, 'i').replace(/ei/g, 'ai').replace(/y/g, 'i')
+                .replace(/dt/g, 't').replace(/tz/g, 'z').replace(/x/g, 'ks')
+                .replace(/v/g, 'f').replace(/w/g, 'v').replace(/qu/g, 'kv');
+        }
+
+        // Prüft ob alle Zeichen der Suchanfrage im Wort vorkommen (in Reihenfolge)
+        function containsCharacters(word, query) {
+            let wordIndex = 0;
+            for (let char of query) {
+                while (wordIndex < word.length && word[wordIndex] !== char) {
+                    wordIndex++;
+                }
+                if (wordIndex >= word.length) return false;
+                wordIndex++;
+            }
+            return true;
+        }
+
+        // Levenshtein distance for fuzzy matching
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1, // substitution
+                            matrix[i][j - 1] + 1,     // insertion
+                            matrix[i - 1][j] + 1      // deletion
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+
+        function openTransportModal(nameId) {
+            currentGuest = allGuests.find(g => g.name_id === nameId);
+            if (!currentGuest) return;
+
+            document.getElementById('modalGuestName').textContent = currentGuest.guest_name;
+            document.getElementById('modalReservationName').textContent = currentGuest.reservation_name;
+            document.getElementById('modalReservationDates').textContent = 
+                `${currentGuest.anreise} - ${currentGuest.abreise}`;
+            
+            currentValue = currentGuest.transport > 0 ? currentGuest.transport.toFixed(1).replace('.', ',') : '0';
+            updateDisplay();
+            
+            document.getElementById('transportModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('transportModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            currentGuest = null;
+            currentValue = '0';
+            updateDisplay();
+        }
+
+        async function saveTransport() {
+            if (!currentGuest) return;
+
+            const transportCost = parseFloat(document.getElementById('transportInput').value) || 0;
+            
+            try {
+                const formData = new FormData();
+                formData.append('name_id', currentGuest.name_id);
+                formData.append('transport_cost', transportCost);
+
+                const response = await fetch('transport-api.php?action=update_transport', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update local data
+                    currentGuest.transport = transportCost;
+                    
+                    // Refresh display
+                    const query = document.getElementById('searchInput').value;
+                    if (query) {
+                        filterGuests();
+                    } else {
+                        renderGuests(allGuests);
+                    }
+                    
+                    closeModal();
+                } else {
+                    alert('Fehler beim Speichern: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving transport cost:', error);
+                alert('Fehler beim Speichern der Transportkosten.');
+            }
+        }
+    </script>
+</body>
+</html>

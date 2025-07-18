@@ -7,6 +7,8 @@
     <title>Reservierungsdetails</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="reservation.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
     <style>
         body.reservation-details {
             background-color: var(--bg);
@@ -238,13 +240,16 @@
 </head>
 
 <body class="reservation-details">
-    <div class="reservation-form">
-        <div class="form-header">
-            <h1 class="form-title">Reservierungsdetails</h1>
-            <div style="display: flex; align-items: center;">
-                <div id="statusIndicator"></div>
+    <!-- Navigation wird durch JavaScript eingefügt -->
+    
+    <main class="main-content">
+        <div class="reservation-form">
+            <div class="form-header">
+                <h1 class="form-title">Reservierungsdetails</h1>
+                <div style="display: flex; align-items: center;">
+                    <div id="statusIndicator"></div>
+                </div>
             </div>
-        </div>
 
         <div id="messageArea"></div>
 
@@ -411,6 +416,9 @@
             }
         });
     </script>
+    
+    <!-- Navigation System -->
+    <script src="js/navigation.js"></script>
 </body>
 
 </html>

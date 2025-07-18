@@ -23,6 +23,8 @@ SELECT
     r.id,
     DATE_FORMAT(r.anreise, '%d.%m.%Y') AS anreise,
     DATE_FORMAT(r.abreise, '%d.%m.%Y') AS abreise,
+    r.anreise AS anreise_raw,
+    r.abreise AS abreise_raw,
     (r.betten + r.dz + r.lager + r.sonder) AS anzahl,
     IFNULL(r.vorname, '') AS vorname,
     IFNULL(r.nachname, '') AS nachname,
