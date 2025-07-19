@@ -200,10 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Lade Reservierungsdaten
   loadReservationData();
 
-  // Lade Namen nach Reservierungsdaten
-  setTimeout(() => {
-    loadNames();
-  }, 500); // Kurze Verzögerung, damit Reservierungsdaten zuerst geladen werden
+  // Namen werden über debounceLoadNames geladen
 
   // 2) Load names list
   async function loadNames() {
@@ -219,65 +216,154 @@ document.addEventListener('DOMContentLoaded', () => {
           : fetch(`getReservationNames.php?id=${resId}`).then(r => r.json())
       );
 
-      list.forEach(n => {
-        // Debug: Log die ersten paar Check-in/Check-out Werte
-        if (list.indexOf(n) < 2) {
-          console.log('Debug name entry:', {
-            id: n.id,
-            name: n.vorname + ' ' + n.nachname,
-            checked_in: n.checked_in,
-            checked_out: n.checked_out,
-            checked_in_type: typeof n.checked_in
-          });
-        }
+      // Automatisch Namen erstellen wenn Namensliste leer ist
+      if (list.length === 0 && currentReservationData) {
+        console.log('Namensliste ist leer - erstelle automatisch einen Namen');
+        const autoCreated = await createAutoName();
 
-        const tr = document.createElement('tr');
-        tr.dataset.id = n.id;
+        // Nur wenn automatische Erstellung erfolgreich war, die neue Liste laden
+        if (autoCreated) {
+          const newList = await fetch(`getReservationNames.php?id=${resId}`).then(r => r.json());
+          renderNamesList(newList);
+          return;
+        }
+      }
 
-        // build detail icons
-        let detailIcons = '';
-        if (n.transport && parseFloat(n.transport) > 0) {
-          detailIcons += `<img src="./pic/luggage.svg" alt="Transport" class="detail-icon" title="Transport: ${n.transport}€">`;
-        }
-        if (n.dietInfo && n.dietInfo.trim() !== '') {
-          detailIcons += `<img src="./pic/food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
-        }
-        if (n.bem && n.bem.trim() !== '') {
-          detailIcons += `<img src="./pic/info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
-        }
-        if (detailIcons === '') {
-          detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
-        }
-
-        tr.innerHTML = `
-          <td><input type="checkbox" class="rowCheckbox"></td>
-          <td class="name-cell">${n.nachname || ''} ${n.vorname || ''}</td>
-          <td class="detail-cell" style="cursor:pointer; text-align: center;">${detailIcons}</td>
-          <td>${n.alter_bez || ''}</td>
-          <td class="bem-cell">${n.bem || ''}</td>
-          <td class="guide-cell">
-            <span class="guide-icon">${n.guide ? '✓' : '○'}</span>
-          </td>
-          <td class="arr-cell">${n.arr || '–'}</td>
-          <td class="diet-cell">${n.diet_text || '–'}</td>
-          <td class="checkin-cell ${n.checked_in ? 'checked-in' : ''}">
-            ${n.checked_in
-            ? fmtDateTime(n.checked_in)
-            : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
-          </td>
-          <td class="checkout-cell ${n.checked_out ? 'checked-out' : ''}">
-            ${n.checked_out
-            ? fmtDateTime(n.checked_out)
-            : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-      bindCheckboxes();
-      updateBulkButtonStates(); // Initialize button states
+      renderNamesList(list);
     } catch (error) {
       console.error('Error loading names:', error);
       alert('Fehler beim Laden der Namensliste.');
+    }
+  }
+
+  // Namen-Liste rendern (ausgelagert um Duplikation zu vermeiden)
+  function renderNamesList(list) {
+    list.forEach(n => {
+      // Debug: Log die ersten paar Check-in/Check-out Werte
+      if (list.indexOf(n) < 2) {
+        console.log('Debug name entry:', {
+          id: n.id,
+          name: n.vorname + ' ' + n.nachname,
+          checked_in: n.checked_in,
+          checked_out: n.checked_out,
+          checked_in_type: typeof n.checked_in
+        });
+      }
+
+      const tr = document.createElement('tr');
+      tr.dataset.id = n.id;
+
+      // build detail icons
+      let detailIcons = '';
+      if (n.transport && parseFloat(n.transport) > 0) {
+        detailIcons += `<img src="./pic/luggage.svg" alt="Transport" class="detail-icon" title="Transport: ${n.transport}€">`;
+      }
+      if (n.dietInfo && n.dietInfo.trim() !== '') {
+        detailIcons += `<img src="./pic/food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
+      }
+      if (n.bem && n.bem.trim() !== '') {
+        detailIcons += `<img src="./pic/info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
+      }
+      if (detailIcons === '') {
+        detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
+      }
+
+      tr.innerHTML = `
+        <td><input type="checkbox" class="rowCheckbox"></td>
+        <td class="name-cell">${n.nachname || ''} ${n.vorname || ''}</td>
+        <td class="detail-cell" style="cursor:pointer; text-align: center;">${detailIcons}</td>
+        <td>${n.alter_bez || ''}</td>
+        <td class="bem-cell">${n.bem || ''}</td>
+        <td class="guide-cell">
+          <span class="guide-icon">${n.guide ? '✓' : '○'}</span>
+        </td>
+        <td class="arr-cell">${n.arr || '–'}</td>
+        <td class="diet-cell">${n.diet_text || '–'}</td>
+        <td class="checkin-cell ${n.checked_in ? 'checked-in' : ''}">
+          ${n.checked_in
+          ? fmtDateTime(n.checked_in)
+          : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+        </td>
+        <td class="checkout-cell ${n.checked_out ? 'checked-out' : ''}">
+          ${n.checked_out
+          ? fmtDateTime(n.checked_out)
+          : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    bindCheckboxes();
+    updateBulkButtonStates(); // Initialize button states
+  }
+
+  // Automatisch einen Namen für die Reservierung erstellen
+  async function createAutoName() {
+    try {
+      if (!currentReservationData) {
+        console.log('Keine Reservierungsdaten verfügbar für automatische Namenserstellung');
+        return false;
+      }
+
+      const detail = currentReservationData.detail
+        ? currentReservationData.detail
+        : (Array.isArray(currentReservationData.names) && currentReservationData.names.length
+          ? currentReservationData.names[0]
+          : currentReservationData);
+
+      let vorname = '';
+      let nachname = '';
+
+      // Vorname und Nachname aus Reservierung extrahieren
+      const resVorname = (detail.vorname || '').trim();
+      const resNachname = (detail.nachname || '').trim();
+
+      if (resVorname && resNachname) {
+        // Beide Namen vorhanden - übernehmen
+        vorname = resVorname;
+        nachname = resNachname;
+      } else if (resVorname && !resNachname) {
+        // Nur Vorname vorhanden - als Nachname eintragen
+        nachname = resVorname;
+      } else if (!resVorname && resNachname) {
+        // Nur Nachname vorhanden - als Nachname eintragen
+        nachname = resNachname;
+      } else {
+        // Keine Namen vorhanden - Fallback
+        nachname = 'Gast';
+      }
+
+      // Namen mit Arrangement der Reservierung erstellen
+      const arrangement = detail.arrangement || '';
+
+      const entry = {
+        vorname: vorname,
+        nachname: nachname,
+        arr: arrangement
+      };
+
+      console.log('Erstelle automatischen Namen:', entry);
+
+      const response = await fetch('addReservationNames.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: resId,
+          entries: [entry]
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        console.error('Fehler beim automatischen Erstellen des Namens:', result.error);
+        return false;
+      } else {
+        console.log('Automatischer Name erfolgreich erstellt');
+        return true;
+      }
+    } catch (error) {
+      console.error('Fehler bei automatischer Namenserstellung:', error);
+      return false;
     }
   }
 
@@ -1539,7 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Auto-Refresh nach dem Speichern ===
   // Debounce-Mechanismus um mehrfache Ladungen zu verhindern
   let loadNamesDebounce = null;
-  
+
   function debounceLoadNames(reason = 'unknown') {
     if (loadNamesDebounce) {
       clearTimeout(loadNamesDebounce);
@@ -1548,10 +1634,10 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Loading names:', reason);
       loadNames();
       loadNamesDebounce = null;
-    }, 100); // 100ms debounce
+    }, 500); // 500ms Verzögerung damit Reservierungsdaten zuerst geladen werden
   }
 
-  // Initial load
+  // Initial load nach kurzer Verzögerung
   debounceLoadNames('initial');
 
   // Wenn der Benutzer von GastDetail.html zurückkommt, automatisch die Namensliste aktualisieren
@@ -1624,4 +1710,5 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   };
+
 });

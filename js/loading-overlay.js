@@ -39,14 +39,14 @@ class LoadingOverlay {
     this.updateMessage(message);
     this.overlay.classList.add('visible');
     this.isVisible = true;
-    
+
     // GUI komplett sperren
     document.body.style.overflow = 'hidden';
     document.body.style.userSelect = 'none';
     document.body.style.pointerEvents = 'none';
     document.body.classList.add('loading-active');
     this.overlay.style.pointerEvents = 'auto'; // Overlay selbst kann Events empfangen
-    
+
     console.log('[LOADING] Overlay shown immediately:', message);
   }
 
@@ -56,7 +56,7 @@ class LoadingOverlay {
   static showWithDelay(message = 'Lade Daten...', delayMs = this.DELAY_THRESHOLD) {
     const requestId = `delayed-${Date.now()}-${Math.random()}`;
     const startTime = Date.now();
-    
+
     const timeoutId = setTimeout(() => {
       // Nur anzeigen wenn Request noch läuft
       if (this.delayedOperations.has(requestId)) {
@@ -82,7 +82,7 @@ class LoadingOverlay {
    */
   static scheduleDelayedShow(requestId, message) {
     const startTime = Date.now();
-    
+
     const timeoutId = setTimeout(() => {
       if (this.delayedOperations.has(requestId)) {
         this.showImmediate(message);
@@ -112,10 +112,10 @@ class LoadingOverlay {
     if (this.delayedOperations.has(requestId)) {
       const operation = this.delayedOperations.get(requestId);
       const duration = Date.now() - operation.startTime;
-      
+
       clearTimeout(operation.timeout);
       this.delayedOperations.delete(requestId);
-      
+
       // Nur verstecken wenn diese Operation das Overlay angezeigt hat
       if (operation.shown) {
         this.forceHide();
@@ -160,7 +160,7 @@ class LoadingOverlay {
     document.body.style.userSelect = '';
     document.body.style.pointerEvents = '';
     document.body.classList.remove('loading-active');
-    
+
     this.isVisible = false;
     console.log('[LOADING] Overlay hidden (forced)');
   }
@@ -217,13 +217,13 @@ class LoadingOverlay {
       const progressContainer = this.overlay.querySelector('.loading-progress');
       const progressBar = this.overlay.querySelector('.progress-fill');
       const progressText = this.overlay.querySelector('.progress-text');
-      
+
       if (progressContainer && progressBar && progressText) {
         progressContainer.style.display = 'block';
         const percentage = Math.round((current / total) * 100);
         progressBar.style.width = `${percentage}%`;
         progressText.textContent = `${current} von ${total} (${percentage}%)`;
-        
+
         if (message) {
           this.updateMessage(message);
         }
@@ -248,7 +248,7 @@ class LoadingOverlay {
    */
   static registerOperation(operationId, message = 'Operation läuft...', useDelay = true) {
     this.currentOperations.add(operationId);
-    
+
     if (useDelay) {
       const requestId = this.showWithDelay(message);
       // Verbinde Operation mit Request-ID für cleanup
@@ -279,7 +279,7 @@ class LoadingOverlay {
     }
 
     const { operationId, requestId } = operationData;
-    
+
     // Cleanup alle verwandten Operations
     this.currentOperations.delete(operationId);
     if (requestId) {
@@ -291,7 +291,7 @@ class LoadingOverlay {
         setTimeout(() => this.forceHide(), 100);
       }
     }
-    
+
     // Verstecke Overlay wenn keine aktiven Operationen mehr
     if (this.currentOperations.size === 0) {
       setTimeout(() => this.hide(), 100);
@@ -303,7 +303,7 @@ class LoadingOverlay {
    */
   static async wrap(operation, message = 'Operation läuft...', useDelay = true) {
     const operationData = this.registerOperation(`op-${Date.now()}`, message, useDelay);
-    
+
     try {
       const result = await operation();
       return result;
@@ -325,21 +325,21 @@ class LoadingOverlay {
   static async httpRequest(url, options = {}, message = null, useDelay = true) {
     const autoMessage = message || this.getOperationTypeFromUrl(url);
     const requestId = useDelay ? this.showWithDelay(autoMessage) : null;
-    
+
     if (!useDelay) {
       this.showImmediate(autoMessage);
     }
 
     try {
       const response = await fetch(url, options);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const result = await response.json();
       return result;
-      
+
     } finally {
       if (requestId) {
         this.hideForRequest(requestId);
@@ -353,7 +353,7 @@ class LoadingOverlay {
    * Batch-Request mit Progress-Anzeige
    */
   static async batchRequestWithLoading(requests, options = {}, loadingMessage = 'Batch-Operation läuft...') {
-    const { 
+    const {
       concurrency = 3,
       retryOptions = {},
       onProgress = null
@@ -376,7 +376,7 @@ class LoadingOverlay {
       // Process requests in batches
       for (let i = 0; i < requests.length; i += concurrency) {
         const batch = requests.slice(i, i + concurrency);
-        
+
         const batchPromises = batch.map(async (request, batchIndex) => {
           const globalIndex = i + batchIndex;
           try {
@@ -391,12 +391,12 @@ class LoadingOverlay {
             results[globalIndex] = { success: false, error: error.message, request };
             errors.push({ index: globalIndex, error, request });
           }
-          
+
           completed++;
-          
+
           // Update progress
           this.showProgress(completed, requests.length, loadingMessage);
-          
+
           if (onProgress) {
             onProgress(completed, requests.length, results[globalIndex]);
           }
@@ -470,7 +470,7 @@ class LoadingOverlay {
   static init() {
     // CSS-Styles hinzufügen
     this.addStyles();
-    
+
     // Event-Listener für Escape-Taste (Debug)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && e.ctrlKey && e.shiftKey) {
@@ -483,7 +483,7 @@ class LoadingOverlay {
         this.delayedOperations.clear();
         this.forceHide();
       }
-      
+
       // Debug-Shortcut: Ctrl+Shift+D
       if (e.key === 'D' && e.ctrlKey && e.shiftKey) {
         this.debugOperations();

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -95,15 +96,23 @@
             margin-right: 8px;
         }
 
-        .status-ok { background: #28a745; }
-        .status-warning { background: #ffc107; }
-        .status-error { background: #dc3545; }
+        .status-ok {
+            background: #28a745;
+        }
+
+        .status-warning {
+            background: #ffc107;
+        }
+
+        .status-error {
+            background: #dc3545;
+        }
     </style>
 </head>
 
 <body>
     <!-- Navigation wird automatisch durch JavaScript eingefügt -->
-    
+
     <main class="demo-container main-content">
         <h1 class="demo-title">🧭 Navigation System Demo</h1>
         <p>Diese Seite demonstriert das neue einheitliche Navigation-System für das WCI Buchungssystem.</p>
@@ -111,7 +120,7 @@
         <!-- Navigation Features -->
         <div class="demo-section">
             <h2 class="demo-title">🎯 Navigation Features</h2>
-            
+
             <div class="feature-list">
                 <h4>✅ Implementiert:</h4>
                 <ul>
@@ -139,26 +148,26 @@
         <div class="demo-section">
             <h2 class="demo-title">📄 Seiten-Navigation</h2>
             <p>Teste die Navigation zwischen den verschiedenen Seiten:</p>
-            
+
             <div class="demo-grid">
                 <div class="demo-card">
                     <h4>📊 Dashboard</h4>
                     <p>Hauptübersicht</p>
                     <a href="index.html" class="demo-link">Öffnen</a>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>📋 Reservierungen</h4>
                     <p>Buchungsliste</p>
                     <a href="reservierungen.html" class="demo-link">Öffnen</a>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>📝 Reservation</h4>
                     <p>Einzelne Reservierung</p>
                     <a href="reservation.html?id=6837" class="demo-link">Öffnen</a>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>📈 Statistiken</h4>
                     <p>Reports und Auswertungen</p>
@@ -170,26 +179,26 @@
         <!-- System Status -->
         <div class="demo-section">
             <h2 class="demo-title">⚙️ System Status</h2>
-            
+
             <div class="demo-grid">
                 <div class="demo-card">
                     <h4>Navigation System</h4>
                     <span class="status-indicator" id="nav-status"></span>
                     <span id="nav-status-text">Wird geprüft...</span>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>Loading Overlay</h4>
                     <span class="status-indicator" id="loading-status"></span>
                     <span id="loading-status-text">Wird geprüft...</span>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>HTTP Utils</h4>
                     <span class="status-indicator" id="http-status"></span>
                     <span id="http-status-text">Wird geprüft...</span>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>Mobile Navigation</h4>
                     <span class="status-indicator" id="mobile-status"></span>
@@ -201,23 +210,23 @@
         <!-- Navigation Funktionen -->
         <div class="demo-section">
             <h2 class="demo-title">🔧 Navigation Funktionen</h2>
-            
+
             <div class="demo-grid">
                 <div class="demo-card">
                     <h4>🔄 Sync Test</h4>
                     <button class="demo-link" onclick="testSync()">Sync auslösen</button>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>📱 Mobile Toggle</h4>
                     <button class="demo-link" onclick="testMobileNav()">Mobile Nav</button>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>🏠 Zurück Navigation</h4>
                     <button class="demo-link" onclick="testGoBack()">Zurück</button>
                 </div>
-                
+
                 <div class="demo-card">
                     <h4>📊 Performance Stats</h4>
                     <button class="demo-link" onclick="showStats()">Stats anzeigen</button>
@@ -228,48 +237,48 @@
         <!-- Code Examples -->
         <div class="demo-section">
             <h2 class="demo-title">💻 Code Examples</h2>
-            
+
             <h4>Navigation Setup:</h4>
             <div class="code-example">
-&lt;!-- HTML Head --&gt;
-&lt;link rel="stylesheet" href="css/navigation.css"&gt;
-&lt;link rel="stylesheet" href="css/navigation-integration.css"&gt;
+                &lt;!-- HTML Head --&gt;
+                &lt;link rel="stylesheet" href="css/navigation.css"&gt;
+                &lt;link rel="stylesheet" href="css/navigation-integration.css"&gt;
 
-&lt;!-- HTML Body --&gt;
-&lt;main class="main-content"&gt;
-  &lt;!-- Seiteninhalt --&gt;
-&lt;/main&gt;
+                &lt;!-- HTML Body --&gt;
+                &lt;main class="main-content"&gt;
+                &lt;!-- Seiteninhalt --&gt;
+                &lt;/main&gt;
 
-&lt;!-- JavaScript --&gt;
-&lt;script src="js/navigation.js"&gt;&lt;/script&gt;
+                &lt;!-- JavaScript --&gt;
+                &lt;script src="js/navigation.js"&gt;&lt;/script&gt;
             </div>
 
             <h4>Navigation Functions:</h4>
             <div class="code-example">
-// Navigation System verwenden
-NavigationSystem.goBack();
-NavigationSystem.triggerSync();
-NavigationSystem.bulkCheckin();
-NavigationSystem.bulkCheckout();
+                // Navigation System verwenden
+                NavigationSystem.goBack();
+                NavigationSystem.triggerSync();
+                NavigationSystem.bulkCheckin();
+                NavigationSystem.bulkCheckout();
 
-// Status abrufen
-const stats = NavigationSystem.getPerformanceStats();
+                // Status abrufen
+                const stats = NavigationSystem.getPerformanceStats();
             </div>
 
             <h4>Page Actions Integration:</h4>
             <div class="code-example">
-// Automatische Page Actions werden erstellt basierend auf:
-// - dashboard: Dashboard-spezifische Actions
-// - reservations: Filter, Suche, Export
-// - reservation: Bulk-Operationen, Print, Zurück
-// - reports: Report-spezifische Actions
+                // Automatische Page Actions werden erstellt basierend auf:
+                // - dashboard: Dashboard-spezifische Actions
+                // - reservations: Filter, Suche, Export
+                // - reservation: Bulk-Operationen, Print, Zurück
+                // - reports: Report-spezifische Actions
             </div>
         </div>
 
         <!-- Keyboard Shortcuts -->
         <div class="demo-section">
             <h2 class="demo-title">⌨️ Keyboard Shortcuts</h2>
-            
+
             <div class="feature-list">
                 <h4>Verfügbare Shortcuts:</h4>
                 <ul>
@@ -284,7 +293,7 @@ const stats = NavigationSystem.getPerformanceStats();
 
     <!-- Emergency Fix (load FIRST to prevent overlay issues) -->
     <script src="js/emergency-fix.js"></script>
-    
+
     <!-- Navigation System -->
     <script src="js/navigation.js"></script>
     <script src="js/loading-overlay.js"></script>
@@ -323,7 +332,7 @@ const stats = NavigationSystem.getPerformanceStats();
                 httpUtils: window.HttpUtils ? 'Aktiv' : 'Inaktiv',
                 currentPage: window.NavigationSystem ? NavigationSystem.currentPage : 'Unbekannt'
             };
-            
+
             alert(`Navigation System Stats:
 
 Navigation: ${stats.navigation}
@@ -401,10 +410,11 @@ Performance Threshold: ${window.LoadingOverlay ? LoadingOverlay.DELAY_THRESHOLD 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(updateSystemStatus, 500);
-            
+
             console.log('[DEMO] Navigation Demo loaded');
             console.log('[DEMO] Test navigation between pages using the top menu');
         });
     </script>
 </body>
+
 </html>

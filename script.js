@@ -645,19 +645,19 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('setupToggleListeners: Elements not found', { stornoEl: !!stornoEl, openEl: !!openEl });
       return;
     }
-    
+
     // Prüfe ob bereits Event-Listener vorhanden sind
     if (stornoEl.hasAttribute('data-listeners-setup')) {
       console.log('Toggle listeners already setup, skipping');
       return;
     }
-    
+
     console.log('Setting up toggle listeners for:', stornoEl.id, openEl.id);
-    
+
     // Event-Listener für Storno
     stornoEl.addEventListener('click', (e) => {
       console.log('Storno button clicked, current classes:', stornoEl.className);
-      
+
       if (stornoEl.classList.contains('no-storno')) {
         stornoEl.classList.replace('no-storno', 'storno');
         stornoEl.textContent = 'Storno';
@@ -667,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stornoEl.textContent = 'Ohne Storno';
         console.log('Changed to no-storno mode');
       }
-      
+
       console.log('New classes after toggle:', stornoEl.className);
       saveFiltersToStorage();
       renderTable(); // NUR renderTable(), nicht loadData()!
@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event-Listener für Offen
     openEl.addEventListener('click', (e) => {
       console.log('Open button clicked, current classes:', openEl.className);
-      
+
       if (openEl.classList.contains('all')) {
         openEl.classList.replace('all', 'open');
         openEl.textContent = 'Offen';
@@ -686,12 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
         openEl.textContent = 'Alle';
         console.log('Changed to all mode');
       }
-      
+
       console.log('New classes after toggle:', openEl.className);
       saveFiltersToStorage();
       renderTable(); // NUR renderTable(), nicht loadData()!
     });
-    
+
     // Markiere Elemente als setup
     stornoEl.setAttribute('data-listeners-setup', 'true');
     openEl.setAttribute('data-listeners-setup', 'true');

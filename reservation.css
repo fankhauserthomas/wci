@@ -46,7 +46,8 @@
 .table-container {
   width: 100%;
   overflow-x: auto;
-  margin: 0 -20px; /* Negiert main-content padding */
+  margin: 0 -20px;
+  /* Negiert main-content padding */
   padding: 0 20px;
 }
 
@@ -863,19 +864,10 @@ td.diet-cell {
   letter-spacing: 0.5px;
 }
 
-/* Connection Status Indicator */
+/* Connection Status Indicator - DISABLED: Now in navigation */
 .connection-status {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 10px 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.2s ease;
-  z-index: 1000;
+  display: none !important;
+  /* Hidden - now using navigation indicator */
 }
 
 .connection-status:hover {
