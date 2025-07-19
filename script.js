@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Formular absenden
   if (newReservationForm) {
     let isSubmitting = false; // Prevent double submissions
-    
+
     newReservationForm.addEventListener('submit', function (e) {
       e.preventDefault();
 
