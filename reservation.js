@@ -1537,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const detail = currentReservationData.detail;
     const guestName = `${detail.nachname || ''} ${detail.vorname || ''}`.trim();
     const dateRange = `${fmtDate(detail.anreise)} - ${fmtDate(detail.abreise)}`;
-    
+
     showCustomConfirmModal(
       '⚠️ Reservierung komplett löschen',
       `Möchten Sie diese Reservierung wirklich komplett löschen?`,
@@ -1553,7 +1553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteCompleteReservation();
       }
     );
-    
+
     // Close dropdown menu
     dropdownMenu.classList.add('hidden');
   });
@@ -1703,27 +1703,27 @@ document.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: resId })
     })
-    .then(response => response.json())
-    .then(data => {
-      if (window.LoadingOverlay) {
-        LoadingOverlay.hide();
-      }
+      .then(response => response.json())
+      .then(data => {
+        if (window.LoadingOverlay) {
+          LoadingOverlay.hide();
+        }
 
-      if (data.success) {
-        alert('Reservierung wurde erfolgreich gelöscht.');
-        // Redirect to reservations list
-        window.location.href = 'reservierungen.html';
-      } else {
-        alert(`Fehler beim Löschen: ${data.error || 'Unbekannter Fehler'}`);
-      }
-    })
-    .catch(error => {
-      if (window.LoadingOverlay) {
-        LoadingOverlay.hide();
-      }
-      console.error('Error deleting reservation:', error);
-      alert('Fehler beim Löschen der Reservierung. Bitte versuchen Sie es erneut.');
-    });
+        if (data.success) {
+          alert('Reservierung wurde erfolgreich gelöscht.');
+          // Redirect to reservations list
+          window.location.href = 'reservierungen.html';
+        } else {
+          alert(`Fehler beim Löschen: ${data.error || 'Unbekannter Fehler'}`);
+        }
+      })
+      .catch(error => {
+        if (window.LoadingOverlay) {
+          LoadingOverlay.hide();
+        }
+        console.error('Error deleting reservation:', error);
+        alert('Fehler beim Löschen der Reservierung. Bitte versuchen Sie es erneut.');
+      });
   }
 
   // === Inaktivitäts-Timer ===

@@ -150,7 +150,8 @@
       border-radius: 6px;
       overflow-y: auto;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      max-height: 370px; /* 10 rows * 37px */
+      max-height: 370px;
+      /* 10 rows * 37px */
       display: block;
       font-size: 0.95rem;
     }
@@ -300,26 +301,31 @@
         <h3>Unvollständige Reservierungen</h3>
         <button class="refresh-button" onclick="toggleIncompleteSettings()">⚙️ Einstellungen</button>
       </div>
-      
+
       <!-- Einstellungen Panel -->
-      <div id="incomplete-settings" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+      <div id="incomplete-settings"
+        style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
           <div>
             <label for="min-guests-setting">Mindest-Gästeanzahl:</label>
-            <input type="number" id="min-guests-setting" min="1" max="20" value="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="number" id="min-guests-setting" min="1" max="20" value="4"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           </div>
           <div>
             <label for="max-percentage-setting">Max. Namen-Vollständigkeit (%):</label>
-            <input type="number" id="max-percentage-setting" min="0" max="100" value="75" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="number" id="max-percentage-setting" min="0" max="100" value="75"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           </div>
           <div>
             <label for="days-setting">Tage voraus:</label>
-            <input type="number" id="days-setting" min="1" max="365" value="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <input type="number" id="days-setting" min="1" max="365" value="14"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           </div>
         </div>
         <div style="margin-top: 15px; text-align: center;">
           <button class="refresh-button" onclick="loadIncompleteReservations()">Aktualisieren</button>
-          <button class="refresh-button" onclick="saveIncompleteSettings()" style="background: #28a745;">Speichern</button>
+          <button class="refresh-button" onclick="saveIncompleteSettings()"
+            style="background: #28a745;">Speichern</button>
         </div>
       </div>
 
@@ -355,7 +361,7 @@
 
       // Load initial stats
       await loadStatsForDate();
-      
+
       // Load initial incomplete reservations
       loadIncompleteSettings();
       await loadIncompleteReservations();
@@ -553,14 +559,14 @@
       // Speichere in Cookies (1 Jahr gültig)
       const expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
-      
+
       setCookie('incomplete_min_guests', minGuests, expires);
       setCookie('incomplete_max_percentage', maxPercentage, expires);
       setCookie('incomplete_days', days, expires);
 
       // Lade Daten neu
       loadIncompleteReservations();
-      
+
       // Erfolgsmeldung
       const btn = event.target;
       const originalText = btn.textContent;
@@ -587,11 +593,11 @@
         const days = document.getElementById('days-setting').value;
 
         const response = await fetch(`getIncompleteReservations.php?min_guests=${minGuests}&max_percentage=${maxPercentage}&days=${days}`);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         if (!data.success) {
@@ -638,8 +644,8 @@
           <tbody>
       `;
       reservations.forEach(res => {
-        const percentageClass = res.percentage_complete <= 25 ? 'percentage-low' : 
-                               res.percentage_complete <= 50 ? 'percentage-medium' : '';
+        const percentageClass = res.percentage_complete <= 25 ? 'percentage-low' :
+          res.percentage_complete <= 50 ? 'percentage-medium' : '';
         // Name: trim(nonull(nachname) + ' ' + nonull(vorname))
         const nonull = v => (v == null || v === 'null' || v === undefined) ? '' : v;
         const name = (nonull(res.nachname) + ' ' + nonull(res.vorname)).trim();
