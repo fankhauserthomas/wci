@@ -365,7 +365,7 @@
         </div>
 
         <div class="search-container">
-            <input type="text" id="searchInput" class="search-input" placeholder="Gast suchen (Name oder Vorname)..." />
+            <input type="text" id="searchInput" class="search-input" placeholder="Gast oder Reservierung suchen..." />
         </div>
 
         <div id="guestList" class="guest-list">
@@ -526,26 +526,33 @@
             // Ultra-tolerante Suche
             const filtered = allGuests.filter(guest => {
                 const name = guest.guest_name.toLowerCase();
-                const words = name.split(' ');
+                const reservationName = guest.reservation_name.toLowerCase();
+                const nameWords = name.split(' ');
+                const reservationWords = reservationName.split(' ');
 
-                // Exact match
-                if (name.includes(query)) return true;
+                // Exact match - Name oder Reservierung
+                if (name.includes(query) || reservationName.includes(query)) return true;
 
-                // Word starts with query
-                if (words.some(word => word.startsWith(query))) return true;
+                // Word starts with query - Name oder Reservierung
+                if (nameWords.some(word => word.startsWith(query)) ||
+                    reservationWords.some(word => word.startsWith(query))) return true;
 
                 // Character-by-character substring match (toleriert Lücken)
-                if (words.some(word => containsCharacters(word, query))) return true;
+                if (nameWords.some(word => containsCharacters(word, query)) ||
+                    reservationWords.some(word => containsCharacters(word, query))) return true;
 
                 // Erweiterte phonetische Ersetzungen
                 const phoneticQuery = normalizeString(query);
                 const phoneticName = normalizeString(name);
+                const phoneticReservationName = normalizeString(reservationName);
 
-                if (phoneticName.includes(phoneticQuery)) return true;
+                if (phoneticName.includes(phoneticQuery) ||
+                    phoneticReservationName.includes(phoneticQuery)) return true;
 
-                // Fuzzy match für jeden Teil des Namens
+                // Fuzzy match für jeden Teil des Namens und der Reservierung
                 if (query.length >= 3) {
-                    for (let word of words) {
+                    const allWords = [...nameWords, ...reservationWords];
+                    for (let word of allWords) {
                         // Mehr Toleranz für kürzere Begriffe
                         const maxDistance = query.length <= 4 ? 1 : Math.ceil(query.length / 2.5);
 
@@ -558,9 +565,11 @@
                     }
                 }
 
-                // Initials matching (z.B. "jm" für "Johann Mueller")
-                const initials = words.map(w => w[0]).join('');
-                if (initials.includes(query) || query.includes(initials)) return true;
+                // Initials matching (z.B. "jm" für "Johann Mueller" oder "max mustermann")
+                const nameInitials = nameWords.map(w => w[0]).join('');
+                const reservationInitials = reservationWords.map(w => w[0]).join('');
+                if (nameInitials.includes(query) || query.includes(nameInitials) ||
+                    reservationInitials.includes(query) || query.includes(reservationInitials)) return true;
 
                 return false;
             });

@@ -62,23 +62,27 @@ try {
         $resId = $mysqli->insert_id;
         $stmt->close();
 
-        // TODO: AV_ResDet insert needs proper structure based on schema
-        /*
         // AV_ResDet einfügen - Zimmer auf "Ablage" setzen
-        $stmt2 = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimmer, nachname, vorname, anreise, abreise) VALUES (?, 'Ablage', ?, ?, ?, ?)");
+        // bez soll Nachname + " " + Vorname sein, arr übernehmen
+        $vollName = trim($nachname . ' ' . $vorname);
+        
+        $stmt2 = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimID, von, bis, anz, bez, col, hund, arr, tab, note, dx, dy, ParentID) VALUES (?, 1, ?, ?, ?, ?, '#cccccc', 0, ?, 'local', '', 0, 0, 0)");
         
         if (!$stmt2) {
             throw new Exception('Prepare failed for AV_ResDet: ' . $mysqli->error);
         }
         
-        $stmt2->bind_param('issss', $resId, $nachname, $vorname, $anreise, $abreise);
+        // Gesamtzahl Gäste berechnen
+        $totalGuests = $dz + $betten + $lager + $sonder;
+        if ($totalGuests == 0) $totalGuests = 1; // Mindestens 1 Gast
+        
+        $stmt2->bind_param('issisi', $resId, $anreise, $abreise, $totalGuests, $vollName, $arr);
         
         if (!$stmt2->execute()) {
             throw new Exception('Execute failed for AV_ResDet: ' . $stmt2->error);
         }
         
         $stmt2->close();
-        */
 
         $mysqli->commit();
         
