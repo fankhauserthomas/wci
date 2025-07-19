@@ -175,8 +175,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Formular absenden
   if (newReservationForm) {
+    let isSubmitting = false; // Prevent double submissions
+    
     newReservationForm.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // Prevent double submission
+      if (isSubmitting) {
+        console.log('Form submission already in progress');
+        return;
+      }
 
       // Felder auslesen
       const nachname = document.getElementById('newResNachname').value.trim();
@@ -195,6 +203,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const lager = parseInt(document.getElementById('newResLager').value) || 0;
       const sonder = parseInt(document.getElementById('newResSonder').value) || 0;
       const bemerkung = document.getElementById('newResBemerkung').value.trim();
+
+      isSubmitting = true;
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalText = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) {
+        submitBtn.textContent = 'Speichere...';
+        submitBtn.disabled = true;
+      }
 
       // AJAX-Request an addReservation.php
       fetch('addReservation.php', {
@@ -221,6 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(err => {
           console.error('Netzwerkfehler:', err);
           alert('Netzwerkfehler: ' + err.message);
+        })
+        .finally(() => {
+          isSubmitting = false;
+          if (submitBtn) {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+          }
         });
     });
   }

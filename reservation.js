@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dropdownMenu = document.getElementById('dropdownMenu');
   const editBtn = document.getElementById('editBtn');
   const stornoBtn = document.getElementById('stornoBtn');
+  const deleteReservationBtn = document.getElementById('deleteReservationBtn');
   const backMenuBtn = document.getElementById('backMenuBtn');
 
   // Custom confirmation modal elements
@@ -1526,6 +1527,37 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
 
+  // Delete reservation button - completely delete reservation and all details
+  deleteReservationBtn.addEventListener('click', () => {
+    if (!currentReservationData || !currentReservationData.detail) {
+      alert('Reservierungsdaten konnten nicht geladen werden.');
+      return;
+    }
+
+    const detail = currentReservationData.detail;
+    const guestName = `${detail.nachname || ''} ${detail.vorname || ''}`.trim();
+    const dateRange = `${fmtDate(detail.anreise)} - ${fmtDate(detail.abreise)}`;
+    
+    showCustomConfirmModal(
+      '⚠️ Reservierung komplett löschen',
+      `Möchten Sie diese Reservierung wirklich komplett löschen?`,
+      `<div style="margin: 15px 0;">
+         <strong>Gast:</strong> ${guestName}<br>
+         <strong>Zeitraum:</strong> ${dateRange}
+       </div>
+       <div style="color: #dc3545; font-weight: bold; margin-top: 15px;">
+         ⚠️ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!
+       </div>`,
+      () => {
+        // User confirmed, proceed with deletion
+        deleteCompleteReservation();
+      }
+    );
+    
+    // Close dropdown menu
+    dropdownMenu.classList.add('hidden');
+  });
+
   function getCurrentStornoStatus() {
     // Try to get storno status from stored reservation data
     if (currentReservationData && currentReservationData.detail) {
@@ -1580,11 +1612,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Custom confirmation modal functions
   function showCustomConfirmModal(title, message, question, onConfirm) {
     confirmModalTitle.textContent = title;
-    confirmModalMessage.textContent = message;
+    confirmModalMessage.innerHTML = message; // Changed from textContent to innerHTML
 
     // Hide question if empty
     if (question && question.trim()) {
-      confirmModalQuestion.textContent = question;
+      confirmModalQuestion.innerHTML = question; // Changed from textContent to innerHTML
       confirmModalQuestion.style.display = 'block';
     } else {
       confirmModalQuestion.style.display = 'none';
@@ -1658,6 +1690,41 @@ document.addEventListener('DOMContentLoaded', () => {
       debounceLoadNames('window-focus');
     }
   });
+
+  // === Delete Complete Reservation Function ===
+  function deleteCompleteReservation() {
+    // Show loading overlay if available
+    if (window.LoadingOverlay) {
+      LoadingOverlay.show('Reservierung wird gelöscht...');
+    }
+
+    fetch('deleteReservation.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: resId })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (window.LoadingOverlay) {
+        LoadingOverlay.hide();
+      }
+
+      if (data.success) {
+        alert('Reservierung wurde erfolgreich gelöscht.');
+        // Redirect to reservations list
+        window.location.href = 'reservierungen.html';
+      } else {
+        alert(`Fehler beim Löschen: ${data.error || 'Unbekannter Fehler'}`);
+      }
+    })
+    .catch(error => {
+      if (window.LoadingOverlay) {
+        LoadingOverlay.hide();
+      }
+      console.error('Error deleting reservation:', error);
+      alert('Fehler beim Löschen der Reservierung. Bitte versuchen Sie es erneut.');
+    });
+  }
 
   // === Inaktivitäts-Timer ===
   let inactivityTimeout;

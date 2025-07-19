@@ -141,6 +141,83 @@
       background: var(--primary-dark);
     }
 
+    /* Unvollständige Reservierungen Styles */
+    .incomplete-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      background: white;
+      border-radius: 6px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      max-height: 370px; /* 10 rows * 37px */
+      display: block;
+      font-size: 0.95rem;
+    }
+
+    .incomplete-table th,
+    .incomplete-table td {
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      height: 37px;
+    }
+
+    .incomplete-table th {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .incomplete-table tr:hover {
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+
+    .incomplete-table .name-cell {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .incomplete-table .percentage-cell {
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .incomplete-table .percentage-low {
+      color: #dc3545;
+    }
+
+    .incomplete-table .percentage-medium {
+      color: #fd7e14;
+    }
+
+    .incomplete-table .guests-cell {
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .incomplete-table .date-cell {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .incomplete-summary {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .incomplete-summary strong {
+      color: var(--primary);
+    }
+
     @media (max-width: 768px) {
       .stats-container {
         padding: 15px;
@@ -217,6 +294,40 @@
       </div>
     </div>
 
+    <!-- Unvollständige Reservierungen -->
+    <div class="detailed-stats" style="margin-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>Unvollständige Reservierungen</h3>
+        <button class="refresh-button" onclick="toggleIncompleteSettings()">⚙️ Einstellungen</button>
+      </div>
+      
+      <!-- Einstellungen Panel -->
+      <div id="incomplete-settings" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div>
+            <label for="min-guests-setting">Mindest-Gästeanzahl:</label>
+            <input type="number" id="min-guests-setting" min="1" max="20" value="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div>
+            <label for="max-percentage-setting">Max. Namen-Vollständigkeit (%):</label>
+            <input type="number" id="max-percentage-setting" min="0" max="100" value="75" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div>
+            <label for="days-setting">Tage voraus:</label>
+            <input type="number" id="days-setting" min="1" max="365" value="14" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+          <button class="refresh-button" onclick="loadIncompleteReservations()">Aktualisieren</button>
+          <button class="refresh-button" onclick="saveIncompleteSettings()" style="background: #28a745;">Speichern</button>
+        </div>
+      </div>
+
+      <div id="incomplete-reservations">
+        <p>Lade unvollständige Reservierungen...</p>
+      </div>
+    </div>
+
     <!-- Detailed Statistics -->
     <div class="stats-grid">
       <!-- Wochenübersicht statt tägliche Listen -->
@@ -225,11 +336,6 @@
         <div id="weekly-overview">
           <p>Lade Wochendaten...</p>
         </div>
-      </div>
-    </div>
-
-    <div class="detailed-stats">
-      <div id="weekly-overview">
       </div>
     </div>
   </main>
@@ -249,6 +355,10 @@
 
       // Load initial stats
       await loadStatsForDate();
+      
+      // Load initial incomplete reservations
+      loadIncompleteSettings();
+      await loadIncompleteReservations();
 
       // Set up connection monitoring
       setupConnectionMonitoring();
@@ -421,6 +531,160 @@
           HttpUtils.showDetailedConnectionStatus(window.connectionMonitor);
         }
       });
+    }
+
+    // Unvollständige Reservierungen Funktionen
+    function loadIncompleteSettings() {
+      // Lade Einstellungen aus Cookies
+      const minGuests = getCookie('incomplete_min_guests') || '4';
+      const maxPercentage = getCookie('incomplete_max_percentage') || '75';
+      const days = getCookie('incomplete_days') || '14';
+
+      document.getElementById('min-guests-setting').value = minGuests;
+      document.getElementById('max-percentage-setting').value = maxPercentage;
+      document.getElementById('days-setting').value = days;
+    }
+
+    function saveIncompleteSettings() {
+      const minGuests = document.getElementById('min-guests-setting').value;
+      const maxPercentage = document.getElementById('max-percentage-setting').value;
+      const days = document.getElementById('days-setting').value;
+
+      // Speichere in Cookies (1 Jahr gültig)
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      
+      setCookie('incomplete_min_guests', minGuests, expires);
+      setCookie('incomplete_max_percentage', maxPercentage, expires);
+      setCookie('incomplete_days', days, expires);
+
+      // Lade Daten neu
+      loadIncompleteReservations();
+      
+      // Erfolgsmeldung
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = '✓ Gespeichert';
+      btn.style.background = '#28a745';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = '';
+      }, 2000);
+    }
+
+    function toggleIncompleteSettings() {
+      const panel = document.getElementById('incomplete-settings');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function loadIncompleteReservations() {
+      const container = document.getElementById('incomplete-reservations');
+      container.innerHTML = '<p>Lade unvollständige Reservierungen...</p>';
+
+      try {
+        const minGuests = document.getElementById('min-guests-setting').value;
+        const maxPercentage = document.getElementById('max-percentage-setting').value;
+        const days = document.getElementById('days-setting').value;
+
+        const response = await fetch(`getIncompleteReservations.php?min_guests=${minGuests}&max_percentage=${maxPercentage}&days=${days}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Unbekannter Fehler');
+        }
+
+        renderIncompleteReservations(data);
+
+      } catch (error) {
+        console.error('Error loading incomplete reservations:', error);
+        container.innerHTML = `<p style="color: red;">Fehler beim Laden: ${error.message}</p>`;
+      }
+    }
+
+    function renderIncompleteReservations(data) {
+      const container = document.getElementById('incomplete-reservations');
+      const reservations = data.data;
+      const params = data.parameters;
+
+      let html = `
+        <div class="incomplete-summary">
+          <strong>${reservations.length}</strong> unvollständige Reservierungen gefunden<br>
+          <small>Filter: Min. ${params.min_guests} Gäste, Max. ${params.max_percentage}% Namen, ${params.days} Tage voraus (${params.date_range})</small>
+        </div>
+      `;
+
+      if (reservations.length === 0) {
+        html += '<p>🎉 Alle Reservierungen sind vollständig!</p>';
+        container.innerHTML = html;
+        return;
+      }
+
+      html += `
+        <table class="incomplete-table">
+          <thead>
+            <tr>
+              <th>Von - Bis</th>
+              <th>Name</th>
+              <th>Gäste</th>
+              <th>Namen</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      reservations.forEach(res => {
+        const percentageClass = res.percentage_complete <= 25 ? 'percentage-low' : 
+                               res.percentage_complete <= 50 ? 'percentage-medium' : '';
+        // Name: trim(nonull(nachname) + ' ' + nonull(vorname))
+        const nonull = v => (v == null || v === 'null' || v === undefined) ? '' : v;
+        const name = (nonull(res.nachname) + ' ' + nonull(res.vorname)).trim();
+        html += `
+          <tr onclick="openReservation(${res.id})">
+            <td class="date-cell">
+              ${formatDateShort(res.anreise)} - ${formatDateShort(res.abreise)}
+            </td>
+            <td class="name-cell">${name}</td>
+            <td class="guests-cell">${res.total_guests}</td>
+            <td class="guests-cell">${res.entered_names}</td>
+            <td class="percentage-cell ${percentageClass}">
+              ${res.percentage_complete}%
+            </td>
+          </tr>
+        `;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function openReservation(reservationId) {
+      window.open(`reservation.html?id=${reservationId}`, '_blank');
+    }
+
+    function formatDateShort(dateStr) {
+      if (!dateStr) return '';
+      // Handle both formats: "2025-08-01" and "2025-08-01 00:00:00"
+      const dateOnly = dateStr.split(' ')[0]; // Get just the date part
+      const date = new Date(dateOnly + 'T00:00:00');
+      // 19.07. (without year for more compact display)
+      return date.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit'
+      }) + '.';
+    }
+
+    // Cookie-Hilfsfunktionen
+    function setCookie(name, value, expires) {
+      document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`;
+    }
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? match[2] : null;
     }
   </script>
 
