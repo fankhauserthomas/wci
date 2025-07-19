@@ -432,6 +432,70 @@
   background: #3b6c95;
 }
 
+/* Globaler NoShow-Button (orange/rot) */
+.btn-noshow {
+  padding: 0.5rem 1rem;
+  background: #fd7e14;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-noshow:hover:not(:disabled) {
+  background: #e85d04;
+}
+
+.btn-noshow:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-noshow.btn-undo {
+  background: #6c757d;
+}
+
+.btn-noshow.btn-undo:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btn-noshow.btn-mixed {
+  background: #ffc107;
+  color: #000;
+}
+
+.btn-noshow.btn-mixed:hover:not(:disabled) {
+  background: #e0a800;
+}
+
+/* NoShow Indikatoren */
+.noshow-cell {
+  font-size: 1.2rem;
+}
+
+.noshow-indicator {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.noshow-yes {
+  background: #fff2f2;
+  color: #dc3545;
+}
+
+.noshow-no {
+  background: #f0f9ff;
+  color: #28a745;
+}
+
+.noshow-cell:hover .noshow-indicator {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 /* Check-in/Check-out Zellen */
 .names-list td.checked-in {
   background: #d4edda;

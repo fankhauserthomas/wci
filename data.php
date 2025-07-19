@@ -65,15 +65,17 @@ LEFT JOIN origin o ON r.origin = o.id
 LEFT JOIN (
     SELECT
       av_id,
-      COUNT(*) AS count_names,
+      COUNT(CASE WHEN NoShow = 0 THEN 1 END) AS count_names,
       SUM(CASE 
-        WHEN checked_in IS NOT NULL 
+        WHEN NoShow = 0
+        AND checked_in IS NOT NULL 
         AND CAST(checked_in AS CHAR) != '' 
         AND CAST(checked_in AS CHAR) != '0000-00-00 00:00:00'
         AND checked_in > '1970-01-01 00:00:00'
         THEN 1 ELSE 0 END) AS count_logged_in,
       SUM(CASE 
-        WHEN checked_out IS NOT NULL 
+        WHEN NoShow = 0
+        AND checked_out IS NOT NULL 
         AND CAST(checked_out AS CHAR) != '' 
         AND CAST(checked_out AS CHAR) != '0000-00-00 00:00:00'
         AND checked_out > '1970-01-01 00:00:00'
