@@ -280,6 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="arr-cell">${n.arr || '–'}</td>
         <td class="diet-cell">${n.diet_text || '–'}</td>
+        <td class="noshow-cell" style="text-align: center; cursor: pointer;">
+          <span class="noshow-indicator ${n.NoShow ? 'noshow-yes' : 'noshow-no'}" 
+                title="${n.NoShow ? 'No-Show markiert' : 'Klicken für No-Show'}">
+            ${n.NoShow ? '❌' : '✓'}
+          </span>
+        </td>
         <td class="checkin-cell ${n.checked_in ? 'checked-in' : ''}">
           ${n.checked_in
           ? fmtDateTime(n.checked_in)
@@ -887,6 +893,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dietCell) {
       openDietModal([id], newLabel => {
         dietCell.textContent = newLabel;
+      });
+      return;
+    }
+
+    // NoShow inline: Klick auf ganze Zelle
+    const noShowCell = e.target.closest('td.noshow-cell');
+    if (noShowCell) {
+      const id = row.dataset.id;
+      
+      // Einzelner NoShow Toggle
+      fetch('toggleNoShow.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // UI aktualisieren
+          const indicator = noShowCell.querySelector('.noshow-indicator');
+          if (data.newValue === 1) {
+            indicator.textContent = '❌';
+            indicator.className = 'noshow-indicator noshow-yes';
+            indicator.title = 'No-Show markiert';
+          } else {
+            indicator.textContent = '✓';
+            indicator.className = 'noshow-indicator noshow-no';
+            indicator.title = 'Klicken für No-Show';
+          }
+        } else {
+          alert('Fehler beim NoShow Toggle: ' + (data.error || 'Unbekannter Fehler'));
+        }
+      })
+      .catch(error => {
+        console.error('NoShow update error:', error);
+        alert('Fehler beim Aktualisieren des NoShow Status.');
       });
       return;
     }

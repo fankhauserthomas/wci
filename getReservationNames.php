@@ -34,6 +34,7 @@ SELECT
   o.country AS herkunft,
   n.bem AS bem,
   n.guide AS guide,
+  n.NoShow AS NoShow,
   a.kbez AS arr,
   d.bez AS diet_text,
   n.dietInfo,
@@ -81,6 +82,7 @@ $data = [];
 while ($row = $res->fetch_assoc()) {
     // Boolean cast für JS
     $row['guide'] = (bool)$row['guide'];
+    $row['NoShow'] = (bool)$row['NoShow'];
     
     // Check-in/Check-out-Werte normalisieren
     // NULL, leerer String oder 0000-00-00 00:00:00 = nicht eingecheckt
