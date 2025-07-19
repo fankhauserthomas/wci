@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,14 +12,14 @@
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         .test-section {
             margin: 20px 0;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 5px;
         }
-        
+
         .test-button {
             margin: 5px;
             padding: 10px 15px;
@@ -27,12 +28,27 @@
             cursor: pointer;
             font-size: 14px;
         }
-        
-        .fast { background-color: #4CAF50; color: white; }
-        .slow { background-color: #f44336; color: white; }
-        .immediate { background-color: #ff9800; color: white; }
-        .config { background-color: #2196F3; color: white; }
-        
+
+        .fast {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .slow {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .immediate {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .config {
+            background-color: #2196F3;
+            color: white;
+        }
+
         .stats {
             background-color: #f5f5f5;
             padding: 10px;
@@ -41,7 +57,7 @@
             font-family: monospace;
             font-size: 12px;
         }
-        
+
         .description {
             color: #666;
             font-size: 14px;
@@ -49,11 +65,13 @@
         }
     </style>
 </head>
+
 <body>
     <h1>Loading Overlay Performance-Test</h1>
-    
+
     <div class="description">
-        <p><strong>Performance-Optimierung:</strong> Loading-Indikatoren werden nur nach <span id="current-threshold">800</span>ms angezeigt.</p>
+        <p><strong>Performance-Optimierung:</strong> Loading-Indikatoren werden nur nach <span
+                id="current-threshold">800</span>ms angezeigt.</p>
         <p>Schnelle Operationen (&lt; 800ms) zeigen keinen Loading-Indikator, um Performance zu sparen.</p>
     </div>
 
@@ -105,63 +123,63 @@
     <!-- Loading der JavaScript-Module -->
     <script src="js/loading-overlay.js"></script>
     <script src="js/http-utils.js"></script>
-    
+
     <script>
         // Test-Funktionen für Performance-Demo
-        
+
         async function testFastOperation(duration) {
             console.log(`[TEST] Starting fast operation: ${duration}ms`);
             const startTime = Date.now();
-            
+
             await LoadingOverlay.wrap(async () => {
                 await new Promise(resolve => setTimeout(resolve, duration));
                 return `Fast operation completed in ${duration}ms`;
             }, `Schnelle Operation (${duration}ms)...`);
-            
+
             const actualDuration = Date.now() - startTime;
             console.log(`[TEST] Fast operation completed in ${actualDuration}ms`);
             showStats();
         }
-        
+
         async function testSlowOperation(duration) {
             console.log(`[TEST] Starting slow operation: ${duration}ms`);
             const startTime = Date.now();
-            
+
             await LoadingOverlay.wrap(async () => {
                 await new Promise(resolve => setTimeout(resolve, duration));
                 return `Slow operation completed in ${duration}ms`;
             }, `Langsame Operation (${duration}ms)...`);
-            
+
             const actualDuration = Date.now() - startTime;
             console.log(`[TEST] Slow operation completed in ${actualDuration}ms`);
             showStats();
         }
-        
+
         async function testImmediateOperation(duration) {
             console.log(`[TEST] Starting immediate operation: ${duration}ms`);
             const startTime = Date.now();
-            
+
             await LoadingOverlay.wrap(async () => {
                 await new Promise(resolve => setTimeout(resolve, duration));
                 return `Immediate operation completed in ${duration}ms`;
             }, `Immediate Operation (${duration}ms)...`, false); // useDelay = false
-            
+
             const actualDuration = Date.now() - startTime;
             console.log(`[TEST] Immediate operation completed in ${actualDuration}ms`);
             showStats();
         }
-        
+
         function setThreshold(threshold) {
             LoadingOverlay.setDelayThreshold(threshold);
             document.getElementById('current-threshold').textContent = threshold;
             console.log(`[CONFIG] Threshold set to ${threshold}ms`);
             showStats();
         }
-        
+
         function showStats() {
             const stats = LoadingOverlay.getPerformanceStats();
             const display = document.getElementById('stats-display');
-            
+
             display.innerHTML = `
                 <strong>Performance-Statistiken:</strong><br>
                 Aktive Operationen: ${stats.activeOperations}<br>
@@ -171,19 +189,20 @@
                 Timestamp: ${new Date().toLocaleTimeString()}
             `;
         }
-        
+
         function debugOperations() {
             LoadingOverlay.debugOperations();
         }
-        
+
         // HTTP-Utils konfigurieren
         HttpUtils.configurePerformance(800);
-        
+
         // Initiale Stats anzeigen
         setTimeout(showStats, 100);
-        
+
         console.log('[TEST] Performance test page loaded');
         console.log('[TEST] Try different operations to test the 800ms delay threshold');
     </script>
 </body>
+
 </html>

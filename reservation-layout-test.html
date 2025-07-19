@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,20 +18,20 @@
             left: 0 !important;
             z-index: 1000 !important;
         }
-        
+
         .main-content {
             margin-top: 70px !important;
             padding: 20px !important;
             width: 100% !important;
             max-width: 100% !important;
         }
-        
+
         .res-header {
             width: calc(100% + 40px) !important;
             margin-left: -20px !important;
             margin-right: -20px !important;
         }
-        
+
         .table-container {
             width: calc(100% + 40px) !important;
             margin-left: -20px !important;
@@ -38,16 +39,16 @@
             padding: 0 20px !important;
             overflow-x: auto;
         }
-        
+
         .names-list {
             width: 100% !important;
             min-width: 800px;
         }
-        
+
         .action-bar {
             width: 100% !important;
         }
-        
+
         /* Test content */
         .test-info {
             background: #e8f5e8;
@@ -58,6 +59,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="main-navigation">
@@ -201,30 +203,30 @@
 
     <script>
         // Simple navigation setup
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('✅ Reservation Layout Test loaded');
-            
+
             // Mobile toggle
             const toggle = document.querySelector('.mobile-toggle');
             const nav = document.querySelector('.main-navigation');
-            
+
             if (toggle && nav) {
                 toggle.addEventListener('click', () => {
                     nav.classList.toggle('mobile-open');
                 });
             }
-            
+
             // Test button functionality
             document.getElementById('backBtn')?.addEventListener('click', () => {
                 history.back();
             });
-            
+
             // Check layout
             setTimeout(() => {
                 const nav = document.querySelector('.main-navigation');
                 const content = document.querySelector('.main-content');
                 const header = document.querySelector('.res-header');
-                
+
                 console.log('Layout Check:', {
                     navWidth: nav?.offsetWidth,
                     contentWidth: content?.offsetWidth,
@@ -235,4 +237,5 @@
         });
     </script>
 </body>
+
 </html>

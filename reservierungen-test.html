@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
             background: white;
             min-height: 500px;
         }
-        
+
         /* Connection Status kleiner machen */
         .connection-status {
             font-size: 0.7rem !important;
@@ -23,12 +24,12 @@
             max-width: 120px !important;
             z-index: 900 !important;
         }
-        
+
         .content-header h1 {
             color: #2c3e50;
             margin-bottom: 20px;
         }
-        
+
         .test-content {
             background: #f8f9fa;
             padding: 20px;
@@ -37,6 +38,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="main-navigation">
@@ -64,11 +66,11 @@
         <div class="content-header">
             <h1>✅ Reservierungen - Layout Test</h1>
         </div>
-        
+
         <div class="test-content">
             <h2>Navigation Layout Test</h2>
             <p>Diese Seite testet, ob die Navigation korrekt angezeigt wird ohne Overlay-Probleme.</p>
-            
+
             <h3>Was sichtbar sein sollte:</h3>
             <ul>
                 <li>✅ Navigation-Bar oben (mit WebCheckin Logo)</li>
@@ -77,14 +79,15 @@
                 <li>✅ Connection-Status unten links (klein)</li>
                 <li>✅ Kein großer Overlay, der alles verdeckt</li>
             </ul>
-            
+
             <h3>Navigation Links:</h3>
             <div style="margin: 20px 0;">
                 <a href="index.html" class="btn btn-primary" style="margin: 5px;">🏠 Dashboard</a>
-                <a href="reservierungen.html" class="btn btn-secondary" style="margin: 5px;">📋 Original Reservierungen</a>
+                <a href="reservierungen.html" class="btn btn-secondary" style="margin: 5px;">📋 Original
+                    Reservierungen</a>
                 <a href="statistiken.html" class="btn btn-secondary" style="margin: 5px;">📊 Statistiken</a>
             </div>
-            
+
             <h3>Reservierungen Simulation:</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <thead>
@@ -121,19 +124,19 @@
 
     <script>
         // Simple navigation setup
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('✅ Reservierungen Test Page loaded');
-            
+
             // Mobile navigation toggle
             const toggle = document.querySelector('.mobile-toggle');
             const nav = document.querySelector('.main-navigation');
-            
+
             if (toggle && nav) {
                 toggle.addEventListener('click', () => {
                     nav.classList.toggle('mobile-open');
                 });
             }
-            
+
             // Check for layout issues
             const mainContent = document.querySelector('.main-content');
             if (mainContent) {
@@ -144,7 +147,7 @@
                     width: rect.width,
                     height: rect.height
                 });
-                
+
                 if (rect.top < 50) {
                     console.warn('⚠️ Main content may be hidden behind navigation');
                 }
@@ -152,4 +155,5 @@
         });
     </script>
 </body>
+
 </html>

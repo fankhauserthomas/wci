@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,6 +20,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="main-navigation">
@@ -118,7 +120,8 @@
     <!-- Modals (vereinfacht) -->
     <div id="arrangementModal" class="modal hidden">
         <div class="modal-content">
-            <span class="modal-close" onclick="document.getElementById('arrangementModal').classList.add('hidden')">&times;</span>
+            <span class="modal-close"
+                onclick="document.getElementById('arrangementModal').classList.add('hidden')">&times;</span>
             <h2>Arrangement wählen</h2>
             <div id="arrButtonsContainer"></div>
         </div>
@@ -126,7 +129,8 @@
 
     <div id="dietModal" class="modal hidden">
         <div class="modal-content">
-            <span class="modal-close" onclick="document.getElementById('dietModal').classList.add('hidden')">&times;</span>
+            <span class="modal-close"
+                onclick="document.getElementById('dietModal').classList.add('hidden')">&times;</span>
             <h2>Diät wählen</h2>
             <div id="dietButtonsContainer"></div>
         </div>
@@ -148,11 +152,11 @@
     <!-- Scripts -->
     <script src="js/http-utils.js"></script>
     <script src="js/loading-overlay.js"></script>
-    
+
     <script>
         // Quick Fix Script - lädt Namen sofort
         let resId = new URLSearchParams(window.location.search).get('id') || '8423';
-        
+
         function updateStatus(message, type = 'info') {
             const status = document.getElementById('loadStatus');
             const colors = {
@@ -165,13 +169,13 @@
             status.textContent = `Status: ${message}`;
             console.log(`[QUICK-FIX] ${message}`);
         }
-        
+
         async function loadReservationDetails() {
             try {
                 updateStatus('Lade Reservierungsdetails...');
                 const response = await fetch(`getReservationDetails.php?id=${resId}`);
                 const data = await response.json();
-                
+
                 if (data && data.vorname) {
                     const headerInfo = document.getElementById('headerInfo');
                     headerInfo.innerHTML = `
@@ -190,16 +194,16 @@
                 updateStatus(`Fehler beim Laden der Details: ${error.message}`, 'error');
             }
         }
-        
+
         async function loadNames() {
             try {
                 updateStatus('Lade Namen...');
                 const response = await fetch(`getReservationNames.php?id=${resId}`);
                 const names = await response.json();
-                
+
                 const tbody = document.getElementById('namesTableBody');
                 tbody.innerHTML = '';
-                
+
                 if (names && Array.isArray(names) && names.length > 0) {
                     names.forEach(name => {
                         const row = document.createElement('tr');
@@ -232,11 +236,11 @@
                 tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 20px; color: red;">Fehler beim Laden der Namen</td></tr>';
             }
         }
-        
+
         // Initialisierung
-        document.addEventListener('DOMContentLoaded', async function() {
+        document.addEventListener('DOMContentLoaded', async function () {
             updateStatus('Seite initialisiert');
-            
+
             // Mobile toggle
             const toggle = document.querySelector('.mobile-toggle');
             const nav = document.querySelector('.main-navigation');
@@ -245,19 +249,20 @@
                     nav.classList.toggle('mobile-open');
                 });
             }
-            
+
             updateStatus('Lade Daten...');
-            
+
             // Reservierungsdetails laden
             await loadReservationDetails();
-            
+
             // Namen laden nach kurzer Verzögerung
             setTimeout(async () => {
                 await loadNames();
             }, 1000);
-            
+
             updateStatus('Initialisierung abgeschlossen', 'success');
         });
     </script>
 </body>
+
 </html>

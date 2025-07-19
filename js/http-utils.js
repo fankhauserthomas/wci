@@ -289,33 +289,9 @@ class HttpUtils {
       return indicator;
     }
 
-    // Fallback: JavaScript-Indikator erstellen
-    indicator = document.createElement('div');
-    indicator.id = 'connection-indicator';
-    indicator.className = 'connection-status';
-
-    const statusDot = document.createElement('div');
-    statusDot.className = 'status-dot';
-
-    const statusText = document.createElement('span');
-    statusText.className = 'status-text';
-    statusText.textContent = 'Verbindung prüfen...';
-
-    indicator.appendChild(statusDot);
-    indicator.appendChild(statusText);
-
-    // Tooltip für Details
-    indicator.title = 'Verbindungsqualität: Unbekannt - Klicken für Details';
-
-    // Click für Details
-    indicator.addEventListener('click', () => {
-      if (window.connectionMonitor) {
-        HttpUtils.showDetailedConnectionStatus(window.connectionMonitor);
-      }
-    });
-
-    document.body.appendChild(indicator);
-    return indicator;
+    // Kein Fallback mehr erstellen - Navigation sollte den Indikator bereitstellen
+    console.log('[HTTP] No connection indicator found - expecting navigation to provide one');
+    return null;
   }
 
   /**
@@ -328,40 +304,63 @@ class HttpUtils {
     const isOnline = monitor.isOnline();
     const quality = monitor.getQuality();
 
-    // Status-Dot finden
+    // Status-Dot finden (für alten Stil)
     const statusDot = indicator.querySelector('.status-dot');
     const statusText = indicator.querySelector('.status-text');
 
     if (!isOnline) {
-      if (statusDot) statusDot.style.backgroundColor = '#dc3545';
-      if (statusText) statusText.textContent = 'Offline';
-      indicator.title = 'Verbindungsqualität: Offline - Klicken für Details';
+      // Für Navigation-Emoji
+      if (!statusDot && !statusText) {
+        indicator.textContent = '🔴';
+        indicator.title = 'Verbindungsqualität: Offline - Klicken für Details';
+      } else {
+        // Für alten Stil
+        if (statusDot) statusDot.style.backgroundColor = '#dc3545';
+        if (statusText) statusText.textContent = 'Offline';
+        indicator.title = 'Verbindungsqualität: Offline - Klicken für Details';
+      }
     } else {
+      let emoji = '🔴';
+      let titleText = '';
+
       switch (quality) {
         case 'excellent':
+          emoji = '🟢';
+          titleText = 'Ausgezeichnet';
           if (statusDot) statusDot.style.backgroundColor = '#28a745';
           if (statusText) statusText.textContent = 'Ausgezeichnet';
-          indicator.title = 'Verbindungsqualität: Ausgezeichnet - Klicken für Details';
           break;
         case 'good':
+          emoji = '🟢';
+          titleText = 'Gut';
           if (statusDot) statusDot.style.backgroundColor = '#28a745';
           if (statusText) statusText.textContent = 'Gut';
-          indicator.title = 'Verbindungsqualität: Gut - Klicken für Details';
           break;
         case 'fair':
+          emoji = '🟡';
+          titleText = 'Mäßig';
           if (statusDot) statusDot.style.backgroundColor = '#ffc107';
           if (statusText) statusText.textContent = 'Mäßig';
-          indicator.title = 'Verbindungsqualität: Mäßig - Klicken für Details';
           break;
         case 'poor':
+          emoji = '🟠';
+          titleText = 'Schlecht';
           if (statusDot) statusDot.style.backgroundColor = '#fd7e14';
           if (statusText) statusText.textContent = 'Schlecht';
-          indicator.title = 'Verbindungsqualität: Schlecht - Klicken für Details';
           break;
         default:
+          emoji = '🔴';
+          titleText = 'Unbekannt';
           if (statusDot) statusDot.style.backgroundColor = '#6c757d';
           if (statusText) statusText.textContent = 'Verbindung prüfen...';
-          indicator.title = 'Verbindungsqualität: Unbekannt - Klicken für Details';
+      }
+
+      // Für Navigation-Emoji (wenn kein .status-dot vorhanden)
+      if (!statusDot && !statusText) {
+        indicator.textContent = emoji;
+        indicator.title = `Verbindungsqualität: ${titleText} - Klicken für Details`;
+      } else {
+        indicator.title = `Verbindungsqualität: ${titleText} - Klicken für Details`;
       }
     }
   }

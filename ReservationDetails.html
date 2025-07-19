@@ -241,7 +241,7 @@
 
 <body class="reservation-details">
     <!-- Navigation wird durch JavaScript eingefügt -->
-    
+
     <main class="main-content">
         <div class="reservation-form">
             <div class="form-header">
@@ -251,174 +251,174 @@
                 </div>
             </div>
 
-        <div id="messageArea"></div>
+            <div id="messageArea"></div>
 
-        <div id="loadingIndicator" class="loading">
-            Lade Reservierungsdetails...
+            <div id="loadingIndicator" class="loading">
+                Lade Reservierungsdetails...
+            </div>
+
+            <form id="reservationForm" style="display: none;">
+                <!-- Basic Info Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Grunddaten</h2>
+                    <div class="form-row">
+                        <div class="form-group quarter">
+                            <label for="id">ID</label>
+                            <input type="text" id="id" name="id" readonly>
+                        </div>
+                        <div class="form-group quarter">
+                            <label for="av_id">AV ID</label>
+                            <input type="text" id="av_id" name="av_id" readonly>
+                        </div>
+                        <div class="form-group half">
+                            <label for="storno" class="checkbox-group">
+                                <input type="checkbox" id="storno" name="storno">
+                                Storniert
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal Data Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Persönliche Daten</h2>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="nachname">Nachname *</label>
+                            <input type="text" id="nachname" name="nachname" required>
+                        </div>
+                        <div class="form-group half">
+                            <label for="vorname">Vorname</label>
+                            <input type="text" id="vorname" name="vorname">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="handy">Handy</label>
+                            <input type="tel" id="handy" name="handy">
+                        </div>
+                        <div class="form-group half">
+                            <label for="email">E-Mail</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="origin">Ausgangspunkt</label>
+                            <select id="origin" name="origin">
+                                <option value="">Bitte wählen...</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label for="hund" class="checkbox-group">
+                                <input type="checkbox" id="hund" name="hund">
+                                Hund
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Booking Dates Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Aufenthaltsdaten</h2>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="anreise">Anreise *</label>
+                            <input type="datetime-local" id="anreise" name="anreise" required>
+                        </div>
+                        <div class="form-group half">
+                            <label for="abreise">Abreise *</label>
+                            <input type="datetime-local" id="abreise" name="abreise" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sleeping Categories Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Schlafkategorien</h2>
+                    <div class="sleeping-categories">
+                        <div class="form-group">
+                            <label for="lager">Lager</label>
+                            <input type="number" id="lager" name="lager" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="betten">Betten</label>
+                            <input type="number" id="betten" name="betten" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="dz">Doppelzimmer</label>
+                            <input type="number" id="dz" name="dz" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="sonder">Sonder</label>
+                            <input type="number" id="sonder" name="sonder" min="0" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Arrangement Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Arrangement</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="arr">Arrangement</label>
+                            <select id="arr" name="arr">
+                                <option value="">Bitte wählen...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Bemerkungen</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bem">Bemerkung</label>
+                            <textarea id="bem" name="bem" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bem_av">AV Bemerkung</label>
+                            <textarea id="bem_av" name="bem_av" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="goBack()">Zurück</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
         </div>
 
-        <form id="reservationForm" style="display: none;">
-            <!-- Basic Info Section -->
-            <div class="form-section">
-                <h2 class="section-title">Grunddaten</h2>
-                <div class="form-row">
-                    <div class="form-group quarter">
-                        <label for="id">ID</label>
-                        <input type="text" id="id" name="id" readonly>
-                    </div>
-                    <div class="form-group quarter">
-                        <label for="av_id">AV ID</label>
-                        <input type="text" id="av_id" name="av_id" readonly>
-                    </div>
-                    <div class="form-group half">
-                        <label for="storno" class="checkbox-group">
-                            <input type="checkbox" id="storno" name="storno">
-                            Storniert
-                        </label>
-                    </div>
-                </div>
-            </div>
+        <!-- Connection Status -->
+        <div class="connection-status" id="connection-indicator">
+            <div class="status-dot"></div>
+            <span class="status-text">Verbindung prüfen...</span>
+        </div>
 
-            <!-- Personal Data Section -->
-            <div class="form-section">
-                <h2 class="section-title">Persönliche Daten</h2>
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label for="nachname">Nachname *</label>
-                        <input type="text" id="nachname" name="nachname" required>
-                    </div>
-                    <div class="form-group half">
-                        <label for="vorname">Vorname</label>
-                        <input type="text" id="vorname" name="vorname">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label for="handy">Handy</label>
-                        <input type="tel" id="handy" name="handy">
-                    </div>
-                    <div class="form-group half">
-                        <label for="email">E-Mail</label>
-                        <input type="email" id="email" name="email">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label for="origin">Ausgangspunkt</label>
-                        <select id="origin" name="origin">
-                            <option value="">Bitte wählen...</option>
-                        </select>
-                    </div>
-                    <div class="form-group half">
-                        <label for="hund" class="checkbox-group">
-                            <input type="checkbox" id="hund" name="hund">
-                            Hund
-                        </label>
-                    </div>
-                </div>
-            </div>
+        <script src="js/http-utils.js"></script>
+        <script src="js/loading-overlay.js"></script>
+        <script src="ReservationDetails.js"></script>
 
-            <!-- Booking Dates Section -->
-            <div class="form-section">
-                <h2 class="section-title">Aufenthaltsdaten</h2>
-                <div class="form-row">
-                    <div class="form-group half">
-                        <label for="anreise">Anreise *</label>
-                        <input type="datetime-local" id="anreise" name="anreise" required>
-                    </div>
-                    <div class="form-group half">
-                        <label for="abreise">Abreise *</label>
-                        <input type="datetime-local" id="abreise" name="abreise" required>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sleeping Categories Section -->
-            <div class="form-section">
-                <h2 class="section-title">Schlafkategorien</h2>
-                <div class="sleeping-categories">
-                    <div class="form-group">
-                        <label for="lager">Lager</label>
-                        <input type="number" id="lager" name="lager" min="0" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="betten">Betten</label>
-                        <input type="number" id="betten" name="betten" min="0" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="dz">Doppelzimmer</label>
-                        <input type="number" id="dz" name="dz" min="0" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="sonder">Sonder</label>
-                        <input type="number" id="sonder" name="sonder" min="0" value="0">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Arrangement Section -->
-            <div class="form-section">
-                <h2 class="section-title">Arrangement</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="arr">Arrangement</label>
-                        <select id="arr" name="arr">
-                            <option value="">Bitte wählen...</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Notes Section -->
-            <div class="form-section">
-                <h2 class="section-title">Bemerkungen</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="bem">Bemerkung</label>
-                        <textarea id="bem" name="bem" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="bem_av">AV Bemerkung</label>
-                        <textarea id="bem_av" name="bem_av" rows="3"></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <button type="button" class="btn btn-secondary" onclick="goBack()">Zurück</button>
-                <button type="submit" class="btn btn-primary">Speichern</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Connection Status -->
-    <div class="connection-status" id="connection-indicator">
-        <div class="status-dot"></div>
-        <span class="status-text">Verbindung prüfen...</span>
-    </div>
-
-    <script src="js/http-utils.js"></script>
-    <script src="js/loading-overlay.js"></script>
-    <script src="ReservationDetails.js"></script>
-
-    <script>
-        // Connection Status für diese Seite initialisieren
-        document.addEventListener('DOMContentLoaded', function () {
-            const indicator = document.getElementById('connection-indicator');
-            if (indicator && window.connectionMonitor) {
-                // Initial update
-                if (window.updateConnectionStatus) {
-                    window.updateConnectionStatus();
+        <script>
+            // Connection Status für diese Seite initialisieren
+            document.addEventListener('DOMContentLoaded', function () {
+                const indicator = document.getElementById('connection-indicator');
+                if (indicator && window.connectionMonitor) {
+                    // Initial update
+                    if (window.updateConnectionStatus) {
+                        window.updateConnectionStatus();
+                    }
                 }
-            }
-        });
-    </script>
-    
-    <!-- Navigation System -->
-    <script src="js/navigation.js"></script>
+            });
+        </script>
+
+        <!-- Navigation System -->
+        <script src="js/navigation.js"></script>
 </body>
 
 </html>

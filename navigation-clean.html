@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,13 +15,13 @@
         [style*="position: fixed"][style*="z-index"] {
             display: none !important;
         }
-        
+
         body {
             overflow: auto !important;
             user-select: auto !important;
             pointer-events: auto !important;
         }
-        
+
         .test-section {
             background: white;
             margin: 20px;
@@ -28,13 +29,14 @@
             border: 1px solid #ddd;
             border-radius: 8px;
         }
-        
+
         .success {
             color: green;
             font-weight: bold;
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="main-navigation">
@@ -86,7 +88,7 @@
         <div class="test-section">
             <h1 class="success">✅ Navigation funktioniert!</h1>
             <p>Diese Seite zeigt die neue Navigation ohne Loading-Overlay Probleme.</p>
-            
+
             <h2>Navigation Komponenten:</h2>
             <ul>
                 <li>✅ Hauptnavigation (oben)</li>
@@ -94,7 +96,7 @@
                 <li>✅ Page Actions</li>
                 <li>✅ Mobile-responsive Design</li>
             </ul>
-            
+
             <h2>Test-Links:</h2>
             <div style="margin: 20px 0;">
                 <a href="index.html" class="btn" style="margin: 5px;">🏠 Dashboard</a>
@@ -102,10 +104,10 @@
                 <a href="reservation.html" class="btn" style="margin: 5px;">📝 Reservation Details</a>
                 <a href="statistiken.html" class="btn" style="margin: 5px;">📊 Statistiken</a>
             </div>
-            
+
             <h2>Mobile Navigation Test:</h2>
             <p>Verkleinere das Browserfenster um das mobile Menü zu testen.</p>
-            
+
             <h2>Keyboard Shortcuts:</h2>
             <ul>
                 <li><kbd>Alt + H</kbd> - Zum Dashboard</li>
@@ -122,14 +124,14 @@
             setupMobileToggle() {
                 const toggle = document.querySelector('.mobile-toggle');
                 const nav = document.querySelector('.main-navigation');
-                
+
                 if (toggle && nav) {
                     toggle.addEventListener('click', () => {
                         nav.classList.toggle('mobile-open');
                     });
                 }
             },
-            
+
             setupKeyboardShortcuts() {
                 document.addEventListener('keydown', (e) => {
                     // Alt + H = Home
@@ -137,13 +139,13 @@
                         e.preventDefault();
                         location.href = 'index.html';
                     }
-                    
+
                     // Alt + R = Reservations
                     if (e.altKey && e.key === 'r') {
                         e.preventDefault();
                         location.href = 'reservierungen.html';
                     }
-                    
+
                     // Emergency overlay hide
                     if (e.ctrlKey && e.shiftKey && e.key === 'Escape') {
                         document.body.style.overflow = '';
@@ -153,22 +155,23 @@
                     }
                 });
             },
-            
+
             init() {
                 this.setupMobileToggle();
                 this.setupKeyboardShortcuts();
                 console.log('✅ Clean Navigation initialized');
             }
         };
-        
+
         function testFunction() {
             alert('✅ Navigation Test erfolgreich!\n\nDie Navigation funktioniert ohne Overlay-Probleme.');
         }
-        
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             CleanNavigation.init();
         });
     </script>
 </body>
+
 </html>

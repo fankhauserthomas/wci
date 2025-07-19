@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,14 +10,15 @@
   <link rel="stylesheet" href="css/navigation.css">
   <link rel="stylesheet" href="css/navigation-integration.css">
 </head>
+
 <body>
   <!-- Navigation wird durch JavaScript eingefügt -->
-  
+
   <main class="main-content">
     <header class="legacy-header">
       <h1>Gast-Details</h1>
     </header>
-    
+
     <div class="form-container">
       <form id="gastForm">
         <div class="form-row">
@@ -30,68 +32,66 @@
           </div>
         </div>
         <div class="form-row">
-            <div class="form-group">
-                <label for="gebdat">Geburtsdatum:</label>
-                <input type="date" id="gebdat" name="gebdat">
-            </div>
-            <div class="form-group">
-                <label for="herkunft">Herkunft:</label>
-                <select id="herkunft" name="herkunft"></select>
-            </div>
+          <div class="form-group">
+            <label for="gebdat">Geburtsdatum:</label>
+            <input type="date" id="gebdat" name="gebdat">
+          </div>
+          <div class="form-group">
+            <label for="herkunft">Herkunft:</label>
+            <select id="herkunft" name="herkunft"></select>
+          </div>
         </div>
 
         <div class="form-row">
-            <div class="form-group form-group-checkbox">
-                <input type="checkbox" id="guide" name="guide">
-                <label for="guide">Guide</label>
-            </div>
-            <div class="form-group">
-                <label for="arrangement">Arrangement:</label>
-                <select id="arrangement" name="arrangement"></select>
-            </div>
-            <div class="form-group">
-                <label for="diet">Diät:</label>
-                <select id="diet" name="diet"></select>
-            </div>
+          <div class="form-group form-group-checkbox">
+            <input type="checkbox" id="guide" name="guide">
+            <label for="guide">Guide</label>
+          </div>
+          <div class="form-group">
+            <label for="arrangement">Arrangement:</label>
+            <select id="arrangement" name="arrangement"></select>
+          </div>
+          <div class="form-group">
+            <label for="diet">Diät:</label>
+            <select id="diet" name="diet"></select>
+          </div>
         </div>
 
         <div class="form-row">
-            <div class="form-group full-width">
-                <label for="dietInfo">Info Küche</label>
-                <input type="text" id="dietInfo" name="dietInfo" placeholder="Zusatzinfos für die Küche...">
-            </div>
+          <div class="form-group full-width">
+            <label for="dietInfo">Info Küche</label>
+            <input type="text" id="dietInfo" name="dietInfo" placeholder="Zusatzinfos für die Küche...">
+          </div>
         </div>
 
         <div class="form-row">
-            <div class="form-group transport-group">
-                <label for="transport">Transport (€)</label>
-                <div class="transport-controls">
-                    <input type="text" id="transport" name="transport" class="transport-input"
-                           placeholder="0,00 €"
-                           pattern="^\d+(?:[\.,]\d{1,2})?$"
-                           title="Nur Zahlen mit optionalem , oder . und zwei Nachkommastellen">
-                    <div class="transport-buttons">
-                        <button type="button" class="transport-btn" data-value="-10">-10</button>
-                        <button type="button" class="transport-btn" data-value="-5">-5</button>
-                        <button type="button" class="transport-btn" data-value="-1">-1</button>
-                        <button type="button" class="transport-btn clear" data-value="0">C</button>
-                        <button type="button" class="transport-btn" data-value="+1">+1</button>
-                        <button type="button" class="transport-btn" data-value="+5">+5</button>
-                        <button type="button" class="transport-btn" data-value="+10">+10</button>
-                    </div>
-                </div>
+          <div class="form-group transport-group">
+            <label for="transport">Transport (€)</label>
+            <div class="transport-controls">
+              <input type="text" id="transport" name="transport" class="transport-input" placeholder="0,00 €"
+                pattern="^\d+(?:[\.,]\d{1,2})?$" title="Nur Zahlen mit optionalem , oder . und zwei Nachkommastellen">
+              <div class="transport-buttons">
+                <button type="button" class="transport-btn" data-value="-10">-10</button>
+                <button type="button" class="transport-btn" data-value="-5">-5</button>
+                <button type="button" class="transport-btn" data-value="-1">-1</button>
+                <button type="button" class="transport-btn clear" data-value="0">C</button>
+                <button type="button" class="transport-btn" data-value="+1">+1</button>
+                <button type="button" class="transport-btn" data-value="+5">+5</button>
+                <button type="button" class="transport-btn" data-value="+10">+10</button>
+              </div>
             </div>
+          </div>
         </div>
 
         <div class="form-row">
-            <div class="form-group full-width">
-                <label for="bem">Bemerkung</label>
-                <textarea id="bem" name="bem" rows="3"></textarea>
-            </div>
+          <div class="form-group full-width">
+            <label for="bem">Bemerkung</label>
+            <textarea id="bem" name="bem" rows="3"></textarea>
+          </div>
         </div>
         <div class="form-actions">
-            <button type="submit" class="btn-save">Speichern</button>
-            <button type="button" class="btn-close" onclick="history.back()">Schließen</button>
+          <button type="submit" class="btn-save">Speichern</button>
+          <button type="button" class="btn-close" onclick="history.back()">Schließen</button>
         </div>
       </form>
     </div>
@@ -112,7 +112,7 @@
         const countries = window.HttpUtils
           ? await HttpUtils.requestJson('getCountries.php', {}, { retries: 2, timeout: 8000 })
           : await fetch('getCountries.php').then(r => r.json());
-        
+
         const select = document.getElementById('herkunft');
         countries.forEach(c => {
           const opt = document.createElement('option');
@@ -136,14 +136,14 @@
         const arrangements = window.HttpUtils
           ? await HttpUtils.requestJson('getArrangements.php', {}, { retries: 2, timeout: 8000 })
           : await fetch('getArrangements.php').then(r => r.json());
-        
+
         const select = document.getElementById('arrangement');
         // Empty option für "keine Auswahl"
         const emptyOpt = document.createElement('option');
         emptyOpt.value = '';
         emptyOpt.textContent = '-- Auswählen --';
         select.appendChild(emptyOpt);
-        
+
         arrangements.forEach(a => {
           const opt = document.createElement('option');
           opt.value = a.id;
@@ -166,14 +166,14 @@
         const diets = window.HttpUtils
           ? await HttpUtils.requestJson('getDiets.php', {}, { retries: 2, timeout: 8000 })
           : await fetch('getDiets.php').then(r => r.json());
-        
+
         const select = document.getElementById('diet');
         // Empty option für "keine Auswahl"
         const emptyOpt = document.createElement('option');
         emptyOpt.value = '';
         emptyOpt.textContent = '-- Auswählen --';
         select.appendChild(emptyOpt);
-        
+
         diets.forEach(d => {
           const opt = document.createElement('option');
           opt.value = d.id;
@@ -201,7 +201,7 @@
         const data = window.HttpUtils
           ? await HttpUtils.requestJson(`getGastDetail.php?id=${gastId}`, {}, { retries: 3, timeout: 10000 })
           : await fetch(`getGastDetail.php?id=${gastId}`).then(r => r.json());
-        
+
         gastData = data;
         checkAllLoaded();
       } catch (error) {
@@ -214,7 +214,7 @@
     function fillForm() {
       document.getElementById('nachname').value = gastData.nachname || '';
       document.getElementById('vorname').value = gastData.vorname || '';
-      document.getElementById('gebdat').value = gastData.gebdat ? gastData.gebdat.substr(0,10) : '';
+      document.getElementById('gebdat').value = gastData.gebdat ? gastData.gebdat.substr(0, 10) : '';
       document.getElementById('herkunft').value = gastData.herkunft || '';
       document.getElementById('arrangement').value = gastData.arr || '';
       document.getElementById('diet').value = gastData.diet_id || '';
@@ -225,7 +225,7 @@
     }
 
     // Speichern
-    document.getElementById('gastForm').addEventListener('submit', function(e) {
+    document.getElementById('gastForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const formData = {
         id: gastId,
@@ -245,10 +245,10 @@
       if (formData.diet_id === '') formData.diet_id = null;
       if (formData.herkunft === '') formData.herkunft = null;
       if (formData.transport === '') {
-         formData.transport = null;
+        formData.transport = null;
       } else {
-         // Replace comma with dot for server-side float parsing
-         formData.transport = formData.transport.replace(',', '.');
+        // Replace comma with dot for server-side float parsing
+        formData.transport = formData.transport.replace(',', '.');
       }
 
       // Ensure empty strings for text fields remain as ""
@@ -259,19 +259,19 @@
       const updatePromise = window.HttpUtils
         ? HttpUtils.postJson('updateGastDetail.php', formData, { retries: 2, timeout: 8000 })
         : fetch('updateGastDetail.php', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(formData)
-          }).then(r => r.json());
-      
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        }).then(r => r.json());
+
       updatePromise
         .then(j => {
-        if (j.success) {
-          history.back();
-        } else {
-          alert('Fehler: ' + j.error);
-        }
-      });
+          if (j.success) {
+            history.back();
+          } else {
+            alert('Fehler: ' + j.error);
+          }
+        });
     });
 
     // Transport-Button-Funktionalität
@@ -297,7 +297,7 @@
         button.addEventListener('click', () => {
           const action = button.getAttribute('data-value');
           const currentValue = getCurrentValue();
-          
+
           if (action === '0') {
             // Clear button
             setValue(0);
@@ -311,8 +311,9 @@
     });
   </script>
   <script src="js/http-utils.js"></script>
-  
+
   <!-- Navigation System -->
   <script src="js/navigation.js"></script>
 </body>
+
 </html>

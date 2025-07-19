@@ -6,7 +6,7 @@
 class NavigationSystem {
   static currentPage = '';
   static breadcrumbs = [];
-  
+
   /**
    * Initialisiert das Navigation-System
    */
@@ -16,17 +16,18 @@ class NavigationSystem {
     this.setupMobileNavigation();
     this.setupBreadcrumbs();
     this.setupSyncButton();
-    
+    this.initializeConnectionIndicator();
+
     console.log('[NAV] Navigation system initialized for page:', this.currentPage);
   }
-  
+
   /**
    * Erkennt die aktuelle Seite
    */
   static detectCurrentPage() {
     const path = window.location.pathname;
     const filename = path.split('/').pop() || 'index.html';
-    
+
     const pageMap = {
       'index.html': 'dashboard',
       'reservierungen.html': 'reservations',
@@ -37,24 +38,24 @@ class NavigationSystem {
       'reports.html': 'reports',
       'statistiken.html': 'reports'
     };
-    
+
     this.currentPage = pageMap[filename] || 'dashboard';
   }
-  
+
   /**
    * Erstellt die Hauptnavigation
    */
   static setupNavigation() {
     const existingNav = document.querySelector('.main-navigation');
     if (existingNav) return; // Bereits vorhanden
-    
+
     const nav = this.createMainNavigation();
     document.body.insertBefore(nav, document.body.firstChild);
-    
+
     // Active state setzen
     this.setActiveNavItem();
   }
-  
+
   /**
    * Erstellt das Hauptnavigation-Element
    */
@@ -68,7 +69,7 @@ class NavigationSystem {
       </div>
       
       <div class="nav-primary">
-        <a href="index.html" class="nav-item" data-page="dashboard">
+        <a href="index.php" class="nav-item" data-page="dashboard">
           📊 Dashboard
         </a>
         <a href="reservierungen.html" class="nav-item" data-page="reservations">
@@ -80,14 +81,15 @@ class NavigationSystem {
       </div>
       
       <div class="nav-actions">
+        <div class="connection-indicator" id="connection-indicator" title="Verbindungsstatus">🔴</div>
         <button class="nav-sync" title="Synchronisieren" onclick="NavigationSystem.triggerSync()">🔄</button>
         <button class="mobile-nav-toggle" onclick="NavigationSystem.toggleMobileNav()">☰</button>
       </div>
     `;
-    
+
     return nav;
   }
-  
+
   /**
    * Setzt den aktiven Navigation-Punkt
    */
@@ -99,7 +101,7 @@ class NavigationSystem {
       }
     });
   }
-  
+
   /**
    * Setup Mobile Navigation
    */
@@ -107,17 +109,17 @@ class NavigationSystem {
     const mobileNav = document.createElement('nav');
     mobileNav.className = 'mobile-navigation';
     mobileNav.innerHTML = `
-      <a href="index.html" class="mobile-nav-item" data-page="dashboard">📊 Dashboard</a>
+      <a href="index.php" class="mobile-nav-item" data-page="dashboard">📊 Dashboard</a>
       <a href="reservierungen.html" class="mobile-nav-item" data-page="reservations">📋 Reservierungen</a>
       <a href="statistiken.html" class="mobile-nav-item" data-page="reports">📈 Statistiken</a>
     `;
-    
+
     const mainNav = document.querySelector('.main-navigation');
     if (mainNav) {
       mainNav.after(mobileNav);
     }
   }
-  
+
   /**
    * Toggle Mobile Navigation
    */
@@ -127,7 +129,7 @@ class NavigationSystem {
       mobileNav.classList.toggle('active');
     }
   }
-  
+
   /**
    * Setup Breadcrumbs basierend auf aktueller Seite
    */
@@ -155,23 +157,23 @@ class NavigationSystem {
         { label: '🏠 Dashboard', url: 'index.html' }
       ]
     };
-    
+
     const config = breadcrumbConfigs[this.currentPage] || [];
     if (config.length > 0) {
       this.createBreadcrumbs(config);
     }
   }
-  
+
   /**
    * Erstellt Breadcrumb Navigation
    */
   static createBreadcrumbs(breadcrumbs) {
     const existingBreadcrumb = document.querySelector('.breadcrumb-nav');
     if (existingBreadcrumb) return;
-    
+
     const breadcrumbNav = document.createElement('nav');
     breadcrumbNav.className = 'breadcrumb-nav';
-    
+
     let breadcrumbHTML = '';
     breadcrumbs.forEach((crumb, index) => {
       if (index > 0) {
@@ -179,15 +181,15 @@ class NavigationSystem {
       }
       breadcrumbHTML += `<span class="breadcrumb-item"><a href="${crumb.url}">${crumb.label}</a></span>`;
     });
-    
+
     // Aktuelle Seite hinzufügen
     if (breadcrumbs.length > 0) {
       breadcrumbHTML += '<span class="breadcrumb-separator">›</span>';
     }
     breadcrumbHTML += `<span class="breadcrumb-item breadcrumb-current">${this.getCurrentPageLabel()}</span>`;
-    
+
     breadcrumbNav.innerHTML = breadcrumbHTML;
-    
+
     const mainNav = document.querySelector('.main-navigation');
     const mobileNav = document.querySelector('.mobile-navigation');
     if (mobileNav) {
@@ -196,7 +198,7 @@ class NavigationSystem {
       mainNav.after(breadcrumbNav);
     }
   }
-  
+
   /**
    * Gibt das Label der aktuellen Seite zurück
    */
@@ -209,9 +211,9 @@ class NavigationSystem {
       'guest-details': '👤 Gastdetails',
       'reports': '📈 Statistiken'
     };
-    
+
     let label = labels[this.currentPage] || '📄 Seite';
-    
+
     // Spezielle Labels für dynamische Inhalte
     if (this.currentPage === 'reservation') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -220,10 +222,10 @@ class NavigationSystem {
         label = `📝 Reservation #${resId}`;
       }
     }
-    
+
     return label;
   }
-  
+
   /**
    * Erstellt Page Actions basierend auf aktueller Seite
    */
@@ -232,13 +234,13 @@ class NavigationSystem {
     if (this.currentPage === 'reservation') {
       return;
     }
-    
+
     const pageActionsConfigs = {
       'dashboard': this.createDashboardActions,
       'reservations': this.createReservationsActions,
       'reports': this.createReportsActions
     };
-    
+
     const createActions = pageActionsConfigs[this.currentPage];
     if (createActions) {
       const actions = createActions.call(this);
@@ -247,7 +249,7 @@ class NavigationSystem {
       }
     }
   }
-  
+
   /**
    * Erstellt Dashboard Actions
    */
@@ -268,7 +270,7 @@ class NavigationSystem {
       </div>
     `;
   }
-  
+
   /**
    * Erstellt Reservierungen Actions
    */
@@ -292,7 +294,7 @@ class NavigationSystem {
       </div>
     `;
   }
-  
+
   /**
    * Erstellt Reservation Actions
    */
@@ -319,22 +321,22 @@ class NavigationSystem {
       </div>
     `;
   }
-  
+
   /**
    * Fügt Page Actions ein
    */
   static insertPageActions(actionsHTML) {
     const existingActions = document.querySelector('.page-actions');
     if (existingActions) return;
-    
+
     const breadcrumbNav = document.querySelector('.breadcrumb-nav');
     const mainNav = document.querySelector('.main-navigation');
     const mobileNav = document.querySelector('.mobile-navigation');
-    
+
     const actionsDiv = document.createElement('div');
     actionsDiv.innerHTML = actionsHTML;
     const actions = actionsDiv.firstElementChild;
-    
+
     if (breadcrumbNav) {
       breadcrumbNav.after(actions);
     } else if (mobileNav) {
@@ -343,7 +345,7 @@ class NavigationSystem {
       mainNav.after(actions);
     }
   }
-  
+
   /**
    * Navigation Event Handlers
    */
@@ -367,7 +369,7 @@ class NavigationSystem {
       }
     }
   }
-  
+
   /**
    * Setup Sync Button
    */
@@ -388,7 +390,7 @@ class NavigationSystem {
     if (syncBtn) {
       syncBtn.classList.add('nav-loading');
       syncBtn.innerHTML = '⏳';
-      
+
       // Führe Sync aus wenn verfügbar
       if (window.syncUtils && typeof window.syncUtils.triggerSync === 'function') {
         window.syncUtils.triggerSync().finally(() => {
@@ -405,7 +407,7 @@ class NavigationSystem {
       }
     }
   }
-  
+
   /**
    * Placeholder Handlers für Actions - Integration mit bestehenden Funktionen
    */
@@ -413,7 +415,7 @@ class NavigationSystem {
     // Integration mit bestehender Filter-Logik
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
-    
+
     // Trigger existing filter logic if available
     if (window.filterByType) {
       window.filterByType(type);
@@ -421,7 +423,7 @@ class NavigationSystem {
       console.log('[NAV] Filter reservations by:', type);
     }
   }
-  
+
   static searchReservations(query) {
     // Integration mit bestehender Suche
     if (window.searchReservations) {
@@ -430,7 +432,7 @@ class NavigationSystem {
       console.log('[NAV] Search reservations:', query);
     }
   }
-  
+
   static filterByDate(date) {
     // Integration mit bestehender Datum-Filter
     if (window.filterByDate) {
@@ -439,7 +441,7 @@ class NavigationSystem {
       console.log('[NAV] Filter by date:', date);
     }
   }
-  
+
   static exportData() {
     // Integration mit bestehender Export-Funktion
     if (window.exportToCSV) {
@@ -449,7 +451,7 @@ class NavigationSystem {
       alert('Export-Funktion wird implementiert...');
     }
   }
-  
+
   static bulkCheckin() {
     // Integration mit bestehender Bulk Check-in
     if (typeof bulkCheckinBtn !== 'undefined' && bulkCheckinBtn.click) {
@@ -461,7 +463,7 @@ class NavigationSystem {
       alert('Bulk Check-in: Markiere zuerst Gäste in der Liste');
     }
   }
-  
+
   static bulkCheckout() {
     // Integration mit bestehender Bulk Check-out
     if (typeof bulkCheckoutBtn !== 'undefined' && bulkCheckoutBtn.click) {
@@ -473,7 +475,7 @@ class NavigationSystem {
       alert('Bulk Check-out: Markiere zuerst Gäste in der Liste');
     }
   }
-  
+
   static printSelected() {
     // Integration mit bestehender Print-Funktion
     if (typeof printSelectedBtn !== 'undefined' && printSelectedBtn.click) {
@@ -485,7 +487,7 @@ class NavigationSystem {
       alert('Drucken: Markiere zuerst Einträge zum Drucken');
     }
   }
-  
+
   static addPerson() {
     // Integration mit bestehender "Person hinzufügen" Funktion
     if (typeof addNameBtn !== 'undefined' && addNameBtn.click) {
@@ -502,6 +504,61 @@ class NavigationSystem {
         alert('Person hinzufügen: Funktion wird geladen...');
       }
     }
+  }
+
+  /**
+   * Initialisiert den Connection-Indikator in der Navigation
+   */
+  static initializeConnectionIndicator() {
+    // Mehrere Versuche mit längeren Verzögerungen für verschiedene Lade-Szenarien
+    const attempts = [100, 500, 1000, 2000];
+
+    attempts.forEach((delay, index) => {
+      setTimeout(() => {
+        const indicator = document.getElementById('connection-indicator');
+        if (!indicator) return;
+
+        // Click-Handler hinzufügen (nur einmal)
+        if (!indicator.hasAttribute('data-click-handler')) {
+          indicator.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[NAV] Connection indicator clicked');
+
+            if (window.HttpUtils && window.connectionMonitor) {
+              window.HttpUtils.showDetailedConnectionStatus(window.connectionMonitor);
+            } else if (window.HttpUtils) {
+              // Fallback - versuche Status zu testen
+              window.HttpUtils.showDetailedConnectionStatus({
+                isOnline: () => navigator.onLine,
+                getQuality: () => 'unknown',
+                getLastCheck: () => new Date(),
+                getAverageLatency: () => 0
+              });
+            } else {
+              alert('Verbindungsmonitoring wird geladen...');
+            }
+          });
+          indicator.setAttribute('data-click-handler', 'true');
+          console.log('[NAV] Click handler added to connection indicator');
+        }
+
+        // HttpUtils initialisieren falls verfügbar
+        if (window.HttpUtils) {
+          console.log('[NAV] Initializing connection indicator in navigation (attempt ' + (index + 1) + ')');
+          window.HttpUtils.createPermanentStatusIndicator();
+
+          // Initial status check
+          if (window.connectionMonitor) {
+            window.connectionMonitor.testConnection().then(() => {
+              window.HttpUtils.updatePermanentIndicator(window.connectionMonitor);
+            }).catch(() => {
+              // Silent fail - indicator will show offline state
+            });
+          }
+        }
+      }, delay);
+    });
   }
 }
 

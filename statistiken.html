@@ -283,9 +283,9 @@
         document.getElementById('todayDepartures').textContent = stats.departures_tomorrow || 0;
         document.getElementById('totalGuests').textContent = stats.guests_in_house || 0;
         document.getElementById('totalDogs').textContent = stats.dogs_in_house || 0;
-        document.getElementById('pendingCheckins').textContent = 
+        document.getElementById('pendingCheckins').textContent =
           `${stats.checkins.pending_checkins}/${stats.checkins.total_reservations}`;
-        document.getElementById('pendingCheckouts').textContent = 
+        document.getElementById('pendingCheckouts').textContent =
           `${stats.checkouts.pending_checkouts}/${stats.checkouts.total_reservations}`;
 
       } catch (error) {
@@ -423,7 +423,7 @@
       });
     }
   </script>
-  
+
   <!-- Navigation System -->
   <script src="js/navigation.js"></script>
 </body>

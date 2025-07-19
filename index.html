@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,13 +26,13 @@
             background: white;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s ease;
         }
 
         .dashboard-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .card-header {
@@ -121,7 +122,7 @@
 
 <body>
     <!-- Navigation wird durch JavaScript eingefügt -->
-    
+
     <main class="dashboard-container main-content">
         <div class="welcome-header">
             <h1 class="welcome-title">📊 Dashboard</h1>
@@ -250,7 +251,7 @@
 • Navigation System: ${window.NavigationSystem ? 'Aktiv' : 'Inaktiv'}
 • Loading Overlay: ${window.LoadingOverlay ? 'Aktiv' : 'Inaktiv'}
 • HTTP Utils: ${window.HttpUtils ? 'Aktiv' : 'Inaktiv'}`;
-            
+
             alert(info);
         }
 
@@ -262,7 +263,7 @@
                 document.getElementById('today-departures').textContent = '8';
                 document.getElementById('current-guests').textContent = '34';
                 document.getElementById('last-sync').textContent = new Date().toLocaleTimeString();
-                
+
                 console.log('[DASHBOARD] Data loaded successfully');
             } catch (error) {
                 console.error('[DASHBOARD] Error loading data:', error);
@@ -277,10 +278,11 @@
                     window.updateConnectionStatus();
                 }
             }
-            
+
             // Dashboard Daten laden
             loadDashboardData();
         });
     </script>
 </body>
+
 </html>

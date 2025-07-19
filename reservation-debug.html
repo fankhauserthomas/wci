@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,19 +17,28 @@
             padding: 15px;
             margin: 20px 0;
         }
-        
+
         .debug-section {
             margin: 10px 0;
             padding: 10px;
             background: #f8f9fa;
             border-radius: 4px;
         }
-        
-        .status-ok { color: #28a745; }
-        .status-error { color: #dc3545; }
-        .status-warning { color: #ffc107; }
+
+        .status-ok {
+            color: #28a745;
+        }
+
+        .status-error {
+            color: #dc3545;
+        }
+
+        .status-warning {
+            color: #ffc107;
+        }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="main-navigation">
@@ -110,7 +120,7 @@
             <button onclick="checkResId()" class="btn">🔍 Reservierungs-ID prüfen</button>
             <button onclick="testHttpUtils()" class="btn">📡 HttpUtils testen</button>
         </div>
-        
+
         <div id="apiTestResult" class="debug-section" style="display: none;">
             <h4>API Test Ergebnis:</h4>
             <pre id="apiResponse"></pre>
@@ -127,39 +137,39 @@
     <script src="js/navigation.js"></script>
     <script src="js/http-utils.js"></script>
     <script src="js/loading-overlay.js"></script>
-    
+
     <script>
         let debugLog = [];
-        
+
         function log(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString();
             debugLog.push(`[${timestamp}] ${message}`);
             console.log(`[DEBUG] ${message}`);
             updateDebugStatus();
         }
-        
+
         function updateDebugStatus() {
             const status = document.getElementById('debugStatus');
             if (status) {
-                status.innerHTML = debugLog.slice(-5).map(log => 
+                status.innerHTML = debugLog.slice(-5).map(log =>
                     `<div>${log}</div>`
                 ).join('');
             }
         }
-        
+
         function getResId() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('id') || '8511'; // Fallback
         }
-        
+
         function testNameLoad() {
             log('🔄 Starte Namen-Load Test...');
             const resId = getResId();
             log(`Reservierungs-ID: ${resId}`);
-            
+
             if (typeof fetch !== 'undefined') {
                 log('✅ fetch() verfügbar');
-                
+
                 fetch(`getReservationNames.php?id=${resId}`)
                     .then(response => {
                         log(`📡 Response Status: ${response.status}`);
@@ -176,19 +186,19 @@
                 log('❌ fetch() nicht verfügbar', 'error');
             }
         }
-        
+
         function testDirectAPI() {
             log('🌐 Teste API direkt...');
             const resId = getResId();
             const url = `getReservationNames.php?id=${resId}`;
-            
+
             fetch(url)
                 .then(response => response.text())
                 .then(text => {
                     log(`📡 Raw Response erhalten: ${text.length} Zeichen`);
                     document.getElementById('apiTestResult').style.display = 'block';
                     document.getElementById('apiResponse').textContent = text.substring(0, 500) + '...';
-                    
+
                     try {
                         const json = JSON.parse(text);
                         log(`✅ JSON geparst: ${Object.keys(json).length} Eigenschaften`);
@@ -200,14 +210,14 @@
                     log(`❌ API Fehler: ${error.message}`, 'error');
                 });
         }
-        
+
         function testHttpUtils() {
             log('📡 Teste HttpUtils...');
             if (typeof HttpUtils !== 'undefined') {
                 log('✅ HttpUtils verfügbar');
                 const resId = getResId();
-                
-                HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, 
+
+                HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {},
                     { retries: 1, timeout: 5000 }, 'Namen laden...')
                     .then(data => {
                         log(`✅ HttpUtils erfolgreich: ${JSON.stringify(data).substring(0, 100)}...`);
@@ -220,7 +230,7 @@
                 log('❌ HttpUtils nicht verfügbar', 'error');
             }
         }
-        
+
         function simulateNames() {
             log('🎭 Simuliere Namen...');
             const fakeData = {
@@ -232,16 +242,16 @@
             displayNames(fakeData);
             log('✅ Fake Namen angezeigt');
         }
-        
+
         function displayNames(data) {
             const tbody = document.getElementById('namesTableBody');
             if (!tbody) {
                 log('❌ Tabelle nicht gefunden', 'error');
                 return;
             }
-            
+
             tbody.innerHTML = '';
-            
+
             if (data && data.names && Array.isArray(data.names)) {
                 data.names.forEach(name => {
                     const row = document.createElement('tr');
@@ -265,28 +275,28 @@
                 log('⚠️ Keine Namen in Response', 'warning');
             }
         }
-        
+
         function checkResId() {
             const resId = getResId();
             log(`🔍 Aktuelle Reservierungs-ID: ${resId}`);
-            
+
             if (resId) {
                 log('✅ ID gefunden in URL');
             } else {
                 log('❌ Keine ID in URL gefunden', 'error');
             }
         }
-        
+
         function checkConsole() {
             log('📝 Debug Log:');
             debugLog.forEach(entry => console.log(entry));
             alert('Debug Log in Browser-Konsole ausgegeben (F12)');
         }
-        
+
         // Initialisierung
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             log('🚀 Debug-Seite initialisiert');
-            
+
             // Navigation Setup
             if (typeof NavigationSystem !== 'undefined') {
                 NavigationSystem.setupNavigation();
@@ -294,7 +304,7 @@
             } else {
                 log('⚠️ NavigationSystem nicht gefunden', 'warning');
             }
-            
+
             // Mobile toggle
             const toggle = document.querySelector('.mobile-toggle');
             const nav = document.querySelector('.main-navigation');
@@ -303,10 +313,11 @@
                     nav.classList.toggle('mobile-open');
                 });
             }
-            
+
             checkResId();
             log('✅ Bereit für Tests');
         });
     </script>
 </body>
+
 </html>

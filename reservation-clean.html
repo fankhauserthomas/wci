@@ -13,7 +13,7 @@
 
 <body>
   <!-- Navigation wird durch JavaScript eingefügt -->
-  
+
   <main class="main-content">
     <!-- Reservation Header (grün) -->
     <div id="resHeader" class="res-header">
@@ -139,13 +139,13 @@
       } else {
         console.warn('⚠️ NavigationSystem not found');
       }
-      
+
       // Connection Status
       const indicator = document.getElementById('connection-indicator');
       if (indicator && window.connectionMonitor && window.updateConnectionStatus) {
         window.updateConnectionStatus();
       }
-      
+
       console.log('✅ Reservation page initialized');
     });
   </script>
