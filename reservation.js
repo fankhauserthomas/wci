@@ -901,35 +901,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const noShowCell = e.target.closest('td.noshow-cell');
     if (noShowCell) {
       const id = row.dataset.id;
-      
+
       // Einzelner NoShow Toggle
       fetch('toggleNoShow.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // UI aktualisieren
-          const indicator = noShowCell.querySelector('.noshow-indicator');
-          if (data.newValue === 1) {
-            indicator.textContent = '❌';
-            indicator.className = 'noshow-indicator noshow-yes';
-            indicator.title = 'No-Show markiert';
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // UI aktualisieren
+            const indicator = noShowCell.querySelector('.noshow-indicator');
+            if (data.newValue === 1) {
+              indicator.textContent = '❌';
+              indicator.className = 'noshow-indicator noshow-yes';
+              indicator.title = 'No-Show markiert';
+            } else {
+              indicator.textContent = '✓';
+              indicator.className = 'noshow-indicator noshow-no';
+              indicator.title = 'Klicken für No-Show';
+            }
           } else {
-            indicator.textContent = '✓';
-            indicator.className = 'noshow-indicator noshow-no';
-            indicator.title = 'Klicken für No-Show';
+            alert('Fehler beim NoShow Toggle: ' + (data.error || 'Unbekannter Fehler'));
           }
-        } else {
-          alert('Fehler beim NoShow Toggle: ' + (data.error || 'Unbekannter Fehler'));
-        }
-      })
-      .catch(error => {
-        console.error('NoShow update error:', error);
-        alert('Fehler beim Aktualisieren des NoShow Status.');
-      });
+        })
+        .catch(error => {
+          console.error('NoShow update error:', error);
+          alert('Fehler beim Aktualisieren des NoShow Status.');
+        });
       return;
     }
 
