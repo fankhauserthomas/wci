@@ -30,6 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmModalYes = document.getElementById('confirmModalYes');
   const confirmModalNo = document.getElementById('confirmModalNo');
 
+  // Name correction modal elements
+  const nameCorrectionModal = document.getElementById('nameCorrectionModal');
+  const nameCorrectionModalClose = document.getElementById('nameCorrectionModalClose');
+  const nameCorrectionOptions = document.getElementById('nameCorrectionOptions');
+  const nameCorrectionApply = document.getElementById('nameCorrectionApply');
+  const nameCorrectionSkip = document.getElementById('nameCorrectionSkip');
+  const customVorname = document.getElementById('customVorname');
+  const customNachname = document.getElementById('customNachname');
+
   if (!resId) {
     alert('Keine Reservierungs-ID in der URL.');
     history.back();
@@ -90,6 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Store reservation data globally
       currentReservationData = data;
+
+      // Check for name correction needs
+      setTimeout(() => {
+        checkNameCorrection(detail);
+      }, 500);
 
       // je nach Rückgabe-Format entweder data.names[0] oder direkt data
       // neu: wenn data.detail existiert, nimm das, sonst fall auf altes Verhalten zurück
@@ -197,6 +211,243 @@ document.addEventListener('DOMContentLoaded', () => {
       history.back();
     }
   };
+
+  // Name correction functions
+  function checkNameCorrection(detail) {
+    const vorname = (detail.vorname || '').trim();
+    const nachname = (detail.nachname || '').trim();
+
+    // Only show dialog if at least one field is empty
+    // If both fields have values, don't show the dialog
+    if (vorname && nachname) {
+      return; // Both fields have values - no correction needed
+    }
+
+    // Check if one field is empty and the other contains multiple words
+    const needsCorrection = (
+      (!vorname && nachname && nachname.includes(' ')) ||
+      (!nachname && vorname && vorname.includes(' '))
+    );
+
+    if (needsCorrection) {
+      showNameCorrectionDialog(detail, vorname, nachname);
+    }
+  }
+
+  function showNameCorrectionDialog(detail, currentVorname, currentNachname) {
+    // Determine the field with multiple names
+    let fullNameText = '';
+    if (!currentVorname && currentNachname && currentNachname.includes(' ')) {
+      fullNameText = currentNachname;
+    } else if (!currentNachname && currentVorname && currentVorname.includes(' ')) {
+      fullNameText = currentVorname;
+    } else {
+      fullNameText = (currentVorname + ' ' + currentNachname).trim();
+    }
+
+    // Generate suggestions
+    const suggestions = generateNameSuggestions(fullNameText);
+
+    // Populate options
+    let optionsHtml = '';
+    suggestions.forEach((suggestion, index) => {
+      optionsHtml += `
+        <label style="display: block; margin: 8px 0; cursor: pointer;">
+          <input type="radio" name="nameSuggestion" value="${index}" ${index === 0 ? 'checked' : ''} style="margin-right: 8px;">
+          <strong>VN:</strong> ${suggestion.vorname} <strong>NN:</strong> ${suggestion.nachname}
+        </label>
+      `;
+    });
+
+    nameCorrectionOptions.innerHTML = optionsHtml;
+
+    // Set custom fields with current values
+    customVorname.value = currentVorname;
+    customNachname.value = currentNachname;
+
+    // Show modal
+    nameCorrectionModal.classList.remove('hidden');
+
+    // Handle apply button
+    const handleApply = async () => {
+      try {
+        let selectedVorname = '', selectedNachname = '';
+
+        console.log('Dialog values before processing:', {
+          customVorname: customVorname.value,
+          customNachname: customNachname.value,
+          currentVorname,
+          currentNachname
+        });
+
+        // Check if custom fields have been changed from their initial values
+        const customFieldsChanged = (
+          customVorname.value.trim() !== currentVorname ||
+          customNachname.value.trim() !== currentNachname
+        );
+
+        if (customFieldsChanged) {
+          selectedVorname = customVorname.value.trim();
+          selectedNachname = customNachname.value.trim();
+          console.log('Using custom input values (changed):', { selectedVorname, selectedNachname });
+        } else {
+          // Use selected suggestion
+          const selectedRadio = document.querySelector('input[name="nameSuggestion"]:checked');
+          if (selectedRadio) {
+            const suggestion = suggestions[parseInt(selectedRadio.value)];
+            selectedVorname = suggestion.vorname;
+            selectedNachname = suggestion.nachname;
+            console.log('Using suggestion:', suggestion);
+          }
+        }
+
+        console.log('Final comparison:', {
+          selectedVorname,
+          selectedNachname,
+          currentVorname,
+          currentNachname,
+          voornameChanged: selectedVorname !== currentVorname,
+          nachnameChanged: selectedNachname !== currentNachname
+        });
+
+        // Update the reservation
+        if (selectedVorname !== currentVorname || selectedNachname !== currentNachname) {
+          console.log('Updating names:', {
+            id: detail.id,
+            vorname: selectedVorname,
+            nachname: selectedNachname
+          });
+
+          await updateReservationNames(detail.id, selectedVorname, selectedNachname);
+
+          // Reload the reservation data to reflect changes
+          setTimeout(() => {
+            loadReservationData();
+          }, 500);
+        } else {
+          console.log('No name changes detected');
+        }
+
+        nameCorrectionModal.classList.add('hidden');
+      } catch (error) {
+        console.error('Error applying name correction:', error);
+        alert('Fehler beim Aktualisieren der Namen: ' + error.message);
+      }
+    };
+
+    // Handle skip button
+    const handleSkip = () => {
+      nameCorrectionModal.classList.add('hidden');
+    };
+
+    // Handle close button
+    const handleClose = () => {
+      nameCorrectionModal.classList.add('hidden');
+    };
+
+    // Clear any existing event listeners and add new ones
+    const applyBtn = document.getElementById('nameCorrectionApply');
+    const skipBtn = document.getElementById('nameCorrectionSkip');
+    const closeBtn = document.getElementById('nameCorrectionModalClose');
+
+    // Remove old listeners by cloning the buttons
+    applyBtn.onclick = null;
+    skipBtn.onclick = null;
+    closeBtn.onclick = null;
+
+    // Add new event listeners directly
+    applyBtn.onclick = handleApply;
+    skipBtn.onclick = handleSkip;
+    closeBtn.onclick = handleClose;
+  }
+
+  function generateNameSuggestions(fullNameText) {
+    const words = fullNameText.split(/\s+/).filter(word => word.length > 0);
+    const suggestions = [];
+
+    if (words.length >= 2) {
+      // Suggestion 1: First word as Vorname, rest as Nachname
+      const option1 = {
+        vorname: words[0],
+        nachname: words.slice(1).join(' ')
+      };
+      suggestions.push(option1);
+
+      // Suggestion 2: Last word as Nachname, rest as Vorname (only if different from option 1)
+      const option2 = {
+        vorname: words.slice(0, -1).join(' '),
+        nachname: words[words.length - 1]
+      };
+
+      // Only add if different from first option
+      if (option2.vorname !== option1.vorname || option2.nachname !== option1.nachname) {
+        suggestions.push(option2);
+      }
+
+      // If exactly 2 words, add reverse option (only if different)
+      if (words.length === 2) {
+        const option3 = {
+          vorname: words[1],
+          nachname: words[0]
+        };
+
+        // Only add if different from existing options
+        const isDuplicate = suggestions.some(s =>
+          s.vorname === option3.vorname && s.nachname === option3.nachname
+        );
+
+        if (!isDuplicate) {
+          suggestions.push(option3);
+        }
+      }
+    } else if (words.length === 1) {
+      // Single word - suggest as either Vorname or Nachname
+      suggestions.push({
+        vorname: words[0],
+        nachname: ''
+      });
+      suggestions.push({
+        vorname: '',
+        nachname: words[0]
+      });
+    }
+
+    return suggestions;
+  }
+
+  async function updateReservationNames(reservationId, vorname, nachname) {
+    try {
+      console.log('Sending update request:', { id: reservationId, vorname, nachname });
+
+      const response = await fetch('updateReservationNames.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: reservationId,
+          vorname: vorname,
+          nachname: nachname
+        })
+      });
+
+      console.log('Response status:', response.status);
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!data.success) {
+        throw new Error(data.error || 'Unbekannter Fehler');
+      }
+
+      console.log('Namen erfolgreich aktualisiert:', data);
+      return data;
+
+    } catch (error) {
+      console.error('Error updating reservation names:', error);
+      throw error;
+    }
+  }
 
   // Lade Reservierungsdaten
   loadReservationData();
@@ -1113,6 +1364,36 @@ document.addEventListener('DOMContentLoaded', () => {
     printers.forEach(p => {
       const btn = document.createElement('button');
       btn.textContent = p.bez;
+
+      // Erweiterte Styles für bessere Touch-Bedienung
+      btn.style.cssText = `
+        width: 100%;
+        height: 60px;
+        margin: 8px 0;
+        padding: 15px 20px;
+        font-size: 16px;
+        font-weight: 500;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.2;
+      `;
+
+      // Hover-Effekt hinzufügen
+      btn.addEventListener('mouseenter', () => {
+        btn.style.backgroundColor = '#218838';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.backgroundColor = '#28a745';
+      });
+
       btn.addEventListener('click', () => {
         document.body.removeChild(backdrop);
         const q = ids.map(i => `id[]=${i}`).join('&');

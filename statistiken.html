@@ -219,6 +219,102 @@
       color: var(--primary);
     }
 
+    /* Duplicate Reservations Styles */
+    .duplicate-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      background: white;
+      border-radius: 6px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      max-height: 400px;
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    .duplicate-table th,
+    .duplicate-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+    }
+
+    .duplicate-table th {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .duplicate-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .duplicate-pair {
+      border-left: 4px solid #dc3545;
+      background: #fff5f5;
+    }
+
+    .duplicate-pair.high-confidence {
+      border-left-color: #dc3545;
+      background: #fff5f5;
+    }
+
+    .duplicate-pair.medium-confidence {
+      border-left-color: #fd7e14;
+      background: #fff8f0;
+    }
+
+    .duplicate-pair.low-confidence {
+      border-left-color: #ffc107;
+      background: #fffbf0;
+    }
+
+    .confidence-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: white;
+    }
+
+    .confidence-high {
+      background: #dc3545;
+    }
+
+    .confidence-medium {
+      background: #fd7e14;
+    }
+
+    .confidence-low {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .similarity-details {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .duplicate-summary {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border-left: 4px solid #ffc107;
+    }
+
+    .duplicate-summary strong {
+      color: #856404;
+    }
+
     @media (max-width: 768px) {
       .stats-container {
         padding: 15px;
@@ -334,6 +430,40 @@
       </div>
     </div>
 
+    <!-- Doppelreservierungen -->
+    <div class="detailed-stats" style="margin-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>Potentielle Doppelreservierungen</h3>
+        <button class="refresh-button" onclick="toggleDuplicateSettings()">⚙️ Einstellungen</button>
+      </div>
+
+      <!-- Einstellungen Panel -->
+      <div id="duplicate-settings"
+        style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div>
+            <label for="duplicate-days-setting">Tage voraus:</label>
+            <input type="number" id="duplicate-days-setting" min="1" max="365" value="90"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div>
+            <label for="similarity-threshold-setting">Ähnlichkeits-Schwelle (%):</label>
+            <input type="number" id="similarity-threshold-setting" min="50" max="100" value="75"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+          <button class="refresh-button" onclick="loadDuplicateReservations()">Aktualisieren</button>
+          <button class="refresh-button" onclick="saveDuplicateSettings()"
+            style="background: #28a745;">Speichern</button>
+        </div>
+      </div>
+
+      <div id="duplicate-reservations">
+        <p>Lade Doppelreservierungen...</p>
+      </div>
+    </div>
+
     <!-- Detailed Statistics -->
     <div class="stats-grid">
       <!-- Wochenübersicht statt tägliche Listen -->
@@ -365,6 +495,10 @@
       // Load initial incomplete reservations
       loadIncompleteSettings();
       await loadIncompleteReservations();
+
+      // Load initial duplicate reservations
+      loadDuplicateSettings();
+      await loadDuplicateReservations();
 
       // Set up connection monitoring
       setupConnectionMonitoring();
@@ -691,6 +825,179 @@
     function getCookie(name) {
       const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
       return match ? match[2] : null;
+    }
+
+    // Duplicate Reservations Functions
+    function loadDuplicateSettings() {
+      // Load settings from cookies
+      const days = getCookie('duplicate_days') || '90';
+      const threshold = getCookie('duplicate_threshold') || '75';
+
+      document.getElementById('duplicate-days-setting').value = days;
+      document.getElementById('similarity-threshold-setting').value = threshold;
+    }
+
+    function saveDuplicateSettings() {
+      const days = document.getElementById('duplicate-days-setting').value;
+      const threshold = document.getElementById('similarity-threshold-setting').value;
+
+      // Save to cookies (1 year validity)
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+
+      setCookie('duplicate_days', days, expires);
+      setCookie('duplicate_threshold', threshold, expires);
+
+      // Reload data
+      loadDuplicateReservations();
+
+      // Success message
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = '✓ Gespeichert';
+      btn.style.background = '#28a745';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = '';
+      }, 2000);
+    }
+
+    function toggleDuplicateSettings() {
+      const panel = document.getElementById('duplicate-settings');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function loadDuplicateReservations() {
+      const container = document.getElementById('duplicate-reservations');
+      container.innerHTML = '<p>Lade potentielle Doppelreservierungen...</p>';
+
+      try {
+        const days = document.getElementById('duplicate-days-setting').value;
+        const threshold = parseFloat(document.getElementById('similarity-threshold-setting').value) / 100;
+
+        const response = await fetch(`getDuplicateReservations.php?days=${days}&min_similarity=${threshold}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Unbekannter Fehler');
+        }
+
+        renderDuplicateReservations(data);
+
+      } catch (error) {
+        console.error('Error loading duplicate reservations:', error);
+        container.innerHTML = `<p style="color: red;">Fehler beim Laden: ${error.message}</p>`;
+      }
+    }
+
+    function renderDuplicateReservations(data) {
+      const container = document.getElementById('duplicate-reservations');
+      const duplicates = data.data;
+      const params = data.parameters;
+
+      let html = `
+        <div class="duplicate-summary">
+          <strong>${duplicates.length}</strong> potentielle Doppelreservierungen gefunden<br>
+          <small>Filter: ${params.days_ahead} Tage voraus, min. ${Math.round(params.min_similarity * 100)}% Ähnlichkeit (${params.total_reservations} Reservierungen geprüft, ${params.comparisons_made} Vergleiche)</small>
+          ${params.limited_results ? '<br><small style="color: #856404;">⚠️ Ergebnisse begrenzt auf ' + duplicates.length + ' Einträge zur Performance-Optimierung</small>' : ''}
+        </div>
+      `;
+
+      if (duplicates.length === 0) {
+        html += '<p>🎉 Keine verdächtigen Doppelreservierungen gefunden!</p>';
+        container.innerHTML = html;
+        return;
+      }
+
+      html += `
+        <table class="duplicate-table">
+          <thead>
+            <tr>
+              <th>Konfidenz</th>
+              <th>Name 1</th>
+              <th>Zeitraum 1</th>
+              <th>E-Mail 1</th>
+              <th>Gäste 1</th>
+              <th>Name 2</th>
+              <th>Zeitraum 2</th>
+              <th>E-Mail 2</th>
+              <th>Gäste 2</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      duplicates.forEach(dup => {
+        const confidence = dup.confidence;
+        const confidenceClass = confidence >= 90 ? 'high' : confidence >= 75 ? 'medium' : 'low';
+        const badgeClass = confidence >= 90 ? 'confidence-high' : confidence >= 75 ? 'confidence-medium' : 'confidence-low';
+
+        const res1 = dup.res1;
+        const res2 = dup.res2;
+
+        // Format names
+        const name1 = [res1.nachname, res1.vorname].filter(n => n).join(', ');
+        const name2 = [res2.nachname, res2.vorname].filter(n => n).join(', ');
+
+        // Format dates
+        const period1 = `${formatDateShort(res1.anreise)} - ${formatDateShort(res1.abreise)}`;
+        const period2 = `${formatDateShort(res2.anreise)} - ${formatDateShort(res2.abreise)}`;
+
+        // Similarity details
+        const details = dup.similarity.details;
+        let detailsHtml = '<div class="similarity-details">';
+        if (details.name) detailsHtml += `Name: ${Math.round(details.name * 100)}% `;
+        if (details.email) detailsHtml += `E-Mail: ${Math.round(details.email * 100)}% `;
+        if (details.dates) detailsHtml += `Datum: ${Math.round(details.dates * 100)}% `;
+        if (details.guests) detailsHtml += `Gäste: ${Math.round(details.guests * 100)}%`;
+        detailsHtml += '</div>';
+
+        html += `
+          <tr class="duplicate-pair ${confidenceClass}-confidence" onclick="compareDuplicates(${res1.id}, ${res2.id})">
+            <td>
+              <span class="confidence-badge ${badgeClass}">${confidence}%</span>
+            </td>
+            <td><strong>${name1 || '(kein Name)'}</strong></td>
+            <td>${period1}</td>
+            <td>${res1.email || '(keine E-Mail)'}</td>
+            <td>${res1.anzahl_personen}</td>
+            <td><strong>${name2 || '(kein Name)'}</strong></td>
+            <td>${period2}</td>
+            <td>${res2.email || '(keine E-Mail)'}</td>
+            <td>${res2.anzahl_personen}</td>
+            <td>${detailsHtml}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+
+      // Add legend
+      html += `
+        <div style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+          <strong>Legende:</strong>
+          <span class="confidence-badge confidence-high">90%+</span> Sehr verdächtig
+          <span class="confidence-badge confidence-medium">75-89%</span> Verdächtig
+          <span class="confidence-badge confidence-low">60-74%</span> Möglich
+          <br><small>Klicken Sie auf eine Zeile, um die Reservierungen zu vergleichen.</small>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function compareDuplicates(id1, id2) {
+      // Open both reservations in new tabs for comparison
+      window.open(`reservation.html?id=${id1}`, '_blank');
+      setTimeout(() => {
+        window.open(`reservation.html?id=${id2}`, '_blank');
+      }, 500);
     }
   </script>
 
