@@ -116,6 +116,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Name Correction Modal -->
+    <div id="nameCorrectionModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <span class="modal-close" id="nameCorrectionModalClose">&times;</span>
+        <h3>Namen-Korrektur vorgeschlagen</h3>
+        <p>Es wurde erkannt, dass in einem Namensfeld mehrere Namen stehen. Möchten Sie diese aufteilen?</p>
+
+        <div id="nameCorrectionOptions" style="margin: 20px 0;">
+          <!-- Options will be populated by JavaScript -->
+        </div>
+
+        <div style="margin: 15px 0;">
+          <label for="customNameSplit" style="display: block; margin-bottom: 5px; font-weight: 600;">Eigene
+            Aufteilung:</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div>
+              <label for="customVorname" style="font-size: 0.9rem;">VN:</label>
+              <input type="text" id="customVorname" placeholder="Vorname"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 120px;">
+            </div>
+            <div>
+              <label for="customNachname" style="font-size: 0.9rem;">NN:</label>
+              <input type="text" id="customNachname" placeholder="Nachname"
+                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 120px;">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="nameCorrectionApply" class="btn-confirm">Anwenden</button>
+          <button id="nameCorrectionSkip" class="btn-cancel">Überspringen</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Connection Status -->
