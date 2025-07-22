@@ -262,7 +262,7 @@ class TimelineUnifiedRenderer {
             this.render();
 
             hoverTimeout = setTimeout(() => {
-                // Cleanup wenn nötig
+                hoverTimeout = null;
             }, 50);
         });
 
@@ -831,7 +831,6 @@ class TimelineUnifiedRenderer {
                 this.ctx.textAlign = 'center';
 
                 const caption = room.caption || `R${room.id}`;
-                console.log(`🏠 Rendering room caption: "${caption}" at Y=${roomDisplayY} (in rooms area: ${this.areas.rooms.y}-${this.areas.rooms.y + this.areas.rooms.height})`);
                 this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
             }
 
@@ -1157,13 +1156,9 @@ class TimelineUnifiedRenderer {
 
     // Public API
     updateData(newReservations, newRoomDetails, newRooms) {
-        console.log('TimelineUnifiedRenderer: Updating data with real API data');
-
         reservations = newReservations || [];
         roomDetails = newRoomDetails || [];
         rooms = newRooms || [];
-
-        console.log(`Updated data: ${reservations.length} reservations, ${roomDetails.length} room details, ${rooms.length} rooms`);
 
         // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years
         const now = new Date();
