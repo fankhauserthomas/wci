@@ -29,7 +29,7 @@ class TimelineUnifiedRenderer {
         this.separatorY = this.loadFromCookie('separatorTop', 240);
         this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 790);
 
-        // Layout-Bereiche (dynamisch)
+        // Layout-Bereiche (dynamisch) - Header wieder hinzugefügt
         this.areas = {
             header: { height: 40, y: 0 },
             master: { height: 200, y: 40 },
@@ -70,8 +70,8 @@ class TimelineUnifiedRenderer {
                 height: 100%;
                 position: relative;
                 overflow: hidden;
-                border: 1px solid #ddd;
-                background: #f8f9fa;
+                border: 1px solid #444;
+                background: #2c2c2c;
                 display: flex;
                 flex-direction: column;
             ">
@@ -92,6 +92,8 @@ class TimelineUnifiedRenderer {
                             position: absolute;
                             top: 0;
                             left: 0;
+                            right: 0;
+                            bottom: 20px;
                             cursor: default;
                             z-index: 1;
                         "></canvas>
@@ -155,8 +157,8 @@ class TimelineUnifiedRenderer {
         const canvasContainer = this.container.querySelector('.canvas-container');
         const rect = canvasContainer.getBoundingClientRect();
 
-        // Dynamische Canvas-Höhe basierend auf verfügbarem Platz
-        const availableHeight = rect.height;
+        // Canvas-Höhe: vom oberen Rand bis 20px über dem unteren Rand
+        const availableHeight = rect.height - 20;
         this.canvas.width = rect.width;
         this.canvas.height = availableHeight;
         this.canvas.style.width = rect.width + 'px';
@@ -168,7 +170,7 @@ class TimelineUnifiedRenderer {
 
         // Layout-Bereiche aktualisieren
         this.updateLayoutAreas();
-        
+
         // Scrollbars positionieren
         this.positionScrollbars();
     }
@@ -176,13 +178,13 @@ class TimelineUnifiedRenderer {
     positionScrollbars() {
         const masterScrollbar = this.container.querySelector('.scroll-track-master');
         const roomsScrollbar = this.container.querySelector('.scroll-track-rooms');
-        
+
         if (masterScrollbar) {
             // Master-Scrollbar zwischen Header-Unterkante und Separator 1
             masterScrollbar.style.top = this.areas.header.height + 'px';
             masterScrollbar.style.height = (this.separatorY - this.areas.header.height) + 'px';
         }
-        
+
         if (roomsScrollbar) {
             // Rooms-Scrollbar zwischen Separator 1 und Separator 2
             roomsScrollbar.style.top = this.separatorY + 'px';
@@ -232,7 +234,7 @@ class TimelineUnifiedRenderer {
             } else {
                 // Bereichsspezifisches vertikales Scrollen basierend auf Mausposition
                 if (mouseY >= this.areas.master.y && mouseY < this.separatorY && masterTrack) {
-                    // Master-Bereich
+                    // Master-Bereich (nach Header)
                     const newScrollY = Math.max(0, this.masterScrollY + e.deltaY);
                     masterTrack.scrollTop = newScrollY;
                 } else if (mouseY >= this.separatorY && mouseY < this.bottomSeparatorY && roomsTrack) {
@@ -286,13 +288,14 @@ class TimelineUnifiedRenderer {
             Math.min(this.bottomSeparatorY, maxBottomSeparatorY));
         this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + 100);
 
-        // Layout-Bereiche aktualisieren
+        // Layout-Bereiche aktualisieren (Header wieder hinzugefügt)
         this.areas.master.height = this.separatorY - 40;
+        this.areas.master.y = 40;
         this.areas.rooms.y = this.separatorY;
         this.areas.rooms.height = this.bottomSeparatorY - this.separatorY;
         this.areas.histogram.y = this.bottomSeparatorY;
         this.areas.histogram.height = (this.canvas.height - this.bottomSeparatorY - 20) * 0.95; // 95% Ausnutzung
-        
+
         // Scrollbars nach Layout-Änderung neu positionieren
         this.positionScrollbars();
     }
@@ -392,8 +395,11 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        const startDate = new Date(Math.min(...reservations.map(r => r.start.getTime())));
-        const endDate = new Date(Math.max(...reservations.map(r => r.end.getTime())));
+        // Neue Datums-Logik: now - 2 weeks bis now + 2 years
+        const now = new Date();
+        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
+        const endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000)); // now + 2 years
+
         const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
         const timelineWidth = totalDays * DAY_WIDTH;
 
@@ -420,7 +426,7 @@ class TimelineUnifiedRenderer {
             scrollContentRooms.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
         }
 
-        // Render alle Bereiche
+        // Render alle Bereiche (Header wieder hinzugefügt)
         this.renderSidebar();
         this.renderHeader(startDate, endDate);
         this.renderMasterArea(startDate, endDate);
@@ -432,7 +438,7 @@ class TimelineUnifiedRenderer {
 
     calculateMasterMaxStackLevel(startDate, endDate) {
         if (reservations.length === 0) return 0;
-        
+
         const stackLevels = [];
         const OVERLAP_TOLERANCE = DAY_WIDTH * 0.25;
         let maxStackLevel = 0;
@@ -544,7 +550,7 @@ class TimelineUnifiedRenderer {
         this.ctx.lineTo(this.sidebarWidth, this.canvas.height);
         this.ctx.stroke();
 
-        // Labels
+        // Labels (Header wieder hinzugefügt)
         this.ctx.fillStyle = '#333';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
@@ -613,7 +619,7 @@ class TimelineUnifiedRenderer {
         const startX = this.sidebarWidth - this.scrollX;
 
         // Area-Hintergrund
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = '#2c2c2c';
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -676,7 +682,7 @@ class TimelineUnifiedRenderer {
         const startY = area.y - this.roomsScrollY;
 
         // Area-Hintergrund
-        this.ctx.fillStyle = '#fff';
+        this.ctx.fillStyle = '#2c2c2c';
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -773,7 +779,7 @@ class TimelineUnifiedRenderer {
                 room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund
                 this.ctx.save();
                 this.ctx.resetTransform();
-                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#fafafa' : '#fff';
+                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#1a1a1a' : '#2c2c2c';
                 this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
                 this.ctx.restore();
 
@@ -1159,11 +1165,10 @@ class TimelineUnifiedRenderer {
 
         console.log(`Updated data: ${reservations.length} reservations, ${roomDetails.length} room details, ${rooms.length} rooms`);
 
-        if (reservations.length > 0) {
-            const allDates = [...reservations.map(r => r.start), ...reservations.map(r => r.end)];
-            this.startDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-            this.endDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-        }
+        // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years
+        const now = new Date();
+        this.startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        this.endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000));
 
         this.render();
     }
