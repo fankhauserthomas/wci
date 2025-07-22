@@ -15,7 +15,10 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f5f5;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .header {
@@ -61,11 +64,12 @@
         }
 
         .main-areas-container {
+            width: 100%;
+            height: 100vh;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 0;
+            box-shadow: none;
             overflow: hidden;
-            height: 740px;
         }
 
         .status-info {
@@ -118,31 +122,6 @@
 </head>
 
 <body>
-    <div class="header">
-        <h1>Timeline Unified Renderer</h1>
-        <p>Radikaler Umbau: Alles auf einer Canvas-Fläche für maximale Performance</p>
-
-        <div class="controls">
-            <label>Von: <input type="date" id="startDate"></label>
-            <label>Bis: <input type="date" id="endDate"></label>
-            <button onclick="loadRealData()">Daten laden</button>
-            <button onclick="generateDemoData()">Demo-Daten</button>
-            <button onclick="toggleDisposedReservations()" id="toggle-disposed-btn">Disponierte ausblenden</button>
-
-            <label>Zoom:
-                <select id="zoom-select" onchange="changeZoom()">
-                    <option value="40">50%</option>
-                    <option value="60">75%</option>
-                    <option value="80" selected>100%</option>
-                    <option value="100">125%</option>
-                    <option value="120">150%</option>
-                </select>
-            </label>
-        </div>
-
-        <div class="status-info" id="status-info">Bereit zum Laden von Daten</div>
-    </div>
-
     <div class="main-areas-container"></div>
 
     <div class="performance-info" id="performance-info">

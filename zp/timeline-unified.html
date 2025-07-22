@@ -14,66 +14,17 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .controls input[type="date"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .controls button {
-            padding: 10px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-
-        .controls button:hover {
-            background: #0056b3;
-        }
-
-        .controls button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
+            background: #2c2c2c;
+            padding: 0;
         }
 
         .main-areas-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background: #2c2c2c;
+            border-radius: 0;
+            box-shadow: none;
             overflow: hidden;
-            height: 740px;
-        }
-
-        .status-info {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            font-size: 14px;
+            height: 100vh;
+            width: 100vw;
         }
 
         .timeline-unified-container {
@@ -88,25 +39,25 @@
 
         .scroll-horizontal::-webkit-scrollbar-track,
         .scroll-vertical::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #1a1a1a;
         }
 
         .scroll-horizontal::-webkit-scrollbar-thumb,
         .scroll-vertical::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
+            background: #555555;
             border-radius: 6px;
         }
 
         .scroll-horizontal::-webkit-scrollbar-thumb:hover,
         .scroll-vertical::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+            background: #777777;
         }
 
         .performance-info {
             position: fixed;
             top: 10px;
             right: 10px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 10px;
             border-radius: 4px;
@@ -118,31 +69,6 @@
 </head>
 
 <body>
-    <div class="header">
-        <h1>Timeline Unified Renderer</h1>
-        <p>Radikaler Umbau: Alles auf einer Canvas-Fläche für maximale Performance</p>
-
-        <div class="controls">
-            <label>Von: <input type="date" id="startDate"></label>
-            <label>Bis: <input type="date" id="endDate"></label>
-            <button onclick="loadRealData()">Daten laden</button>
-            <button onclick="generateDemoData()">Demo-Daten</button>
-            <button onclick="toggleDisposedReservations()" id="toggle-disposed-btn">Disponierte ausblenden</button>
-
-            <label>Zoom:
-                <select id="zoom-select" onchange="changeZoom()">
-                    <option value="40">50%</option>
-                    <option value="60">75%</option>
-                    <option value="80" selected>100%</option>
-                    <option value="100">125%</option>
-                    <option value="120">150%</option>
-                </select>
-            </label>
-        </div>
-
-        <div class="status-info" id="status-info">Bereit zum Laden von Daten</div>
-    </div>
-
     <div class="main-areas-container"></div>
 
     <div class="performance-info" id="performance-info">
@@ -169,20 +95,19 @@
         // Echte Daten laden (API-Integration)
         async function loadRealData() {
             try {
-                const startDate = document.getElementById('startDate').value;
-                const endDate = document.getElementById('endDate').value;
+                // Automatischer Datums-Bereich: now - 2 weeks bis now + 2 years
+                const now = new Date();
+                now.setHours(0, 0, 0, 0); // now = 2024-07-22 00:00:00
+                const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+                const endDate = new Date(now.getTime() + (1 * 365 * 24 * 60 * 60 * 1000));
 
-                if (!startDate || !endDate) {
-                    alert('Bitte Start- und End-Datum auswählen');
-                    return;
-                }
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
 
-                console.log('Loading REAL data from API...');
-                document.getElementById('status-info').innerHTML =
-                    '<span style="color: #007bff;">🔄 Lade echte Daten von API...</span>';
+                console.log(`Loading REAL data from API: ${startDateStr} to ${endDateStr}`);
 
                 // API-Aufruf für echte Daten
-                const response = await fetch(`getZimmerplanData.php?start=${startDate}&end=${endDate}`);
+                const response = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
                 const result = await response.json();
 
                 if (!response.ok) {
@@ -250,25 +175,18 @@
 
                 console.log(`Loaded REAL data: ${reservations.length} reservations, ${roomDetails.length} room details, ${rooms.length} rooms`);
 
-                // Debug-Info
-                const disposedCount = reservations.filter(r => r.data && r.data.is_disposed).length;
-                const undisposedCount = reservations.filter(r => r.data && !r.data.is_disposed).length;
-                console.log(`Disposition: ${disposedCount} disposed, ${undisposedCount} undisposed`);
-
                 // Rendere Timeline mit echten Daten
                 renderTimeline();
 
-                document.getElementById('status-info').innerHTML =
-                    `<span style="color: #28a745;">✅ Echte Daten geladen: ${reservations.length} Reservierungen, ${rooms.length} Zimmer</span>`;
+                console.log(`✅ Echte Daten geladen: ${reservations.length} Reservierungen, ${rooms.length} Zimmer`);
 
             } catch (error) {
                 console.error('Fehler beim Laden der echten Daten:', error);
-                document.getElementById('status-info').innerHTML =
-                    `<span style="color: #dc3545;">❌ API-Fehler: ${error.message}</span>`;
-
-                // Fallback zu Demo-Daten bei API-Fehler
-                console.warn('Falling back to demo data due to API error');
-                generateDemoData();
+                // Bei Fehler: leere Timeline anzeigen
+                reservations = [];
+                roomDetails = [];
+                rooms = [];
+                renderTimeline();
             }
         }
 
@@ -297,116 +215,11 @@
             return new Date(dateString);
         }
 
-        // Demo-Daten Generator
-        function generateDemoData() {
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 7);
-
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + 30);
-
-            // Demo Zimmer
-            rooms = [
-                { id: 1, caption: 'Zimmer 1', capacity: 2, display_name: 'Zimmer 1 (2P)' },
-                { id: 2, caption: 'Zimmer 2', capacity: 4, display_name: 'Zimmer 2 (4P)' },
-                { id: 3, caption: 'Zimmer 3', capacity: 6, display_name: 'Zimmer 3 (6P)' },
-                { id: 4, caption: 'Zimmer 4', capacity: 3, display_name: 'Zimmer 4 (3P)' },
-                { id: 5, caption: 'Zimmer 5', capacity: 2, display_name: 'Zimmer 5 (2P)' },
-            ];
-
-            // Demo Reservierungen
-            reservations = [];
-            roomDetails = [];
-
-            for (let i = 0; i < 50; i++) {
-                const start = new Date(startDate);
-                start.setDate(start.getDate() + Math.floor(Math.random() * 30));
-
-                const end = new Date(start);
-                end.setDate(end.getDate() + Math.floor(Math.random() * 7) + 1);
-
-                const capacity = Math.floor(Math.random() * 8) + 1;
-                const names = ['Müller', 'Schmidt', 'Weber', 'Wagner', 'Becker', 'Schulz', 'Hoffmann'];
-                const firstNames = ['Hans', 'Anna', 'Peter', 'Maria', 'Klaus', 'Petra', 'Wolfgang'];
-
-                const nachname = names[Math.floor(Math.random() * names.length)];
-                const vorname = firstNames[Math.floor(Math.random() * firstNames.length)];
-
-                const reservation = {
-                    id: i,
-                    name: `${nachname}, ${vorname}`,
-                    nachname: nachname,
-                    vorname: vorname,
-                    capacity: capacity,
-                    arrangement: ['HP', 'VP', 'ÜF', 'Selbstversorger'][Math.floor(Math.random() * 4)],
-                    start: start,
-                    end: end,
-                    data: {
-                        is_disposed: Math.random() > 0.8
-                    }
-                };
-
-                reservations.push(reservation);
-
-                // Zimmer-Details (50% der Reservierungen haben Zimmer zugewiesen)
-                if (Math.random() > 0.5) {
-                    const room = rooms[Math.floor(Math.random() * rooms.length)];
-                    roomDetails.push({
-                        id: i + 100,
-                        room_id: room.id,
-                        guest_name: `${nachname}, ${vorname}`,
-                        start: start,
-                        end: end,
-                        color: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6'][Math.floor(Math.random() * 5)],
-                        has_dog: Math.random() > 0.8,
-                        arrangement: reservation.arrangement,
-                        capacity: capacity,
-                        data: { room_name: room.caption }
-                    });
-                }
-            }
-
-            renderTimeline();
-
-            document.getElementById('status-info').innerHTML =
-                `<span style="color: #28a745;">Demo-Daten generiert: ${reservations.length} Reservierungen, ${roomDetails.length} Zimmerzuteilungen</span>`;
-        }
-
-        // Zoom-Funktion
-        function changeZoom() {
-            const zoom = parseInt(document.getElementById('zoom-select').value);
-            if (timelineRenderer) {
-                timelineRenderer.setDayWidth(zoom);
-            }
-        }
-
-        // Disponierte Filter
-        function toggleDisposedReservations() {
-            showDisposedReservations = !showDisposedReservations;
-
-            const button = document.getElementById('toggle-disposed-btn');
-            button.textContent = showDisposedReservations ? 'Disponierte ausblenden' : 'Disponierte anzeigen';
-
-            // Filter anwenden
-            const filteredReservations = reservations.filter(r => {
-                if (!showDisposedReservations && r.data && r.data.is_disposed) {
-                    return false;
-                }
-                return true;
-            });
-
-            if (timelineRenderer) {
-                timelineRenderer.updateData(filteredReservations, roomDetails, rooms);
-            }
-        }
-
-        // Rendere Timeline (Canvas oder DOM) - FIXED: Pass selector string
+        // Rendere Timeline (Canvas)
         function renderTimeline() {
             // Prüfe ob TimelineUnifiedRenderer verfügbar ist
             if (typeof TimelineUnifiedRenderer === 'undefined') {
                 console.error('TimelineUnifiedRenderer ist nicht verfügbar. Prüfe, ob timeline-unified.js korrekt geladen wurde.');
-                document.getElementById('status-info').innerHTML =
-                    '<span style="color: #dc3545;">❌ Timeline-Renderer nicht verfügbar</span>';
                 return;
             }
 
@@ -414,8 +227,6 @@
             const container = document.querySelector('.main-areas-container');
             if (!container) {
                 console.error('Container .main-areas-container nicht gefunden');
-                document.getElementById('status-info').innerHTML =
-                    '<span style="color: #dc3545;">❌ Timeline-Container nicht gefunden</span>';
                 return;
             }
 
@@ -424,23 +235,9 @@
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             } else {
                 console.log('Creating new unified timeline renderer...');
-                console.log('Container gefunden:', container);
-                // FIXED: Pass selector string, not DOM element
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             }
-        }
-
-        // Datum-Reset
-        function resetDates() {
-            const today = new Date();
-            const startDate = new Date(today);
-            startDate.setDate(today.getDate() - 7);
-            const endDate = new Date(today);
-            endDate.setDate(today.getDate() + 30);
-
-            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
         }
 
         // ===== INITIALIZATION AND PERFORMANCE MONITORING =====
@@ -470,57 +267,21 @@
 
         // ===== VARIABLES AND INITIALIZATION =====
 
-        // Globale Variablen für Kompatibilität mit timeline.js
+        // Globale Variablen für Kompatibilität
         let showDisposedReservations = true;
-
-        // WICHTIG: Variables bereits in timeline-unified.js deklariert als 'let'
-        // Keine erneute Deklaration nötig - verwende die globalen aus timeline-unified.js:
-        // - reservations (bereits deklariert)
-        // - roomDetails (bereits deklariert) 
-        // - rooms (bereits deklariert)
-        // - timelineRenderer (bereits deklariert)
 
         // Initialisierung
         document.addEventListener('DOMContentLoaded', () => {
-            resetDates();
-
-            // Warte kurz um sicherzustellen, dass alle Scripts geladen sind
+            // Automatisch echte Daten laden beim Seitenaufruf
             setTimeout(() => {
-                // Automatisch echte Daten laden beim Seitenaufruf
                 console.log('Auto-loading REAL data on page load...');
                 console.log('TimelineUnifiedRenderer verfügbar:', typeof TimelineUnifiedRenderer);
-                document.getElementById('status-info').innerHTML =
-                    '<span style="color: #007bff;">🔄 Automatisches Laden der echten Daten...</span>';
 
-                // Versuche echte Daten zu laden, bei Fehler: Demo-Daten
+                // Versuche echte Daten zu laden
                 loadRealData().catch(error => {
-                    console.error('Auto-load failed, using demo data:', error);
-                    document.getElementById('status-info').innerHTML =
-                        '<span style="color: #ffc107;">⚠️ API nicht erreichbar, verwende Demo-Daten</span>';
-                    generateDemoData();
+                    console.error('Auto-load failed:', error);
                 });
             }, 100); // 100ms Verzögerung
-
-            // Debug-Funktionen global verfügbar machen
-            window.timelineDebugCanvas = {
-                testDisposition: () => {
-                    console.log('=== CANVAS DISPOSITION DATA TEST ===');
-                    console.log('Total reservations:', reservations.length);
-
-                    const disposedCount = reservations.filter(r => r.data && r.data.is_disposed === true).length;
-                    const undisposedCount = reservations.filter(r => r.data && r.data.is_disposed === false).length;
-
-                    console.log('Summary:', {
-                        total: reservations.length,
-                        disposed: disposedCount,
-                        undisposed: undisposedCount,
-                        rooms: rooms.length,
-                        roomDetails: roomDetails.length
-                    });
-                },
-                showData: () => console.log({ reservations, roomDetails, rooms }),
-                rerender: () => renderTimeline()
-            };
         });
     </script>
 </body>
