@@ -120,23 +120,7 @@
 
                 console.log('API Response:', result);
 
-                // Verarbeite Reservierungen (Master Timeline)
-                reservations = result.data.timeline_items
-                    ? result.data.timeline_items
-                        .filter(item => item.content && item.start && item.end)
-                        .map((item, index) => ({
-                            id: item.id || index,
-                            name: item.data ? item.data.guest_name : item.content.replace(/<[^>]*>/g, ''),
-                            nachname: item.data ? item.data.guest_name.split(' ')[0] : '',
-                            vorname: item.data ? item.data.guest_name.split(' ').slice(1).join(' ') : '',
-                            start: parseAPIDate(item.start),
-                            end: parseAPIDate(item.end),
-                            capacity: item.data ? item.data.capacity : 1,
-                            fullData: item.data
-                        }))
-                    : [];
-
-                // Verarbeite Zimmer-Details
+                // Verarbeite Zimmer-Details zuerst
                 roomDetails = result.data.room_details
                     ? result.data.room_details
                         .filter(item => item.room_id && item.start && item.end)
@@ -148,7 +132,29 @@
                             color: item.data ? item.data.color : '#3498db',
                             has_dog: item.data ? item.data.has_dog : false,
                             capacity: item.data ? item.data.capacity : 1,
-                            data: item.data || {}
+                            data: item.data || {},
+                            reservation_id: item.data ? item.data.res_id : null
+                        }))
+                    : [];
+
+                // Verarbeite Master-Reservierungen - filtere bereits zugewiesene aus (verwende is_disposed Flag)
+                reservations = result.data.timeline_items
+                    ? result.data.timeline_items
+                        .filter(item => item.content && item.start && item.end)
+                        .filter(item => {
+                            // Verwende das is_disposed Flag aus der API
+                            const isDisposed = item.data && item.data.is_disposed;
+                            return !isDisposed;
+                        })
+                        .map((item, index) => ({
+                            id: item.id || index,
+                            name: item.data ? item.data.guest_name : item.content.replace(/<[^>]*>/g, ''),
+                            nachname: item.data ? item.data.guest_name.split(' ')[0] : '',
+                            vorname: item.data ? item.data.guest_name.split(' ').slice(1).join(' ') : '',
+                            start: parseAPIDate(item.start),
+                            end: parseAPIDate(item.end),
+                            capacity: item.data ? item.data.capacity : 1,
+                            fullData: item.data
                         }))
                     : [];
 
