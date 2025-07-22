@@ -18,6 +18,10 @@ class TimelineUnifiedRenderer {
         this.mouseY = 0;
         this.hoveredReservation = null;
 
+        // Drag & Drop für Separator
+        this.isDraggingSeparator = false;
+        this.separatorY = 240; // Initial position
+
         // Layout-Bereiche
         this.areas = {
             header: { height: 40, y: 0 },
@@ -119,9 +123,12 @@ class TimelineUnifiedRenderer {
         this.canvas.style.width = rect.width + 'px';
         this.canvas.style.height = availableHeight + 'px';
 
-        // Update areas basierend auf tatsächlicher Canvas-Höhe
-        this.areas.rooms.height = Math.max(300, availableHeight - 400);
-        this.areas.histogram.y = this.areas.rooms.y + this.areas.rooms.height;
+        // Separator-Position relativ zur Canvas-Höhe anpassen
+        const relativePosition = this.separatorY / this.totalHeight; // Verhältnis beibehalten
+        this.separatorY = Math.min(availableHeight * 0.5, availableHeight * relativePosition);
+
+        // Layout-Bereiche aktualisieren
+        this.updateLayoutAreas();
     }
 
     setupScrolling() {
@@ -182,6 +189,71 @@ class TimelineUnifiedRenderer {
             this.hoveredReservation = null;
             this.render();
         });
+
+        // Setup drag & drop events for separator
+        this.setupEvents();
+    }
+
+    updateLayoutAreas() {
+        const maxSeparatorY = this.canvas.height * 0.5;
+        this.separatorY = Math.min(this.separatorY, maxSeparatorY);
+
+        this.areas.master.height = this.separatorY - 40;
+        this.areas.rooms.y = this.separatorY;
+        this.areas.rooms.height = this.canvas.height - this.separatorY - 160;
+        this.areas.histogram.y = this.canvas.height - 160;
+    }
+
+    setupEvents() {
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+
+            // Check if over separator
+            if (this.isOverSeparator(mouseY)) {
+                this.canvas.style.cursor = 'row-resize';
+            } else {
+                this.canvas.style.cursor = 'default';
+            }
+
+            // Handle dragging
+            if (this.isDraggingSeparator) {
+                this.handleSeparatorDrag(mouseY);
+            }
+        });
+
+        this.canvas.addEventListener('mousedown', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+
+            if (this.isOverSeparator(mouseY)) {
+                this.isDraggingSeparator = true;
+                e.preventDefault();
+            }
+        });
+
+        this.canvas.addEventListener('mouseup', () => {
+            this.isDraggingSeparator = false;
+        });
+
+        this.canvas.addEventListener('mouseleave', () => {
+            this.isDraggingSeparator = false;
+            this.canvas.style.cursor = 'default';
+        });
+    }
+
+    isOverSeparator(mouseY) {
+        const tolerance = 5;
+        return Math.abs(mouseY - this.separatorY) <= tolerance;
+    }
+
+    handleSeparatorDrag(mouseY) {
+        const minY = 60; // Mindestens etwas Platz für Header + Master
+        const maxY = this.canvas.height * 0.5;
+
+        this.separatorY = Math.max(minY, Math.min(maxY, mouseY));
+        this.updateLayoutAreas();
+        this.render();
     }
 
     render() {
@@ -227,6 +299,39 @@ class TimelineUnifiedRenderer {
         this.ctx.fillText('Keine Daten geladen', this.canvas.width / 2, this.canvas.height / 2);
     }
 
+    renderSeparators() {
+        const ctx = this.ctx;
+
+        // Separator zwischen Master und Rooms
+        ctx.save();
+
+        // Hover/Drag-Status berücksichtigen
+        if (this.isDraggingSeparator) {
+            ctx.strokeStyle = '#007acc';
+            ctx.lineWidth = 3;
+        } else {
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(0, this.separatorY);
+        ctx.lineTo(this.canvas.width, this.separatorY);
+        ctx.stroke();
+
+        // Ziehen-Indikator (kleine Griffe)
+        if (this.isDraggingSeparator) {
+            ctx.fillStyle = '#007acc';
+            const handleWidth = 20;
+            const handleHeight = 4;
+            const centerX = this.canvas.width / 2;
+
+            ctx.fillRect(centerX - handleWidth / 2, this.separatorY - handleHeight / 2, handleWidth, handleHeight);
+        }
+
+        ctx.restore();
+    }
+
     renderSidebar() {
         // Sidebar-Hintergrund
         this.ctx.fillStyle = '#47d42b3f';
@@ -252,7 +357,7 @@ class TimelineUnifiedRenderer {
         this.ctx.save();
         this.ctx.translate(this.sidebarWidth / 2, this.areas.rooms.y + this.areas.rooms.height / 2);
         this.ctx.rotate(-Math.PI / 2);
-        this.ctx.fillText('Zimmer', 0, 5);
+        //this.ctx.fillText('Zimmer', 0, 5);
         this.ctx.restore();
 
         this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
