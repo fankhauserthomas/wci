@@ -25,6 +25,16 @@ class TimelineUnifiedRenderer {
         this.isDraggingBottomSeparator = false;
         this.draggingType = null; // 'top' oder 'bottom'
 
+        // Drag & Drop für Reservierungen
+        this.isDraggingReservation = false;
+        this.draggedReservation = null;
+        this.dragMode = null; // 'move', 'resize-start', 'resize-end'
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.dragOriginalData = null;
+        this.dragTargetRoom = null;
+        this.lastDragRender = 0; // Für Performance-Throttling
+
         // Separator-Positionen aus Cookies laden oder Defaults setzen
         this.separatorY = this.loadFromCookie('separatorTop', 240);
         this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 790);
@@ -39,6 +49,13 @@ class TimelineUnifiedRenderer {
 
         this.totalHeight = 950;
         this.sidebarWidth = 80;
+
+        // Timeline-Konstanten
+        this.DAY_WIDTH = 70; // Breite eines Tages in Pixeln
+
+        // Performance tracking
+        this.lastDragRender = 0;
+        this.renderCount = 0;
 
         this.init();
     }
@@ -243,7 +260,7 @@ class TimelineUnifiedRenderer {
                     roomsTrack.scrollTop = newScrollY;
                 }
             }
-        });
+        }, { passive: false });
     }
 
     setupEvents() {
@@ -251,6 +268,8 @@ class TimelineUnifiedRenderer {
 
         // Mouse-Events für Hover-Effekte mit optimierter Performance
         let hoverTimeout = null;
+        let lastRenderTime = 0;
+
         this.canvas.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect();
             this.mouseX = e.clientX - rect.left;
@@ -258,13 +277,90 @@ class TimelineUnifiedRenderer {
 
             if (hoverTimeout) clearTimeout(hoverTimeout);
 
+            // Separator und Reservierung Dragging wird über document behandelt
+            if (this.isDraggingSeparator || this.isDraggingBottomSeparator || this.isDraggingReservation) {
+                return; // Keine lokale Behandlung während Drag-Operationen
+            }
+
+            // Throttle normale Hover-Events um Performance zu verbessern
+            const now = Date.now();
+            if (now - lastRenderTime < 50) { // Max 20 FPS für Hover - weniger aggressiv
+                return;
+            }
+            lastRenderTime = now;
+
+            // Normale Hover-Logik nur wenn nicht gedraggt wird
+            const oldHovered = this.hoveredReservation;
             this.checkHover();
-            this.render();
+            this.updateCursor();
+
+            // Nur rendern wenn sich Hover-Status geändert hat
+            if (oldHovered !== this.hoveredReservation) {
+                this.render();
+            }
 
             hoverTimeout = setTimeout(() => {
                 hoverTimeout = null;
-            }, 50);
+            }, 100);
         });
+
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.handleMouseDown(e);
+        });
+
+        this.canvas.addEventListener('mouseup', (e) => {
+            this.handleMouseUp(e);
+        });
+
+        // Global mouse events für besseres Drag & Drop - nur ein Handler
+        document.addEventListener('mousemove', (e) => {
+            // Throttling für alle Drag-Operationen
+            const now = Date.now();
+            if (now - this.lastDragRender < 32) return; // Max 30 FPS für alle Drags
+            this.lastDragRender = now;
+
+            if (this.isDraggingReservation) {
+                console.log('🔄 Document mousemove - handling reservation drag');
+                this.handleReservationDrag(e);
+                this.render();
+            }
+            // Separator-Dragging über document für bessere UX
+            else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
+                console.log('🔄 Document mousemove - handling separator drag');
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseY = e.clientY - rect.top;
+
+                if (this.isDraggingSeparator) {
+                    this.handleTopSeparatorDrag(mouseY);
+                } else {
+                    this.handleBottomSeparatorDrag(mouseY);
+                }
+                this.render();
+            }
+        }, { passive: true });
+
+        document.addEventListener('mouseup', (e) => {
+            console.log('🛑 Document mouseup triggered');
+
+            if (this.isDraggingReservation) {
+                console.log('🛑 Finishing reservation drag');
+                this.finishReservationDrag();
+                this.render();
+            }
+            // Separator-MouseUp über document
+            else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
+                console.log('🛑 Finishing separator drag');
+                if (this.isDraggingSeparator) {
+                    this.saveToCookie('separatorTop', this.separatorY);
+                }
+                if (this.isDraggingBottomSeparator) {
+                    this.saveToCookie('separatorBottom', this.bottomSeparatorY);
+                }
+                this.isDraggingSeparator = false;
+                this.isDraggingBottomSeparator = false;
+                this.draggingType = null;
+            }
+        }, { passive: true });
 
         this.canvas.addEventListener('mouseleave', () => {
             this.hoveredReservation = null;
@@ -272,7 +368,7 @@ class TimelineUnifiedRenderer {
         });
 
         // Setup drag & drop events for separator
-        this.setupEvents();
+        this.setupSeparatorEvents();
     }
 
     updateLayoutAreas() {
@@ -300,63 +396,9 @@ class TimelineUnifiedRenderer {
         this.positionScrollbars();
     }
 
-    setupEvents() {
-        this.canvas.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const mouseY = e.clientY - rect.top;
-
-            // Check welcher Separator gehovered wird
-            const overTopSeparator = this.isOverTopSeparator(mouseY);
-            const overBottomSeparator = this.isOverBottomSeparator(mouseY);
-
-            if (overTopSeparator || overBottomSeparator) {
-                this.canvas.style.cursor = 'row-resize';
-            } else {
-                this.canvas.style.cursor = 'default';
-            }
-
-            // Handle dragging
-            if (this.isDraggingSeparator) {
-                this.handleTopSeparatorDrag(mouseY);
-            } else if (this.isDraggingBottomSeparator) {
-                this.handleBottomSeparatorDrag(mouseY);
-            }
-        });
-
-        this.canvas.addEventListener('mousedown', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const mouseY = e.clientY - rect.top;
-
-            if (this.isOverTopSeparator(mouseY)) {
-                this.isDraggingSeparator = true;
-                this.draggingType = 'top';
-                e.preventDefault();
-            } else if (this.isOverBottomSeparator(mouseY)) {
-                this.isDraggingBottomSeparator = true;
-                this.draggingType = 'bottom';
-                e.preventDefault();
-            }
-        });
-
-        this.canvas.addEventListener('mouseup', () => {
-            if (this.isDraggingSeparator) {
-                this.saveToCookie('separatorTop', this.separatorY);
-            }
-            if (this.isDraggingBottomSeparator) {
-                this.saveToCookie('separatorBottom', this.bottomSeparatorY);
-            }
-
-            this.isDraggingSeparator = false;
-            this.isDraggingBottomSeparator = false;
-            this.draggingType = null;
-        });
-
-        this.canvas.addEventListener('mouseleave', () => {
-            this.isDraggingSeparator = false;
-            this.isDraggingBottomSeparator = false;
-            this.draggingType = null;
-            this.canvas.style.cursor = 'default';
-        });
+    setupSeparatorEvents() {
+        // Separator Events sind bereits in setupEvents() und handleMouseDown() integriert
+        // Diese Methode wird nur für Kompatibilität beibehalten
     }
 
     isOverTopSeparator(mouseY) {
@@ -387,7 +429,466 @@ class TimelineUnifiedRenderer {
         this.render();
     }
 
+    // ===== DRAG & DROP FÜR RESERVIERUNGEN =====
+
+    handleMouseDown(e) {
+        console.log('🖱️ MouseDown triggered at:', e.clientX, e.clientY);
+
+        // Separator-Handling hat Priorität
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseY = e.clientY - rect.top;
+        const mouseX = e.clientX - rect.left;
+
+        console.log('Canvas rect:', rect);
+        console.log('Mouse position relative to canvas:', mouseX, mouseY);
+        console.log('Areas:', this.areas);
+
+        if (this.isOverTopSeparator(mouseY)) {
+            console.log('🔧 Starting top separator drag');
+            this.isDraggingSeparator = true;
+            this.draggingType = 'top';
+            e.preventDefault();
+            return;
+        } else if (this.isOverBottomSeparator(mouseY)) {
+            console.log('🔧 Starting bottom separator drag');
+            this.isDraggingBottomSeparator = true;
+            this.draggingType = 'bottom';
+            e.preventDefault();
+            return;
+        }
+
+        // Reservierung Drag & Drop nur wenn im Rooms-Bereich
+        console.log('Checking rooms area. Mouse Y:', mouseY, 'Rooms Y:', this.areas.rooms.y, 'Rooms Height:', this.areas.rooms.height);
+
+        if (mouseY >= this.areas.rooms.y && mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            console.log('✅ Mouse is in rooms area, checking for reservation...');
+            const reservation = this.findReservationAt(mouseX, mouseY);
+            console.log('Found reservation:', reservation);
+
+            if (reservation) {
+                console.log('🎯 Starting reservation drag with reservation:', reservation);
+                this.startReservationDrag(reservation, mouseX, mouseY, e);
+                e.preventDefault();
+                e.stopPropagation();
+            } else {
+                console.log('❌ No reservation found at this position');
+            }
+        } else {
+            console.log('❌ Mouse not in rooms area');
+        }
+    }
+
+    handleMouseUp(e) {
+        // Canvas MouseUp nur für lokale Events, globale Events über document
+        // Separator handling wird über document.mouseup behandelt
+
+        // Reservierung Drag & Drop wird über document.mouseup behandelt
+        // Hier nur für Fallback
+        if (this.isDraggingReservation) {
+            this.finishReservationDrag();
+        }
+    }
+
+    findReservationAt(mouseX, mouseY) {
+        console.log('🔍 FindReservationAt called with mouseX:', mouseX, 'mouseY:', mouseY);
+
+        // Performance-optimiert: nur sichtbare Zimmer durchsuchen
+        const startX = this.sidebarWidth - this.scrollX;
+        const startY = this.areas.rooms.y - this.roomsScrollY;
+        let currentYOffset = 0;
+
+        console.log('Search parameters - startX:', startX, 'startY:', startY, 'sidebarWidth:', this.sidebarWidth, 'scrollX:', this.scrollX);
+
+        // Date range für Position-Berechnung
+        const now = new Date();
+        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+
+        for (const room of rooms) {
+            const baseRoomY = startY + currentYOffset;
+            const roomHeight = room._dynamicHeight || 25;
+
+            console.log(`Room ${room.id}: baseRoomY=${baseRoomY}, roomHeight=${roomHeight}, currentYOffset=${currentYOffset}`);
+
+            // Nur wenn Maus im Zimmer-Bereich ist
+            if (mouseY >= baseRoomY && mouseY <= baseRoomY + roomHeight) {
+                console.log(`✅ Mouse is in room ${room.id} area`);
+
+                // Zimmer-Reservierungen für dieses Zimmer finden
+                const roomReservations = roomDetails.filter(detail =>
+                    detail.room_id === room.id ||
+                    String(detail.room_id) === String(room.id) ||
+                    Number(detail.room_id) === Number(room.id)
+                );
+
+                console.log(`Found ${roomReservations.length} reservations for room ${room.id}:`, roomReservations);
+
+                // WICHTIG: Positionsdaten berechnen BEVOR wir suchen
+                const positionedReservations = roomReservations.map(detail => {
+                    const checkinDate = new Date(detail.start);
+                    checkinDate.setHours(12, 0, 0, 0);
+                    const checkoutDate = new Date(detail.end);
+                    checkoutDate.setHours(12, 0, 0, 0);
+
+                    const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                    const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+                    const left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+                    const width = (duration - 0.2) * this.DAY_WIDTH;
+
+                    return { ...detail, left, width, startOffset, duration };
+                });
+
+                // Stacking-Berechnung (vereinfacht)
+                const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+                const sortedReservations = positionedReservations
+                    .filter(item => item.left + item.width > this.sidebarWidth - 100 &&
+                        item.left < this.canvas.width + 100)
+                    .sort((a, b) => a.startOffset - b.startOffset);
+
+                sortedReservations.forEach((reservation, index) => {
+                    let stackLevel = 0;
+                    let placed = false;
+
+                    while (!placed) {
+                        let canPlaceHere = true;
+
+                        for (let i = 0; i < index; i++) {
+                            const other = sortedReservations[i];
+                            if (other.stackLevel === stackLevel) {
+                                const reservationEnd = reservation.left + reservation.width;
+                                const otherEnd = other.left + other.width;
+
+                                if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                                    reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                                    canPlaceHere = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (canPlaceHere) {
+                            reservation.stackLevel = stackLevel;
+                            placed = true;
+                        } else {
+                            stackLevel++;
+                        }
+
+                        if (stackLevel > 10) {
+                            reservation.stackLevel = stackLevel;
+                            placed = true;
+                        }
+                    }
+                });
+
+                // Jetzt durchsuchen mit korrekten Positionsdaten
+                for (const reservation of sortedReservations) {
+                    const barHeight = 16;
+                    const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
+
+                    console.log(`Checking reservation - left: ${reservation.left}, width: ${reservation.width}, stackY: ${stackY}, stackLevel: ${reservation.stackLevel}`);
+
+                    if (mouseX >= reservation.left && mouseX <= reservation.left + reservation.width &&
+                        mouseY >= stackY && mouseY <= stackY + barHeight) {
+                        console.log('🎯 Found matching reservation!', reservation);
+                        return { ...reservation, room_id: room.id, stackY, barHeight };
+                    }
+                }
+                break; // Nur ein Zimmer kann getroffen werden
+            }
+            currentYOffset += roomHeight;
+        }
+        console.log('❌ No reservation found at this position');
+        return null;
+    }
+
+    startReservationDrag(reservation, mouseX, mouseY, e) {
+        console.log('🚀 StartReservationDrag called with:', {
+            reservation: reservation,
+            mouseX: mouseX,
+            mouseY: mouseY,
+            reservationLeft: reservation.left,
+            reservationWidth: reservation.width
+        });
+
+        this.isDraggingReservation = true;
+        this.draggedReservation = reservation;
+        this.dragStartX = mouseX;
+        this.dragStartY = mouseY;
+
+        // Bestimme Drag-Modus basierend auf Position
+        const edgeThreshold = 8; // Pixel-Bereich für Resize-Handles
+        const relativeX = mouseX - reservation.left;
+
+        console.log('Edge detection - relativeX:', relativeX, 'edgeThreshold:', edgeThreshold);
+
+        if (relativeX <= edgeThreshold) {
+            this.dragMode = 'resize-start';
+            console.log('📏 Drag mode: resize-start');
+        } else if (relativeX >= reservation.width - edgeThreshold) {
+            this.dragMode = 'resize-end';
+            console.log('📏 Drag mode: resize-end');
+        } else {
+            this.dragMode = 'move';
+            console.log('📏 Drag mode: move');
+        }
+
+        // Original-Daten für Rollback speichern
+        this.dragOriginalData = {
+            start: new Date(reservation.start),
+            end: new Date(reservation.end),
+            room_id: reservation.room_id
+        };
+
+        console.log('💾 Original data saved:', this.dragOriginalData);
+
+        this.canvas.style.cursor = this.dragMode === 'move' ? 'grabbing' : 'col-resize';
+
+        console.log('✅ Drag started successfully. isDraggingReservation:', this.isDraggingReservation);
+    }
+
+    handleReservationDrag(e) {
+        if (!this.isDraggingReservation || !this.draggedReservation) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const deltaX = mouseX - this.dragStartX;
+        const deltaY = mouseY - this.dragStartY;
+
+        // Berechne neue Datums-Werte basierend auf Drag-Modus
+        const daysDelta = Math.round(deltaX / this.DAY_WIDTH);
+
+        if (this.dragMode === 'move') {
+            this.handleReservationMove(daysDelta, mouseY);
+        } else if (this.dragMode === 'resize-start') {
+            this.handleReservationResizeStart(daysDelta);
+        } else if (this.dragMode === 'resize-end') {
+            this.handleReservationResizeEnd(daysDelta);
+        }
+
+        // Finde Ziel-Zimmer bei Move-Operation
+        if (this.dragMode === 'move') {
+            this.dragTargetRoom = this.findRoomAt(mouseY);
+        }
+
+        // Live-Update des Stackings während dem Drag
+        this.updateRoomStacking();
+    }
+
+    handleReservationMove(daysDelta, mouseY) {
+        const duration = this.dragOriginalData.end.getTime() - this.dragOriginalData.start.getTime();
+
+        // Neue Start- und End-Daten berechnen
+        const newStart = new Date(this.dragOriginalData.start.getTime() + (daysDelta * 24 * 60 * 60 * 1000));
+        const newEnd = new Date(newStart.getTime() + duration);
+
+        // Update temporär für Vorschau
+        this.draggedReservation.start = newStart;
+        this.draggedReservation.end = newEnd;
+        this.updateReservationPosition(this.draggedReservation);
+    }
+
+    handleReservationResizeStart(daysDelta) {
+        const newStart = new Date(this.dragOriginalData.start.getTime() + (daysDelta * 24 * 60 * 60 * 1000));
+        const minDuration = 24 * 60 * 60 * 1000; // 1 Tag Minimum
+
+        // Prüfe Mindestdauer
+        if (this.dragOriginalData.end.getTime() - newStart.getTime() >= minDuration) {
+            this.draggedReservation.start = newStart;
+            this.updateReservationPosition(this.draggedReservation);
+        }
+    }
+
+    handleReservationResizeEnd(daysDelta) {
+        const newEnd = new Date(this.dragOriginalData.end.getTime() + (daysDelta * 24 * 60 * 60 * 1000));
+        const minDuration = 24 * 60 * 60 * 1000; // 1 Tag Minimum
+
+        // Prüfe Mindestdauer
+        if (newEnd.getTime() - this.dragOriginalData.start.getTime() >= minDuration) {
+            this.draggedReservation.end = newEnd;
+            this.updateReservationPosition(this.draggedReservation);
+        }
+    }
+
+    updateReservationPosition(reservation) {
+        const now = new Date();
+        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+
+        const checkinDate = new Date(reservation.start);
+        checkinDate.setHours(12, 0, 0, 0);
+        const checkoutDate = new Date(reservation.end);
+        checkoutDate.setHours(12, 0, 0, 0);
+
+        const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+        const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        const startX = this.sidebarWidth - this.scrollX;
+        reservation.left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+        reservation.width = (duration - 0.2) * this.DAY_WIDTH;
+    }
+
+    findRoomAt(mouseY) {
+        const startY = this.areas.rooms.y - this.roomsScrollY;
+        let currentYOffset = 0;
+
+        for (const room of rooms) {
+            const baseRoomY = startY + currentYOffset;
+            const roomHeight = room._dynamicHeight || 25;
+
+            if (mouseY >= baseRoomY && mouseY <= baseRoomY + roomHeight) {
+                return room;
+            }
+            currentYOffset += roomHeight;
+        }
+        return null;
+    }
+
+    finishReservationDrag() {
+        if (!this.isDraggingReservation || !this.draggedReservation) return;
+
+        // Bei Move-Operation: Zimmer wechseln wenn nötig
+        if (this.dragMode === 'move' && this.dragTargetRoom &&
+            this.dragTargetRoom.id !== this.dragOriginalData.room_id) {
+            this.draggedReservation.room_id = this.dragTargetRoom.id;
+        }
+
+        // Aktualisiere roomDetails Array
+        const originalIndex = roomDetails.findIndex(detail =>
+            detail === this.draggedReservation ||
+            (detail.data && detail.data.detail_id === this.draggedReservation.data?.detail_id)
+        );
+
+        if (originalIndex !== -1) {
+            roomDetails[originalIndex] = { ...this.draggedReservation };
+        }
+
+        // Live-Update des Stackings
+        this.updateRoomStacking();
+
+        this.cancelDrag();
+    }
+
+    cancelDrag() {
+        if (this.isDraggingReservation && this.draggedReservation && this.dragOriginalData) {
+            // Rollback bei Abbruch
+            this.draggedReservation.start = this.dragOriginalData.start;
+            this.draggedReservation.end = this.dragOriginalData.end;
+            this.draggedReservation.room_id = this.dragOriginalData.room_id;
+        }
+
+        this.isDraggingReservation = false;
+        this.draggedReservation = null;
+        this.dragMode = null;
+        this.dragOriginalData = null;
+        this.dragTargetRoom = null;
+        this.canvas.style.cursor = 'default';
+    }
+
+    updateCursor() {
+        if (this.isDraggingReservation || this.isDraggingSeparator || this.isDraggingBottomSeparator) {
+            return; // Cursor nicht ändern während Drag-Operationen
+        }
+
+        // Separator-Cursor hat Priorität
+        const overTopSeparator = this.isOverTopSeparator(this.mouseY);
+        const overBottomSeparator = this.isOverBottomSeparator(this.mouseY);
+
+        if (overTopSeparator || overBottomSeparator) {
+            this.canvas.style.cursor = 'row-resize';
+            return;
+        }
+
+        // Reservierung-Cursor nur im Rooms-Bereich
+        if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            const reservation = this.findReservationAt(this.mouseX, this.mouseY);
+            if (reservation) {
+                const edgeThreshold = 8;
+                const relativeX = this.mouseX - reservation.left;
+
+                if (relativeX <= edgeThreshold || relativeX >= reservation.width - edgeThreshold) {
+                    this.canvas.style.cursor = 'col-resize';
+                } else {
+                    this.canvas.style.cursor = 'grab';
+                }
+                return;
+            }
+        }
+
+        this.canvas.style.cursor = 'default';
+    }
+
+    updateRoomStacking() {
+        // Neu-Berechnung des Stackings für alle Zimmer
+        rooms.forEach(room => {
+            const roomReservations = roomDetails.filter(detail =>
+                detail.room_id === room.id ||
+                String(detail.room_id) === String(room.id) ||
+                Number(detail.room_id) === Number(room.id)
+            );
+
+            // Stacking-Algorithmus anwenden
+            const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+            let maxStackLevel = 0;
+
+            const sortedReservations = roomReservations
+                .map(detail => {
+                    this.updateReservationPosition(detail);
+                    return detail;
+                })
+                .sort((a, b) => a.startOffset - b.startOffset);
+
+            sortedReservations.forEach((reservation, index) => {
+                let stackLevel = 0;
+                let placed = false;
+
+                while (!placed) {
+                    let canPlaceHere = true;
+
+                    for (let i = 0; i < index; i++) {
+                        const other = sortedReservations[i];
+                        if (other.stackLevel === stackLevel) {
+                            const reservationEnd = reservation.left + reservation.width;
+                            const otherEnd = other.left + other.width;
+
+                            if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                                reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                                canPlaceHere = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (canPlaceHere) {
+                        reservation.stackLevel = stackLevel;
+                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                        placed = true;
+                    } else {
+                        stackLevel++;
+                    }
+
+                    if (stackLevel > 10) {
+                        reservation.stackLevel = stackLevel;
+                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                        placed = true;
+                    }
+                }
+            });
+
+            // Update Zimmer-Höhe
+            const barHeight = 16;
+            const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
+            room._dynamicHeight = roomHeight;
+        });
+    }
+
     render() {
+        // Performance tracking
+        this.renderCount++;
+        if (this.renderCount % 100 === 0) {
+            console.log(`Render #${this.renderCount} - Performance Check`);
+        }
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (reservations.length === 0) {
@@ -401,7 +902,7 @@ class TimelineUnifiedRenderer {
         const endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000)); // now + 2 years
 
         const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const timelineWidth = totalDays * DAY_WIDTH;
+        const timelineWidth = totalDays * this.DAY_WIDTH;
 
         // Update scroll tracks
         const scrollContentH = this.container.querySelector('.scroll-content-h');
@@ -440,7 +941,7 @@ class TimelineUnifiedRenderer {
         if (reservations.length === 0) return 0;
 
         const stackLevels = [];
-        const OVERLAP_TOLERANCE = DAY_WIDTH * 0.25;
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
         let maxStackLevel = 0;
 
         const sortedReservations = [...reservations].sort((a, b) =>
@@ -456,8 +957,8 @@ class TimelineUnifiedRenderer {
             const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
             const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-            const left = this.sidebarWidth + (startOffset + 0.1) * DAY_WIDTH;
-            const width = (duration - 0.2) * DAY_WIDTH;
+            const left = this.sidebarWidth + (startOffset + 0.1) * this.DAY_WIDTH;
+            const width = (duration - 0.2) * this.DAY_WIDTH;
 
             // Stack-Level finden (gleicher Algorithmus wie in renderMasterArea)
             let stackLevel = 0;
@@ -591,7 +1092,7 @@ class TimelineUnifiedRenderer {
         let dayIndex = 0;
 
         while (currentDate <= endDate) {
-            const x = startX + (dayIndex * DAY_WIDTH) + (DAY_WIDTH / 2);
+            const x = startX + (dayIndex * this.DAY_WIDTH) + (this.DAY_WIDTH / 2);
 
             const weekday = currentDate.toLocaleDateString('de-DE', { weekday: 'short' });
             this.ctx.fillText(weekday, x, area.y + 15);
@@ -630,7 +1131,7 @@ class TimelineUnifiedRenderer {
 
         // Stack-Algorithmus für Master-Reservierungen
         const stackLevels = [];
-        const OVERLAP_TOLERANCE = DAY_WIDTH * 0.25;
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
 
         const sortedReservations = [...reservations].sort((a, b) =>
             new Date(a.start).getTime() - new Date(b.start).getTime()
@@ -645,8 +1146,8 @@ class TimelineUnifiedRenderer {
             const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
             const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-            const left = startX + (startOffset + 0.1) * DAY_WIDTH;
-            const width = (duration - 0.2) * DAY_WIDTH;
+            const left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+            const width = (duration - 0.2) * this.DAY_WIDTH;
 
             // Stack-Level finden
             let stackLevel = 0;
@@ -708,7 +1209,7 @@ class TimelineUnifiedRenderer {
 
                 // Stacking nur für sichtbare Reservierungen
                 const stackLevels = [];
-                const OVERLAP_TOLERANCE = DAY_WIDTH * 0.1;
+                const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
                 let maxStackLevel = 0;
 
                 const sortedReservations = roomReservations
@@ -721,8 +1222,8 @@ class TimelineUnifiedRenderer {
                         const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
                         const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-                        const left = startX + (startOffset + 0.1) * DAY_WIDTH;
-                        const width = (duration - 0.2) * DAY_WIDTH;
+                        const left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+                        const width = (duration - 0.2) * this.DAY_WIDTH;
 
                         return { ...detail, left, width, startOffset, duration };
                     })
@@ -779,8 +1280,23 @@ class TimelineUnifiedRenderer {
                 room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund
                 this.ctx.save();
                 this.ctx.resetTransform();
+
+                // Drop-Zone Highlighting
+                const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+                    this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
+                    this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+                if (isDropTarget) {
+                    this.ctx.fillStyle = '#4CAF50'; // Grün für Drop-Zone
+                    this.ctx.globalAlpha = 0.3;
+                    this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                    this.ctx.globalAlpha = 1.0;
+                }
+
                 this.ctx.fillStyle = roomIndex % 2 === 0 ? '#1a1a1a' : '#2c2c2c';
-                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                if (!isDropTarget) {
+                    this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                }
                 this.ctx.restore();
 
                 // Render Reservierungen mit korrektem Stacking
@@ -874,8 +1390,8 @@ class TimelineUnifiedRenderer {
         const bottomMargin = 0; // Margin zum Scrollbar
 
         dailyCounts.forEach((count, dayIndex) => {
-            const x = startX + (dayIndex * DAY_WIDTH) + 5;
-            const barWidth = DAY_WIDTH - 10;
+            const x = startX + (dayIndex * this.DAY_WIDTH) + 5;
+            const barWidth = this.DAY_WIDTH - 10;
             const barHeight = (count / maxGuests) * (availableHeight - bottomMargin);
             const y = area.y + area.height - barHeight - bottomMargin;
 
@@ -940,7 +1456,7 @@ class TimelineUnifiedRenderer {
         let dayIndex = 0;
 
         while (currentDate <= endDate) {
-            const x = startX + (dayIndex * DAY_WIDTH);
+            const x = startX + (dayIndex * this.DAY_WIDTH);
 
             // Sehr dezente Gitterlinien
             this.ctx.strokeStyle = 'rgba(200, 200, 200, 0.25)';
@@ -977,7 +1493,13 @@ class TimelineUnifiedRenderer {
 
     // Hilfsmethoden
     checkHover() {
-        this.hoveredReservation = null;
+        // Nur im Rooms-Bereich nach Reservierungen suchen
+        if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            const reservation = this.findReservationAt(this.mouseX, this.mouseY);
+            this.hoveredReservation = reservation;
+        } else {
+            this.hoveredReservation = null;
+        }
     }
 
     isReservationHovered(x, y, width, height) {
@@ -1028,8 +1550,19 @@ class TimelineUnifiedRenderer {
     renderRoomReservationBar(x, y, width, height, detail, isHovered = false) {
         let color = detail.color || '#3498db';
 
-        if (isHovered) {
+        // Drag & Drop visuelles Feedback
+        const isDragged = this.isDraggingReservation && this.draggedReservation === detail;
+        const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+            this.dragTargetRoom && this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+        if (isDragged) {
+            color = this.lightenColor(color, 30);
+            this.ctx.globalAlpha = 0.8;
+        } else if (isHovered) {
             color = this.lightenColor(color, 15);
+        }
+
+        if (isHovered || isDragged) {
             this.ctx.shadowColor = 'rgba(0,0,0,0.2)';
             this.ctx.shadowBlur = 3;
             this.ctx.shadowOffsetX = 1;
@@ -1040,16 +1573,34 @@ class TimelineUnifiedRenderer {
         this.roundedRect(x, y, width, height, 3);
         this.ctx.fill();
 
-        if (isHovered) {
+        // Resize-Handles bei Hover oder Drag
+        if ((isHovered || isDragged) && width > 20) {
+            const handleWidth = 4;
+            const handleColor = 'rgba(255,255,255,0.8)';
+
+            // Start-Handle (links)
+            this.ctx.fillStyle = handleColor;
+            this.ctx.fillRect(x, y, handleWidth, height);
+
+            // End-Handle (rechts)
+            this.ctx.fillRect(x + width - handleWidth, y, handleWidth, height);
+        }
+
+        if (isHovered || isDragged) {
             this.ctx.shadowColor = 'transparent';
             this.ctx.shadowBlur = 0;
             this.ctx.shadowOffsetX = 0;
             this.ctx.shadowOffsetY = 0;
         }
 
-        this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
-        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = isDragged ? 'rgba(0,0,0,0.5)' :
+            isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
+        this.ctx.lineWidth = isDragged ? 2 : 1;
         this.ctx.stroke();
+
+        if (isDragged) {
+            this.ctx.globalAlpha = 1.0;
+        }
 
         if (width > 30) {
             this.ctx.fillStyle = '#fff';
