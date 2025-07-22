@@ -18,11 +18,16 @@ class TimelineUnifiedRenderer {
         this.mouseY = 0;
         this.hoveredReservation = null;
 
-        // Drag & Drop für Separator
+        // Drag & Drop für Separatoren
         this.isDraggingSeparator = false;
-        this.separatorY = 240; // Initial position
+        this.isDraggingBottomSeparator = false;
+        this.draggingType = null; // 'top' oder 'bottom'
 
-        // Layout-Bereiche
+        // Separator-Positionen aus Cookies laden oder Defaults setzen
+        this.separatorY = this.loadFromCookie('separatorTop', 240);
+        this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 790);
+
+        // Layout-Bereiche (dynamisch)
         this.areas = {
             header: { height: 40, y: 0 },
             master: { height: 200, y: 40 },
@@ -34,6 +39,20 @@ class TimelineUnifiedRenderer {
         this.sidebarWidth = 80;
 
         this.init();
+    }
+
+    loadFromCookie(name, defaultValue) {
+        const value = document.cookie
+            .split('; ')
+            .find(row => row.startsWith(name + '='))
+            ?.split('=')[1];
+        return value ? parseInt(value) : defaultValue;
+    }
+
+    saveToCookie(name, value) {
+        const expires = new Date();
+        expires.setFullYear(expires.getFullYear() + 1); // 1 Jahr gültig
+        document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`;
     }
 
     init() {
@@ -195,13 +214,24 @@ class TimelineUnifiedRenderer {
     }
 
     updateLayoutAreas() {
-        const maxSeparatorY = this.canvas.height * 0.5;
-        this.separatorY = Math.min(this.separatorY, maxSeparatorY);
+        const maxTopSeparatorY = this.canvas.height * 0.5;
+        const minBottomSeparatorY = this.canvas.height * 0.6;
+        const maxBottomSeparatorY = this.canvas.height - 40; // 40px für Scrollbar
 
+        // Oberer Separator begrenzen
+        this.separatorY = Math.min(this.separatorY, maxTopSeparatorY);
+
+        // Unterer Separator begrenzen und sicherstellen dass er unter dem oberen ist
+        this.bottomSeparatorY = Math.max(minBottomSeparatorY,
+            Math.min(this.bottomSeparatorY, maxBottomSeparatorY));
+        this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + 100);
+
+        // Layout-Bereiche aktualisieren
         this.areas.master.height = this.separatorY - 40;
         this.areas.rooms.y = this.separatorY;
-        this.areas.rooms.height = this.canvas.height - this.separatorY - 160;
-        this.areas.histogram.y = this.canvas.height - 160;
+        this.areas.rooms.height = this.bottomSeparatorY - this.separatorY;
+        this.areas.histogram.y = this.bottomSeparatorY;
+        this.areas.histogram.height = (this.canvas.height - this.bottomSeparatorY - 20) * 0.95; // 95% Ausnutzung
     }
 
     setupEvents() {
@@ -209,8 +239,11 @@ class TimelineUnifiedRenderer {
             const rect = this.canvas.getBoundingClientRect();
             const mouseY = e.clientY - rect.top;
 
-            // Check if over separator
-            if (this.isOverSeparator(mouseY)) {
+            // Check welcher Separator gehovered wird
+            const overTopSeparator = this.isOverTopSeparator(mouseY);
+            const overBottomSeparator = this.isOverBottomSeparator(mouseY);
+
+            if (overTopSeparator || overBottomSeparator) {
                 this.canvas.style.cursor = 'row-resize';
             } else {
                 this.canvas.style.cursor = 'default';
@@ -218,7 +251,9 @@ class TimelineUnifiedRenderer {
 
             // Handle dragging
             if (this.isDraggingSeparator) {
-                this.handleSeparatorDrag(mouseY);
+                this.handleTopSeparatorDrag(mouseY);
+            } else if (this.isDraggingBottomSeparator) {
+                this.handleBottomSeparatorDrag(mouseY);
             }
         });
 
@@ -226,32 +261,62 @@ class TimelineUnifiedRenderer {
             const rect = this.canvas.getBoundingClientRect();
             const mouseY = e.clientY - rect.top;
 
-            if (this.isOverSeparator(mouseY)) {
+            if (this.isOverTopSeparator(mouseY)) {
                 this.isDraggingSeparator = true;
+                this.draggingType = 'top';
+                e.preventDefault();
+            } else if (this.isOverBottomSeparator(mouseY)) {
+                this.isDraggingBottomSeparator = true;
+                this.draggingType = 'bottom';
                 e.preventDefault();
             }
         });
 
         this.canvas.addEventListener('mouseup', () => {
+            if (this.isDraggingSeparator) {
+                this.saveToCookie('separatorTop', this.separatorY);
+            }
+            if (this.isDraggingBottomSeparator) {
+                this.saveToCookie('separatorBottom', this.bottomSeparatorY);
+            }
+
             this.isDraggingSeparator = false;
+            this.isDraggingBottomSeparator = false;
+            this.draggingType = null;
         });
 
         this.canvas.addEventListener('mouseleave', () => {
             this.isDraggingSeparator = false;
+            this.isDraggingBottomSeparator = false;
+            this.draggingType = null;
             this.canvas.style.cursor = 'default';
         });
     }
 
-    isOverSeparator(mouseY) {
+    isOverTopSeparator(mouseY) {
         const tolerance = 5;
         return Math.abs(mouseY - this.separatorY) <= tolerance;
     }
 
-    handleSeparatorDrag(mouseY) {
+    isOverBottomSeparator(mouseY) {
+        const tolerance = 5;
+        return Math.abs(mouseY - this.bottomSeparatorY) <= tolerance;
+    }
+
+    handleTopSeparatorDrag(mouseY) {
         const minY = 60; // Mindestens etwas Platz für Header + Master
         const maxY = this.canvas.height * 0.5;
 
         this.separatorY = Math.max(minY, Math.min(maxY, mouseY));
+        this.updateLayoutAreas();
+        this.render();
+    }
+
+    handleBottomSeparatorDrag(mouseY) {
+        const minY = Math.max(this.separatorY + 100, this.canvas.height * 0.6);
+        const maxY = this.canvas.height - 40; // Platz für Scrollbar
+
+        this.bottomSeparatorY = Math.max(minY, Math.min(maxY, mouseY));
         this.updateLayoutAreas();
         this.render();
     }
@@ -301,11 +366,9 @@ class TimelineUnifiedRenderer {
 
     renderSeparators() {
         const ctx = this.ctx;
-
-        // Separator zwischen Master und Rooms
         ctx.save();
 
-        // Hover/Drag-Status berücksichtigen
+        // Oberer Separator (Master/Rooms)
         if (this.isDraggingSeparator) {
             ctx.strokeStyle = '#007acc';
             ctx.lineWidth = 3;
@@ -319,14 +382,36 @@ class TimelineUnifiedRenderer {
         ctx.lineTo(this.canvas.width, this.separatorY);
         ctx.stroke();
 
-        // Ziehen-Indikator (kleine Griffe)
+        // Griff für oberen Separator
         if (this.isDraggingSeparator) {
             ctx.fillStyle = '#007acc';
             const handleWidth = 20;
             const handleHeight = 4;
             const centerX = this.canvas.width / 2;
-
             ctx.fillRect(centerX - handleWidth / 2, this.separatorY - handleHeight / 2, handleWidth, handleHeight);
+        }
+
+        // Unterer Separator (Rooms/Histogram)
+        if (this.isDraggingBottomSeparator) {
+            ctx.strokeStyle = '#007acc';
+            ctx.lineWidth = 3;
+        } else {
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(0, this.bottomSeparatorY);
+        ctx.lineTo(this.canvas.width, this.bottomSeparatorY);
+        ctx.stroke();
+
+        // Griff für unteren Separator
+        if (this.isDraggingBottomSeparator) {
+            ctx.fillStyle = '#007acc';
+            const handleWidth = 20;
+            const handleHeight = 4;
+            const centerX = this.canvas.width / 2;
+            ctx.fillRect(centerX - handleWidth / 2, this.bottomSeparatorY - handleHeight / 2, handleWidth, handleHeight);
         }
 
         ctx.restore();
@@ -666,11 +751,14 @@ class TimelineUnifiedRenderer {
         }
 
         // Render Histogram-Balken mit detaillierten Beschriftungen
+        const availableHeight = area.height * 0.95; // 95% der verfügbaren Höhe nutzen
+        const bottomMargin = 0; // Margin zum Scrollbar
+
         dailyCounts.forEach((count, dayIndex) => {
             const x = startX + (dayIndex * DAY_WIDTH) + 5;
             const barWidth = DAY_WIDTH - 10;
-            const barHeight = (count / maxGuests) * (area.height - 80);
-            const y = area.y + area.height - barHeight - 70;
+            const barHeight = (count / maxGuests) * (availableHeight - bottomMargin);
+            const y = area.y + area.height - barHeight - bottomMargin;
 
             const color = count > 50 ? '#dc3545' :
                 count > 30 ? '#ffc107' :
@@ -689,19 +777,21 @@ class TimelineUnifiedRenderer {
                 this.ctx.textAlign = 'center';
 
                 const centerX = x + barWidth / 2;
-                let textY = area.y + area.height - 60;
+                let textY = area.y + area.height - 15; // Knapp über dem unteren Rand
 
                 this.ctx.fillText(`${details.total}`, centerX, textY);
-                textY += 10;
 
-                if (barWidth > 50) {
+                // Zusätzliche Details nur wenn genug Platz vorhanden
+                if (barHeight > 30 && barWidth > 50) {
+                    textY -= 10; // Eine Zeile höher für Details
+
                     if (details.dz > 0) {
                         this.ctx.fillText(`DZ:${details.dz}`, centerX, textY);
-                        textY += 9;
+                        textY -= 8;
                     }
                     if (details.betten > 0) {
                         this.ctx.fillText(`B:${details.betten}`, centerX, textY);
-                        textY += 9;
+                        textY -= 8;
                     }
                     if (details.lager > 0) {
                         this.ctx.fillText(`L:${details.lager}`, centerX, textY);
