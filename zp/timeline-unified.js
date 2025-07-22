@@ -12,6 +12,8 @@ class TimelineUnifiedRenderer {
         this.ctx = null;
         this.scrollX = 0;
         this.scrollY = 0;
+        this.masterScrollY = 0; // Separater Scroll für Master-Bereich
+        this.roomsScrollY = 0;  // Separater Scroll für Rooms-Bereich
 
         // Mouse-Tracking für Hover-Effekte
         this.mouseX = 0;
@@ -73,7 +75,7 @@ class TimelineUnifiedRenderer {
                 display: flex;
                 flex-direction: column;
             ">
-                <!-- Hauptbereich mit Canvas und vertikaler Scrollbar -->
+                <!-- Hauptbereich mit Canvas und vertikalen Scrollbars -->
                 <div style="
                     flex: 1;
                     display: flex;
@@ -93,20 +95,38 @@ class TimelineUnifiedRenderer {
                             cursor: default;
                             z-index: 1;
                         "></canvas>
-                    </div>
-                    
-                    <!-- Vertikale Scrollbar rechts -->
-                    <div class="scroll-track-v" style="
-                        width: 18px;
-                        background: #e0e0e0;
-                        border-left: 1px solid #ccc;
-                        overflow-y: auto;
-                        flex-shrink: 0;
-                    ">
-                        <div class="scroll-content-v" style="
-                            width: 1px; 
-                            height: 1000px;
-                        "></div>
+                        
+                        <!-- Master-Scrollbar (zwischen Header und Separator 1) -->
+                        <div class="scroll-track-master" style="
+                            position: absolute;
+                            right: 0;
+                            width: 18px;
+                            background: #e8e8e8;
+                            border-left: 1px solid #ccc;
+                            overflow-y: auto;
+                            z-index: 10;
+                        ">
+                            <div class="scroll-content-master" style="
+                                width: 1px; 
+                                height: 400px;
+                            "></div>
+                        </div>
+                        
+                        <!-- Rooms-Scrollbar (zwischen Separator 1 und 2) -->
+                        <div class="scroll-track-rooms" style="
+                            position: absolute;
+                            right: 0;
+                            width: 18px;
+                            background: #e0e0e0;
+                            border-left: 1px solid #ccc;
+                            overflow-y: auto;
+                            z-index: 10;
+                        ">
+                            <div class="scroll-content-rooms" style="
+                                width: 1px; 
+                                height: 1000px;
+                            "></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -148,13 +168,35 @@ class TimelineUnifiedRenderer {
 
         // Layout-Bereiche aktualisieren
         this.updateLayoutAreas();
+        
+        // Scrollbars positionieren
+        this.positionScrollbars();
+    }
+
+    positionScrollbars() {
+        const masterScrollbar = this.container.querySelector('.scroll-track-master');
+        const roomsScrollbar = this.container.querySelector('.scroll-track-rooms');
+        
+        if (masterScrollbar) {
+            // Master-Scrollbar zwischen Header-Unterkante und Separator 1
+            masterScrollbar.style.top = this.areas.header.height + 'px';
+            masterScrollbar.style.height = (this.separatorY - this.areas.header.height) + 'px';
+        }
+        
+        if (roomsScrollbar) {
+            // Rooms-Scrollbar zwischen Separator 1 und Separator 2
+            roomsScrollbar.style.top = this.separatorY + 'px';
+            roomsScrollbar.style.height = (this.bottomSeparatorY - this.separatorY) + 'px';
+        }
     }
 
     setupScrolling() {
         const horizontalTrack = this.container.querySelector('.scroll-track-h');
-        const verticalTrack = this.container.querySelector('.scroll-track-v');
+        const masterTrack = this.container.querySelector('.scroll-track-master');
+        const roomsTrack = this.container.querySelector('.scroll-track-rooms');
         const scrollContentH = this.container.querySelector('.scroll-content-h');
-        const scrollContentV = this.container.querySelector('.scroll-content-v');
+        const scrollContentMaster = this.container.querySelector('.scroll-content-master');
+        const scrollContentRooms = this.container.querySelector('.scroll-content-rooms');
 
         // Horizontaler Scroll
         horizontalTrack.addEventListener('scroll', (e) => {
@@ -162,24 +204,42 @@ class TimelineUnifiedRenderer {
             this.render();
         });
 
-        // Vertikaler Scroll
-        verticalTrack.addEventListener('scroll', (e) => {
-            this.scrollY = e.target.scrollTop;
-            this.render();
-        });
+        // Master-Bereich Scroll
+        if (masterTrack) {
+            masterTrack.addEventListener('scroll', (e) => {
+                this.masterScrollY = e.target.scrollTop;
+                this.render();
+            });
+        }
 
-        // Mausrad-Events für natürlichere Bedienung
+        // Rooms-Bereich Scroll
+        if (roomsTrack) {
+            roomsTrack.addEventListener('scroll', (e) => {
+                this.roomsScrollY = e.target.scrollTop;
+                this.render();
+            });
+        }
+
+        // Mausrad-Events für bereichsspezifisches Scrollen
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
+            const mouseY = e.offsetY;
 
             if (e.shiftKey) {
                 // Shift + Mausrad = horizontal scrollen
                 const newScrollX = Math.max(0, this.scrollX + e.deltaY);
                 horizontalTrack.scrollLeft = newScrollX;
             } else {
-                // Normal Mausrad = vertikal scrollen
-                const newScrollY = Math.max(0, this.scrollY + e.deltaY);
-                verticalTrack.scrollTop = newScrollY;
+                // Bereichsspezifisches vertikales Scrollen basierend auf Mausposition
+                if (mouseY >= this.areas.master.y && mouseY < this.separatorY && masterTrack) {
+                    // Master-Bereich
+                    const newScrollY = Math.max(0, this.masterScrollY + e.deltaY);
+                    masterTrack.scrollTop = newScrollY;
+                } else if (mouseY >= this.separatorY && mouseY < this.bottomSeparatorY && roomsTrack) {
+                    // Rooms-Bereich  
+                    const newScrollY = Math.max(0, this.roomsScrollY + e.deltaY);
+                    roomsTrack.scrollTop = newScrollY;
+                }
             }
         });
     }
@@ -232,6 +292,9 @@ class TimelineUnifiedRenderer {
         this.areas.rooms.height = this.bottomSeparatorY - this.separatorY;
         this.areas.histogram.y = this.bottomSeparatorY;
         this.areas.histogram.height = (this.canvas.height - this.bottomSeparatorY - 20) * 0.95; // 95% Ausnutzung
+        
+        // Scrollbars nach Layout-Änderung neu positionieren
+        this.positionScrollbars();
     }
 
     setupEvents() {
@@ -340,6 +403,23 @@ class TimelineUnifiedRenderer {
             scrollContentH.style.width = timelineWidth + 'px';
         }
 
+        // Update Master-Scrollbar Content-Höhe
+        const scrollContentMaster = this.container.querySelector('.scroll-content-master');
+        if (scrollContentMaster && reservations.length > 0) {
+            // Berechne tatsächliche maximale Stack-Höhe für Master-Bereich
+            const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate);
+            const barHeight = 16;
+            const masterContentHeight = Math.max(this.areas.master.height, 10 + (maxStackLevel + 1) * barHeight + 50);
+            scrollContentMaster.style.height = masterContentHeight + 'px';
+        }
+
+        // Update Rooms-Scrollbar Content-Höhe  
+        const scrollContentRooms = this.container.querySelector('.scroll-content-rooms');
+        if (scrollContentRooms) {
+            const totalRoomHeight = rooms.reduce((sum, room) => sum + (room._dynamicHeight || 25), 0);
+            scrollContentRooms.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
+        }
+
         // Render alle Bereiche
         this.renderSidebar();
         this.renderHeader(startDate, endDate);
@@ -348,13 +428,47 @@ class TimelineUnifiedRenderer {
         this.renderHistogramArea(startDate, endDate);
         this.renderVerticalGridLines(startDate, endDate);
         this.renderSeparators();
+    }
 
-        // Update vertikaler scroll track
-        const totalRoomHeight = rooms.reduce((sum, room) => sum + (room._dynamicHeight || 25), 0);
-        const scrollContentV = this.container.querySelector('.scroll-content-v');
-        if (scrollContentV) {
-            scrollContentV.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
-        }
+    calculateMasterMaxStackLevel(startDate, endDate) {
+        if (reservations.length === 0) return 0;
+        
+        const stackLevels = [];
+        const OVERLAP_TOLERANCE = DAY_WIDTH * 0.25;
+        let maxStackLevel = 0;
+
+        const sortedReservations = [...reservations].sort((a, b) =>
+            new Date(a.start).getTime() - new Date(b.start).getTime()
+        );
+
+        sortedReservations.forEach(reservation => {
+            const checkinDate = new Date(reservation.start);
+            checkinDate.setHours(12, 0, 0, 0);
+            const checkoutDate = new Date(reservation.end);
+            checkoutDate.setHours(12, 0, 0, 0);
+
+            const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+            const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+            const left = this.sidebarWidth + (startOffset + 0.1) * DAY_WIDTH;
+            const width = (duration - 0.2) * DAY_WIDTH;
+
+            // Stack-Level finden (gleicher Algorithmus wie in renderMasterArea)
+            let stackLevel = 0;
+            while (stackLevel < stackLevels.length &&
+                stackLevels[stackLevel] > left + OVERLAP_TOLERANCE) {
+                stackLevel++;
+            }
+
+            while (stackLevels.length <= stackLevel) {
+                stackLevels.push(0);
+            }
+
+            stackLevels[stackLevel] = left + width + 5;
+            maxStackLevel = Math.max(maxStackLevel, stackLevel);
+        });
+
+        return maxStackLevel;
     }
 
     renderEmpty() {
@@ -541,7 +655,7 @@ class TimelineUnifiedRenderer {
 
             stackLevels[stackLevel] = left + width + 5;
 
-            const top = area.y + 10 + (stackLevel * 16);
+            const top = area.y + 10 + (stackLevel * 16) - this.masterScrollY;
 
             // Prüfe Hover-Status
             const isHovered = this.isReservationHovered(left, top, width, 14);
@@ -559,7 +673,7 @@ class TimelineUnifiedRenderer {
     renderRoomsArea(startDate, endDate) {
         const area = this.areas.rooms;
         const startX = this.sidebarWidth - this.scrollX;
-        const startY = area.y - this.scrollY;
+        const startY = area.y - this.roomsScrollY;
 
         // Area-Hintergrund
         this.ctx.fillStyle = '#fff';
