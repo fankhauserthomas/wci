@@ -464,8 +464,8 @@ class TimelineUnifiedRenderer {
                 });
 
                 // Berechne dynamische Zimmer-Höhe
-                const barHeight = 14;
-                const roomHeight = Math.max(25, 6 + (maxStackLevel + 1) * (barHeight + 2));
+                const barHeight = 16;
+                const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
                 room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund
                 this.ctx.save();
                 this.ctx.resetTransform();
@@ -475,7 +475,7 @@ class TimelineUnifiedRenderer {
 
                 // Render Reservierungen mit korrektem Stacking
                 sortedReservations.forEach(reservation => {
-                    const stackY = baseRoomY + 4 + (reservation.stackLevel * (barHeight + 2));
+                    const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
 
                     const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
 
