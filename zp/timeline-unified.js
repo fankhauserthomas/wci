@@ -58,14 +58,14 @@ class TimelineUnifiedRenderer {
         this.sidebarWidth = 80;
 
         // Timeline-Konstanten
-        this.DAY_WIDTH = 90; // Breite eines Tages in Pixeln
+        this.DAY_WIDTH = 90; // Breite eines Tages in Pixeln - wird von Theme überschrieben
 
         // Performance tracking
         this.lastDragRender = 0;
-        this.renderCount = 0;
 
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
+        this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
 
         this.init();
     }
@@ -94,7 +94,9 @@ class TimelineUnifiedRenderer {
 
         if (cookieValue) {
             try {
-                return JSON.parse(decodeURIComponent(cookieValue));
+                const config = JSON.parse(decodeURIComponent(cookieValue));
+                // Ergänze fehlende Eigenschaften mit Fallback-Werten
+                return this.addMissingDefaults(config);
             } catch (e) {
                 console.warn('Fehler beim Laden der Theme-Konfiguration:', e);
             }
@@ -104,7 +106,9 @@ class TimelineUnifiedRenderer {
         const localStorageValue = localStorage.getItem('timeline_config');
         if (localStorageValue) {
             try {
-                return JSON.parse(localStorageValue);
+                const config = JSON.parse(localStorageValue);
+                // Ergänze fehlende Eigenschaften mit Fallback-Werten
+                return this.addMissingDefaults(config);
             } catch (e) {
                 console.warn('Fehler beim Laden der localStorage-Konfiguration:', e);
             }
@@ -114,14 +118,41 @@ class TimelineUnifiedRenderer {
         return {
             sidebar: { bg: '#2c3e50', text: '#ecf0f1', fontSize: 12 },
             header: { bg: '#34495e', text: '#ecf0f1', fontSize: 10 },
-            master: { bg: '#2c3e50', bar: '#3498db', text: '#ffffff', fontSize: 10 },
-            room: { bg: '#2c3e50', bar: '#27ae60', text: '#ffffff', fontSize: 10 },
-            histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 }
+            master: { bg: '#2c3e50', bar: '#3498db', fontSize: 10, barHeight: 14 },
+            room: { bg: '#2c3e50', bar: '#27ae60', fontSize: 10, barHeight: 16 },
+            histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 },
+            dayWidth: 90
         };
+    }
+
+    addMissingDefaults(config) {
+        // Default-Werte für neue Eigenschaften
+        const defaults = {
+            sidebar: { bg: '#2c3e50', text: '#ecf0f1', fontSize: 12 },
+            header: { bg: '#34495e', text: '#ecf0f1', fontSize: 10 },
+            master: { bg: '#2c3e50', bar: '#3498db', fontSize: 10, barHeight: 14 },
+            room: { bg: '#2c3e50', bar: '#27ae60', fontSize: 10, barHeight: 16 },
+            histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 },
+            dayWidth: 90
+        };
+
+        // Ergänze fehlende Eigenschaften
+        const result = { ...config };
+
+        for (const [section, sectionDefaults] of Object.entries(defaults)) {
+            if (section === 'dayWidth') {
+                result.dayWidth = result.dayWidth || defaults.dayWidth;
+            } else {
+                result[section] = { ...sectionDefaults, ...result[section] };
+            }
+        }
+
+        return result;
     }
 
     refreshThemeConfiguration() {
         this.themeConfig = this.loadThemeConfiguration();
+        this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
         this.render(); // Neu rendern mit neuer Konfiguration
     }
 
@@ -482,7 +513,7 @@ class TimelineUnifiedRenderer {
 
         if (this.isConfigButtonHovered && this.configButtonBounds) {
             // Öffne Konfigurationsseite
-            window.open('timeline-config.html', '_blank');
+            window.location.href = 'timeline-config.html';
             e.preventDefault();
             return;
         }
@@ -607,7 +638,7 @@ class TimelineUnifiedRenderer {
 
                 // Jetzt durchsuchen mit korrekten Positionsdaten
                 for (const reservation of sortedReservations) {
-                    const barHeight = 16;
+                    const barHeight = this.themeConfig.room.barHeight || 16;
                     const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
 
                     if (mouseX >= reservation.left && mouseX <= reservation.left + reservation.width &&
@@ -1036,16 +1067,13 @@ class TimelineUnifiedRenderer {
             });
 
             // Update Zimmer-Höhe
-            const barHeight = 16;
+            const barHeight = this.themeConfig.room.barHeight || 16;
             const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
             room._dynamicHeight = roomHeight;
         });
     }
 
     render() {
-        // Performance tracking
-        this.renderCount++;
-
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (reservations.length === 0) {
@@ -1073,7 +1101,7 @@ class TimelineUnifiedRenderer {
         if (scrollContentMaster && reservations.length > 0) {
             // Berechne tatsächliche maximale Stack-Höhe für Master-Bereich
             const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate);
-            const barHeight = 16;
+            const barHeight = this.themeConfig.master.barHeight || 14;
             const masterContentHeight = Math.max(this.areas.master.height, 10 + (maxStackLevel + 1) * barHeight + 50);
             scrollContentMaster.style.height = masterContentHeight + 'px';
         }
@@ -1363,16 +1391,17 @@ class TimelineUnifiedRenderer {
 
             stackLevels[stackLevel] = left + width + 5;
 
-            const top = area.y + 10 + (stackLevel * 16) - this.masterScrollY;
+            const barHeight = this.themeConfig.master.barHeight || 14;
+            const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
 
             // Prüfe Hover-Status
-            const isHovered = this.isReservationHovered(left, top, width, 14);
+            const isHovered = this.isReservationHovered(left, top, width, barHeight);
 
             if (isHovered) {
                 this.hoveredReservation = reservation;
             }
 
-            this.renderReservationBar(left, top, width, 14, reservation, isHovered);
+            this.renderReservationBar(left, top, width, barHeight, reservation, isHovered);
         });
 
         this.ctx.restore();
@@ -1476,9 +1505,9 @@ class TimelineUnifiedRenderer {
                 });
 
                 // Berechne dynamische Zimmer-Höhe
-                const barHeight = 16;
+                const barHeight = this.themeConfig.room.barHeight || 16;
                 const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
-                room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund
+                room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund mit semitransparenten alternierenden Streifen
                 this.ctx.save();
                 this.ctx.resetTransform();
 
@@ -1494,9 +1523,12 @@ class TimelineUnifiedRenderer {
                     this.ctx.globalAlpha = 1.0;
                 }
 
-                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#1a1a1a' : '#2c2c2c';
+                // Semitransparente alternierende Streifen über Theme-Hintergrund
                 if (!isDropTarget) {
+                    this.ctx.globalAlpha = 0.2; // Semitransparent
+                    this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
                     this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                    this.ctx.globalAlpha = 1.0; // Zurück zu normal
                 }
                 this.ctx.restore();
 
@@ -1539,7 +1571,8 @@ class TimelineUnifiedRenderer {
         let currentYOffset2 = 0;
         rooms.forEach((room, roomIndex) => {
             const baseRoomY = startY + currentYOffset2;
-            const roomDisplayY = baseRoomY + 12;
+            const roomHeight = room._dynamicHeight || 25;
+            const roomDisplayY = baseRoomY + (roomHeight / 2) + (this.themeConfig.sidebar.fontSize / 3); // Vertikal zentriert
 
             // Caption rendern wenn sie im geclippten Zimmer-Bereich sichtbar ist
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
@@ -1551,7 +1584,7 @@ class TimelineUnifiedRenderer {
                 this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
             }
 
-            currentYOffset2 += room._dynamicHeight || 25;
+            currentYOffset2 += roomHeight;
         });
 
         this.ctx.restore();
@@ -1756,7 +1789,9 @@ class TimelineUnifiedRenderer {
         this.ctx.stroke();
 
         if (width > 40) {
-            this.ctx.fillStyle = this.themeConfig.master.text;
+            // Automatische Textfarbe basierend auf Balkenhelligkeit
+            const textColor = this.getContrastColor(color);
+            this.ctx.fillStyle = textColor;
             this.ctx.font = `${this.themeConfig.master.fontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
@@ -1827,7 +1862,9 @@ class TimelineUnifiedRenderer {
                 }
             }
 
-            this.ctx.fillText(caption, x + 2, y + height - 3);
+            // Vertikal zentrierter Text
+            const textY = y + (height / 2) + (this.themeConfig.master.fontSize / 3);
+            this.ctx.fillText(caption, x + 2, textY);
         }
     }
 
@@ -1888,14 +1925,18 @@ class TimelineUnifiedRenderer {
         }
 
         if (width > 30) {
-            this.ctx.fillStyle = this.themeConfig.room.text;
+            // Automatische Textfarbe basierend auf Balkenhelligkeit
+            const textColor = this.getContrastColor(color);
+            this.ctx.fillStyle = textColor;
             this.ctx.font = `${this.themeConfig.room.fontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
             let text = detail.guest_name;
             if (detail.has_dog) text += ' 🐕';
 
-            this.ctx.fillText(text, x + 2, y + height - 2);
+            // Vertikal zentrierter Text
+            const textY = y + (height / 2) + (this.themeConfig.room.fontSize / 3);
+            this.ctx.fillText(text, x + 2, textY);
         }
     }
 
@@ -1922,6 +1963,20 @@ class TimelineUnifiedRenderer {
         return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
             (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
             (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+
+    getContrastColor(hexColor) {
+        // Konvertiere Hex zu RGB
+        const hex = hexColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+
+        // Berechne relative Luminanz (WCAG Standard)
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+        // Rückgabe basierend auf Helligkeit
+        return luminance > 0.5 ? '#000000' : '#ffffff';
     }
 
     calculateDailyOccupancy(date) {

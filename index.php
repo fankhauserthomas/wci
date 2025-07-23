@@ -380,9 +380,9 @@ if (!AuthManager::checkSession()) {
       <div class="dashboard-card">
         <h2 class="card-title">Zimmerplan</h2>
         <p class="card-description">
-          Zeitliche Darstellung der Reservierungen mit Überlappungen und Auslastungsübersicht.
+          Zeitliche Darstellung der Reservierungen.
         </p>
-        <a href="simple-timeline.html" class="card-button">Zimmerplan öffnen</a>
+        <a href="zp/timeline-unified.html" class="card-button">Zimmerplan öffnen</a>
       </div>
 
       <div class="dashboard-card">

@@ -16,75 +16,78 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
+            font-size: 14px;
         }
 
         .config-container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
 
         .config-header {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
-            padding: 30px;
+            padding: 20px;
             text-align: center;
         }
 
         .config-header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-size: 1.8em;
+            margin-bottom: 5px;
             font-weight: 300;
         }
 
         .config-header p {
-            font-size: 1.1em;
+            font-size: 0.9em;
             opacity: 0.9;
         }
 
         .config-content {
-            padding: 40px;
+            padding: 20px;
         }
 
         .config-section {
-            margin-bottom: 40px;
-            padding: 30px;
-            border: 2px solid #f0f0f0;
-            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
             background: #fafafa;
         }
 
         .config-section h2 {
             color: #333;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-            border-bottom: 3px solid #4facfe;
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 5px;
         }
 
         .theme-selector {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         .theme-card {
-            border: 3px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             background: white;
+            text-align: center;
+            font-size: 12px;
         }
 
         .theme-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .theme-card.active {
@@ -93,101 +96,129 @@
         }
 
         .theme-preview {
-            height: 120px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            height: 50px;
+            border-radius: 4px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
+            font-size: 10px;
             position: relative;
             overflow: hidden;
         }
 
         .theme-info h3 {
-            margin-bottom: 8px;
+            margin-bottom: 3px;
             color: #333;
+            font-size: 12px;
         }
 
         .theme-info p {
             color: #666;
-            font-size: 0.9em;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.2;
+            display: none;
+            /* Verstecke Beschreibung für Kompaktheit */
         }
 
         .custom-config {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
         }
 
         .config-group {
             background: white;
-            padding: 25px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 6px;
             border: 1px solid #e0e0e0;
         }
 
         .config-group h3 {
             color: #333;
-            margin-bottom: 20px;
-            font-size: 1.3em;
-            border-left: 4px solid #4facfe;
-            padding-left: 15px;
+            margin-bottom: 12px;
+            font-size: 1em;
+            border-left: 3px solid #4facfe;
+            padding-left: 10px;
         }
 
         .config-item {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .config-item label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             color: #555;
             font-weight: 500;
+            font-size: 12px;
         }
 
         .config-item input[type="color"] {
-            width: 60px;
-            height: 40px;
+            width: 40px;
+            height: 25px;
             border: none;
-            border-radius: 5px;
+            border-radius: 3px;
             cursor: pointer;
         }
 
         .config-item input[type="range"] {
             width: 100%;
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
-        .config-item input[type="number"] {
-            width: 80px;
+        .config-item span {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+        }
+
+        .metric-item {
+            text-align: center;
             padding: 8px;
+            background: white;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
 
+        .metric-item label {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .metric-item input {
+            width: 100%;
+            font-size: 11px;
+        }
+
         .action-buttons {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
-            margin-top: 40px;
+            margin-top: 20px;
             flex-wrap: wrap;
         }
 
         .btn {
-            padding: 15px 30px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 12px;
             font-weight: 500;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             text-decoration: none;
             display: inline-block;
             text-align: center;
-            min-width: 150px;
+            min-width: 100px;
         }
 
         .btn-primary {
@@ -216,6 +247,70 @@
 
         .btn-success:hover {
             background: #218838;
+        }
+
+        /* Kompakte Metrics-Grid Styles */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-item label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+
+        .metric-item input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #dee2e6;
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .metric-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4facfe;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .metric-item input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #4facfe;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .metric-item span {
+            font-size: 10px;
+            color: #6c757d;
+            font-weight: 500;
+            text-align: center;
+            padding: 2px 6px;
+            background: #e9ecef;
+            border-radius: 4px;
+            min-width: 40px;
         }
 
         .preview-area {
@@ -357,19 +452,103 @@
                     <div class="theme-card" data-theme="nature">
                         <div class="theme-preview"
                             style="background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);">
-                            <div
-                                style="position: absolute; top: 5px; left: 5px; width: 15px; height: 8px; background: #a8e6cf; border-radius: 2px;">
-                            </div>
-                            <div
-                                style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 8px; background: #ffd3a5; border-radius: 2px;">
-                            </div>
                             Nature
                         </div>
                         <div class="theme-info">
                             <h3>Nature</h3>
-                            <p>Natürliche Grün- und Erdtöne. Beruhigend und augenfreundlich für entspanntes Arbeiten.
-                            </p>
                         </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="ocean">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #1e3a8a 0%, #06b6d4 100%);">
+                            Ocean
+                        </div>
+                        <div class="theme-info">
+                            <h3>Ocean</h3>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="sunset">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #7c2d12 0%, #f59e0b 100%);">
+                            Sunset
+                        </div>
+                        <div class="theme-info">
+                            <h3>Sunset</h3>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="earth">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #44403c 0%, #84cc16 100%);">
+                            Earth
+                        </div>
+                        <div class="theme-info">
+                            <h3>Earth</h3>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="rainbow">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #8b5cf6 0%, #10b981 50%, #f59e0b 100%);">
+                            Rainbow
+                        </div>
+                        <div class="theme-info">
+                            <h3>Rainbow</h3>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="grayscale">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #1f2937 0%, #9ca3af 100%);">
+                            Grayscale
+                        </div>
+                        <div class="theme-info">
+                            <h3>Grayscale</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kompakte Metrics-Konfiguration -->
+            <div class="config-section">
+                <h2>⚙️ Anzeige-Einstellungen</h2>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <label for="font-size">Schriftgröße:</label>
+                        <input type="range" id="font-size" min="8" max="16" value="10" step="1">
+                        <span id="font-size-value">10px</span>
+                    </div>
+
+                    <div class="metric-item">
+                        <label for="bar-height">Balkenhöhe:</label>
+                        <input type="range" id="bar-height" min="15" max="40" value="25" step="1">
+                        <span id="bar-height-value">25px</span>
+                    </div>
+
+                    <div class="metric-item">
+                        <label for="day-width">Tagesbreite:</label>
+                        <input type="range" id="day-width" min="20" max="80" value="40" step="5">
+                        <span id="day-width-value">40px</span>
+                    </div>
+
+                    <div class="metric-item">
+                        <label for="vertical-spacing">Zeilenabstand:</label>
+                        <input type="range" id="vertical-spacing" min="0" max="20" value="5" step="1">
+                        <span id="vertical-spacing-value">5px</span>
+                    </div>
+
+                    <div class="metric-item">
+                        <label for="border-radius">Rundung:</label>
+                        <input type="range" id="border-radius" min="0" max="10" value="3" step="1">
+                        <span id="border-radius-value">3px</span>
+                    </div>
+
+                    <div class="metric-item">
+                        <label for="opacity">Transparenz:</label>
+                        <input type="range" id="opacity" min="0.3" max="1" value="0.9" step="0.1">
+                        <span id="opacity-value">0.9</span>
                     </div>
                 </div>
             </div>
@@ -421,15 +600,17 @@
                         <div class="config-item">
                             <label>Balken-Standardfarbe:</label>
                             <input type="color" id="master-bar" value="#3498db">
-                        </div>
-                        <div class="config-item">
-                            <label>Textfarbe:</label>
-                            <input type="color" id="master-text" value="#ffffff">
+                            <small style="color: #666; font-size: 11px;">Textfarbe wird automatisch angepasst</small>
                         </div>
                         <div class="config-item">
                             <label>Schriftgröße:</label>
                             <input type="range" id="master-font-size" min="8" max="16" value="10">
                             <span id="master-font-size-value">10px</span>
+                        </div>
+                        <div class="config-item">
+                            <label>Balkenhöhe:</label>
+                            <input type="range" id="master-bar-height" min="10" max="25" value="14">
+                            <span id="master-bar-height-value">14px</span>
                         </div>
                     </div>
 
@@ -442,15 +623,17 @@
                         <div class="config-item">
                             <label>Balken-Standardfarbe:</label>
                             <input type="color" id="room-bar" value="#27ae60">
-                        </div>
-                        <div class="config-item">
-                            <label>Textfarbe:</label>
-                            <input type="color" id="room-text" value="#ffffff">
+                            <small style="color: #666; font-size: 11px;">Textfarbe wird automatisch angepasst</small>
                         </div>
                         <div class="config-item">
                             <label>Schriftgröße:</label>
                             <input type="range" id="room-font-size" min="8" max="16" value="10">
                             <span id="room-font-size-value">10px</span>
+                        </div>
+                        <div class="config-item">
+                            <label>Balkenhöhe:</label>
+                            <input type="range" id="room-bar-height" min="10" max="25" value="16">
+                            <span id="room-bar-height-value">16px</span>
                         </div>
                     </div>
 
@@ -472,6 +655,15 @@
                             <label>Schriftgröße:</label>
                             <input type="range" id="histogram-font-size" min="8" max="14" value="9">
                             <span id="histogram-font-size-value">9px</span>
+                        </div>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Layout Settings</h3>
+                        <div class="config-item">
+                            <label>Day Width:</label>
+                            <input type="range" id="day-width" min="60" max="150" value="90">
+                            <span id="day-width-value">90px</span>
                         </div>
                     </div>
                 </div>
@@ -506,6 +698,38 @@
     </div>
 
     <script src="timeline-config.js"></script>
+    <script>
+        // Metrics-Slider Event Listeners
+        document.addEventListener('DOMContentLoaded', function () {
+            // Setup für alle Metrics-Slider
+            const metrics = ['font-size', 'bar-height', 'day-width', 'vertical-spacing', 'border-radius', 'opacity'];
+
+            metrics.forEach(metric => {
+                const slider = document.getElementById(metric);
+                const valueSpan = document.getElementById(metric + '-value');
+
+                if (slider && valueSpan) {
+                    // Initial value display
+                    valueSpan.textContent = slider.value + (metric === 'opacity' ? '' : 'px');
+
+                    // Update on change
+                    slider.addEventListener('input', function () {
+                        const value = this.value;
+                        valueSpan.textContent = value + (metric === 'opacity' ? '' : 'px');
+
+                        // Immediate application to timeline
+                        if (window.opener) {
+                            window.opener.postMessage({
+                                type: 'updateMetric',
+                                metric: metric,
+                                value: parseFloat(value)
+                            }, '*');
+                        }
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>
