@@ -54,31 +54,14 @@
         }
 
         .performance-info {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 10px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 1000;
+            display: none;
+            /* Performance-Info ausgeblendet */
         }
     </style>
 </head>
 
 <body>
     <div class="main-areas-container"></div>
-
-    <div class="performance-info" id="performance-info">
-        FPS: <span id="fps">0</span><br>
-        Render Zeit: <span id="render-time">0ms</span><br>
-        Reservierungen: <span id="reservations-count">0</span><br>
-        Zimmer: <span id="rooms-count">0</span><br>
-        <a href="timeline-config.html" style="color: #4facfe; text-decoration: none; font-weight: bold;">⚙️
-            Konfiguration</a>
-    </div>
 
     <!-- Scripts -->
     <script src="timeline-unified.js"></script>
@@ -254,7 +237,8 @@
 
         // ===== INITIALIZATION AND PERFORMANCE MONITORING =====
 
-        // Performance Monitoring
+        // Performance Monitoring deaktiviert
+        /*
         let fps = 0;
         let lastFrame = performance.now();
         let frameCount = 0;
@@ -276,6 +260,7 @@
             requestAnimationFrame(updatePerformanceInfo);
         }
         updatePerformanceInfo();
+        */
 
         // ===== VARIABLES AND INITIALIZATION =====
 
