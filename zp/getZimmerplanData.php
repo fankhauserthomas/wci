@@ -193,6 +193,15 @@ try {
                       ($res['hund'] ? '\nMit Hund' : '') .
                       ($isDisposed ? '\n✓ Disponiert' : '\n⚠ Nicht disponiert'),
             'className' => 'reservation-item' . ($isDisposed ? ' disposed' : ' undisposed'),
+            // Add fields needed for timeline rendering
+            'nachname' => $res['nachname'],
+            'vorname' => $res['vorname'],
+            'name' => $guestName,
+            'capacity' => $res['total_capacity'],
+            'arrangement_name' => $res['arrangement_name'],
+            'arr_kbez' => $res['arrangement_name'], // fallback
+            'has_dog' => (bool)$res['hund'],
+            'hund' => (bool)$res['hund'],
             'data' => [
                 'id' => $res['id'],
                 'av_id' => $res['av_id'],

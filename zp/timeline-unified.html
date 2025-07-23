@@ -98,7 +98,7 @@
                 // Automatischer Datums-Bereich: now - 2 weeks bis now + 2 years
                 const now = new Date();
                 now.setHours(0, 0, 0, 0); // now = 2024-07-22 00:00:00
-                const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+                const startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
                 const endDate = new Date(now.getTime() + (1 * 365 * 24 * 60 * 60 * 1000));
 
                 const startDateStr = startDate.toISOString().split('T')[0];
@@ -148,12 +148,16 @@
                         })
                         .map((item, index) => ({
                             id: item.id || index,
-                            name: item.data ? item.data.guest_name : item.content.replace(/<[^>]*>/g, ''),
-                            nachname: item.data ? item.data.guest_name.split(' ')[0] : '',
-                            vorname: item.data ? item.data.guest_name.split(' ').slice(1).join(' ') : '',
+                            name: item.name || (item.data ? item.data.guest_name : item.content.replace(/<[^>]*>/g, '')),
+                            nachname: item.nachname || '', // FIX: Direkt aus item nehmen, nicht aus data
+                            vorname: item.vorname || '',   // FIX: Direkt aus item nehmen, nicht aus data
                             start: parseAPIDate(item.start),
                             end: parseAPIDate(item.end),
-                            capacity: item.data ? item.data.capacity : 1,
+                            capacity: item.capacity || (item.data ? item.data.capacity : 1), // FIX: Aus item zuerst
+                            arrangement_name: item.arrangement_name || item.arr_kbez || '', // FIX: Direkt aus item
+                            arr_kbez: item.arr_kbez || '',  // FIX: Direkt aus item
+                            has_dog: item.has_dog || item.hund || (item.data && item.data.has_dog) || false, // FIX: Mehrere Quellen
+                            hund: item.hund || item.has_dog || false,
                             fullData: item.data
                         }))
                     : [];
