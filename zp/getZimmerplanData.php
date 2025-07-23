@@ -1,7 +1,7 @@
 <?php
-// Enable error reporting for debugging (remove in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Disable error display for clean JSON output
+error_reporting(0);
+ini_set('display_errors', 0);
 
 require_once 'config.php';
 header('Content-Type: application/json');
@@ -127,16 +127,6 @@ try {
             $disposedReservations[$detail['resid']] = true;
         }
     }
-    
-    // Debug: Log disposition lookup creation
-    error_log("Creating disposition lookup...");
-    error_log("Room details count: " . count($roomDetails));
-    foreach ($roomDetails as $detail) {
-        if ($detail['resid']) {
-            error_log("Room detail resid: " . $detail['resid']);
-        }
-    }
-    error_log("Disposed reservations: " . json_encode($disposedReservations));
 
     // Process Master data for timeline
     $masterTimelineData = [];
@@ -258,16 +248,34 @@ try {
             $guestName = 'Unbekannt';
         }
         
-        // Create content with arrangement
-        $content = $guestName;
-        if ($detail['caption']) {
-            $content .= '<br><small>' . $detail['caption'] . '</small>';
+        // Create compact content: rd.bez (rd.anz/total_capacity a.kbez)
+        $content = '';
+        
+        // Start with rd.bez (caption)
+        if (isset($detail['bez']) && $detail['bez']) {
+            $content = $detail['bez'];
+        } else {
+            $content = $guestName;
         }
-        if ($detail['arrangement_kbez']) {
-            $content .= '<br><span class="arrangement">' . $detail['arrangement_kbez'] . '</span>';
+        
+        // Add capacity info: (rd.anz/zimmer_capacity a.kbez)
+        $capacityInfo = '';
+        if (isset($detail['anz']) && isset($detail['zimmer_capacity']) && $detail['anz'] && $detail['zimmer_capacity']) {
+            $capacityInfo = '(' . $detail['anz'] . '/' . $detail['zimmer_capacity'];
+            if (isset($detail['arrangement_kbez']) && $detail['arrangement_kbez']) {
+                $capacityInfo .= ' ' . $detail['arrangement_kbez'];
+            }
+            $capacityInfo .= ')';
         }
-        if ($detail['hund']) {
-            $content .= ' 🐕';
+        
+        // Combine content
+        if ($capacityInfo) {
+            $content .= ' ' . $capacityInfo;
+        }
+        
+        // Add dog icon if rd.hund is set
+        if (isset($detail['hund']) && $detail['hund']) {
+            $content .= ' <img src="../pic/dog.svg" alt="🐕" style="height: 12px; width: 12px; vertical-align: middle;">';
         }
         
         // Create timeline item for room
