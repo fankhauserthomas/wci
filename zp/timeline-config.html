@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Konfiguration - Darstellungsoptionen</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .config-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .config-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .config-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .config-header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .config-content {
+            padding: 40px;
+        }
+
+        .config-section {
+            margin-bottom: 40px;
+            padding: 30px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .config-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .theme-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .theme-card {
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-card.active {
+            border-color: #4facfe;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .theme-preview {
+            height: 120px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-info h3 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .theme-info p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .custom-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .config-group {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .config-group h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-left: 4px solid #4facfe;
+            padding-left: 15px;
+        }
+
+        .config-item {
+            margin-bottom: 20px;
+        }
+
+        .config-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .config-item input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .config-item input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .config-item input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .preview-area {
+            margin-top: 30px;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
+
+        .preview-mini {
+            height: 150px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #ccc;
+        }
+
+        .preview-header {
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .preview-body {
+            flex: 1;
+            display: flex;
+        }
+
+        .preview-sidebar {
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+        }
+
+        .preview-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-master {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+        }
+
+        .preview-rooms {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+        }
+
+        .preview-histogram {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="config-container">
+        <div class="config-header">
+            <h1>Timeline Darstellungsoptionen</h1>
+            <p>Personalisieren Sie das Aussehen Ihrer Timeline für optimale Lesbarkeit und Komfort</p>
+        </div>
+
+        <div class="config-content">
+            <!-- Theme-Auswahl -->
+            <div class="config-section">
+                <h2>🎨 Vorgefertigte Themes</h2>
+                <div class="theme-selector">
+                    <div class="theme-card" data-theme="professional">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);">
+                            <div
+                                style="position: absolute; top: 5px; left: 5px; width: 15px; height: 8px; background: #ecf0f1; border-radius: 2px;">
+                            </div>
+                            <div
+                                style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 8px; background: #3498db; border-radius: 2px;">
+                            </div>
+                            Professional
+                        </div>
+                        <div class="theme-info">
+                            <h3>Professional</h3>
+                            <p>Elegante, dunkle Oberfläche für konzentriertes Arbeiten. Reduziert Augenbelastung bei
+                                langen Arbeitszeiten.</p>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="comfort">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); color: #333;">
+                            <div
+                                style="position: absolute; top: 5px; left: 5px; width: 15px; height: 8px; background: #495057; border-radius: 2px;">
+                            </div>
+                            <div
+                                style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 8px; background: #28a745; border-radius: 2px;">
+                            </div>
+                            Comfort
+                        </div>
+                        <div class="theme-info">
+                            <h3>Comfort</h3>
+                            <p>Warme, helle Farben für entspanntes Arbeiten. Optimal für Tageslicht und längere Nutzung.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="focus">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
+                            <div
+                                style="position: absolute; top: 5px; left: 5px; width: 15px; height: 8px; background: #0f3460; border-radius: 2px;">
+                            </div>
+                            <div
+                                style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 8px; background: #e94560; border-radius: 2px;">
+                            </div>
+                            Focus
+                        </div>
+                        <div class="theme-info">
+                            <h3>Focus</h3>
+                            <p>Tiefblaues Design für maximale Konzentration. Minimiert Ablenkungen und fördert den
+                                Fokus.</p>
+                        </div>
+                    </div>
+
+                    <div class="theme-card" data-theme="nature">
+                        <div class="theme-preview"
+                            style="background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);">
+                            <div
+                                style="position: absolute; top: 5px; left: 5px; width: 15px; height: 8px; background: #a8e6cf; border-radius: 2px;">
+                            </div>
+                            <div
+                                style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 8px; background: #ffd3a5; border-radius: 2px;">
+                            </div>
+                            Nature
+                        </div>
+                        <div class="theme-info">
+                            <h3>Nature</h3>
+                            <p>Natürliche Grün- und Erdtöne. Beruhigend und augenfreundlich für entspanntes Arbeiten.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individuelle Konfiguration -->
+            <div class="config-section">
+                <h2>⚙️ Individuelle Anpassungen</h2>
+                <div class="custom-config">
+                    <div class="config-group">
+                        <h3>Sidebar</h3>
+                        <div class="config-item">
+                            <label>Hintergrundfarbe:</label>
+                            <input type="color" id="sidebar-bg" value="#47d42b3f">
+                        </div>
+                        <div class="config-item">
+                            <label>Textfarbe:</label>
+                            <input type="color" id="sidebar-text" value="#333333">
+                        </div>
+                        <div class="config-item">
+                            <label>Schriftgröße:</label>
+                            <input type="range" id="sidebar-font-size" min="8" max="20" value="12">
+                            <span id="sidebar-font-size-value">12px</span>
+                        </div>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Header</h3>
+                        <div class="config-item">
+                            <label>Hintergrundfarbe:</label>
+                            <input type="color" id="header-bg" value="#f8f9fa">
+                        </div>
+                        <div class="config-item">
+                            <label>Textfarbe:</label>
+                            <input type="color" id="header-text" value="#333333">
+                        </div>
+                        <div class="config-item">
+                            <label>Schriftgröße:</label>
+                            <input type="range" id="header-font-size" min="8" max="16" value="10">
+                            <span id="header-font-size-value">10px</span>
+                        </div>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Master Area</h3>
+                        <div class="config-item">
+                            <label>Hintergrundfarbe:</label>
+                            <input type="color" id="master-bg" value="#2c2c2c">
+                        </div>
+                        <div class="config-item">
+                            <label>Balken-Standardfarbe:</label>
+                            <input type="color" id="master-bar" value="#3498db">
+                        </div>
+                        <div class="config-item">
+                            <label>Textfarbe:</label>
+                            <input type="color" id="master-text" value="#ffffff">
+                        </div>
+                        <div class="config-item">
+                            <label>Schriftgröße:</label>
+                            <input type="range" id="master-font-size" min="8" max="16" value="10">
+                            <span id="master-font-size-value">10px</span>
+                        </div>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Room Area</h3>
+                        <div class="config-item">
+                            <label>Hintergrundfarbe:</label>
+                            <input type="color" id="room-bg" value="#2c2c2c">
+                        </div>
+                        <div class="config-item">
+                            <label>Balken-Standardfarbe:</label>
+                            <input type="color" id="room-bar" value="#27ae60">
+                        </div>
+                        <div class="config-item">
+                            <label>Textfarbe:</label>
+                            <input type="color" id="room-text" value="#ffffff">
+                        </div>
+                        <div class="config-item">
+                            <label>Schriftgröße:</label>
+                            <input type="range" id="room-font-size" min="8" max="16" value="10">
+                            <span id="room-font-size-value">10px</span>
+                        </div>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Histogram</h3>
+                        <div class="config-item">
+                            <label>Hintergrundfarbe:</label>
+                            <input type="color" id="histogram-bg" value="#f8f9fa">
+                        </div>
+                        <div class="config-item">
+                            <label>Balkenfarbe:</label>
+                            <input type="color" id="histogram-bar" value="#17a2b8">
+                        </div>
+                        <div class="config-item">
+                            <label>Textfarbe:</label>
+                            <input type="color" id="histogram-text" value="#333333">
+                        </div>
+                        <div class="config-item">
+                            <label>Schriftgröße:</label>
+                            <input type="range" id="histogram-font-size" min="8" max="14" value="9">
+                            <span id="histogram-font-size-value">9px</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live-Vorschau -->
+            <div class="config-section">
+                <h2>👁️ Live-Vorschau</h2>
+                <div class="preview-area">
+                    <div id="preview-mini" class="preview-mini">
+                        <div id="preview-header" class="preview-header">Header</div>
+                        <div class="preview-body">
+                            <div id="preview-sidebar" class="preview-sidebar">Sidebar</div>
+                            <div class="preview-main">
+                                <div id="preview-master" class="preview-master">Master</div>
+                                <div id="preview-rooms" class="preview-rooms">Rooms</div>
+                                <div id="preview-histogram" class="preview-histogram">Histogram</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="saveConfiguration()">💾 Speichern</button>
+                <button class="btn btn-secondary" onclick="resetToDefaults()">🔄 Zurücksetzen</button>
+                <button class="btn btn-success" onclick="applyAndClose()">✅ Anwenden & Schließen</button>
+                <a href="timeline-unified.html" class="btn btn-secondary">🏠 Zurück zur Timeline</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="timeline-config.js"></script>
+</body>
+
+</html>

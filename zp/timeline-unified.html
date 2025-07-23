@@ -75,7 +75,9 @@
         FPS: <span id="fps">0</span><br>
         Render Zeit: <span id="render-time">0ms</span><br>
         Reservierungen: <span id="reservations-count">0</span><br>
-        Zimmer: <span id="rooms-count">0</span>
+        Zimmer: <span id="rooms-count">0</span><br>
+        <a href="timeline-config.html" style="color: #4facfe; text-decoration: none; font-weight: bold;">⚙️
+            Konfiguration</a>
     </div>
 
     <!-- Scripts -->
@@ -282,6 +284,13 @@
 
         // Initialisierung
         document.addEventListener('DOMContentLoaded', () => {
+            // Prüfe auf Theme-Updates (wenn von Konfiguration zurückgekehrt)
+            window.addEventListener('focus', () => {
+                if (timelineRenderer && timelineRenderer.refreshThemeConfiguration) {
+                    timelineRenderer.refreshThemeConfiguration();
+                }
+            });
+
             // Automatisch echte Daten laden beim Seitenaufruf
             setTimeout(() => {
                 console.log('Auto-loading REAL data on page load...');
