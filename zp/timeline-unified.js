@@ -43,18 +43,19 @@ class TimelineUnifiedRenderer {
         this.ghostBar = null; // { x, y, width, height, room, mode, visible }
 
         // Separator-Positionen aus Cookies laden oder Defaults setzen
-        this.separatorY = this.loadFromCookie('separatorTop', 240);
-        this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 790);
+        this.separatorY = this.loadFromCookie('separatorTop', 255);
+        this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 805);
 
-        // Layout-Bereiche (dynamisch) - Header wieder hinzugefügt
+        // Layout-Bereiche (dynamisch) - Header wieder hinzugefügt + Menü
         this.areas = {
-            header: { height: 40, y: 0 },
-            master: { height: 200, y: 40 },
-            rooms: { height: 550, y: 240 },
-            histogram: { height: 160, y: 790 }
+            menu: { height: 20, y: 0 },
+            header: { height: 40, y: 20 },
+            master: { height: 200, y: 60 },
+            rooms: { height: 550, y: 260 },
+            histogram: { height: 160, y: 810 }
         };
 
-        this.totalHeight = 950;
+        this.totalHeight = 970;
         this.sidebarWidth = 80;
 
         // Timeline-Konstanten
@@ -165,14 +166,18 @@ class TimelineUnifiedRenderer {
     createCanvas() {
         this.container.innerHTML = `
             <div class="timeline-unified-container" style="
-                width: 100%;
-                height: 100%;
-                position: relative;
+                width: 100vw;
+                height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
                 overflow: hidden;
-                border: 1px solid #444;
+                border: none;
                 background: #2c2c2c;
                 display: flex;
                 flex-direction: column;
+                margin: 0;
+                padding: 0;
             ">
                 <!-- Hauptbereich mit Canvas und vertikalen Scrollbars -->
                 <div style="
@@ -198,7 +203,7 @@ class TimelineUnifiedRenderer {
                         "></canvas>
                         
                         <!-- Master-Scrollbar (zwischen Header und Separator 1) -->
-                        <div class="scroll-track-master" style="
+                        <div class="scroll-track-master mobile-scrollbar" style="
                             position: absolute;
                             right: 0;
                             width: 18px;
@@ -206,6 +211,7 @@ class TimelineUnifiedRenderer {
                             border-left: 1px solid #ccc;
                             overflow-y: auto;
                             z-index: 10;
+                            -webkit-overflow-scrolling: touch;
                         ">
                             <div class="scroll-content-master" style="
                                 width: 1px; 
@@ -214,7 +220,7 @@ class TimelineUnifiedRenderer {
                         </div>
                         
                         <!-- Rooms-Scrollbar (zwischen Separator 1 und 2) -->
-                        <div class="scroll-track-rooms" style="
+                        <div class="scroll-track-rooms mobile-scrollbar" style="
                             position: absolute;
                             right: 0;
                             width: 18px;
@@ -222,6 +228,7 @@ class TimelineUnifiedRenderer {
                             border-left: 1px solid #ccc;
                             overflow-y: auto;
                             z-index: 10;
+                            -webkit-overflow-scrolling: touch;
                         ">
                             <div class="scroll-content-rooms" style="
                                 width: 1px; 
@@ -232,12 +239,13 @@ class TimelineUnifiedRenderer {
                 </div>
                 
                 <!-- Horizontale Scrollbar unten -->
-                <div class="scroll-track-h" style="
+                <div class="scroll-track-h mobile-scrollbar" style="
                     height: 18px;
                     background: #e8e8e8;
                     border-top: 1px solid #ccc;
                     overflow-x: auto;
                     flex-shrink: 0;
+                    -webkit-overflow-scrolling: touch;
                 ">
                     <div class="scroll-content-h" style="
                         height: 1px; 
@@ -250,6 +258,90 @@ class TimelineUnifiedRenderer {
         this.ctx = this.canvas.getContext('2d');
 
         this.resizeCanvas();
+        this.addMobileScrollbarStyles();
+    }
+
+    addMobileScrollbarStyles() {
+        // Prüfe ob bereits Styles existieren
+        if (document.getElementById('mobile-scrollbar-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'mobile-scrollbar-styles';
+        style.textContent = `
+            /* Body Fullscreen ohne Scrollbars */
+            body, html {
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+            
+            /* Verbesserte Scrollbars für Mobilgeräte */
+            .mobile-scrollbar {
+                scrollbar-width: auto !important;
+                scrollbar-color: #888 #f1f1f1 !important;
+            }
+            
+            .mobile-scrollbar::-webkit-scrollbar {
+                width: 18px !important;
+                height: 18px !important;
+                background: transparent;
+            }
+            
+            .mobile-scrollbar::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 0px;
+            }
+            
+            .mobile-scrollbar::-webkit-scrollbar-thumb {
+                background: #888 !important;
+                border-radius: 9px !important;
+                border: 3px solid #f1f1f1 !important;
+                min-height: 30px !important;
+                min-width: 30px !important;
+            }
+            
+            .mobile-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #555 !important;
+            }
+            
+            .mobile-scrollbar::-webkit-scrollbar-thumb:active {
+                background: #333 !important;
+            }
+            
+            /* Touch-optimiert für kleine Bildschirme */
+            @media (max-width: 768px), (pointer: coarse) {
+                .mobile-scrollbar::-webkit-scrollbar {
+                    width: 24px !important;
+                    height: 24px !important;
+                }
+                
+                .mobile-scrollbar::-webkit-scrollbar-thumb {
+                    min-height: 40px !important;
+                    min-width: 40px !important;
+                    border: 4px solid #f1f1f1 !important;
+                }
+                
+                .scroll-track-master,
+                .scroll-track-rooms {
+                    width: 24px !important;
+                }
+                
+                .scroll-track-h {
+                    height: 24px !important;
+                }
+            }
+            
+            /* iOS Safari spezifische Anpassungen */
+            @supports (-webkit-touch-callout: none) {
+                .mobile-scrollbar {
+                    -webkit-overflow-scrolling: touch !important;
+                    overflow-scrolling: touch !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     resizeCanvas() {
@@ -280,8 +372,8 @@ class TimelineUnifiedRenderer {
 
         if (masterScrollbar) {
             // Master-Scrollbar zwischen Header-Unterkante und Separator 1
-            masterScrollbar.style.top = this.areas.header.height + 'px';
-            masterScrollbar.style.height = (this.separatorY - this.areas.header.height) + 'px';
+            masterScrollbar.style.top = this.areas.header.y + this.areas.header.height + 'px';
+            masterScrollbar.style.height = (this.separatorY - this.areas.header.y - this.areas.header.height) + 'px';
         }
 
         if (roomsScrollbar) {
@@ -458,9 +550,9 @@ class TimelineUnifiedRenderer {
             Math.min(this.bottomSeparatorY, maxBottomSeparatorY));
         this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + 100);
 
-        // Layout-Bereiche aktualisieren (Header wieder hinzugefügt)
-        this.areas.master.height = this.separatorY - 40;
-        this.areas.master.y = 40;
+        // Layout-Bereiche aktualisieren (Menü + Header wieder hinzugefügt)
+        this.areas.master.height = this.separatorY - 60;
+        this.areas.master.y = 60;
         this.areas.rooms.y = this.separatorY;
         this.areas.rooms.height = this.bottomSeparatorY - this.separatorY;
         this.areas.histogram.y = this.bottomSeparatorY;
@@ -486,7 +578,7 @@ class TimelineUnifiedRenderer {
     }
 
     handleTopSeparatorDrag(mouseY) {
-        const minY = 60; // Mindestens etwas Platz für Header + Master
+        const minY = 80; // Mindestens etwas Platz für Menü + Header + Master
         const maxY = this.canvas.height * 0.5;
 
         this.separatorY = Math.max(minY, Math.min(maxY, mouseY));
@@ -1113,8 +1205,9 @@ class TimelineUnifiedRenderer {
             scrollContentRooms.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
         }
 
-        // Render alle Bereiche (Header wieder hinzugefügt)
+        // Render alle Bereiche (Menü + Header wieder hinzugefügt)
         this.renderSidebar();
+        this.renderMenu();
         this.renderHeader(startDate, endDate);
         this.renderMasterArea(startDate, endDate);
         this.renderRoomsArea(startDate, endDate);
@@ -1227,6 +1320,60 @@ class TimelineUnifiedRenderer {
         ctx.restore();
     }
 
+    renderMenu() {
+        const area = this.areas.menu;
+
+        // Menü-Hintergrund
+        this.ctx.fillStyle = this.lightenColor(this.themeConfig.sidebar.bg, 5);
+        this.ctx.fillRect(0, area.y, this.canvas.width, area.height);
+
+        // Config-Button im Menü (rechts)
+        this.renderConfigButtonInMenu();
+
+        // Menü-Border unten
+        this.ctx.strokeStyle = '#ddd';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, area.y + area.height);
+        this.ctx.lineTo(this.canvas.width, area.y + area.height);
+        this.ctx.stroke();
+    }
+
+    renderConfigButtonInMenu() {
+        const area = this.areas.menu;
+        const buttonWidth = 60;
+        const buttonHeight = 16;
+        const buttonX = this.canvas.width - buttonWidth - 5;
+        const buttonY = area.y + 2;
+
+        // Button-Hintergrund
+        this.ctx.fillStyle = this.isConfigButtonHovered ?
+            this.lightenColor(this.themeConfig.sidebar.bg, 30) :
+            this.lightenColor(this.themeConfig.sidebar.bg, 15);
+
+        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 3);
+        this.ctx.fill();
+
+        // Button-Border
+        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
+        this.ctx.lineWidth = 0.5;
+        this.ctx.stroke();
+
+        // Button-Text
+        this.ctx.fillStyle = this.themeConfig.sidebar.text;
+        this.ctx.font = '9px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('⚙️ Config', buttonX + buttonWidth / 2, buttonY + 10);
+
+        // Button-Position für Click-Detection speichern
+        this.configButtonBounds = {
+            x: buttonX,
+            y: buttonY,
+            width: buttonWidth,
+            height: buttonHeight
+        };
+    }
+
     renderSidebar() {
         // Sidebar-Hintergrund mit Theme-Konfiguration
         this.ctx.fillStyle = this.themeConfig.sidebar.bg;
@@ -1245,9 +1392,6 @@ class TimelineUnifiedRenderer {
         this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
         this.ctx.textAlign = 'center';
 
-        // Konfigurationsbutton oben links (anstatt "Datum")
-        this.renderConfigButton();
-
         this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + 20);
 
         // Zimmer-Label
@@ -1258,44 +1402,6 @@ class TimelineUnifiedRenderer {
         this.ctx.restore();
 
         this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
-    }
-
-    renderConfigButton() {
-        const buttonX = 5;
-        const buttonY = this.areas.header.y + 5;
-        const buttonWidth = this.sidebarWidth - 10;
-        const buttonHeight = 30;
-
-        // Button-Hintergrund
-        this.ctx.fillStyle = this.isConfigButtonHovered ?
-            this.lightenColor(this.themeConfig.sidebar.bg, 20) :
-            this.lightenColor(this.themeConfig.sidebar.bg, 10);
-
-        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 5);
-        this.ctx.fill();
-
-        // Button-Border
-        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
-        this.ctx.lineWidth = 1;
-        this.ctx.stroke();
-
-        // Button-Icon und Text
-        this.ctx.fillStyle = this.themeConfig.sidebar.text;
-        this.ctx.font = `${Math.max(10, this.themeConfig.sidebar.fontSize - 2)}px Arial`;
-        this.ctx.textAlign = 'center';
-
-        // Gear-Icon (⚙️) und Text
-        this.ctx.fillText('⚙️', this.sidebarWidth / 2, buttonY + 12);
-        this.ctx.font = `${Math.max(8, this.themeConfig.sidebar.fontSize - 4)}px Arial`;
-        this.ctx.fillText('Config', this.sidebarWidth / 2, buttonY + 26);
-
-        // Button-Position für Click-Detection speichern
-        this.configButtonBounds = {
-            x: buttonX,
-            y: buttonY,
-            width: buttonWidth,
-            height: buttonHeight
-        };
     }
 
     renderHeader(startDate, endDate) {
