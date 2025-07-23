@@ -20,6 +20,10 @@ class TimelineUnifiedRenderer {
         this.mouseY = 0;
         this.hoveredReservation = null;
 
+        // Config-Button Tracking
+        this.isConfigButtonHovered = false;
+        this.configButtonBounds = null;
+
         // Drag & Drop für Separatoren
         this.isDraggingSeparator = false;
         this.isDraggingBottomSeparator = false;
@@ -60,6 +64,9 @@ class TimelineUnifiedRenderer {
         this.lastDragRender = 0;
         this.renderCount = 0;
 
+        // Theme-Konfiguration laden
+        this.themeConfig = this.loadThemeConfiguration();
+
         this.init();
     }
 
@@ -75,6 +82,47 @@ class TimelineUnifiedRenderer {
         const expires = new Date();
         expires.setFullYear(expires.getFullYear() + 1); // 1 Jahr gültig
         document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`;
+    }
+
+    // ===== THEME CONFIGURATION =====
+    loadThemeConfiguration() {
+        // Versuche aus Cookie zu laden
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('timeline_config='))
+            ?.split('=')[1];
+
+        if (cookieValue) {
+            try {
+                return JSON.parse(decodeURIComponent(cookieValue));
+            } catch (e) {
+                console.warn('Fehler beim Laden der Theme-Konfiguration:', e);
+            }
+        }
+
+        // Fallback: localStorage
+        const localStorageValue = localStorage.getItem('timeline_config');
+        if (localStorageValue) {
+            try {
+                return JSON.parse(localStorageValue);
+            } catch (e) {
+                console.warn('Fehler beim Laden der localStorage-Konfiguration:', e);
+            }
+        }
+
+        // Default: Professional Theme
+        return {
+            sidebar: { bg: '#2c3e50', text: '#ecf0f1', fontSize: 12 },
+            header: { bg: '#34495e', text: '#ecf0f1', fontSize: 10 },
+            master: { bg: '#2c3e50', bar: '#3498db', text: '#ffffff', fontSize: 10 },
+            room: { bg: '#2c3e50', bar: '#27ae60', text: '#ffffff', fontSize: 10 },
+            histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 }
+        };
+    }
+
+    refreshThemeConfiguration() {
+        this.themeConfig = this.loadThemeConfiguration();
+        this.render(); // Neu rendern mit neuer Konfiguration
     }
 
     init() {
@@ -427,11 +475,19 @@ class TimelineUnifiedRenderer {
     // ===== DRAG & DROP FÜR RESERVIERUNGEN =====
 
     handleMouseDown(e) {
-        // Separator-Handling hat Priorität
+        // Config-Button Click-Check hat höchste Priorität
         const rect = this.canvas.getBoundingClientRect();
         const mouseY = e.clientY - rect.top;
         const mouseX = e.clientX - rect.left;
 
+        if (this.isConfigButtonHovered && this.configButtonBounds) {
+            // Öffne Konfigurationsseite
+            window.open('timeline-config.html', '_blank');
+            e.preventDefault();
+            return;
+        }
+
+        // Separator-Handling hat Priorität
         if (this.isOverTopSeparator(mouseY)) {
             this.isDraggingSeparator = true;
             this.draggingType = 'top';
@@ -475,6 +531,7 @@ class TimelineUnifiedRenderer {
 
         // Date range für Position-Berechnung
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
 
         for (const room of rooms) {
@@ -670,6 +727,7 @@ class TimelineUnifiedRenderer {
 
     updateReservationPosition(reservation) {
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
 
         const checkinDate = new Date(reservation.start);
@@ -747,6 +805,7 @@ class TimelineUnifiedRenderer {
         if (!this.ghostBar || !this.draggedReservation) return;
 
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
         const startX = this.sidebarWidth - this.scrollX;
 
@@ -885,6 +944,12 @@ class TimelineUnifiedRenderer {
             return; // Cursor nicht ändern während Drag-Operationen
         }
 
+        // Config-Button Cursor
+        if (this.isConfigButtonHovered) {
+            this.canvas.style.cursor = 'pointer';
+            return;
+        }
+
         // Separator-Cursor hat Priorität
         const overTopSeparator = this.isOverTopSeparator(this.mouseY);
         const overBottomSeparator = this.isOverBottomSeparator(this.mouseY);
@@ -988,8 +1053,9 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        // Neue Datums-Logik: now - 2 weeks bis now + 2 years
+        // Neue Datums-Logik: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
         const endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000)); // now + 2 years
 
@@ -1134,8 +1200,8 @@ class TimelineUnifiedRenderer {
     }
 
     renderSidebar() {
-        // Sidebar-Hintergrund
-        this.ctx.fillStyle = '#47d42b3f';
+        // Sidebar-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.sidebar.bg;
         this.ctx.fillRect(0, 0, this.sidebarWidth, this.canvas.height);
 
         // Sidebar-Border
@@ -1146,12 +1212,14 @@ class TimelineUnifiedRenderer {
         this.ctx.lineTo(this.sidebarWidth, this.canvas.height);
         this.ctx.stroke();
 
-        // Labels (Header wieder hinzugefügt)
-        this.ctx.fillStyle = '#333';
-        this.ctx.font = '12px Arial';
+        // Labels mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.sidebar.text;
+        this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
         this.ctx.textAlign = 'center';
 
-        this.ctx.fillText('Datum', this.sidebarWidth / 2, this.areas.header.y + 25);
+        // Konfigurationsbutton oben links (anstatt "Datum")
+        this.renderConfigButton();
+
         this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + 20);
 
         // Zimmer-Label
@@ -1164,12 +1232,50 @@ class TimelineUnifiedRenderer {
         this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
     }
 
+    renderConfigButton() {
+        const buttonX = 5;
+        const buttonY = this.areas.header.y + 5;
+        const buttonWidth = this.sidebarWidth - 10;
+        const buttonHeight = 30;
+
+        // Button-Hintergrund
+        this.ctx.fillStyle = this.isConfigButtonHovered ?
+            this.lightenColor(this.themeConfig.sidebar.bg, 20) :
+            this.lightenColor(this.themeConfig.sidebar.bg, 10);
+
+        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 5);
+        this.ctx.fill();
+
+        // Button-Border
+        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+
+        // Button-Icon und Text
+        this.ctx.fillStyle = this.themeConfig.sidebar.text;
+        this.ctx.font = `${Math.max(10, this.themeConfig.sidebar.fontSize - 2)}px Arial`;
+        this.ctx.textAlign = 'center';
+
+        // Gear-Icon (⚙️) und Text
+        this.ctx.fillText('⚙️', this.sidebarWidth / 2, buttonY + 12);
+        this.ctx.font = `${Math.max(8, this.themeConfig.sidebar.fontSize - 4)}px Arial`;
+        this.ctx.fillText('Config', this.sidebarWidth / 2, buttonY + 26);
+
+        // Button-Position für Click-Detection speichern
+        this.configButtonBounds = {
+            x: buttonX,
+            y: buttonY,
+            width: buttonWidth,
+            height: buttonHeight
+        };
+    }
+
     renderHeader(startDate, endDate) {
         const area = this.areas.header;
         const startX = this.sidebarWidth - this.scrollX;
 
-        // Header-Hintergrund
-        this.ctx.fillStyle = '#f8f9fa';
+        // Header-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.header.bg;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -1178,9 +1284,9 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Datum-Header
-        this.ctx.fillStyle = '#333';
-        this.ctx.font = '10px Arial';
+        // Datum-Header mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.header.text;
+        this.ctx.font = `${this.themeConfig.header.fontSize}px Arial`;
         this.ctx.textAlign = 'center';
 
         const currentDate = new Date(startDate);
@@ -1214,8 +1320,8 @@ class TimelineUnifiedRenderer {
         const area = this.areas.master;
         const startX = this.sidebarWidth - this.scrollX;
 
-        // Area-Hintergrund
-        this.ctx.fillStyle = '#2c2c2c';
+        // Area-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.master.bg;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -1241,8 +1347,8 @@ class TimelineUnifiedRenderer {
             const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
             const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-            const left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
-            const width = (duration - 0.2) * this.DAY_WIDTH;
+            const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+            const width = (duration - 0.005) * this.DAY_WIDTH;
 
             // Stack-Level finden
             let stackLevel = 0;
@@ -1277,8 +1383,8 @@ class TimelineUnifiedRenderer {
         const startX = this.sidebarWidth - this.scrollX;
         const startY = area.y - this.roomsScrollY;
 
-        // Area-Hintergrund
-        this.ctx.fillStyle = '#2c2c2c';
+        // Area-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.room.bg;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -1317,8 +1423,8 @@ class TimelineUnifiedRenderer {
                         const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
                         const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-                        const left = startX + (startOffset + 0.1) * this.DAY_WIDTH;
-                        const width = (duration - 0.2) * this.DAY_WIDTH;
+                        const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+                        const width = (duration - 0.02) * this.DAY_WIDTH;
 
                         return { ...detail, left, width, startOffset, duration };
                     })
@@ -1437,8 +1543,8 @@ class TimelineUnifiedRenderer {
 
             // Caption rendern wenn sie im geclippten Zimmer-Bereich sichtbar ist
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
-                this.ctx.fillStyle = '#555';
-                this.ctx.font = '10px Arial';
+                this.ctx.fillStyle = this.themeConfig.sidebar.text;
+                this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
                 this.ctx.textAlign = 'center';
 
                 const caption = room.caption || `R${room.id}`;
@@ -1455,8 +1561,8 @@ class TimelineUnifiedRenderer {
         const area = this.areas.histogram;
         const startX = this.sidebarWidth - this.scrollX;
 
-        // Area-Hintergrund
-        this.ctx.fillStyle = '#f8f9fa';
+        // Area-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.histogram.bg;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -1490,20 +1596,22 @@ class TimelineUnifiedRenderer {
             const barHeight = (count / maxGuests) * (availableHeight - bottomMargin);
             const y = area.y + area.height - barHeight - bottomMargin;
 
+            // Verwende Theme-Histogram-Farbe als Basis mit Intensitäts-Variationen
+            const baseColor = this.themeConfig.histogram.bar;
             const color = count > 50 ? '#dc3545' :
                 count > 30 ? '#ffc107' :
-                    count > 10 ? '#28a745' : '#6c757d';
+                    count > 10 ? '#28a745' : baseColor;
 
             this.ctx.fillStyle = color;
             this.ctx.globalAlpha = 0.7;
             this.ctx.fillRect(x, y, barWidth, barHeight);
             this.ctx.globalAlpha = 1.0;
 
-            // Detaillierte Beschriftung mit mehr Platz
+            // Detaillierte Beschriftung mit Theme-Textfarbe
             const details = dailyDetails[dayIndex];
             if (details && barWidth > 30) {
-                this.ctx.fillStyle = '#333';
-                this.ctx.font = '8px Arial';
+                this.ctx.fillStyle = this.themeConfig.histogram.text;
+                this.ctx.font = `${this.themeConfig.histogram.fontSize}px Arial`;
                 this.ctx.textAlign = 'center';
 
                 const centerX = x + barWidth / 2;
@@ -1588,6 +1696,16 @@ class TimelineUnifiedRenderer {
 
     // Hilfsmethoden
     checkHover() {
+        // Config-Button Hover-Check
+        this.isConfigButtonHovered = false;
+        if (this.configButtonBounds) {
+            const bounds = this.configButtonBounds;
+            if (this.mouseX >= bounds.x && this.mouseX <= bounds.x + bounds.width &&
+                this.mouseY >= bounds.y && this.mouseY <= bounds.y + bounds.height) {
+                this.isConfigButtonHovered = true;
+            }
+        }
+
         // Nur im Rooms-Bereich nach Reservierungen suchen
         if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
             const reservation = this.findReservationAt(this.mouseX, this.mouseY);
@@ -1606,10 +1724,13 @@ class TimelineUnifiedRenderer {
 
     renderReservationBar(x, y, width, height, reservation, isHovered = false) {
         const capacity = reservation.capacity || 1;
-        let color = capacity <= 2 ? '#3498db' :
-            capacity <= 5 ? '#2ecc71' :
-                capacity <= 10 ? '#f39c12' :
-                    capacity <= 20 ? '#e74c3c' : '#9b59b6';
+
+        // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
+        let color = reservation.color ||
+            (capacity <= 2 ? this.themeConfig.master.bar :
+                capacity <= 5 ? '#2ecc71' :
+                    capacity <= 10 ? '#f39c12' :
+                        capacity <= 20 ? '#e74c3c' : '#9b59b6');
 
         if (isHovered) {
             color = this.lightenColor(color, 20);
@@ -1635,8 +1756,8 @@ class TimelineUnifiedRenderer {
         this.ctx.stroke();
 
         if (width > 40) {
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '9px Arial';
+            this.ctx.fillStyle = this.themeConfig.master.text;
+            this.ctx.font = `${this.themeConfig.master.fontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
             // Enhanced caption format: trim(nachname & " " & vorname) & (total_capacity arrangement_name) + dog_symbol
@@ -1711,7 +1832,8 @@ class TimelineUnifiedRenderer {
     }
 
     renderRoomReservationBar(x, y, width, height, detail, isHovered = false) {
-        let color = detail.color || '#3498db';
+        // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
+        let color = detail.color || this.themeConfig.room.bar;
 
         // Drag & Drop visuelles Feedback
         const isDragged = this.isDraggingReservation && this.draggedReservation === detail;
@@ -1766,8 +1888,8 @@ class TimelineUnifiedRenderer {
         }
 
         if (width > 30) {
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '9px Arial';
+            this.ctx.fillStyle = this.themeConfig.room.text;
+            this.ctx.font = `${this.themeConfig.room.fontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
             let text = detail.guest_name;
@@ -1874,8 +1996,9 @@ class TimelineUnifiedRenderer {
         roomDetails = newRoomDetails || [];
         rooms = newRooms || [];
 
-        // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years
+        // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         this.startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
         this.endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000));
 
