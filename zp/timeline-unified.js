@@ -67,6 +67,11 @@ class TimelineUnifiedRenderer {
         this.lastScrollRender = 0;
         this.renderScheduled = false;
 
+        // Phase 2: Stacking Cache System
+        this.stackingCache = new Map(); // roomId -> stackingResult
+        this.stackingDirty = new Set(); // Set of dirty roomIds
+        this.dataIndex = null; // Will be initialized with reservation data
+
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
@@ -101,9 +106,9 @@ class TimelineUnifiedRenderer {
     }
 
     getVisibleReservations(startDate, endDate) {
-        // Viewport Culling - nur sichtbare Reservierungen rendern
-        const viewportLeft = this.scrollX - 200; // 200px Puffer
-        const viewportRight = this.scrollX + this.canvas.width + 200;
+        // Erweiterte Viewport Culling - großzügigerer Puffer für bessere Sichtbarkeit
+        const viewportLeft = this.scrollX - 500; // Größerer Puffer für bessere Sichtbarkeit
+        const viewportRight = this.scrollX + this.canvas.width + 500;
 
         const startX = this.sidebarWidth - this.scrollX;
 
@@ -119,7 +124,7 @@ class TimelineUnifiedRenderer {
             const resLeft = startX + (startOffset + 0.1) * this.DAY_WIDTH;
             const resRight = resLeft + (duration - 0.2) * this.DAY_WIDTH;
 
-            // Nur sichtbare + Puffer rendern
+            // Großzügigere Sichtbarkeitsprüfung
             return resRight >= viewportLeft && resLeft <= viewportRight;
         });
     }
@@ -149,6 +154,256 @@ class TimelineUnifiedRenderer {
         }
 
         return visibleRooms;
+    }
+
+    // ===== PHASE 2: DATA INDEXING SYSTEM =====
+
+    initializeDataIndex(reservations, roomDetails) {
+        this.dataIndex = {
+            reservationsByRoom: new Map(),
+            reservationsByDate: new Map(),
+            roomDetailsById: new Map(),
+            dateRange: { start: null, end: null }
+        };
+
+        // Index reservations by room
+        reservations.forEach(reservation => {
+            const roomId = reservation.room_id;
+            if (!this.dataIndex.reservationsByRoom.has(roomId)) {
+                this.dataIndex.reservationsByRoom.set(roomId, []);
+            }
+            this.dataIndex.reservationsByRoom.get(roomId).push(reservation);
+        });
+
+        // Index room details by room
+        roomDetails.forEach(detail => {
+            const roomId = detail.room_id;
+            if (!this.dataIndex.reservationsByRoom.has(roomId)) {
+                this.dataIndex.reservationsByRoom.set(roomId, []);
+            }
+            this.dataIndex.reservationsByRoom.get(roomId).push(detail);
+
+            // Also index by detail ID for quick lookup
+            this.dataIndex.roomDetailsById.set(detail.id || detail.detail_id, detail);
+        });
+
+        // Index by date for temporal queries
+        [...reservations, ...roomDetails].forEach(item => {
+            const startDate = new Date(item.start);
+            startDate.setHours(0, 0, 0, 0);
+            const dateKey = this.getDateKey(startDate);
+
+            if (!this.dataIndex.reservationsByDate.has(dateKey)) {
+                this.dataIndex.reservationsByDate.set(dateKey, []);
+            }
+            this.dataIndex.reservationsByDate.get(dateKey).push(item);
+
+            // Update date range
+            if (!this.dataIndex.dateRange.start || startDate < this.dataIndex.dateRange.start) {
+                this.dataIndex.dateRange.start = new Date(startDate);
+            }
+            if (!this.dataIndex.dateRange.end || startDate > this.dataIndex.dateRange.end) {
+                this.dataIndex.dateRange.end = new Date(startDate);
+            }
+        });
+    }
+
+    getDateKey(date) {
+        return Math.floor(date.getTime() / (1000 * 60 * 60 * 24));
+    }
+
+    getReservationsForRoom(roomId) {
+        // Fallback auf direkte roomDetails-Suche wenn kein dataIndex
+        if (!this.dataIndex) {
+            return roomDetails.filter(detail =>
+                detail.room_id === roomId ||
+                String(detail.room_id) === String(roomId) ||
+                Number(detail.room_id) === Number(roomId)
+            );
+        }
+
+        // Verwende Index, aber mit Fallback auf direkte Suche
+        const indexedResults = this.dataIndex.reservationsByRoom.get(roomId) ||
+            this.dataIndex.reservationsByRoom.get(String(roomId)) ||
+            this.dataIndex.reservationsByRoom.get(Number(roomId)) ||
+            [];
+
+        // Zusätzliche Sicherheits-Suche in roomDetails für aktualisierte Daten
+        const directResults = roomDetails.filter(detail =>
+            detail.room_id === roomId ||
+            String(detail.room_id) === String(roomId) ||
+            Number(detail.room_id) === Number(roomId)
+        );
+
+        // Verwende die direkten Ergebnisse wenn sie aktueller sind (nach Drag & Drop)
+        if (directResults.length !== indexedResults.length) {
+            return directResults;
+        }
+
+        return indexedResults.length > 0 ? indexedResults : directResults;
+    }
+
+    getReservationsInDateRange(startDate, endDate, roomId = null) {
+        if (!this.dataIndex) return [];
+
+        const result = [];
+        const startKey = this.getDateKey(startDate);
+        const endKey = this.getDateKey(endDate);
+
+        for (let dateKey = startKey; dateKey <= endKey; dateKey++) {
+            const dayReservations = this.dataIndex.reservationsByDate.get(dateKey) || [];
+            if (roomId) {
+                result.push(...dayReservations.filter(r =>
+                    r.room_id === roomId ||
+                    String(r.room_id) === String(roomId) ||
+                    Number(r.room_id) === Number(roomId)
+                ));
+            } else {
+                result.push(...dayReservations);
+            }
+        }
+        return result;
+    }
+
+    // ===== PHASE 2: STACKING CACHE SYSTEM =====
+
+    getStackingForRoom(roomId, startDate, endDate) {
+        const cacheKey = `${roomId}_${this.getDateKey(startDate)}_${this.getDateKey(endDate)}`;
+
+        // Check if cache is dirty for this room (with multiple ID formats)
+        const isDirty = this.stackingDirty.has(roomId) ||
+            this.stackingDirty.has(String(roomId)) ||
+            this.stackingDirty.has(Number(roomId));
+
+        if (this.stackingCache.has(cacheKey) && !isDirty) {
+            return this.stackingCache.get(cacheKey);
+        }
+
+        const result = this.calculateStackingForRoom(roomId, startDate, endDate);
+        this.stackingCache.set(cacheKey, result);
+
+        // Clear dirty flag for all formats
+        this.stackingDirty.delete(roomId);
+        this.stackingDirty.delete(String(roomId));
+        this.stackingDirty.delete(Number(roomId));
+
+        return result;
+    }
+
+    calculateStackingForRoom(roomId, startDate, endDate) {
+        const roomReservations = this.getReservationsForRoom(roomId);
+        if (roomReservations.length === 0) {
+            return { reservations: [], maxStackLevel: 0, roomHeight: 25 };
+        }
+
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+        let maxStackLevel = 0;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        // Map und position alle Reservierungen - mit eindeutigen Kopien
+        const positionedReservations = roomReservations
+            .map(detail => {
+                const checkinDate = new Date(detail.start);
+                checkinDate.setHours(12, 0, 0, 0);
+                const checkoutDate = new Date(detail.end);
+                checkoutDate.setHours(12, 0, 0, 0);
+
+                const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+                const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+                const width = (duration - 0.02) * this.DAY_WIDTH;
+
+                // Wichtig: Komplett neue Kopie mit allen relevanten Eigenschaften
+                return {
+                    ...detail,
+                    left,
+                    width,
+                    startOffset,
+                    duration,
+                    stackLevel: 0,
+                    // Eindeutige ID für Tracking
+                    _calcId: detail.id || detail.detail_id || `${detail.room_id}_${detail.start}_${detail.end}`
+                };
+            })
+            .filter(item => item.left + item.width > this.sidebarWidth - 100 &&
+                item.left < this.canvas.width + 100)
+            .sort((a, b) => a.startOffset - b.startOffset);
+
+        // Stacking-Berechnung - sauberer Algorithmus ohne Seiteneffekte
+        positionedReservations.forEach((reservation, index) => {
+            let stackLevel = 0;
+            let placed = false;
+
+            while (!placed) {
+                let canPlaceHere = true;
+
+                // Prüfe gegen ALLE bereits platzierten Reservierungen
+                for (let i = 0; i < index; i++) {
+                    const other = positionedReservations[i];
+                    if (other.stackLevel === stackLevel) {
+                        const reservationEnd = reservation.left + reservation.width;
+                        const otherEnd = other.left + other.width;
+
+                        // Überlappungs-Check
+                        if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                            reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                            canPlaceHere = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (canPlaceHere) {
+                    reservation.stackLevel = stackLevel;
+                    maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                    placed = true;
+                } else {
+                    stackLevel++;
+                }
+
+                // Sicherheits-Ausgang
+                if (stackLevel > 15) {
+                    reservation.stackLevel = stackLevel;
+                    maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                    placed = true;
+                }
+            }
+        });
+
+        const barHeight = this.themeConfig.room.barHeight || 16;
+        const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
+
+        return {
+            reservations: positionedReservations,
+            maxStackLevel,
+            roomHeight
+        };
+    }
+
+    invalidateStackingCache(roomId = null) {
+        if (roomId) {
+            // Convert roomId to string for consistent comparison
+            const roomIdStr = String(roomId);
+            this.stackingDirty.add(roomId);
+            this.stackingDirty.add(roomIdStr);
+            this.stackingDirty.add(Number(roomId));
+
+            // Remove cached entries for this room (check all possible key formats)
+            const keysToDelete = [];
+            for (const key of this.stackingCache.keys()) {
+                if (key.startsWith(`${roomId}_`) ||
+                    key.startsWith(`${roomIdStr}_`) ||
+                    key.startsWith(`${Number(roomId)}_`)) {
+                    keysToDelete.push(key);
+                }
+            }
+            keysToDelete.forEach(key => this.stackingCache.delete(key));
+        } else {
+            // Clear entire cache
+            this.stackingCache.clear();
+            this.stackingDirty.clear();
+        }
     }
 
     // ===== THEME CONFIGURATION =====
@@ -220,6 +475,10 @@ class TimelineUnifiedRenderer {
     refreshThemeConfiguration() {
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
+
+        // Phase 2: Invalidate all caches when theme changes
+        this.invalidateStackingCache(); // Clear all caches
+
         this.scheduleRender('theme_change'); // Optimiert: Scheduled render statt direkt
     }
 
@@ -460,6 +719,8 @@ class TimelineUnifiedRenderer {
         // Horizontaler Scroll
         horizontalTrack.addEventListener('scroll', (e) => {
             this.scrollX = e.target.scrollLeft;
+            // Phase 2: Invalidate viewport-dependent caches on horizontal scroll
+            this.invalidateStackingCache();
             this.scheduleRender('scroll_h');
         });
 
@@ -956,24 +1217,62 @@ class TimelineUnifiedRenderer {
     finishReservationDrag() {
         if (!this.isDraggingReservation || !this.draggedReservation) return;
 
+        const originalRoomId = this.dragOriginalData.room_id;
+        let targetRoomId = originalRoomId;
+
         // Bei Move-Operation: Zimmer wechseln wenn nötig
         if (this.dragMode === 'move' && this.dragTargetRoom &&
             this.dragTargetRoom.id !== this.dragOriginalData.room_id) {
             this.draggedReservation.room_id = this.dragTargetRoom.id;
+            targetRoomId = this.dragTargetRoom.id;
         }
 
-        // Aktualisiere roomDetails Array
+        // Aktualisiere roomDetails Array ZUERST - das ist kritisch für korrekte Referenzen
         const originalIndex = roomDetails.findIndex(detail =>
             detail === this.draggedReservation ||
+            (detail.id && detail.id === this.draggedReservation.id) ||
+            (detail.detail_id && detail.detail_id === this.draggedReservation.detail_id) ||
             (detail.data && detail.data.detail_id === this.draggedReservation.data?.detail_id)
         );
 
         if (originalIndex !== -1) {
-            roomDetails[originalIndex] = { ...this.draggedReservation };
+            // Wichtig: Komplett neue Kopie erstellen, um Referenz-Probleme zu vermeiden
+            roomDetails[originalIndex] = {
+                ...this.draggedReservation,
+                room_id: targetRoomId, // Sicherstellen dass room_id korrekt gesetzt ist
+                start: new Date(this.draggedReservation.start).toISOString(),
+                end: new Date(this.draggedReservation.end).toISOString()
+            };
         }
 
-        // Live-Update des Stackings
-        this.updateRoomStacking();
+        // Re-initialize data index NACH Array-Update
+        if (this.dataIndex) {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+
+        // Invalidate stacking cache NACH Daten-Update
+        this.invalidateStackingCache(originalRoomId);
+        if (targetRoomId !== originalRoomId) {
+            this.invalidateStackingCache(targetRoomId);
+        }
+
+        // Force room height recalculation für betroffene Zimmer
+        const affectedRooms = [originalRoomId];
+        if (targetRoomId !== originalRoomId) {
+            affectedRooms.push(targetRoomId);
+        }
+
+        affectedRooms.forEach(roomId => {
+            const room = rooms.find(r =>
+                r.id === roomId ||
+                String(r.id) === String(roomId) ||
+                Number(r.id) === Number(roomId)
+            );
+            if (room) {
+                // Reset room height to trigger recalculation
+                delete room._dynamicHeight;
+            }
+        });
 
         this.cancelDrag();
     }
@@ -1173,67 +1472,75 @@ class TimelineUnifiedRenderer {
     }
 
     updateRoomStacking() {
-        // Neu-Berechnung des Stackings für alle Zimmer
-        rooms.forEach(room => {
-            const roomReservations = roomDetails.filter(detail =>
-                detail.room_id === room.id ||
-                String(detail.room_id) === String(room.id) ||
-                Number(detail.room_id) === Number(room.id)
-            );
+        // Phase 2: Use cache-aware approach
+        if (this.dataIndex) {
+            // Only update rooms that have reservations
+            for (const roomId of this.dataIndex.reservationsByRoom.keys()) {
+                this.invalidateStackingCache(roomId);
+            }
+        } else {
+            // Fallback: Traditional approach
+            rooms.forEach(room => {
+                const roomReservations = roomDetails.filter(detail =>
+                    detail.room_id === room.id ||
+                    String(detail.room_id) === String(room.id) ||
+                    Number(detail.room_id) === Number(room.id)
+                );
 
-            // Stacking-Algorithmus anwenden
-            const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
-            let maxStackLevel = 0;
+                // Stacking-Algorithmus anwenden
+                const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+                let maxStackLevel = 0;
 
-            const sortedReservations = roomReservations
-                .map(detail => {
-                    this.updateReservationPosition(detail);
-                    return detail;
-                })
-                .sort((a, b) => a.startOffset - b.startOffset);
+                const sortedReservations = roomReservations
+                    .map(detail => {
+                        this.updateReservationPosition(detail);
+                        return detail;
+                    })
+                    .sort((a, b) => a.startOffset - b.startOffset);
 
-            sortedReservations.forEach((reservation, index) => {
-                let stackLevel = 0;
-                let placed = false;
+                sortedReservations.forEach((reservation, index) => {
+                    let stackLevel = 0;
+                    let placed = false;
 
-                while (!placed) {
-                    let canPlaceHere = true;
+                    while (!placed) {
+                        let canPlaceHere = true;
 
-                    for (let i = 0; i < index; i++) {
-                        const other = sortedReservations[i];
-                        if (other.stackLevel === stackLevel) {
-                            const reservationEnd = reservation.left + reservation.width;
-                            const otherEnd = other.left + other.width;
+                        for (let i = 0; i < index; i++) {
+                            const other = sortedReservations[i];
+                            if (other.stackLevel === stackLevel) {
+                                const reservationEnd = reservation.left + reservation.width;
+                                const otherEnd = other.left + other.width;
 
-                            if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
-                                reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
-                                canPlaceHere = false;
-                                break;
+                                if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                                    reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                                    canPlaceHere = false;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if (canPlaceHere) {
-                        reservation.stackLevel = stackLevel;
-                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
-                        placed = true;
-                    } else {
-                        stackLevel++;
-                    }
+                        if (canPlaceHere) {
+                            reservation.stackLevel = stackLevel;
+                            maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                            placed = true;
+                        } else {
+                            stackLevel++;
+                        }
 
-                    if (stackLevel > 10) {
-                        reservation.stackLevel = stackLevel;
-                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
-                        placed = true;
+                        if (stackLevel > 10) {
+                            reservation.stackLevel = stackLevel;
+                            maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                            placed = true;
+                        }
                     }
-                }
+                });
+
+                // Update Zimmer-Höhe
+                const barHeight = this.themeConfig.room.barHeight || 16;
+                const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
+                room._dynamicHeight = roomHeight;
             });
-
-            // Update Zimmer-Höhe
-            const barHeight = this.themeConfig.room.barHeight || 16;
-            const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
-            room._dynamicHeight = roomHeight;
-        });
+        }
     }
 
     render() {
@@ -1244,11 +1551,19 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        // Initialize data index if not done yet
+        if (!this.dataIndex && typeof reservations !== 'undefined' && typeof roomDetails !== 'undefined') {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+
         // Neue Datums-Logik: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
         now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
         const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
         const endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000)); // now + 2 years
+
+        // Pre-calculate room heights for correct scrollbar sizing
+        this.preCalculateRoomHeights(startDate, endDate);
 
         const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
         const timelineWidth = totalDays * this.DAY_WIDTH;
@@ -1259,14 +1574,14 @@ class TimelineUnifiedRenderer {
             scrollContentH.style.width = timelineWidth + 'px';
         }
 
-        // Viewport Culling für bessere Performance
-        const visibleReservations = this.getVisibleReservations(startDate, endDate);
+        // Viewport Culling für bessere Performance - aber großzügiger für Sichtbarkeit
+        const visibleReservations = reservations; // Temporär alle verwenden für korrekte Darstellung
 
         // Update Master-Scrollbar Content-Höhe
         const scrollContentMaster = this.container.querySelector('.scroll-content-master');
-        if (scrollContentMaster && visibleReservations.length > 0) {
+        if (scrollContentMaster && reservations.length > 0) {
             // Berechne tatsächliche maximale Stack-Höhe für Master-Bereich
-            const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate, visibleReservations);
+            const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate, reservations);
             const barHeight = this.themeConfig.master.barHeight || 14;
             const masterContentHeight = Math.max(this.areas.master.height, 10 + (maxStackLevel + 1) * barHeight + 50);
             scrollContentMaster.style.height = masterContentHeight + 'px';
@@ -1283,8 +1598,8 @@ class TimelineUnifiedRenderer {
         this.renderSidebar();
         this.renderMenu();
         this.renderHeader(startDate, endDate);
-        this.renderMasterArea(startDate, endDate, visibleReservations);
-        this.renderRoomsArea(startDate, endDate);
+        this.renderMasterArea(startDate, endDate, reservations); // Alle Reservierungen verwenden
+        this.renderRoomsAreaOptimized(startDate, endDate); // Use optimized version
         this.renderHistogramArea(startDate, endDate);
         this.renderVerticalGridLines(startDate, endDate);
         this.renderSeparators();
@@ -1293,8 +1608,106 @@ class TimelineUnifiedRenderer {
         this.renderGhostBar();
     }
 
+    // Pre-calculate room heights to ensure correct scrollbar sizing
+    preCalculateRoomHeights(startDate, endDate) {
+        if (!rooms || rooms.length === 0) return;
+
+        rooms.forEach(room => {
+            // Skip if already calculated
+            if (room._dynamicHeight) return;
+
+            // Try cached stacking first
+            let stackingResult;
+            try {
+                stackingResult = this.getStackingForRoom(room.id, startDate, endDate);
+            } catch (e) {
+                stackingResult = null;
+            }
+
+            // Fallback: Manual calculation if cache fails
+            if (!stackingResult || !stackingResult.reservations) {
+                // Manual room details processing
+                const roomReservations = roomDetails.filter(detail =>
+                    detail.room_id === room.id ||
+                    String(detail.room_id) === String(room.id) ||
+                    Number(detail.room_id) === Number(room.id)
+                );
+
+                if (roomReservations.length > 0) {
+                    // Quick stacking calculation without full position data
+                    const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+                    let maxStackLevel = 0;
+
+                    const reservationsByTime = roomReservations.map(detail => {
+                        const checkinDate = new Date(detail.start);
+                        checkinDate.setHours(12, 0, 0, 0);
+                        const checkoutDate = new Date(detail.end);
+                        checkoutDate.setHours(12, 0, 0, 0);
+
+                        const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                        const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+                        return {
+                            ...detail,
+                            startOffset,
+                            duration,
+                            stackLevel: 0
+                        };
+                    }).sort((a, b) => a.startOffset - b.startOffset);
+
+                    // Simple stacking algorithm
+                    reservationsByTime.forEach((reservation, index) => {
+                        let stackLevel = 0;
+                        let placed = false;
+
+                        while (!placed) {
+                            let canPlaceHere = true;
+
+                            for (let i = 0; i < index; i++) {
+                                const other = reservationsByTime[i];
+                                if (other.stackLevel === stackLevel) {
+                                    const reservationEnd = reservation.startOffset + reservation.duration;
+                                    const otherEnd = other.startOffset + other.duration;
+
+                                    if (!(reservationEnd <= other.startOffset + (OVERLAP_TOLERANCE / this.DAY_WIDTH) ||
+                                        reservation.startOffset >= otherEnd - (OVERLAP_TOLERANCE / this.DAY_WIDTH))) {
+                                        canPlaceHere = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (canPlaceHere) {
+                                reservation.stackLevel = stackLevel;
+                                maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                                placed = true;
+                            } else {
+                                stackLevel++;
+                            }
+
+                            if (stackLevel > 15) {
+                                reservation.stackLevel = stackLevel;
+                                maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                                placed = true;
+                            }
+                        }
+                    });
+
+                    const barHeight = this.themeConfig.room.barHeight || 16;
+                    const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
+                    room._dynamicHeight = roomHeight;
+                } else {
+                    room._dynamicHeight = 25;
+                }
+            } else {
+                room._dynamicHeight = stackingResult.roomHeight;
+            }
+        });
+    }
+
     calculateMasterMaxStackLevel(startDate, endDate, visibleReservations = null) {
-        const reservationsToCheck = visibleReservations || reservations;
+        // Verwende ALLE Reservierungen für Master-Bereich, nicht nur sichtbare
+        const reservationsToCheck = reservations; // Alle Reservierungen verwenden
         if (reservationsToCheck.length === 0) return 0;
 
         const stackLevels = [];
@@ -1314,6 +1727,7 @@ class TimelineUnifiedRenderer {
             const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
             const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
+            // Verwende ABSOLUTE Position ohne Scroll-Offset für Stack-Berechnung
             const left = this.sidebarWidth + (startOffset + 0.1) * this.DAY_WIDTH;
             const width = (duration - 0.2) * this.DAY_WIDTH;
 
@@ -1539,10 +1953,10 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Verwende sichtbare Reservierungen für bessere Performance
-        const reservationsToRender = visibleReservations || this.getVisibleReservations(startDate, endDate);
+        // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
+        const reservationsToRender = reservations; // Alle Reservierungen ohne Filter verwenden
 
-        // Stack-Algorithmus für Master-Reservierungen (nur sichtbare)
+        // Stack-Algorithmus für Master-Reservierungen
         const stackLevels = [];
         const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
 
@@ -1561,6 +1975,19 @@ class TimelineUnifiedRenderer {
 
             const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
             const width = (duration - 0.005) * this.DAY_WIDTH;
+
+            // Viewport-Check für Rendering - basierend auf absoluter Position OHNE Scroll
+            const viewportLeft = this.scrollX - 1000;
+            const viewportRight = this.scrollX + this.canvas.width + 1000;
+
+            // Berechne absolute Position für Viewport-Check (ohne startX Scroll-Offset)
+            const absoluteLeft = this.sidebarWidth + (startOffset + 0.01) * this.DAY_WIDTH;
+            const absoluteRight = absoluteLeft + width;
+
+            // Skip nur wenn WEIT außerhalb Viewport für Performance
+            if (absoluteRight < viewportLeft || absoluteLeft > viewportRight) {
+                return; // Skip weit entfernte Reservierungen
+            }
 
             // Stack-Level finden
             let stackLevel = 0;
@@ -1709,6 +2136,204 @@ class TimelineUnifiedRenderer {
 
             // Render Reservierungen
             sortedReservations.forEach(reservation => {
+                const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
+                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
+
+                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, barHeight, reservation, isHovered);
+
+                if (isHovered) {
+                    this.hoveredReservation = reservation;
+                }
+            });
+
+            // Zimmer-Trennlinie
+            this.ctx.save();
+            this.ctx.strokeStyle = '#444';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.sidebarWidth, baseRoomY + roomHeight);
+            this.ctx.lineTo(this.canvas.width, baseRoomY + roomHeight);
+            this.ctx.stroke();
+            this.ctx.restore();
+        });
+
+        this.ctx.restore();
+
+        // Zimmer-Captions im Sidebar-Bereich rendern
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(0, this.areas.rooms.y, this.sidebarWidth, this.areas.rooms.height);
+        this.ctx.clip();
+
+        visibleRooms.forEach(({ room, yOffset, height }) => {
+            const baseRoomY = startY + yOffset;
+            const roomDisplayY = baseRoomY + (height / 2) + (this.themeConfig.sidebar.fontSize / 3);
+
+            if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
+                this.ctx.fillStyle = this.themeConfig.sidebar.text;
+                this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+                this.ctx.textAlign = 'center';
+
+                const caption = room.caption || `R${room.id}`;
+                this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
+            }
+        });
+
+        this.ctx.restore();
+    }
+
+    renderRoomsAreaOptimized(startDate, endDate) {
+        const area = this.areas.rooms;
+        const startX = this.sidebarWidth - this.scrollX;
+        const startY = area.y - this.roomsScrollY;
+
+        // Area-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.room.bg;
+        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+
+        // CLIPPING
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
+        // Zimmer-Zeilen rendern - nur sichtbare Zimmer für bessere Performance
+        const visibleRooms = this.getVisibleRooms();
+
+        visibleRooms.forEach(({ room, yOffset, height }) => {
+            const baseRoomY = startY + yOffset;
+
+            // Try cached stacking first, fallback to manual calculation
+            let stackingResult;
+            try {
+                stackingResult = this.getStackingForRoom(room.id, startDate, endDate);
+            } catch (e) {
+                console.warn('Cache failed, using fallback:', e);
+                stackingResult = null;
+            }
+
+            // Fallback: Manual calculation if cache fails
+            if (!stackingResult || !stackingResult.reservations) {
+                // Manual room details processing - DIREKT aus roomDetails Array
+                const roomReservations = roomDetails.filter(detail =>
+                    detail.room_id === room.id ||
+                    String(detail.room_id) === String(room.id) ||
+                    Number(detail.room_id) === Number(room.id)
+                );
+
+                if (roomReservations.length > 0) {
+                    // Berechne Positionen manuell - IDENTISCH zur Cache-Version
+                    const positionedReservations = roomReservations.map(detail => {
+                        const checkinDate = new Date(detail.start);
+                        checkinDate.setHours(12, 0, 0, 0);
+                        const checkoutDate = new Date(detail.end);
+                        checkoutDate.setHours(12, 0, 0, 0);
+
+                        const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                        const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+                        const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+                        const width = (duration - 0.02) * this.DAY_WIDTH;
+
+                        return {
+                            ...detail,
+                            left,
+                            width,
+                            startOffset,
+                            duration,
+                            stackLevel: 0,
+                            _calcId: detail.id || detail.detail_id || `${detail.room_id}_${detail.start}_${detail.end}`
+                        };
+                    });
+
+                    // Viewport-Filter
+                    const visibleReservations = positionedReservations
+                        .filter(item => item.left + item.width > this.sidebarWidth - 100 &&
+                            item.left < this.canvas.width + 100)
+                        .sort((a, b) => a.startOffset - b.startOffset);
+
+                    // Stacking-Berechnung - IDENTISCH zur Cache-Version
+                    const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+                    let maxStackLevel = 0;
+
+                    visibleReservations.forEach((reservation, index) => {
+                        let stackLevel = 0;
+                        let placed = false;
+
+                        while (!placed) {
+                            let canPlaceHere = true;
+
+                            for (let i = 0; i < index; i++) {
+                                const other = visibleReservations[i];
+                                if (other.stackLevel === stackLevel) {
+                                    const reservationEnd = reservation.left + reservation.width;
+                                    const otherEnd = other.left + other.width;
+
+                                    if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                                        reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                                        canPlaceHere = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (canPlaceHere) {
+                                reservation.stackLevel = stackLevel;
+                                maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                                placed = true;
+                            } else {
+                                stackLevel++;
+                            }
+
+                            if (stackLevel > 15) {
+                                reservation.stackLevel = stackLevel;
+                                maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                                placed = true;
+                            }
+                        }
+                    });
+
+                    const barHeight = this.themeConfig.room.barHeight || 16;
+                    const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
+
+                    stackingResult = {
+                        reservations: visibleReservations,
+                        maxStackLevel,
+                        roomHeight
+                    };
+                } else {
+                    stackingResult = { reservations: [], maxStackLevel: 0, roomHeight: 25 };
+                }
+            }
+
+            const { reservations: sortedReservations, maxStackLevel, roomHeight } = stackingResult;
+
+            // Update room height
+            room._dynamicHeight = roomHeight;
+
+            // Zimmer-Hintergrund mit alternierenden Streifen
+            this.ctx.save();
+            const roomIndex = rooms.indexOf(room);
+            const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+                this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
+                this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+            if (isDropTarget) {
+                this.ctx.fillStyle = '#4CAF50';
+                this.ctx.globalAlpha = 0.3;
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                this.ctx.globalAlpha = 1.0;
+            } else {
+                this.ctx.globalAlpha = 0.2;
+                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                this.ctx.globalAlpha = 1.0;
+            }
+            this.ctx.restore();
+
+            // Render Reservierungen
+            sortedReservations.forEach(reservation => {
+                const barHeight = this.themeConfig.room.barHeight || 16;
                 const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
                 const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
 
