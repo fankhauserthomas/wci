@@ -62,6 +62,9 @@ class TimelineUnifiedRenderer {
         // Timeline-Konstanten
         this.DAY_WIDTH = 90; // Breite eines Tages in Pixeln - wird von Theme überschrieben
 
+        // Dynamische Zimmer-Balkenhöhe
+        this.ROOM_BAR_HEIGHT = 16; // Standard Balkenhöhe (10-30px)
+
         // Performance tracking
         this.lastDragRender = 0;
         this.lastHoverRender = 0;
@@ -123,6 +126,35 @@ class TimelineUnifiedRenderer {
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
+        this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
+
+        // DAY_WIDTH aus localStorage laden (überschreibt Theme-Wert)
+        try {
+            const savedDayWidth = localStorage.getItem('timeline_day_width');
+            if (savedDayWidth) {
+                const dayWidth = parseInt(savedDayWidth, 10);
+                if (dayWidth >= 60 && dayWidth <= 150) {
+                    this.DAY_WIDTH = dayWidth;
+                    console.log('DAY_WIDTH aus localStorage geladen:', this.DAY_WIDTH);
+                }
+            }
+        } catch (e) {
+            console.warn('DAY_WIDTH konnte nicht aus localStorage geladen werden:', e);
+        }
+
+        // ROOM_BAR_HEIGHT aus localStorage laden (überschreibt Theme-Wert) 
+        try {
+            const savedBarHeight = localStorage.getItem('timeline_room_bar_height');
+            if (savedBarHeight) {
+                const barHeight = parseInt(savedBarHeight, 10);
+                if (barHeight >= 10 && barHeight <= 30) {
+                    this.ROOM_BAR_HEIGHT = barHeight;
+                    console.log('ROOM_BAR_HEIGHT aus localStorage geladen:', this.ROOM_BAR_HEIGHT);
+                }
+            }
+        } catch (e) {
+            console.warn('ROOM_BAR_HEIGHT konnte nicht aus localStorage geladen werden:', e);
+        }
 
         this.init();
     }
@@ -668,8 +700,10 @@ class TimelineUnifiedRenderer {
             }
         });
 
-        const barHeight = this.themeConfig.room.barHeight || 16;
-        const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
+        const barHeight = this.ROOM_BAR_HEIGHT; // Verwende dynamische Balkenhöhe
+        const roomHeight = maxStackLevel === 0
+            ? Math.max(this.ROOM_BAR_HEIGHT + 2, 12) // Keine Stacks: Balkenhöhe + 2px
+            : Math.max(25, 4 + (maxStackLevel + 1) * (this.ROOM_BAR_HEIGHT + 2)); // Mit Stacks: x*barHeight+(x+1)px
 
         return {
             reservations: positionedReservations,
@@ -701,6 +735,24 @@ class TimelineUnifiedRenderer {
             this.stackingCache.clear();
             this.stackingDirty.clear();
         }
+    }
+
+    // Zimmer-Höhen neu berechnen basierend auf aktueller ROOM_BAR_HEIGHT
+    recalculateRoomHeights() {
+        if (!window.rooms) return;
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        const endDate = new Date(now.getTime() + (60 * 24 * 60 * 60 * 1000));
+
+        // Aktualisiere alle Zimmer-Höhen
+        for (const room of rooms) {
+            const stackingResult = this.getStackingForRoom(room.id, startDate, endDate);
+            room._dynamicHeight = stackingResult.roomHeight;
+        }
+
+        console.log('Zimmer-Höhen neu berechnet für ROOM_BAR_HEIGHT:', this.ROOM_BAR_HEIGHT);
     }
 
     // ===== THEME CONFIGURATION =====
@@ -1041,15 +1093,71 @@ class TimelineUnifiedRenderer {
             });
         }
 
-        // Mausrad-Events für bereichsspezifisches Scrollen
+        // Mausrad-Events für bereichsspezifisches Scrollen und DAY_WIDTH-Änderung
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const mouseY = e.offsetY;
+            const mouseX = e.offsetX; // Aktuelle Mausposition X
+            const mouseY = e.offsetY; // Aktuelle Mausposition Y
 
             // Throttle wheel events
             const now = Date.now();
             if (now - this.lastScrollRender < 16) return; // 60 FPS für Scrolling
             this.lastScrollRender = now;
+
+            // DAY_WIDTH ändern wenn Maus über Header/Datum-Bereich
+            if (mouseY >= this.areas.header.y && mouseY < this.areas.header.y + this.areas.header.height && e.ctrlKey) {
+                // Ctrl + Mausrad über Datum = DAY_WIDTH ändern (60-150px)
+                const delta = e.deltaY > 0 ? 5 : -5; // Hoch = vergrößern, runter = verkleinern
+                const newDayWidth = Math.max(60, Math.min(150, this.DAY_WIDTH + delta));
+
+                if (newDayWidth !== this.DAY_WIDTH) {
+                    this.DAY_WIDTH = newDayWidth;
+
+                    // In localStorage speichern
+                    try {
+                        localStorage.setItem('timeline_day_width', this.DAY_WIDTH.toString());
+                        console.log('DAY_WIDTH gespeichert:', this.DAY_WIDTH);
+                    } catch (e) {
+                        console.warn('DAY_WIDTH konnte nicht gespeichert werden:', e);
+                    }
+
+                    // Zimmerbereich Cache invalidieren für korrekte Neuberechnung
+                    this.invalidateStackingCache();
+
+                    // Neu rendern
+                    this.scheduleRender('day_width_change');
+                }
+                return; // Kein weiteres Scrolling
+            }
+
+            // ROOM_BAR_HEIGHT ändern wenn Maus über Sidebar/Zimmer-Bereich
+            if (mouseX <= this.sidebarWidth && mouseY >= this.areas.rooms.y && mouseY < this.areas.rooms.y + this.areas.rooms.height && e.ctrlKey) {
+                // Ctrl + Mausrad über Sidebar = ROOM_BAR_HEIGHT ändern (10-30px)
+                const delta = e.deltaY > 0 ? 1 : -1; // Hoch = vergrößern, runter = verkleinern
+                const newBarHeight = Math.max(10, Math.min(30, this.ROOM_BAR_HEIGHT + delta));
+
+                if (newBarHeight !== this.ROOM_BAR_HEIGHT) {
+                    this.ROOM_BAR_HEIGHT = newBarHeight;
+
+                    // In localStorage speichern
+                    try {
+                        localStorage.setItem('timeline_room_bar_height', this.ROOM_BAR_HEIGHT.toString());
+                        console.log('ROOM_BAR_HEIGHT gespeichert:', this.ROOM_BAR_HEIGHT);
+                    } catch (e) {
+                        console.warn('ROOM_BAR_HEIGHT konnte nicht gespeichert werden:', e);
+                    }
+
+                    // Zimmerbereich Cache invalidieren für korrekte Neuberechnung
+                    this.invalidateStackingCache();
+
+                    // Zimmer-Höhen neu berechnen
+                    this.recalculateRoomHeights();
+
+                    // Neu rendern
+                    this.scheduleRender('bar_height_change');
+                }
+                return; // Kein weiteres Scrolling
+            }
 
             if (e.shiftKey) {
                 // Shift + Mausrad = horizontal scrollen
@@ -3423,10 +3531,10 @@ class TimelineUnifiedRenderer {
                     return; // Keine Sichtbarkeit für Ghost-Reservierungen
                 }
 
-                const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
-                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
+                const stackY = baseRoomY + 1 + (reservation.stackLevel * (this.ROOM_BAR_HEIGHT + 2));
+                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT);
 
-                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, barHeight, reservation, isHovered);
+                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT, reservation, isHovered);
 
                 if (isHovered) {
                     this.hoveredReservation = reservation;
@@ -3625,11 +3733,11 @@ class TimelineUnifiedRenderer {
                     return; // Keine Sichtbarkeit für Ghost-Reservierungen
                 }
 
-                const barHeight = this.themeConfig.room.barHeight || 16;
-                const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
-                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
+                const barHeight = this.ROOM_BAR_HEIGHT; // Verwende dynamische Balkenhöhe
+                const stackY = baseRoomY + 1 + (reservation.stackLevel * (this.ROOM_BAR_HEIGHT + 2));
+                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT);
 
-                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, barHeight, reservation, isHovered);
+                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT, reservation, isHovered);
 
                 if (isHovered) {
                     this.hoveredReservation = reservation;
@@ -4049,7 +4157,10 @@ class TimelineUnifiedRenderer {
             // Automatische Textfarbe basierend auf Balkenhelligkeit
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
-            this.ctx.font = `${this.themeConfig.room.fontSize}px Arial`;
+
+            // Dynamische Schriftgröße basierend auf Balkenhöhe
+            const dynamicFontSize = Math.max(8, Math.min(14, this.ROOM_BAR_HEIGHT - 2));
+            this.ctx.font = `${dynamicFontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
             let text = detail.guest_name || detail.name || 'Reservierung';
