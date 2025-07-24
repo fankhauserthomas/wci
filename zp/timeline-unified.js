@@ -63,6 +63,9 @@ class TimelineUnifiedRenderer {
 
         // Performance tracking
         this.lastDragRender = 0;
+        this.lastHoverRender = 0;
+        this.lastScrollRender = 0;
+        this.renderScheduled = false;
 
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
@@ -83,6 +86,69 @@ class TimelineUnifiedRenderer {
         const expires = new Date();
         expires.setFullYear(expires.getFullYear() + 1); // 1 Jahr gültig
         document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`;
+    }
+
+    // ===== PERFORMANCE OPTIMIZATIONS =====
+
+    scheduleRender(reason = 'unknown') {
+        if (this.renderScheduled) return;
+
+        this.renderScheduled = true;
+        requestAnimationFrame(() => {
+            this.render();
+            this.renderScheduled = false;
+        });
+    }
+
+    getVisibleReservations(startDate, endDate) {
+        // Viewport Culling - nur sichtbare Reservierungen rendern
+        const viewportLeft = this.scrollX - 200; // 200px Puffer
+        const viewportRight = this.scrollX + this.canvas.width + 200;
+
+        const startX = this.sidebarWidth - this.scrollX;
+
+        return reservations.filter(reservation => {
+            const checkinDate = new Date(reservation.start);
+            checkinDate.setHours(12, 0, 0, 0);
+            const checkoutDate = new Date(reservation.end);
+            checkoutDate.setHours(12, 0, 0, 0);
+
+            const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+            const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+            const resLeft = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+            const resRight = resLeft + (duration - 0.2) * this.DAY_WIDTH;
+
+            // Nur sichtbare + Puffer rendern
+            return resRight >= viewportLeft && resLeft <= viewportRight;
+        });
+    }
+
+    getVisibleRooms() {
+        // Viewport Culling für Zimmer
+        const viewportTop = this.roomsScrollY - 50; // 50px Puffer
+        const viewportBottom = this.roomsScrollY + this.areas.rooms.height + 50;
+
+        const visibleRooms = [];
+        let currentYOffset = 0;
+
+        for (const room of rooms) {
+            const roomHeight = room._dynamicHeight || 25;
+            const roomTop = currentYOffset;
+            const roomBottom = currentYOffset + roomHeight;
+
+            if (roomBottom >= viewportTop && roomTop <= viewportBottom) {
+                visibleRooms.push({
+                    room: room,
+                    yOffset: currentYOffset,
+                    height: roomHeight
+                });
+            }
+
+            currentYOffset += roomHeight;
+        }
+
+        return visibleRooms;
     }
 
     // ===== THEME CONFIGURATION =====
@@ -154,7 +220,7 @@ class TimelineUnifiedRenderer {
     refreshThemeConfiguration() {
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
-        this.render(); // Neu rendern mit neuer Konfiguration
+        this.scheduleRender('theme_change'); // Optimiert: Scheduled render statt direkt
     }
 
     init() {
@@ -394,14 +460,14 @@ class TimelineUnifiedRenderer {
         // Horizontaler Scroll
         horizontalTrack.addEventListener('scroll', (e) => {
             this.scrollX = e.target.scrollLeft;
-            this.render();
+            this.scheduleRender('scroll_h');
         });
 
         // Master-Bereich Scroll
         if (masterTrack) {
             masterTrack.addEventListener('scroll', (e) => {
                 this.masterScrollY = e.target.scrollTop;
-                this.render();
+                this.scheduleRender('scroll_master');
             });
         }
 
@@ -409,7 +475,7 @@ class TimelineUnifiedRenderer {
         if (roomsTrack) {
             roomsTrack.addEventListener('scroll', (e) => {
                 this.roomsScrollY = e.target.scrollTop;
-                this.render();
+                this.scheduleRender('scroll_rooms');
             });
         }
 
@@ -417,6 +483,11 @@ class TimelineUnifiedRenderer {
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const mouseY = e.offsetY;
+
+            // Throttle wheel events
+            const now = Date.now();
+            if (now - this.lastScrollRender < 16) return; // 60 FPS für Scrolling
+            this.lastScrollRender = now;
 
             if (e.shiftKey) {
                 // Shift + Mausrad = horizontal scrollen
@@ -458,10 +529,10 @@ class TimelineUnifiedRenderer {
 
             // Throttle normale Hover-Events um Performance zu verbessern
             const now = Date.now();
-            if (now - lastRenderTime < 50) { // Max 20 FPS für Hover - weniger aggressiv
+            if (now - this.lastHoverRender < 16) { // 60 FPS für Hover - optimiert
                 return;
             }
-            lastRenderTime = now;
+            this.lastHoverRender = now;
 
             // Normale Hover-Logik nur wenn nicht gedraggt wird
             const oldHovered = this.hoveredReservation;
@@ -470,7 +541,7 @@ class TimelineUnifiedRenderer {
 
             // Nur rendern wenn sich Hover-Status geändert hat
             if (oldHovered !== this.hoveredReservation) {
-                this.render();
+                this.scheduleRender('hover');
             }
 
             hoverTimeout = setTimeout(() => {
@@ -488,14 +559,14 @@ class TimelineUnifiedRenderer {
 
         // Global mouse events für besseres Drag & Drop - nur ein Handler
         document.addEventListener('mousemove', (e) => {
-            // Throttling für alle Drag-Operationen
+            // Optimiertes Throttling für alle Drag-Operationen
             const now = Date.now();
-            if (now - this.lastDragRender < 32) return; // Max 30 FPS für alle Drags
+            if (now - this.lastDragRender < 16) return; // 60 FPS für alle Drags - optimiert
             this.lastDragRender = now;
 
             if (this.isDraggingReservation) {
                 this.handleReservationDrag(e);
-                this.render();
+                this.scheduleRender('drag');
             }
             // Separator-Dragging über document für bessere UX
             else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
@@ -507,14 +578,14 @@ class TimelineUnifiedRenderer {
                 } else {
                     this.handleBottomSeparatorDrag(mouseY);
                 }
-                this.render();
+                this.scheduleRender('separator');
             }
         }, { passive: true });
 
         document.addEventListener('mouseup', (e) => {
             if (this.isDraggingReservation) {
                 this.finishReservationDrag();
-                this.render();
+                this.scheduleRender('drag_end');
             }
             // Separator-MouseUp über document
             else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
@@ -530,7 +601,7 @@ class TimelineUnifiedRenderer {
             }
         }, { passive: true }); this.canvas.addEventListener('mouseleave', () => {
             this.hoveredReservation = null;
-            this.render();
+            this.scheduleRender('mouseleave');
         });
 
         // Setup drag & drop events for separator
@@ -583,7 +654,7 @@ class TimelineUnifiedRenderer {
 
         this.separatorY = Math.max(minY, Math.min(maxY, mouseY));
         this.updateLayoutAreas();
-        this.render();
+        this.scheduleRender('separator_drag');
     }
 
     handleBottomSeparatorDrag(mouseY) {
@@ -592,7 +663,7 @@ class TimelineUnifiedRenderer {
 
         this.bottomSeparatorY = Math.max(minY, Math.min(maxY, mouseY));
         this.updateLayoutAreas();
-        this.render();
+        this.scheduleRender('separator_drag');
     }
 
     // ===== DRAG & DROP FÜR RESERVIERUNGEN =====
@@ -1188,11 +1259,14 @@ class TimelineUnifiedRenderer {
             scrollContentH.style.width = timelineWidth + 'px';
         }
 
+        // Viewport Culling für bessere Performance
+        const visibleReservations = this.getVisibleReservations(startDate, endDate);
+
         // Update Master-Scrollbar Content-Höhe
         const scrollContentMaster = this.container.querySelector('.scroll-content-master');
-        if (scrollContentMaster && reservations.length > 0) {
+        if (scrollContentMaster && visibleReservations.length > 0) {
             // Berechne tatsächliche maximale Stack-Höhe für Master-Bereich
-            const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate);
+            const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate, visibleReservations);
             const barHeight = this.themeConfig.master.barHeight || 14;
             const masterContentHeight = Math.max(this.areas.master.height, 10 + (maxStackLevel + 1) * barHeight + 50);
             scrollContentMaster.style.height = masterContentHeight + 'px';
@@ -1209,7 +1283,7 @@ class TimelineUnifiedRenderer {
         this.renderSidebar();
         this.renderMenu();
         this.renderHeader(startDate, endDate);
-        this.renderMasterArea(startDate, endDate);
+        this.renderMasterArea(startDate, endDate, visibleReservations);
         this.renderRoomsArea(startDate, endDate);
         this.renderHistogramArea(startDate, endDate);
         this.renderVerticalGridLines(startDate, endDate);
@@ -1219,14 +1293,15 @@ class TimelineUnifiedRenderer {
         this.renderGhostBar();
     }
 
-    calculateMasterMaxStackLevel(startDate, endDate) {
-        if (reservations.length === 0) return 0;
+    calculateMasterMaxStackLevel(startDate, endDate, visibleReservations = null) {
+        const reservationsToCheck = visibleReservations || reservations;
+        if (reservationsToCheck.length === 0) return 0;
 
         const stackLevels = [];
         const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
         let maxStackLevel = 0;
 
-        const sortedReservations = [...reservations].sort((a, b) =>
+        const sortedReservations = [...reservationsToCheck].sort((a, b) =>
             new Date(a.start).getTime() - new Date(b.start).getTime()
         );
 
@@ -1450,7 +1525,7 @@ class TimelineUnifiedRenderer {
         this.ctx.stroke();
     }
 
-    renderMasterArea(startDate, endDate) {
+    renderMasterArea(startDate, endDate, visibleReservations = null) {
         const area = this.areas.master;
         const startX = this.sidebarWidth - this.scrollX;
 
@@ -1464,11 +1539,14 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Stack-Algorithmus für Master-Reservierungen
+        // Verwende sichtbare Reservierungen für bessere Performance
+        const reservationsToRender = visibleReservations || this.getVisibleReservations(startDate, endDate);
+
+        // Stack-Algorithmus für Master-Reservierungen (nur sichtbare)
         const stackLevels = [];
         const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
 
-        const sortedReservations = [...reservations].sort((a, b) =>
+        const sortedReservations = [...reservationsToRender].sort((a, b) =>
             new Date(a.start).getTime() - new Date(b.start).getTime()
         );
 
@@ -1528,159 +1606,142 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Zimmer-Zeilen rendern
-        let currentYOffset = 0;
+        // Zimmer-Zeilen rendern - nur sichtbare Zimmer für bessere Performance
+        const visibleRooms = this.getVisibleRooms();
 
-        rooms.forEach((room, roomIndex) => {
-            const baseRoomY = startY + currentYOffset;
+        visibleRooms.forEach(({ room, yOffset, height }) => {
+            const baseRoomY = startY + yOffset;
 
-            // Nur berechnen wenn Zimmer im sichtbaren Bereich (+Puffer)
-            if (baseRoomY > area.y - 100 && baseRoomY < area.y + area.height + 100) {
-                // Zimmer-Reservierungen
-                const roomReservations = roomDetails.filter(detail => {
-                    return detail.room_id === room.id ||
-                        String(detail.room_id) === String(room.id) ||
-                        Number(detail.room_id) === Number(room.id);
-                });
+            // Zimmer-Reservierungen
+            const roomReservations = roomDetails.filter(detail => {
+                return detail.room_id === room.id ||
+                    String(detail.room_id) === String(room.id) ||
+                    Number(detail.room_id) === Number(room.id);
+            });
 
-                // Stacking nur für sichtbare Reservierungen
-                const stackLevels = [];
-                const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
-                let maxStackLevel = 0;
+            // Stacking nur für sichtbare Reservierungen
+            const stackLevels = [];
+            const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+            let maxStackLevel = 0;
 
-                const sortedReservations = roomReservations
-                    .map(detail => {
-                        const checkinDate = new Date(detail.start);
-                        checkinDate.setHours(12, 0, 0, 0);
-                        const checkoutDate = new Date(detail.end);
-                        checkoutDate.setHours(12, 0, 0, 0);
+            const sortedReservations = roomReservations
+                .map(detail => {
+                    const checkinDate = new Date(detail.start);
+                    checkinDate.setHours(12, 0, 0, 0);
+                    const checkoutDate = new Date(detail.end);
+                    checkoutDate.setHours(12, 0, 0, 0);
 
-                        const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-                        const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+                    const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                    const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-                        const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
-                        const width = (duration - 0.02) * this.DAY_WIDTH;
+                    const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+                    const width = (duration - 0.02) * this.DAY_WIDTH;
 
-                        return { ...detail, left, width, startOffset, duration };
-                    })
-                    // Nur sichtbare Reservierungen für Stacking verwenden
-                    .filter(item => item.left + item.width > this.sidebarWidth - 100 &&
-                        item.left < this.canvas.width + 100)
-                    .sort((a, b) => a.startOffset - b.startOffset);
+                    return { ...detail, left, width, startOffset, duration };
+                })
+                // Nur sichtbare Reservierungen für Stacking verwenden
+                .filter(item => item.left + item.width > this.sidebarWidth - 100 &&
+                    item.left < this.canvas.width + 100)
+                .sort((a, b) => a.startOffset - b.startOffset);
 
-                // Intelligentes Stacking-System
-                sortedReservations.forEach((reservation, index) => {
-                    let stackLevel = 0;
-                    let placed = false;
+            // Intelligentes Stacking-System
+            sortedReservations.forEach((reservation, index) => {
+                let stackLevel = 0;
+                let placed = false;
 
-                    // Finde den niedrigsten verfügbaren Stack-Level
-                    while (!placed) {
-                        let canPlaceHere = true;
+                while (!placed) {
+                    let canPlaceHere = true;
 
-                        // Prüfe Überlappung mit allen bereits platzierten Reservierungen auf diesem Level
-                        for (let i = 0; i < index; i++) {
-                            const other = sortedReservations[i];
-                            if (other.stackLevel === stackLevel) {
-                                const reservationEnd = reservation.left + reservation.width;
-                                const otherEnd = other.left + other.width;
+                    for (let i = 0; i < index; i++) {
+                        const other = sortedReservations[i];
+                        if (other.stackLevel === stackLevel) {
+                            const reservationEnd = reservation.left + reservation.width;
+                            const otherEnd = other.left + other.width;
 
-                                // Überlappung prüfen mit Toleranz
-                                if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
-                                    reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
-                                    canPlaceHere = false;
-                                    break;
-                                }
+                            if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                                reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                                canPlaceHere = false;
+                                break;
                             }
                         }
-
-                        if (canPlaceHere) {
-                            reservation.stackLevel = stackLevel;
-                            maxStackLevel = Math.max(maxStackLevel, stackLevel);
-                            placed = true;
-                        } else {
-                            stackLevel++;
-                        }
-
-                        // Sicherheitsabbruch
-                        if (stackLevel > 10) {
-                            reservation.stackLevel = stackLevel;
-                            maxStackLevel = Math.max(maxStackLevel, stackLevel);
-                            placed = true;
-                        }
                     }
-                });
 
-                // Berechne dynamische Zimmer-Höhe
-                const barHeight = this.themeConfig.room.barHeight || 16;
-                const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
-                room._dynamicHeight = roomHeight;                // Zimmer-Hintergrund mit semitransparenten alternierenden Streifen
-                this.ctx.save();
-                this.ctx.resetTransform();
+                    if (canPlaceHere) {
+                        reservation.stackLevel = stackLevel;
+                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                        placed = true;
+                    } else {
+                        stackLevel++;
+                    }
 
-                // Drop-Zone Highlighting
-                const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
-                    this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
-                    this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
-
-                if (isDropTarget) {
-                    this.ctx.fillStyle = '#4CAF50'; // Grün für Drop-Zone
-                    this.ctx.globalAlpha = 0.3;
-                    this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
-                    this.ctx.globalAlpha = 1.0;
+                    if (stackLevel > 10) {
+                        reservation.stackLevel = stackLevel;
+                        maxStackLevel = Math.max(maxStackLevel, stackLevel);
+                        placed = true;
+                    }
                 }
+            });
 
-                // Semitransparente alternierende Streifen über Theme-Hintergrund
-                if (!isDropTarget) {
-                    this.ctx.globalAlpha = 0.2; // Semitransparent
-                    this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
-                    this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
-                    this.ctx.globalAlpha = 1.0; // Zurück zu normal
-                }
-                this.ctx.restore();
+            // Update Zimmer-Höhe basierend auf Stacking
+            const barHeight = this.themeConfig.room.barHeight || 16;
+            const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
+            room._dynamicHeight = roomHeight;
 
-                // Render Reservierungen mit korrektem Stacking
-                sortedReservations.forEach(reservation => {
-                    const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
+            // Zimmer-Hintergrund mit alternierenden Streifen
+            this.ctx.save();
+            const roomIndex = rooms.indexOf(room);
+            const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+                this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
+                this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
 
-                    const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
-
-                    this.renderRoomReservationBar(reservation.left, stackY, reservation.width, barHeight, reservation, isHovered);
-                });
-
-                // Zimmer-Trennlinie
-                this.ctx.save();
-                this.ctx.resetTransform();
-                this.ctx.strokeStyle = '#ddd';
-                this.ctx.lineWidth = 1;
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.sidebarWidth, baseRoomY + roomHeight);
-                this.ctx.lineTo(this.canvas.width, baseRoomY + roomHeight);
-                this.ctx.stroke();
-                this.ctx.restore();
+            if (isDropTarget) {
+                this.ctx.fillStyle = '#4CAF50';
+                this.ctx.globalAlpha = 0.3;
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                this.ctx.globalAlpha = 1.0;
             } else {
-                // Auch für nicht sichtbare Zimmer Caption rendern, falls im Sichtbereich
-                room._dynamicHeight = 23; // Minimal-Höhe für nicht sichtbare Zimmer
+                this.ctx.globalAlpha = 0.2;
+                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, roomHeight);
+                this.ctx.globalAlpha = 1.0;
             }
+            this.ctx.restore();
 
-            currentYOffset += room._dynamicHeight || 20;
+            // Render Reservierungen
+            sortedReservations.forEach(reservation => {
+                const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
+                const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, barHeight);
+
+                this.renderRoomReservationBar(reservation.left, stackY, reservation.width, barHeight, reservation, isHovered);
+
+                if (isHovered) {
+                    this.hoveredReservation = reservation;
+                }
+            });
+
+            // Zimmer-Trennlinie
+            this.ctx.save();
+            this.ctx.strokeStyle = '#444';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.sidebarWidth, baseRoomY + roomHeight);
+            this.ctx.lineTo(this.canvas.width, baseRoomY + roomHeight);
+            this.ctx.stroke();
+            this.ctx.restore();
         });
 
         this.ctx.restore();
 
-        // CAPTIONS NACH dem Clipping rendern - aber nur im Zimmer-Bereich!
+        // Zimmer-Captions im Sidebar-Bereich rendern
         this.ctx.save();
-        // Clipping nur für den Zimmer-Bereich (Sidebar)
         this.ctx.beginPath();
         this.ctx.rect(0, this.areas.rooms.y, this.sidebarWidth, this.areas.rooms.height);
         this.ctx.clip();
 
-        let currentYOffset2 = 0;
-        rooms.forEach((room, roomIndex) => {
-            const baseRoomY = startY + currentYOffset2;
-            const roomHeight = room._dynamicHeight || 25;
-            const roomDisplayY = baseRoomY + (roomHeight / 2) + (this.themeConfig.sidebar.fontSize / 3); // Vertikal zentriert
+        visibleRooms.forEach(({ room, yOffset, height }) => {
+            const baseRoomY = startY + yOffset;
+            const roomDisplayY = baseRoomY + (height / 2) + (this.themeConfig.sidebar.fontSize / 3);
 
-            // Caption rendern wenn sie im geclippten Zimmer-Bereich sichtbar ist
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
                 this.ctx.fillStyle = this.themeConfig.sidebar.text;
                 this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
@@ -1689,8 +1750,6 @@ class TimelineUnifiedRenderer {
                 const caption = room.caption || `R${room.id}`;
                 this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
             }
-
-            currentYOffset2 += roomHeight;
         });
 
         this.ctx.restore();
