@@ -72,6 +72,42 @@ class TimelineUnifiedRenderer {
         this.stackingDirty = new Set(); // Set of dirty roomIds
         this.dataIndex = null; // Will be initialized with reservation data
 
+        // Phase 3: Advanced Performance Systems
+        this.renderPipeline = {
+            batchOperations: [],
+            contextSwitches: 0,
+            lastBatchTime: 0
+        };
+
+        this.viewportCache = {
+            lastScrollX: -1,
+            lastScrollY: -1,
+            visibleItems: new Map(),
+            cullingBounds: { left: 0, right: 0, top: 0, bottom: 0 }
+        };
+
+        this.objectPool = {
+            rectangles: [],
+            textMetrics: [],
+            positions: []
+        };
+
+        this.predictiveCache = {
+            scrollDirection: 0,
+            scrollVelocity: 0,
+            lastScrollTime: 0,
+            preloadBuffer: 500 // pixels
+        };
+
+        // Phase 3: Performance monitoring
+        this.performanceStats = {
+            renderTime: 0,
+            batchCount: 0,
+            contextSwitches: 0,
+            culledItems: 0,
+            totalItems: 0
+        };
+
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
@@ -156,7 +192,186 @@ class TimelineUnifiedRenderer {
         return visibleRooms;
     }
 
-    // ===== PHASE 2: DATA INDEXING SYSTEM =====
+    // ===== PHASE 3: ADVANCED PERFORMANCE SYSTEMS =====
+
+    // Advanced Viewport Culling with Predictive Loading
+    updateViewportCache(scrollX, scrollY) {
+        const now = Date.now();
+
+        // Calculate scroll velocity and direction for predictive loading
+        if (this.viewportCache.lastScrollX !== -1) {
+            const deltaX = scrollX - this.viewportCache.lastScrollX;
+            const deltaTime = now - this.predictiveCache.lastScrollTime;
+
+            if (deltaTime > 0) {
+                this.predictiveCache.scrollVelocity = Math.abs(deltaX) / deltaTime;
+                this.predictiveCache.scrollDirection = deltaX > 0 ? 1 : (deltaX < 0 ? -1 : 0);
+            }
+        }
+
+        this.viewportCache.lastScrollX = scrollX;
+        this.viewportCache.lastScrollY = scrollY;
+        this.predictiveCache.lastScrollTime = now;
+
+        // Calculate predictive viewport bounds
+        const predictiveBuffer = this.predictiveCache.preloadBuffer *
+            (1 + this.predictiveCache.scrollVelocity * 0.5);
+
+        this.viewportCache.cullingBounds = {
+            left: scrollX - predictiveBuffer,
+            right: scrollX + this.canvas.width + predictiveBuffer,
+            top: scrollY - predictiveBuffer,
+            bottom: scrollY + this.canvas.height + predictiveBuffer
+        };
+    }
+
+    // Object Pool Management for Memory Optimization
+    borrowFromPool(type) {
+        const pool = this.objectPool[type];
+        return pool.length > 0 ? pool.pop() : this.createPoolObject(type);
+    }
+
+    returnToPool(type, obj) {
+        const pool = this.objectPool[type];
+        if (pool.length < 100) { // Limit pool size
+            pool.push(obj);
+        }
+    }
+
+    createPoolObject(type) {
+        switch (type) {
+            case 'rectangles':
+                return { x: 0, y: 0, width: 0, height: 0, color: '', visible: false };
+            case 'textMetrics':
+                return { width: 0, height: 0, text: '', font: '' };
+            case 'positions':
+                return { left: 0, top: 0, right: 0, bottom: 0 };
+            default:
+                return {};
+        }
+    }
+
+    // Advanced Batch Rendering System
+    startBatch() {
+        this.renderPipeline.batchOperations = [];
+        this.renderPipeline.contextSwitches = 0;
+    }
+
+    addToBatch(operation) {
+        this.renderPipeline.batchOperations.push(operation);
+    }
+
+    executeBatch() {
+        if (this.renderPipeline.batchOperations.length === 0) return;
+
+        // Group operations by type to minimize context switches
+        const groupedOps = {
+            fills: [],
+            strokes: [],
+            texts: [],
+            images: []
+        };
+
+        this.renderPipeline.batchOperations.forEach(op => {
+            if (!groupedOps[op.type]) groupedOps[op.type] = [];
+            groupedOps[op.type].push(op);
+        });
+
+        // Execute grouped operations
+        Object.entries(groupedOps).forEach(([type, operations]) => {
+            if (operations.length === 0) return;
+
+            this.ctx.save();
+            this.executeBatchType(type, operations);
+            this.ctx.restore();
+            this.renderPipeline.contextSwitches++;
+        });
+
+        this.renderPipeline.batchOperations = [];
+    }
+
+    executeBatchType(type, operations) {
+        switch (type) {
+            case 'fills':
+                operations.forEach(op => {
+                    if (this.ctx.fillStyle !== op.color) {
+                        this.ctx.fillStyle = op.color;
+                    }
+                    this.ctx.fillRect(op.x, op.y, op.width, op.height);
+                });
+                break;
+
+            case 'strokes':
+                operations.forEach(op => {
+                    if (this.ctx.strokeStyle !== op.color) {
+                        this.ctx.strokeStyle = op.color;
+                    }
+                    if (this.ctx.lineWidth !== op.lineWidth) {
+                        this.ctx.lineWidth = op.lineWidth;
+                    }
+                    this.ctx.strokeRect(op.x, op.y, op.width, op.height);
+                });
+                break;
+
+            case 'texts':
+                operations.forEach(op => {
+                    if (this.ctx.fillStyle !== op.color) {
+                        this.ctx.fillStyle = op.color;
+                    }
+                    if (this.ctx.font !== op.font) {
+                        this.ctx.font = op.font;
+                    }
+                    if (this.ctx.textAlign !== op.align) {
+                        this.ctx.textAlign = op.align;
+                    }
+                    this.ctx.fillText(op.text, op.x, op.y);
+                });
+                break;
+        }
+    }
+
+    // Intelligent Viewport Culling
+    isItemInViewport(x, y, width, height) {
+        const bounds = this.viewportCache.cullingBounds;
+        return !(x + width < bounds.left ||
+            x > bounds.right ||
+            y + height < bounds.top ||
+            y > bounds.bottom);
+    }
+
+    // Memory-Optimized Rectangle Drawing
+    drawOptimizedRect(x, y, width, height, fillColor, strokeColor = null, lineWidth = 1) {
+        if (!this.isItemInViewport(x, y, width, height)) return;
+
+        if (fillColor) {
+            this.addToBatch({
+                type: 'fills',
+                x, y, width, height,
+                color: fillColor
+            });
+        }
+
+        if (strokeColor) {
+            this.addToBatch({
+                type: 'strokes',
+                x, y, width, height,
+                color: strokeColor,
+                lineWidth
+            });
+        }
+    }
+
+    // Optimized Text Rendering with Caching
+    drawOptimizedText(text, x, y, font, color, align = 'left') {
+        if (!this.isItemInViewport(x - 50, y - 10, 100, 20)) return;
+
+        this.addToBatch({
+            type: 'texts',
+            text, x, y, font, color, align
+        });
+    }
+
+    // PHASE 2: DATA INDEXING SYSTEM =====
 
     initializeDataIndex(reservations, roomDetails) {
         this.dataIndex = {
@@ -719,6 +934,10 @@ class TimelineUnifiedRenderer {
         // Horizontaler Scroll
         horizontalTrack.addEventListener('scroll', (e) => {
             this.scrollX = e.target.scrollLeft;
+
+            // Phase 3: Update viewport cache with predictive loading
+            this.updateViewportCache(this.scrollX, this.roomsScrollY);
+
             // Phase 2: Invalidate viewport-dependent caches on horizontal scroll
             this.invalidateStackingCache();
             this.scheduleRender('scroll_h');
@@ -1544,6 +1763,12 @@ class TimelineUnifiedRenderer {
     }
 
     render() {
+        // Phase 3: Performance monitoring start
+        const renderStart = performance.now();
+
+        // Phase 3: Start batch operations for optimized rendering
+        this.startBatch();
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (reservations.length === 0) {
@@ -1555,6 +1780,9 @@ class TimelineUnifiedRenderer {
         if (!this.dataIndex && typeof reservations !== 'undefined' && typeof roomDetails !== 'undefined') {
             this.initializeDataIndex(reservations, roomDetails);
         }
+
+        // Phase 3: Update viewport cache for intelligent culling
+        this.updateViewportCache(this.scrollX, this.roomsScrollY);
 
         // Neue Datums-Logik: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
@@ -1594,18 +1822,39 @@ class TimelineUnifiedRenderer {
             scrollContentRooms.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
         }
 
-        // Render alle Bereiche (Menü + Header wieder hinzugefügt)
-        this.renderSidebar();
-        this.renderMenu();
-        this.renderHeader(startDate, endDate);
-        this.renderMasterArea(startDate, endDate, reservations); // Alle Reservierungen verwenden
-        this.renderRoomsAreaOptimized(startDate, endDate); // Use optimized version
-        this.renderHistogramArea(startDate, endDate);
-        this.renderVerticalGridLines(startDate, endDate);
-        this.renderSeparators();
+        // Render critical components immediately (prevent clipping issues)
+        this.renderSidebarOptimized(); // Immediate - prevent flickering
+        this.renderMenuOptimized(); // Immediate - prevent flickering  
+        this.renderHeaderOptimized(startDate, endDate); // Immediate - fix clipping
+        this.renderMasterAreaOptimized(startDate, endDate, reservations); // Immediate - fix bars
+        this.renderVerticalGridLinesOptimized(startDate, endDate); // Immediate - fix clipping
 
-        // Ghost-Bar als letztes rendern (über allem)
+        // Start batching for remaining components
+        this.renderRoomsAreaOptimized(startDate, endDate); // Use optimized version
+        this.renderHistogramAreaOptimized(startDate, endDate);
+        this.renderSeparatorsOptimized();
+
+        // Phase 3: Execute all batched operations
+        this.executeBatch();
+
+        // Ghost-Bar als letztes rendern (über allem) - not batched for immediate feedback
         this.renderGhostBar();
+
+        // Phase 3: Performance monitoring end
+        const renderEnd = performance.now();
+        this.performanceStats.renderTime = renderEnd - renderStart;
+        this.performanceStats.batchCount = this.renderPipeline.batchOperations.length;
+        this.performanceStats.contextSwitches = this.renderPipeline.contextSwitches;
+
+        // Optional: Log performance stats for debugging (can be removed in production)
+        if (Math.random() < 0.01) { // Log 1% of renders to avoid spam
+            console.log('Phase 3 Performance:', {
+                renderTime: this.performanceStats.renderTime.toFixed(2) + 'ms',
+                contextSwitches: this.performanceStats.contextSwitches,
+                cullingBounds: this.viewportCache.cullingBounds,
+                scrollVelocity: this.predictiveCache.scrollVelocity.toFixed(2)
+            });
+        }
     }
 
     // Pre-calculate room heights to ensure correct scrollbar sizing
@@ -1861,6 +2110,413 @@ class TimelineUnifiedRenderer {
             width: buttonWidth,
             height: buttonHeight
         };
+    }
+
+    // ===== PHASE 3: OPTIMIZED RENDERING METHODS =====
+
+    renderSidebarOptimized() {
+        // Render sidebar immediately (not batched) to prevent flickering
+        this.ctx.save();
+
+        // Sidebar-Hintergrund mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.sidebar.bg;
+        this.ctx.fillRect(0, 0, this.sidebarWidth, this.canvas.height);
+
+        // Sidebar-Border
+        this.ctx.strokeStyle = '#ddd';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.sidebarWidth, 0);
+        this.ctx.lineTo(this.sidebarWidth, this.canvas.height);
+        this.ctx.stroke();
+
+        // Labels mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.sidebar.text;
+        this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+        this.ctx.textAlign = 'center';
+
+        this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + 20);
+
+        // Zimmer-Label
+        this.ctx.save();
+        this.ctx.translate(this.sidebarWidth / 2, this.areas.rooms.y + this.areas.rooms.height / 2);
+        this.ctx.rotate(-Math.PI / 2);
+        //this.ctx.fillText('Zimmer', 0, 5);
+        this.ctx.restore();
+
+        this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
+
+        this.ctx.restore();
+    }
+
+    renderMenuOptimized() {
+        const area = this.areas.menu;
+
+        // Render menu immediately (not batched) to prevent flickering
+        this.ctx.save();
+
+        // Menü-Hintergrund
+        this.ctx.fillStyle = this.lightenColor(this.themeConfig.sidebar.bg, 5);
+        this.ctx.fillRect(0, area.y, this.canvas.width, area.height);
+
+        // Config-Button im Menü (rechts) - not batched for immediate interaction
+        this.renderConfigButtonInMenuOptimized();
+
+        // Menü-Border unten
+        this.ctx.strokeStyle = '#ddd';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, area.y + area.height);
+        this.ctx.lineTo(this.canvas.width, area.y + area.height);
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    renderConfigButtonInMenuOptimized() {
+        const area = this.areas.menu;
+        const buttonWidth = 60;
+        const buttonHeight = 16;
+        const buttonX = this.canvas.width - buttonWidth - 5;
+        const buttonY = area.y + 2;
+
+        // Render immediately (not batched)
+        this.ctx.save();
+
+        // Button-Hintergrund
+        this.ctx.fillStyle = this.isConfigButtonHovered ?
+            this.lightenColor(this.themeConfig.sidebar.bg, 30) :
+            this.lightenColor(this.themeConfig.sidebar.bg, 15);
+
+        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 3);
+        this.ctx.fill();
+
+        // Button-Border
+        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
+        this.ctx.lineWidth = 0.5;
+        this.ctx.stroke();
+
+        // Button-Text
+        this.ctx.fillStyle = this.themeConfig.sidebar.text;
+        this.ctx.font = '9px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('⚙️ Config', buttonX + buttonWidth / 2, buttonY + 10);
+
+        // Button-Position für Click-Detection speichern
+        this.configButtonBounds = {
+            x: buttonX, y: buttonY, width: buttonWidth, height: buttonHeight
+        };
+
+        this.ctx.restore();
+    }
+
+    renderHeaderOptimized(startDate, endDate) {
+        const area = this.areas.header;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        // Render header immediately (not batched) to fix clipping issues
+        this.ctx.save();
+
+        // Header-Hintergrund
+        this.ctx.fillStyle = this.themeConfig.header.bg;
+        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+
+        // CLIPPING für Header-Bereich
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
+        // Datum-Header mit Theme-Konfiguration
+        this.ctx.fillStyle = this.themeConfig.header.text;
+        this.ctx.font = `${this.themeConfig.header.fontSize}px Arial`;
+        this.ctx.textAlign = 'center';
+
+        const currentDate = new Date(startDate);
+        let dayIndex = 0;
+
+        while (currentDate <= endDate) {
+            const x = startX + (dayIndex * this.DAY_WIDTH) + (this.DAY_WIDTH / 2);
+
+            // Nur rendern wenn im sichtbaren Bereich (ohne aggressive Culling)
+            if (x >= this.sidebarWidth - 50 && x <= this.canvas.width + 50) {
+                const weekday = currentDate.toLocaleDateString('de-DE', { weekday: 'short' });
+                this.ctx.fillText(weekday, x, area.y + 15);
+
+                const dateStr = currentDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+                this.ctx.fillText(dateStr, x, area.y + 30);
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            dayIndex++;
+        }
+
+        this.ctx.restore();
+
+        // Header-Border (nach restore, damit es nicht geclippt wird)
+        this.ctx.save();
+        this.ctx.strokeStyle = '#ddd';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.sidebarWidth, area.y + area.height);
+        this.ctx.lineTo(this.canvas.width, area.y + area.height);
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
+    renderMasterAreaOptimized(startDate, endDate, visibleReservations = null) {
+        const area = this.areas.master;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        // Area-Hintergrund
+        this.ctx.save();
+        this.ctx.fillStyle = this.themeConfig.master.bg;
+        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+
+        // CLIPPING für Master-Bereich
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
+        // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
+        const reservationsToRender = reservations;
+
+        // Stack-Algorithmus für Master-Reservierungen (Original-Logik)
+        const stackLevels = [];
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
+
+        const sortedReservations = [...reservationsToRender].sort((a, b) =>
+            new Date(a.start).getTime() - new Date(b.start).getTime()
+        );
+
+        sortedReservations.forEach(reservation => {
+            const checkinDate = new Date(reservation.start);
+            checkinDate.setHours(12, 0, 0, 0);
+            const checkoutDate = new Date(reservation.end);
+            checkoutDate.setHours(12, 0, 0, 0);
+
+            const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+            const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+            const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+            const width = (duration - 0.005) * this.DAY_WIDTH;
+
+            // Viewport-Check für Rendering - basierend auf absoluter Position OHNE Scroll
+            const viewportLeft = this.scrollX - 1000;
+            const viewportRight = this.scrollX + this.canvas.width + 1000;
+
+            // Berechne absolute Position für Viewport-Check (ohne startX Scroll-Offset)
+            const absoluteLeft = this.sidebarWidth + (startOffset + 0.01) * this.DAY_WIDTH;
+            const absoluteRight = absoluteLeft + width;
+
+            // Skip nur wenn WEIT außerhalb Viewport für Performance
+            if (absoluteRight < viewportLeft || absoluteLeft > viewportRight) {
+                return;
+            }
+
+            // Stack-Level finden
+            let stackLevel = 0;
+            while (stackLevel < stackLevels.length &&
+                stackLevels[stackLevel] > left + OVERLAP_TOLERANCE) {
+                stackLevel++;
+            }
+
+            while (stackLevels.length <= stackLevel) {
+                stackLevels.push(0);
+            }
+
+            stackLevels[stackLevel] = left + width + 5;
+
+            const barHeight = this.themeConfig.master.barHeight || 14;
+            const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
+
+            // Prüfe Hover-Status
+            const isHovered = this.isReservationHovered(left, top, width, barHeight);
+
+            if (isHovered) {
+                this.hoveredReservation = reservation;
+            }
+
+            this.renderReservationBar(left, top, width, barHeight, reservation, isHovered);
+        });
+
+        this.ctx.restore();
+    }
+
+    renderHistogramAreaOptimized(startDate, endDate) {
+        const area = this.areas.histogram;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        // Area-Hintergrund - render immediately (not batched)
+        this.ctx.save();
+        this.ctx.fillStyle = this.themeConfig.histogram.bg;
+        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+
+        // CLIPPING für Histogram-Bereich
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
+        // Berechne tägliche Auslastung mit Details
+        const dailyCounts = [];
+        const dailyDetails = [];
+        const tempDate = new Date(startDate);
+        let maxGuests = 1;
+
+        while (tempDate <= endDate) {
+            const guestCount = this.calculateDailyOccupancy(tempDate);
+            const details = this.calculateDetailedOccupancy(tempDate);
+            dailyCounts.push(guestCount);
+            dailyDetails.push(details);
+            maxGuests = Math.max(maxGuests, guestCount);
+            tempDate.setDate(tempDate.getDate() + 1);
+        }
+
+        // Render Histogram-Balken mit detaillierten Beschriftungen
+        const availableHeight = area.height * 0.8; // 80% der verfügbaren Höhe nutzen
+        const bottomMargin = area.height * 0.1; // 10% Margin
+
+        dailyCounts.forEach((count, dayIndex) => {
+            const x = startX + (dayIndex * this.DAY_WIDTH) + 5;
+            const barWidth = this.DAY_WIDTH - 10;
+
+            // Nur rendern wenn im Viewport
+            if (x + barWidth > this.sidebarWidth - 100 && x < this.canvas.width + 100) {
+                const barHeight = maxGuests > 0 ? (count / maxGuests) * availableHeight : 0;
+                const barY = area.y + area.height - bottomMargin - barHeight;
+
+                // Histogram-Balken
+                this.ctx.fillStyle = this.themeConfig.histogram.bar;
+                this.ctx.fillRect(x, barY, barWidth, barHeight);
+
+                // Text auf Balken (wenn hoch genug)
+                if (barHeight > 15 && count > 0) {
+                    this.ctx.fillStyle = this.themeConfig.histogram.text;
+                    this.ctx.font = `${this.themeConfig.histogram.fontSize}px Arial`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(count.toString(), x + barWidth / 2, barY + barHeight - 3);
+                }
+            }
+        });
+
+        this.ctx.restore();
+    }
+
+    renderVerticalGridLinesOptimized(startDate, endDate) {
+        // Render grid lines immediately (not batched) to fix clipping issues
+        this.ctx.save();
+
+        // CLIPPING für Timeline-Bereich (nicht Sidebar)
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, 0, this.canvas.width - this.sidebarWidth, this.canvas.height);
+        this.ctx.clip();
+
+        const startX = this.sidebarWidth - this.scrollX;
+        const currentDate = new Date(startDate);
+        let dayIndex = 0;
+
+        // Sehr dezente Gitterlinien
+        this.ctx.strokeStyle = 'rgba(200, 200, 200, 0.25)';
+        this.ctx.lineWidth = 1;
+
+        while (currentDate <= endDate) {
+            const x = startX + (dayIndex * this.DAY_WIDTH);
+
+            // Nur rendern wenn im sichtbaren Bereich
+            if (x >= this.sidebarWidth - 10 && x <= this.canvas.width + 10) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, 0);
+                this.ctx.lineTo(x, this.canvas.height);
+                this.ctx.stroke();
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            dayIndex++;
+        }
+
+        this.ctx.restore();
+    }
+
+    renderSeparatorsOptimized() {
+        const strokeColor = this.isDraggingSeparator ? '#007acc' : '#ddd';
+        const lineWidth = this.isDraggingSeparator ? 3 : 1;
+
+        // Oberer Separator (Master/Rooms) - batched
+        this.drawOptimizedRect(0, this.separatorY, this.canvas.width, lineWidth,
+            null, strokeColor, lineWidth);
+
+        // Unterer Separator (Rooms/Histogram) - batched  
+        const bottomStrokeColor = this.isDraggingBottomSeparator ? '#007acc' : '#ddd';
+        const bottomLineWidth = this.isDraggingBottomSeparator ? 3 : 1;
+
+        this.drawOptimizedRect(0, this.bottomSeparatorY, this.canvas.width, bottomLineWidth,
+            null, bottomStrokeColor, bottomLineWidth);
+
+        // Separator handles are rendered immediately (not batched) for visual feedback
+        if (this.isDraggingSeparator) {
+            this.ctx.save();
+            this.ctx.fillStyle = '#007acc';
+            const handleWidth = 20;
+            const handleHeight = 4;
+            const centerX = this.canvas.width / 2;
+            this.ctx.fillRect(centerX - handleWidth / 2, this.separatorY - handleHeight / 2, handleWidth, handleHeight);
+            this.ctx.restore();
+        }
+
+        if (this.isDraggingBottomSeparator) {
+            this.ctx.save();
+            this.ctx.fillStyle = '#007acc';
+            const handleWidth = 20;
+            const handleHeight = 4;
+            const centerX = this.canvas.width / 2;
+            this.ctx.fillRect(centerX - handleWidth / 2, this.bottomSeparatorY - handleHeight / 2, handleWidth, handleHeight);
+            this.ctx.restore();
+        }
+    }
+
+    renderReservationBarDirect(x, y, width, height, reservation, isHovered) {
+        // Direct rendering (not batched) for master bars to ensure proper clipping
+        this.ctx.save();
+
+        // Hintergrundfarbe
+        this.ctx.fillStyle = this.themeConfig.master.bar;
+
+        // Rounded Rectangle für Reservation
+        this.roundedRect(x, y, width, height, 3);
+        this.ctx.fill();
+
+        if (isHovered) {
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+
+        // Text rendern wenn Balken breit genug
+        if (width > 30) {
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '10px Arial';
+            this.ctx.textAlign = 'left';
+
+            const name = reservation.name || reservation.guest_name || 'Unbekannt';
+            const truncatedName = width > 80 ? name : name.substring(0, Math.floor(width / 8));
+            this.ctx.fillText(truncatedName, x + 4, y + height - 3);
+        }
+
+        this.ctx.restore();
+    }
+
+    renderReservationBarOptimized(x, y, width, height, reservation, isHovered) {
+        // Use batched rendering for reservation bars
+        const fillColor = this.themeConfig.master.bar;
+        const strokeColor = isHovered ? '#fff' : null;
+
+        this.drawOptimizedRect(x, y, width, height, fillColor, strokeColor, 1);
+
+        // Render text if bar is wide enough and visible
+        if (width > 50 && this.isItemInViewport(x, y, width, height)) {
+            const name = reservation.name || reservation.guest_name || 'Unbekannt';
+            this.drawOptimizedText(name, x + 4, y + height - 3,
+                '10px Arial', '#fff', 'left');
+        }
     }
 
     renderSidebar() {
