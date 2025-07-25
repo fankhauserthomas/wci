@@ -4067,20 +4067,34 @@ class TimelineUnifiedRenderer {
         }
 
         // Check if this is the source of a drag operation (show strong glow around original bar)
-        // ID-BASIERTE Lösung: Generiere eindeutige ID aus verfügbaren Daten
-        const generateUniqueId = (detail) => {
-            const name = detail.guest_name || detail.name || 'unknown';
-            const roomId = detail.room_id || 'noroom';
-            const start = detail.start || 'nostart';
-            const end = detail.end || 'noend';
-            return `${name}_${roomId}_${start}_${end}`;
+        // ECHTE ID-BASIERTE Lösung: Verwende die echten Datenbank-IDs vom Backend
+        const getRealId = (detail) => {
+            // Für Room Details: 'room_detail_' + detail_id (aus PHP Backend)
+            if (detail.id && detail.id.startsWith('room_detail_')) {
+                return detail.id;
+            }
+            // Für Master Reservations: 'res_' + id (aus PHP Backend)
+            if (detail.id && detail.id.startsWith('res_')) {
+                return detail.id;
+            }
+            // Fallback: detail_id aus data object
+            if (detail.data && detail.data.detail_id) {
+                return 'room_detail_' + detail.data.detail_id;
+            }
+            // Fallback: res_id aus data object
+            if (detail.data && detail.data.id) {
+                return 'res_' + detail.data.id;
+            }
+            // Notfall-Fallback (sollte nie auftreten bei korrekten Backend-Daten)
+            console.warn('Keine echte ID gefunden für Detail:', detail);
+            return 'unknown_' + Math.random();
         };
 
-        const currentId = generateUniqueId(detail);
+        const currentId = getRealId(detail);
         let draggedId = null;
 
         if (this.isDraggingReservation && this.draggedReservationReference) {
-            draggedId = generateUniqueId(this.draggedReservationReference);
+            draggedId = getRealId(this.draggedReservationReference);
         }
 
         const isSourceOfDrag = this.isDraggingReservation &&
