@@ -580,8 +580,6 @@ class TimelineUnifiedRenderer {
         if (this.isDraggingReservation && this.ghostBar && this.ghostBar.targetRoom &&
             this.ghostBar.targetRoom.id === roomId && this.draggedReservation && this.ghostBar.visible !== false) {
 
-            console.log('Creating ghost reservation for room:', roomId); // Debug
-
             // WICHTIG: Cache für dieses Zimmer löschen um Ghost-Reste zu entfernen
             if (this.stackingCache) {
                 const cacheKey = `${roomId}_stacking`;
@@ -655,8 +653,6 @@ class TimelineUnifiedRenderer {
             // Update das Array mit den bereinigten Reservierungen
             positionedReservations.length = 0; // Array leeren
             positionedReservations.push(...cleanedReservations.sort((a, b) => a.startOffset - b.startOffset));
-
-            console.log('Added ghost reservation to stacking, cleaned previous ghosts'); // Debug
         }
 
         // Stacking-Berechnung - sauberer Algorithmus ohne Seiteneffekte
@@ -1187,8 +1183,6 @@ class TimelineUnifiedRenderer {
 
         // Mouse-Leave Event: Sofortiges Ghost-Cleanup
         this.canvas.addEventListener('mouseleave', (e) => {
-            console.log('Mouse left canvas - cleaning up ghosts'); // Debug
-
             // Sofortiges Ghost-Cleanup wenn Maus den Canvas verlässt
             if (this.isDraggingReservation && this.ghostBar) {
                 // Nur Ghost-Bar unsichtbar machen, Drag aber weiter aktiv lassen
@@ -1510,6 +1504,9 @@ class TimelineUnifiedRenderer {
         this.dragStartX = mouseX;
         this.dragStartY = mouseY;
 
+        // WICHTIG: Speichere eine eindeutige Referenz auf den EXAKTEN Balken
+        this.draggedReservationReference = reservation; // Direkte Objektreferenz
+
         // Relativen Offset von Mausposition zu Balken-Ecke speichern
         this.dragOffsetX = mouseX - reservation.left;
         this.dragOffsetY = mouseY - reservation.stackY;
@@ -1564,8 +1561,12 @@ class TimelineUnifiedRenderer {
         const deltaX = mouseX - this.dragStartX;
         const deltaY = mouseY - this.dragStartY;
 
+        // Prüfe ob dies ein primär vertikaler Drag ist (Zimmer-Wechsel)
+        const isVerticalDrag = Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 20;
+
         // Berechne neue Datums-Werte basierend auf Drag-Modus
-        const daysDelta = Math.round(deltaX / this.DAY_WIDTH);
+        // Bei vertikalem Drag keine horizontale Verschiebung zulassen
+        const daysDelta = isVerticalDrag ? 0 : Math.round(deltaX / this.DAY_WIDTH);
 
         // Phase 3+: Real-time optimal stacking during drag
         if (this.dragOptimization.enabled) {
@@ -1590,8 +1591,6 @@ class TimelineUnifiedRenderer {
 
         // Wenn sich das Ziel-Zimmer geändert hat, Höhen neu berechnen
         if (previousTargetRoom && targetRoom && previousTargetRoom.id !== targetRoom.id) {
-            console.log('Target room changed - recalculating heights'); // Debug
-
             // Alte Zimmer-Höhe zurücksetzen (entferne Ghost-Effekt)
             if (previousTargetRoom) {
                 delete previousTargetRoom._dynamicHeight;
@@ -1786,12 +1785,13 @@ class TimelineUnifiedRenderer {
             this.dragOptimization.isActive = false;
         }
 
+        // Clear drag reference for glow system
+        this.draggedReservationReference = null;
+
         this.cancelDrag();
     }
 
     cancelDrag() {
-        console.log('cancelDrag called'); // Debug
-
         if (this.isDraggingReservation && this.draggedReservation && this.dragOriginalData) {
             // Rollback bei Abbruch
             this.draggedReservation.start = this.dragOriginalData.start;
@@ -1810,6 +1810,7 @@ class TimelineUnifiedRenderer {
         // Clear ALL drag-related state
         this.isDraggingReservation = false;
         this.draggedReservation = null;
+        this.draggedReservationReference = null; // Clear drag reference
         this.dragMode = null;
         this.dragOriginalData = null;
         this.dragTargetRoom = null;
@@ -1833,7 +1834,6 @@ class TimelineUnifiedRenderer {
             for (let i = roomDetails.length - 1; i >= 0; i--) {
                 if (roomDetails[i]._isGhost || roomDetails[i].id === 'ghost-current-drag') {
                     roomDetails.splice(i, 1);
-                    console.log('Removed ghost reservation from roomDetails'); // Debug
                 }
             }
         }
@@ -4067,23 +4067,33 @@ class TimelineUnifiedRenderer {
         }
 
         // Check if this is the source of a drag operation (show strong glow around original bar)
-        // WICHTIG: ORIGINAL-BALKEN an alter Position soll leuchten, nicht der gedraggte!
+        // ID-BASIERTE Lösung: Generiere eindeutige ID aus verfügbaren Daten
+        const generateUniqueId = (detail) => {
+            const name = detail.guest_name || detail.name || 'unknown';
+            const roomId = detail.room_id || 'noroom';
+            const start = detail.start || 'nostart';
+            const end = detail.end || 'noend';
+            return `${name}_${roomId}_${start}_${end}`;
+        };
+
+        const currentId = generateUniqueId(detail);
+        let draggedId = null;
+
+        if (this.isDraggingReservation && this.draggedReservationReference) {
+            draggedId = generateUniqueId(this.draggedReservationReference);
+        }
+
         const isSourceOfDrag = this.isDraggingReservation &&
-            this.draggedReservation &&
-            this.dragOriginalData &&
-            this.dragOriginalData.room_id &&
-            detail.room_id === this.dragOriginalData.room_id &&
-            ((detail.id && this.draggedReservation.id && detail.id === this.draggedReservation.id) ||
-                (detail.detail_id && this.draggedReservation.detail_id && detail.detail_id === this.draggedReservation.detail_id));
+            draggedId &&
+            draggedId === currentId;
 
         // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
         let color = detail.color || this.themeConfig.room.bar;
 
-        // ENHANCED APPEARANCE wenn dieser Balken gedraggt wird (ORIGINAL an alter Position)
+        // ENHANCED APPEARANCE für den EXAKTEN gedragten Balken
         if (isSourceOfDrag) {
-            // 60% heller machen (sehr deutlich sichtbar)
-            color = this.lightenColor(color, 60);
-            console.log('ORIGINAL BALKEN LEUCHTET für AV_ResDet.id:', detail.id || detail.detail_id, 'in originalem Zimmer:', this.dragOriginalData.room_id);
+            // Balken weiß machen für maximale Sichtbarkeit
+            color = '#ffffff';
         }
 
         // Drag & Drop visuelles Feedback
@@ -4096,10 +4106,10 @@ class TimelineUnifiedRenderer {
 
         this.ctx.save();
 
-        // 15 Pixel breites STARKES Leuchten wenn dieser Balken gedraggt wird
+        // MASSIVE visuelle Verstärkung wenn dieser Balken gedraggt wird
         if (isSourceOfDrag) {
-            const glowRadius = 15; // Noch größer für bessere Sichtbarkeit
-            const glowColor = this.lightenColor(color, 60); // Deutlich hellerer Glow
+            const glowRadius = 25; // Noch viel größeres Leuchten
+            const glowColor = '#ffffff'; // Weißes Leuchten
 
             this.ctx.shadowColor = glowColor;
             this.ctx.shadowBlur = glowRadius;
@@ -4117,7 +4127,23 @@ class TimelineUnifiedRenderer {
         }
 
         this.ctx.fillStyle = color;
-        this.roundedRect(x, y, width, height, 3);
+
+        // Balken vergrößern: NUR 4px für Hover (Drag-Source behält Originalgröße)
+        let renderX = x;
+        let renderY = y;
+        let renderWidth = width;
+        let renderHeight = height;
+
+        if (isHovered && !isSourceOfDrag) {
+            // 4 Pixel für Hover (nur wenn NICHT gedraggt wird)
+            renderX = x - 4;
+            renderY = y - 4;
+            renderWidth = width + 8;
+            renderHeight = height + 8;
+        }
+        // isSourceOfDrag behält Originalgröße, wird nur heller und glüht
+
+        this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
         this.ctx.fill();
 
         // Shadow reset nach dem Balken-Rendering
@@ -4127,17 +4153,17 @@ class TimelineUnifiedRenderer {
             this.ctx.globalAlpha = 1.0; // Alpha zurücksetzen
         }
 
-        // Resize-Handles bei Hover oder Drag
-        if (isHovered && width > 20) {
+        // Resize-Handles bei Hover oder Drag - angepasst für vergrößerten Balken
+        if (isHovered && renderWidth > 20) {
             const handleWidth = 4;
             const handleColor = 'rgba(255,255,255,0.8)';
 
             // Start-Handle (links)
             this.ctx.fillStyle = handleColor;
-            this.ctx.fillRect(x, y, handleWidth, height);
+            this.ctx.fillRect(renderX, renderY, handleWidth, renderHeight);
 
             // End-Handle (rechts)
-            this.ctx.fillRect(x + width - handleWidth, y, handleWidth, height);
+            this.ctx.fillRect(renderX + renderWidth - handleWidth, renderY, handleWidth, renderHeight);
         }
 
         // Shadow reset nach Handles
@@ -4148,18 +4174,18 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowOffsetY = 0;
         }
 
-        // Border
+        // Border - auch für vergrößerten Balken
         this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
-        if (width > 30) {
+        if (renderWidth > 30) {
             // Automatische Textfarbe basierend auf Balkenhelligkeit
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
 
             // Dynamische Schriftgröße basierend auf Balkenhöhe
-            const dynamicFontSize = Math.max(8, Math.min(14, this.ROOM_BAR_HEIGHT - 2));
+            const dynamicFontSize = Math.max(8, Math.min(14, renderHeight - 2));
             this.ctx.font = `${dynamicFontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
@@ -4169,9 +4195,9 @@ class TimelineUnifiedRenderer {
             }
             if (detail.has_dog) text += ' 🐕';
 
-            // Vertikal zentrierter Text
-            const textY = y + (height / 2) + (this.themeConfig.room.fontSize / 3);
-            this.ctx.fillText(text, x + 2, textY);
+            // Vertikal zentrierter Text - angepasst für vergrößerten Balken
+            const textY = renderY + (renderHeight / 2) + (this.themeConfig.room.fontSize / 3);
+            this.ctx.fillText(text, renderX + 2, textY);
         }
 
         this.ctx.restore();
