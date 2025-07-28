@@ -35,7 +35,15 @@
       <!-- Entferne Dashboard-Button (wird durch Navigation ersetzt) -->
 
       <!-- Suche -->
-      <input type="text" id="searchInput" placeholder="Suche Name…">
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Suche Name…">
+        <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Suche löschen">×</button>
+      </div>
+
+      <!-- Barcode Scanner Button -->
+      <button type="button" id="barcodeBtn" class="toggle-btn barcode-btn" title="Karte scannen">
+        <img src="pic/barcode.svg" alt="Barcode" class="barcode-icon">
+      </button>
 
       <!-- Neue Reservierung Button -->
       <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
@@ -89,12 +97,31 @@
     <span class="status-text">Verbindung prüfen...</span>
   </div>
 
+  <!-- Barcode Scanner Modal -->
+  <div id="barcodeModal" class="modal" style="display:none;">
+    <div class="modal-content barcode-modal-content">
+      <span id="barcodeModalClose" class="close">&times;</span>
+      <h2>
+        <img src="pic/barcode.svg" alt="Barcode" class="barcode-modal-icon">
+        Karte scannen
+      </h2>
+      <p>Bitte scannen Sie die Karte oder geben Sie den Code manuell ein:</p>
+
+      <div class="barcode-input-container">
+        <input type="text" id="barcodeInput" placeholder="Kartencode hier eingeben oder scannen..." autofocus readonly
+          onfocus="this.removeAttribute('readonly');" inputmode="none" autocomplete="off">
+        <div class="barcode-status" id="barcodeStatus">Bereit zum Scannen...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- QRCode.js (CDN) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
   <script src="js/sync-utils.js"></script>
+  <script src="simple-barcode-scanner.js"></script>
   <script src="script.js"></script>
 
   <!-- Modal für neue Reservierung -->
@@ -158,7 +185,6 @@
       </form>
     </div>
   </div>
-  </main>
 
   <!-- Navigation System -->
   <script src="js/navigation.js"></script>
@@ -173,6 +199,9 @@
           window.updateConnectionStatus();
         }
       }
+
+      // Barcode-Scanner wird automatisch durch barcode-scanner.js geladen
+      console.log('✅ Reservierungen-Seite initialisiert');
     });
   </script>
 </body>
