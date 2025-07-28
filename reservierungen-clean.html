@@ -1,0 +1,183 @@
+<!-- reservierungen.html -->
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservierungsliste - WebCheckin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/navigation-integration.css">
+</head>
+
+<body>
+    <!-- Navigation wird durch JavaScript eingefügt -->
+
+    <main class="main-content">
+        <div class="content-header">
+            <h1>Reservierungen</h1>
+        </div>
+
+        <div class="controls legacy-controls">
+            <!-- Typ-Toggle -->
+            <button id="toggleType" class="toggle-btn arrival">Anreise</button>
+
+            <!-- Datum -->
+            <input type="date" id="filterDate">
+
+            <!-- Storno-Toggle -->
+            <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
+
+            <!-- Alle/Offen-Toggle -->
+            <button id="toggleOpen" class="toggle-btn all">Alle</button>
+
+            <!-- Entferne Dashboard-Button (wird durch Navigation ersetzt) -->
+
+            <!-- Suche -->
+            <input type="text" id="searchInput" placeholder="Suche Name…">
+
+            <!-- Neue Reservierung Button -->
+            <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
+        </div>
+
+        <table id="resTable">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Anreise</th>
+                    <th>Abreise</th>
+                    <th>Anzahl</th>
+                    <th>Name</th>
+                    <th>arr</th>
+                    <th>ANam</th>
+                    <th>Bem</th>
+                    <th>Orig</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- wird per script.js befüllt -->
+            </tbody>
+        </table>
+    </main>
+
+    <!-- Info-Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span id="modalClose" class="close">&times;</span>
+            <div id="modalText"></div>
+        </div>
+    </div>
+
+    <!-- QR-Modal -->
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <span id="qrClose" class="close">&times;</span>
+            <div id="qrContainer" style="text-align:center;"></div>
+            <div style="text-align:center; margin-top: 20px;">
+                <button id="emailGuestBtn" class="btn-email"
+                    style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    📧 E-Mail an Gast senden
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connection-indicator">
+        <div class="status-dot"></div>
+        <span class="status-text">Verbindung prüfen...</span>
+    </div>
+
+    <!-- QRCode.js (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/email-utils.js"></script>
+    <script src="js/http-utils.js"></script>
+    <script src="js/loading-overlay.js"></script>
+    <script src="js/sync-utils.js"></script>
+    <script src="barcode-scanner.js"></script>
+    <script src="script.js"></script>
+
+    <!-- Modal für neue Reservierung -->
+    <div id="newReservationModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span id="newResModalClose" class="close">&times;</span>
+            <h2>Neue Reservierung</h2>
+            <form id="newReservationForm">
+                <div class="form-row">
+                    <label>Nachname*:</label>
+                    <input type="text" id="newResNachname" required>
+                </div>
+                <div class="form-row">
+                    <label>Vorname:</label>
+                    <input type="text" id="newResVorname">
+                </div>
+                <div class="form-row">
+                    <label>Herkunft:</label>
+                    <select id="newResHerkunft">
+                        <option value="">Bitte wählen...</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Anreise:</label>
+                    <input type="date" id="newResAnreise">
+                </div>
+                <div class="form-row">
+                    <label>Abreise:</label>
+                    <input type="date" id="newResAbreise">
+                </div>
+                <div class="form-row">
+                    <label>Arrangement:</label>
+                    <select id="newResArrangement">
+                        <option value="">Bitte wählen...</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Anzahl DZ:</label>
+                    <input type="number" id="newResDZ" min="0" value="0">
+                </div>
+                <div class="form-row">
+                    <label>Anzahl Betten:</label>
+                    <input type="number" id="newResBetten" min="0" value="0">
+                </div>
+                <div class="form-row">
+                    <label>Anzahl Lager:</label>
+                    <input type="number" id="newResLager" min="0" value="0">
+                </div>
+                <div class="form-row">
+                    <label>Anzahl Sonder:</label>
+                    <input type="number" id="newResSonder" min="0" value="0">
+                </div>
+                <div class="form-row">
+                    <label>Bemerkung:</label>
+                    <input type="text" id="newResBemerkung">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-save">Speichern</button>
+                    <button type="button" id="newResCancelBtn" class="btn-cancel">Abbrechen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Navigation System -->
+    <script src="js/navigation.js"></script>
+
+    <script>
+        // Connection Status für diese Seite initialisieren
+        document.addEventListener('DOMContentLoaded', function () {
+            const indicator = document.getElementById('connection-indicator');
+            if (indicator && window.connectionMonitor) {
+                // Initial update
+                if (window.updateConnectionStatus) {
+                    window.updateConnectionStatus();
+                }
+            }
+
+            // Barcode-Scanner wird automatisch durch barcode-scanner.js geladen
+            console.log('✅ Reservierungen-Seite initialisiert');
+        });
+    </script>
+</body>
+
+</html>

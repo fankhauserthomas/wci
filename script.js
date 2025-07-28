@@ -68,7 +68,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleOpen = document.getElementById('toggleOpen');
   const filterDate = document.getElementById('filterDate');
   const searchInput = document.getElementById('searchInput');
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
   const tbody = document.querySelector('#resTable tbody');
+
+  // Clear Search Button Event
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchInput.focus();
+      // Trigger input event to update the table
+      const inputEvent = new Event('input', { bubbles: true });
+      searchInput.dispatchEvent(inputEvent);
+      console.log('🧹 Suchfeld geleert');
+    });
+  }
 
   // Debug: Prüfe ob Elemente gefunden wurden
   console.log('Debug - Toggle Elements:', {

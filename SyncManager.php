@@ -299,57 +299,77 @@ class SyncManager {
     
     // Queue INSERT/UPDATE Synchronisation mit Multi-Table Support
     private function syncInsertUpdateMultiTable($recordId, $tableName, $sourceDb, $targetDb) {
-        // Hole aktuelle Daten
-        $stmt = $sourceDb->prepare("SELECT * FROM `$tableName` WHERE id = ?");
-        $stmt->bind_param('i', $recordId);
-        $stmt->execute();
-        $sourceData = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        
-        if (!$sourceData) {
-            $this->log("Source record $recordId in $tableName not found - might be deleted");
-            return true; // Behandeln als erfolgreich da Record nicht mehr existiert
-        }
-        
-        // TRIGGER-SCHUTZ: Sync-Flag setzen
-        $this->setSyncFlag($targetDb, true);
-        
         try {
-            // Spalten dynamisch ermitteln
-            $sourceColumns = $this->getTableColumns($sourceDb, $tableName);
-            $targetColumns = $this->getTableColumns($targetDb, $tableName);
+            $primaryKey = $this->getPrimaryKey($tableName);
+            $this->log("syncInsertUpdate: Record $recordId in $tableName (PK: $primaryKey)");
             
-            // Prüfe ob Target-Record existiert
-            $stmt = $targetDb->prepare("SELECT id FROM `$tableName` WHERE id = ?");
+            // Hole aktuelle Daten mit korrektem Primary Key
+            $stmt = $sourceDb->prepare("SELECT * FROM `$tableName` WHERE `$primaryKey` = ?");
             $stmt->bind_param('i', $recordId);
             $stmt->execute();
-            $exists = $stmt->get_result()->fetch_assoc();
+            $sourceData = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             
-            if ($exists) {
-                return $this->updateRecordDynamicMultiTable($targetDb, $sourceData, $tableName, 'queue', $sourceColumns, $targetColumns);
-            } else {
-                return $this->insertRecordDynamicMultiTable($targetDb, $sourceData, $tableName, 'queue', $sourceColumns, $targetColumns);
+            if (!$sourceData) {
+                $this->log("Source record $recordId in $tableName not found - might be deleted");
+                return true; // Behandeln als erfolgreich da Record nicht mehr existiert
             }
             
-        } finally {
-            // TRIGGER-SCHUTZ: Flag immer zurücksetzen
-            $this->setSyncFlag($targetDb, false);
+            // TRIGGER-SCHUTZ: Sync-Flag setzen
+            $this->setSyncFlag($targetDb, true);
+            
+            try {
+                // Spalten dynamisch ermitteln
+                $sourceColumns = $this->getTableColumns($sourceDb, $tableName);
+                $targetColumns = $this->getTableColumns($targetDb, $tableName);
+                
+                // Prüfe ob Target-Record existiert mit korrektem Primary Key
+                $stmt = $targetDb->prepare("SELECT `$primaryKey` FROM `$tableName` WHERE `$primaryKey` = ?");
+                $stmt->bind_param('i', $recordId);
+                $stmt->execute();
+                $exists = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                
+                if ($exists) {
+                    $this->log("Record $recordId exists in target, performing UPDATE");
+                    $result = $this->updateRecordDynamicMultiTable($targetDb, $sourceData, $tableName, 'queue', $sourceColumns, $targetColumns);
+                } else {
+                    $this->log("Record $recordId NOT found in target, performing INSERT");
+                    $result = $this->insertRecordDynamicMultiTable($targetDb, $sourceData, $tableName, 'queue', $sourceColumns, $targetColumns);
+                }
+                
+                if (!$result) {
+                    $errorMsg = $targetDb->error ?: 'Sync operation failed';
+                    $this->log("syncInsertUpdate FAILED for record $recordId in $tableName: $errorMsg");
+                }
+                
+                return $result;
+                
+            } finally {
+                // TRIGGER-SCHUTZ: Flag immer zurücksetzen
+                $this->setSyncFlag($targetDb, false);
+            }
+            
+        } catch (Exception $e) {
+            $this->log("syncInsertUpdate EXCEPTION for record $recordId in $tableName: " . $e->getMessage());
+            return false;
         }
     }
     
     // Queue DELETE Synchronisation mit Multi-Table Support
     private function syncDeleteMultiTable($recordId, $tableName, $targetDb, $oldData) {
-        $this->log("Deleting record $recordId from $tableName" . ($oldData ? " (was: $oldData)" : ""));
+        $primaryKey = $this->getPrimaryKey($tableName);
+        $this->log("Deleting record $recordId from $tableName (PK: $primaryKey)" . ($oldData ? " (was: $oldData)" : ""));
         
         // TRIGGER-SCHUTZ: Sync-Flag setzen
         $this->setSyncFlag($targetDb, true);
         
         try {
-            $stmt = $targetDb->prepare("DELETE FROM `$tableName` WHERE id = ?");
+            $stmt = $targetDb->prepare("DELETE FROM `$tableName` WHERE `$primaryKey` = ?");
             $stmt->bind_param('i', $recordId);
             $result = $stmt->execute();
             $affectedRows = $targetDb->affected_rows;
+            $error = $stmt->error;
             $stmt->close();
             
             if ($result && $affectedRows > 0) {
@@ -359,10 +379,13 @@ class SyncManager {
                 $this->log("DELETE record $recordId from $tableName: SUCCESS (record already deleted)");
                 return true; // Record war schon gelöscht
             } else {
-                $this->log("DELETE record $recordId from $tableName: FAILED");
+                $this->log("DELETE record $recordId from $tableName: FAILED - " . ($error ?: $targetDb->error));
                 return false;
             }
             
+        } catch (Exception $e) {
+            $this->log("DELETE record $recordId from $tableName: EXCEPTION - " . $e->getMessage());
+            return false;
         } finally {
             // TRIGGER-SCHUTZ: Flag immer zurücksetzen
             $this->setSyncFlag($targetDb, false);
@@ -405,16 +428,22 @@ class SyncManager {
     }
     
     private function incrementQueueAttempts($db, $queueTable, $queueId) {
+        // Hole aktuellen Fehler aus der letzten Datenbankoperation
+        $lastError = $db->error ?: 'Sync operation failed';
+        
         $stmt = $db->prepare("
             UPDATE `$queueTable` 
             SET attempts = attempts + 1, 
                 status = CASE WHEN attempts >= 2 THEN 'failed' ELSE 'pending' END,
-                last_attempt = NOW()
+                last_attempt = NOW(),
+                error_message = ?
             WHERE id = ?
         ");
-        $stmt->bind_param('i', $queueId);
+        $stmt->bind_param('si', $lastError, $queueId);
         $stmt->execute();
         $stmt->close();
+        
+        $this->log("Queue item $queueId: Attempt incremented, error: $lastError");
     }
 
     
@@ -566,6 +595,8 @@ class SyncManager {
     // Multi-Table INSERT Methode
     private function insertRecordDynamicMultiTable($db, $data, $tableName, $source, $sourceColumns, $targetColumns) {
         try {
+            $primaryKey = $this->getPrimaryKey($tableName);
+            
             // Nur Spalten verwenden die in beiden Tabellen existieren (außer sync_timestamp)
             $commonColumns = array_intersect($sourceColumns, $targetColumns);
             $commonColumns = array_filter($commonColumns, function($col) {
@@ -605,7 +636,8 @@ class SyncManager {
             }
             
             $stmt->close();
-            $this->log("INSERT SUCCESS for $tableName record {$data['id']}");
+            $recordId = $data[$primaryKey] ?? 'UNKNOWN';
+            $this->log("INSERT SUCCESS for $tableName record $recordId");
             return true;
             
         } catch (Exception $e) {
