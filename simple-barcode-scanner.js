@@ -11,6 +11,7 @@ class SimpleBarcodeScanner {
         this.buffer = '';
         this.lastKeyTime = 0;
         this.scannerActive = false;
+        this.isSearching = false; // Verhindert mehrfache Suchen
 
         this.init();
     }
@@ -85,13 +86,14 @@ class SimpleBarcodeScanner {
         if (this.modal) {
             this.modal.style.display = 'none';
             this.scannerActive = false;
+            this.isSearching = false;
             this.reset();
             console.log('🎴 Karten-Scanner-Modal geschlossen');
         }
     }
 
     handleKeydown(event) {
-        if (!this.scannerActive) return;
+        if (!this.scannerActive || this.isSearching) return;
 
         const currentTime = Date.now();
         const timeDiff = currentTime - this.lastKeyTime;
@@ -106,6 +108,11 @@ class SimpleBarcodeScanner {
             this.buffer += event.key;
             this.lastKeyTime = currentTime;
 
+            // Input-Feld nur aktualisieren wenn es sich vom Buffer unterscheidet
+            if (this.input.value !== this.buffer) {
+                this.input.value = this.buffer;
+            }
+
             // Scanner-Erkennung: Schnelle Eingabe
             if (timeDiff < 100 && this.buffer.length > 2) {
                 this.updateStatus('📊 Scanner erkannt...', 'scanning');
@@ -114,40 +121,96 @@ class SimpleBarcodeScanner {
                 this.updateStatus('⌨️ Manuelle Eingabe', 'manual');
             }
 
-            // Auto-Reset nach Pause
+            // Auto-Reset und Suche nach Pause (nur einmal ausführen)
             clearTimeout(this.resetTimeout);
             this.resetTimeout = setTimeout(() => {
-                if (this.buffer.length >= 3) {
-                    this.updateStatus('✅ Barcode erkannt: ' + this.input.value, 'detected');
+                if (this.buffer.length >= 3 && !this.isSearching) {
+                    // Stelle sicher, dass Input-Feld den finalen Buffer-Wert hat
+                    this.input.value = this.buffer;
+                    this.updateStatus('✅ Barcode erkannt: ' + this.buffer, 'detected');
+
+                    // Automatische Suche wenn Scanner-Eingabe erkannt wurde und länger als 5 Zeichen
+                    if (this.buffer.length > 5) {
+                        // Kurze Verzögerung für automatische Suche
+                        setTimeout(() => {
+                            if (!this.isSearching) {
+                                this.performSearch();
+                            }
+                        }, 300);
+                    }
                 }
-                this.reset();
-            }, 500);
+                // Buffer NICHT zurücksetzen, bis die Suche abgeschlossen ist
+            }, 400); // Etwas kürzerer Timeout
         }
     }
 
     performSearch() {
+        if (this.isSearching) {
+            console.log('🚫 Suche bereits im Gange, überspringe...');
+            return;
+        }
+
         const barcode = this.input.value.trim();
         if (!barcode) {
             alert('Bitte geben Sie einen Barcode ein!');
             return;
         }
 
-        console.log('🔍 Karten-Suche:', barcode);
+        this.isSearching = true;
+        console.log('🔍 Karten-Suche gestartet:', barcode);
+        console.log('🔍 Buffer-Inhalt:', this.buffer);
+        console.log('🔍 Input-Inhalt:', this.input.value);
+        this.updateStatus('🔍 Suche läuft...', 'searching');
 
-        // Barcode ins Hauptsuchfeld übertragen
-        if (this.searchInput) {
-            this.searchInput.value = barcode;
+        // Suche in der Datenbank nach CardName
+        fetch(`searchBarcode.php?barcode=${encodeURIComponent(barcode)}`)
+            .then(response => response.json())
+            .then(data => {
+                this.isSearching = false;
+                console.log('📦 Suchergebnis:', data);
 
-            // Suche auslösen
-            const inputEvent = new Event('input', { bubbles: true });
-            this.searchInput.dispatchEvent(inputEvent);
-        }
+                if (data.success && data.data && data.data.av_id) {
+                    // Karte gefunden - Formular öffnen
+                    const av_id = data.data.av_id;
+                    const guestName = `${data.data.vorname || ''} ${data.data.nachname || ''}`.trim();
 
-        // Modal schließen
-        this.closeModal();
+                    console.log('✅ Karte gefunden:', data.data);
 
-        // Erfolgsmeldung
-        alert(`🎴 Karte gescannt:\n\n${barcode}\n\nSuche wurde gestartet.`);
+                    // Modal schließen
+                    this.closeModal();
+
+                    // Reservierungsformular öffnen mit Hervorhebungsparameter
+                    const highlightName = encodeURIComponent(data.data.cardName || barcode);
+                    window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
+
+                } else {
+                    // Karte nicht gefunden
+                    console.log('❌ Karte nicht gefunden:', barcode);
+                    this.updateStatus('❌ Karte nicht gefunden', 'error');
+
+                    // Modal nach kurzer Zeit schließen
+                    setTimeout(() => {
+                        this.closeModal();
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                this.isSearching = false;
+                console.error('❌ Fehler bei der Karten-Suche:', error);
+                this.updateStatus('❌ Suchfehler', 'error');
+
+                // Fallback: Normal suchen
+                if (this.searchInput) {
+                    this.searchInput.value = barcode;
+                    const inputEvent = new Event('input', { bubbles: true });
+                    this.searchInput.dispatchEvent(inputEvent);
+                }
+
+                // Modal nach kurzer Zeit schließen
+                setTimeout(() => {
+                    this.closeModal();
+                }, 2000);
+            });
     }
 
     updateStatus(text, type = '') {
@@ -161,6 +224,10 @@ class SimpleBarcodeScanner {
         this.buffer = '';
         this.lastKeyTime = 0;
         clearTimeout(this.resetTimeout);
+        // Input-Feld auch leeren
+        if (this.input && !this.isSearching) {
+            this.input.value = '';
+        }
     }
 }
 
