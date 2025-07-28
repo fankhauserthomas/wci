@@ -25,6 +25,7 @@ SELECT
     IFNULL(r.nachname, '') AS nachname,
     IFNULL(r.vorname, '')  AS vorname,
     IFNULL(r.email, '') AS email,
+    COALESCE(r.invoice, 0) AS invoice,
     a.kbez                AS arrangement,
     r.bem,
     r.bem_av,

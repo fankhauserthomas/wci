@@ -16,7 +16,8 @@
         }
 
         .reservation-form {
-            max-width: 900px;
+            max-width: 1200px;
+            width: 100%;
             margin: 0 auto;
             padding: 1rem;
             background: white;
@@ -27,8 +28,8 @@
         .form-header {
             background: var(--primary);
             color: #fff;
-            padding: 1rem;
-            margin: -1rem -1rem 1.5rem -1rem;
+            padding: 0.8rem 1rem;
+            margin: -1rem -1rem 1rem -1rem;
             border-radius: 8px 8px 0 0;
             display: flex;
             justify-content: space-between;
@@ -36,27 +37,39 @@
         }
 
         .form-title {
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             margin: 0;
         }
 
         .form-section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .section-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: bold;
             color: var(--text);
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.3rem;
             border-bottom: 2px solid var(--primary);
+        }
+
+        /* Two-column layout for main content */
+        .form-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .form-column {
+            display: flex;
+            flex-direction: column;
         }
 
         .form-row {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
             align-items: flex-start;
         }
 
@@ -66,11 +79,11 @@
         }
 
         .form-group.half {
-            flex: 0 0 calc(50% - 0.5rem);
+            flex: 0 0 calc(50% - 0.4rem);
         }
 
         .form-group.quarter {
-            flex: 0 0 calc(25% - 0.75rem);
+            flex: 0 0 calc(25% - 0.6rem);
         }
 
         .form-group.readonly {
@@ -79,20 +92,20 @@
 
         label {
             display: block;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.2rem;
             font-weight: 500;
             color: var(--text);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         input,
         select,
         textarea {
             width: 100%;
-            padding: 0.5rem;
+            padding: 0.4rem;
             border: 1px solid var(--light-gray);
             border-radius: 4px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: border-color 0.3s;
             box-sizing: border-box;
             font-family: inherit;
@@ -113,11 +126,48 @@
             cursor: not-allowed;
         }
 
+        /* Toggle Payment Button */
+        .toggle-payment-btn {
+            width: 100%;
+            padding: 0.4rem;
+            border: 2px solid #6c757d;
+            border-radius: 4px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .toggle-payment-btn[data-value="0"] {
+            border-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .toggle-payment-btn[data-value="1"] {
+            border-color: #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .toggle-payment-btn:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+        }
+
+        .toggle-payment-btn:active {
+            transform: translateY(0);
+        }
+
         .checkbox-group {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
         }
 
         .checkbox-group input[type="checkbox"] {
@@ -127,17 +177,18 @@
 
         .sleeping-categories {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.8rem;
         }
 
         .action-buttons {
             display: flex;
             gap: 0.5rem;
             justify-content: flex-end;
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             padding-top: 1rem;
             border-top: 1px solid var(--light-gray);
+            grid-column: 1 / -1;
         }
 
         .btn {
@@ -212,6 +263,17 @@
             border: 1px solid #c3e6cb;
         }
 
+        @media (max-width: 1024px) {
+            .form-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .sleeping-categories {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
         @media (max-width: 768px) {
             .reservation-form {
                 margin: 0.5rem;
@@ -236,6 +298,27 @@
                 flex-direction: column;
             }
         }
+
+        /* Tablet Landscape specific optimizations */
+        @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+            body {
+                font-size: 14px;
+            }
+
+            .reservation-form {
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .form-section {
+                margin-bottom: 0.8rem;
+            }
+
+            .section-title {
+                font-size: 0.95rem;
+                margin-bottom: 0.6rem;
+            }
+        }
     </style>
 </head>
 
@@ -258,7 +341,7 @@
             </div>
 
             <form id="reservationForm" style="display: none;">
-                <!-- Basic Info Section -->
+                <!-- Basic Info Section - Full Width -->
                 <div class="form-section">
                     <h2 class="section-title">Grunddaten</h2>
                     <div class="form-row">
@@ -270,118 +353,135 @@
                             <label for="av_id">AV ID</label>
                             <input type="text" id="av_id" name="av_id" readonly>
                         </div>
-                        <div class="form-group half">
+                        <div class="form-group quarter">
                             <label for="storno" class="checkbox-group">
                                 <input type="checkbox" id="storno" name="storno">
                                 Storniert
                             </label>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Personal Data Section -->
-                <div class="form-section">
-                    <h2 class="section-title">Persönliche Daten</h2>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="nachname">Nachname *</label>
-                            <input type="text" id="nachname" name="nachname" required>
-                        </div>
-                        <div class="form-group half">
-                            <label for="vorname">Vorname</label>
-                            <input type="text" id="vorname" name="vorname">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="handy">Handy</label>
-                            <input type="tel" id="handy" name="handy">
-                        </div>
-                        <div class="form-group half">
-                            <label for="email">E-Mail</label>
-                            <input type="email" id="email" name="email">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="origin">Ausgangspunkt</label>
-                            <select id="origin" name="origin">
-                                <option value="">Bitte wählen...</option>
-                            </select>
-                        </div>
-                        <div class="form-group half">
-                            <label for="hund" class="checkbox-group">
-                                <input type="checkbox" id="hund" name="hund">
-                                Hund
-                            </label>
+                        <div class="form-group quarter">
+                            <label for="invoice">Zahlung</label>
+                            <button type="button" id="invoiceBtn" class="toggle-payment-btn" data-value="0">
+                                <span class="payment-text">zahlt hier</span>
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Booking Dates Section -->
-                <div class="form-section">
-                    <h2 class="section-title">Aufenthaltsdaten</h2>
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label for="anreise">Anreise *</label>
-                            <input type="datetime-local" id="anreise" name="anreise" required>
+                <!-- Two Column Layout -->
+                <div class="form-content">
+                    <!-- Left Column -->
+                    <div class="form-column">
+                        <!-- Personal Data Section -->
+                        <div class="form-section">
+                            <h2 class="section-title">Persönliche Daten</h2>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="nachname">Nachname *</label>
+                                    <input type="text" id="nachname" name="nachname" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vorname">Vorname</label>
+                                    <input type="text" id="vorname" name="vorname">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="handy">Handy</label>
+                                    <input type="tel" id="handy" name="handy">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-Mail</label>
+                                    <input type="email" id="email" name="email">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="origin">Ausgangspunkt</label>
+                                    <select id="origin" name="origin">
+                                        <option value="">Bitte wählen...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="hund" class="checkbox-group">
+                                        <input type="checkbox" id="hund" name="hund">
+                                        Hund
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group half">
-                            <label for="abreise">Abreise *</label>
-                            <input type="datetime-local" id="abreise" name="abreise" required>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Sleeping Categories Section -->
-                <div class="form-section">
-                    <h2 class="section-title">Schlafkategorien</h2>
-                    <div class="sleeping-categories">
-                        <div class="form-group">
-                            <label for="lager">Lager</label>
-                            <input type="number" id="lager" name="lager" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="betten">Betten</label>
-                            <input type="number" id="betten" name="betten" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="dz">Doppelzimmer</label>
-                            <input type="number" id="dz" name="dz" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="sonder">Sonder</label>
-                            <input type="number" id="sonder" name="sonder" min="0" value="0">
+                        <!-- Sleeping Categories Section -->
+                        <div class="form-section">
+                            <h2 class="section-title">Schlafkategorien</h2>
+                            <div class="sleeping-categories">
+                                <div class="form-group">
+                                    <label for="lager">Lager</label>
+                                    <input type="number" id="lager" name="lager" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="betten">Betten</label>
+                                    <input type="number" id="betten" name="betten" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dz">Doppelzimmer</label>
+                                    <input type="number" id="dz" name="dz" min="0" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="sonder">Sonder</label>
+                                    <input type="number" id="sonder" name="sonder" min="0" value="0">
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Arrangement Section -->
-                <div class="form-section">
-                    <h2 class="section-title">Arrangement</h2>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="arr">Arrangement</label>
-                            <select id="arr" name="arr">
-                                <option value="">Bitte wählen...</option>
-                            </select>
+                    <!-- Right Column -->
+                    <div class="form-column">
+                        <!-- Booking Dates Section -->
+                        <div class="form-section">
+                            <h2 class="section-title">Aufenthaltsdaten</h2>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="anreise">Anreise *</label>
+                                    <input type="datetime-local" id="anreise" name="anreise" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="abreise">Abreise *</label>
+                                    <input type="datetime-local" id="abreise" name="abreise" required>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Notes Section -->
-                <div class="form-section">
-                    <h2 class="section-title">Bemerkungen</h2>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="bem">Bemerkung</label>
-                            <textarea id="bem" name="bem" rows="3"></textarea>
+                        <!-- Arrangement Section -->
+                        <div class="form-section">
+                            <h2 class="section-title">Arrangement</h2>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="arr">Arrangement</label>
+                                    <select id="arr" name="arr">
+                                        <option value="">Bitte wählen...</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="bem_av">AV Bemerkung</label>
-                            <textarea id="bem_av" name="bem_av" rows="3"></textarea>
+
+                        <!-- Notes Section -->
+                        <div class="form-section">
+                            <h2 class="section-title">Bemerkungen</h2>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="bem">Bemerkung</label>
+                                    <textarea id="bem" name="bem" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="bem_av">AV Bemerkung</label>
+                                    <textarea id="bem_av" name="bem_av" rows="2"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
