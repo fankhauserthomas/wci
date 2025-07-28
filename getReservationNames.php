@@ -41,6 +41,7 @@ SELECT
   n.transport,
   n.checked_in,
   n.checked_out,
+  n.CardName,
   '' AS alter_bez,
   0 AS ageGrp
 

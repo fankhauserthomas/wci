@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const resId = new URLSearchParams(location.search).get('id');
+  const highlightName = new URLSearchParams(location.search).get('highlight');
+  const source = new URLSearchParams(location.search).get('source');
   let currentReservationData = null; // Global variable to store current reservation data
   const headerDiv = document.getElementById('resHeader');
   const tbody = document.querySelector('#namesTable tbody');
@@ -505,6 +507,31 @@ document.addEventListener('DOMContentLoaded', () => {
       const tr = document.createElement('tr');
       tr.dataset.id = n.id;
 
+      // Prüfe ob dieser Name hervorgehoben werden soll (Barcode-Match)
+      let shouldHighlight = false;
+      if (highlightName && source === 'barcode') {
+        const fullName = `${n.nachname || ''} ${n.vorname || ''}`.trim();
+        const cardName = decodeURIComponent(highlightName);
+
+        // Verschiedene Matching-Strategien
+        if (fullName === cardName ||
+          (n.CardName && n.CardName === cardName) ||
+          fullName.includes(cardName) ||
+          cardName.includes(fullName)) {
+          shouldHighlight = true;
+          console.log('🎯 Barcode-Match gefunden:', {
+            fullName,
+            cardName,
+            matchedName: n
+          });
+        }
+      }
+
+      // Hervorhebungsklasse hinzufügen wenn nötig
+      if (shouldHighlight) {
+        tr.classList.add('barcode-highlight');
+      }
+
       // build detail icons
       let detailIcons = '';
       if (n.transport && parseFloat(n.transport) > 0) {
@@ -549,6 +576,41 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
       `;
       tbody.appendChild(tr);
+
+      // Scrolling zu hervorgehobener Zeile nach kurzer Verzögerung
+      if (shouldHighlight) {
+        setTimeout(() => {
+          tr.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+
+          // Zusätzliche visuelle Rückmeldung
+          if (source === 'barcode') {
+            // Info-Message anzeigen
+            const message = document.createElement('div');
+            message.className = 'barcode-success-message';
+            message.innerHTML = `
+              <div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 5px; text-align: center;">
+                🎴 <strong>Karte gefunden:</strong> ${cardName}
+              </div>
+            `;
+
+            // Message vor der Tabelle einfügen
+            const tableContainer = document.querySelector('.table-container');
+            if (tableContainer) {
+              tableContainer.parentNode.insertBefore(message, tableContainer);
+
+              // Message nach 5 Sekunden entfernen
+              setTimeout(() => {
+                if (message.parentNode) {
+                  message.parentNode.removeChild(message);
+                }
+              }, 5000);
+            }
+          }
+        }, 500);
+      }
     });
     bindCheckboxes();
     updateBulkButtonStates(); // Initialize button states
