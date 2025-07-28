@@ -15,9 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newArea = document.getElementById('newNamesTextarea');
   const formatSelect = document.getElementById('importFormat');
 
-  // Three-dot menu elements
-  const menuBtn = document.getElementById('menuBtn');
-  const dropdownMenu = document.getElementById('dropdownMenu');
+  // Header button elements (no longer dropdown)
   const editBtn = document.getElementById('editBtn');
   const stornoBtn = document.getElementById('stornoBtn');
   const deleteReservationBtn = document.getElementById('deleteReservationBtn');
@@ -1824,22 +1822,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 10) Back to list
   backBtn.addEventListener('click', () => location.href = 'reservierungen.html');
 
-  // Three-dot menu functionality
-  menuBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdownMenu.classList.toggle('hidden');
-  });
-
-  // Close menu when clicking outside
-  document.addEventListener('click', () => {
-    dropdownMenu.classList.add('hidden');
-  });
-
-  // Prevent menu from closing when clicking inside it
-  dropdownMenu.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-
   // Edit button - open reservation details page
   editBtn.addEventListener('click', () => {
     // You'll need to create this page or determine the correct URL
@@ -1866,9 +1848,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         alert('Email-Funktionalität nicht verfügbar.');
       }
-
-      // Close dropdown menu
-      dropdownMenu.classList.add('hidden');
     } else {
       alert('Reservierungsdaten konnten nicht geladen werden.');
     }
@@ -1938,9 +1917,6 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteCompleteReservation();
       }
     );
-
-    // Close dropdown menu
-    dropdownMenu.classList.add('hidden');
   });
 
   function getCurrentStornoStatus() {

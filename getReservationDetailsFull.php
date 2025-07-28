@@ -32,7 +32,8 @@ try {
         IFNULL(r.arr, 0) AS arr,
         IFNULL(r.origin, 0) AS origin,
         IFNULL(r.hund, 0) AS hund,
-        IFNULL(r.storno, 0) AS storno
+        IFNULL(r.storno, 0) AS storno,
+        IFNULL(r.invoice, 0) AS invoice
     FROM `AV-Res` r
     WHERE r.id = ?
     LIMIT 1
@@ -67,6 +68,7 @@ try {
     $data['origin'] = (int)$data['origin'];
     $data['hund'] = (bool)$data['hund'];
     $data['storno'] = (bool)$data['storno'];
+    $data['invoice'] = (bool)$data['invoice'];
     
     // Erfolgreiche Antwort
     echo json_encode([

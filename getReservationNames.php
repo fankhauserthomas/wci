@@ -42,14 +42,25 @@ SELECT
   n.checked_in,
   n.checked_out,
   n.CardName,
-  '' AS alter_bez,
-  0 AS ageGrp
+  CASE 
+    WHEN n.gebdat IS NULL OR n.gebdat = '0000-00-00' OR n.gebdat < '1900-01-01' THEN ''
+    ELSE COALESCE(ag.bez, CONCAT(TIMESTAMPDIFF(YEAR, n.gebdat, CURDATE()), ' J.'))
+  END AS alter_bez,
+  CASE 
+    WHEN n.gebdat IS NULL OR n.gebdat = '0000-00-00' OR n.gebdat < '1900-01-01' THEN 0
+    ELSE 
+      COALESCE(
+        (SELECT id FROM Ages WHERE TIMESTAMPDIFF(YEAR, n.gebdat, CURDATE()) BETWEEN von AND bis LIMIT 1),
+        0
+      )
+  END AS ageGrp
 
 FROM `AV-ResNamen` AS n
 JOIN `AV-Res` AS r ON r.id = n.av_id
 LEFT JOIN `countries` AS o ON n.herkunft = o.id
 LEFT JOIN `arr` AS a ON a.id = COALESCE(NULLIF(n.arr, 0), 5)
 LEFT JOIN `diet` AS d ON d.id = COALESCE(NULLIF(n.diet, 0), 1)
+LEFT JOIN `Ages` AS ag ON TIMESTAMPDIFF(YEAR, n.gebdat, CURDATE()) BETWEEN ag.von AND ag.bis
 
 WHERE n.av_id = ?
 ORDER BY n.id

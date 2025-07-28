@@ -110,6 +110,10 @@ try {
     $params[] = (int)($data['hund'] ?? 0);
     $types .= 'i';
     
+    $updateFields[] = "invoice = ?";
+    $params[] = (int)($data['invoice'] ?? 0);
+    $types .= 'i';
+    
     // Anreise und Abreise sind immer editierbar
     $updateFields[] = "anreise = ?";
     $params[] = $anreise;
