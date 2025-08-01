@@ -58,7 +58,8 @@ SELECT
     r.bem_av,
     o.country AS origin,
     r.storno,
-    r.av_id
+    r.av_id,
+    IFNULL(r.invoice, 0) AS invoice
 FROM `AV-Res` r
 LEFT JOIN arr    a ON r.arr    = a.ID
 LEFT JOIN origin o ON r.origin = o.id
@@ -100,6 +101,7 @@ while ($row = $res->fetch_assoc()) {
     $row['percent_logged_out']  = (int)$row['percent_logged_out'];
     $row['storno']              = (bool)$row['storno'];
     $row['av_id']               = (int)$row['av_id'];
+    $row['invoice']             = (bool)$row['invoice'];
     $data[] = $row;
 }
 

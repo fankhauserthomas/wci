@@ -9,14 +9,310 @@
   <link rel="stylesheet" href="reservation.css">
   <link rel="stylesheet" href="css/navigation.css">
   <link rel="stylesheet" href="css/navigation-integration.css">
+  <style>
+    /* Querformat-Optimierungen für GastDetail */
+    .form-container {
+      max-width: 1000px !important;
+      margin: 0 auto !important;
+      padding: 1rem !important;
+    }
+
+    .legacy-header {
+      margin-bottom: 1rem !important;
+      padding: 0.8rem 1rem !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+    }
+
+    .legacy-header h1 {
+      font-size: 1.2rem !important;
+      margin: 0 !important;
+    }
+
+    .header-btn {
+      padding: 0.5rem 1rem !important;
+      border: none !important;
+      border-radius: 4px !important;
+      font-size: 0.85rem !important;
+      font-weight: 500 !important;
+      cursor: pointer !important;
+      transition: background-color 0.3s !important;
+      background-color: var(--secondary) !important;
+      color: white !important;
+    }
+
+    .header-btn:hover {
+      background-color: #7f8c8d !important;
+    }
+
+    #gastForm .form-row {
+      display: flex !important;
+      gap: 1rem !important;
+      margin-bottom: 0.8rem !important;
+      align-items: flex-start !important;
+    }
+
+    #gastForm .form-group {
+      flex: 1 !important;
+      min-width: 0 !important;
+    }
+
+    #gastForm .form-group.full-width {
+      flex: 1 !important;
+    }
+
+    #gastForm .form-group-checkbox {
+      flex: 0 0 auto !important;
+      min-width: 100px !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.5rem !important;
+    }
+
+    #gastForm label {
+      font-size: 0.85rem !important;
+      margin-bottom: 0.3rem !important;
+      font-weight: 500 !important;
+    }
+
+    #gastForm input,
+    #gastForm select,
+    #gastForm textarea {
+      padding: 0.4rem !important;
+      font-size: 0.85rem !important;
+      border: 1px solid var(--light-gray) !important;
+      border-radius: 4px !important;
+    }
+
+    #gastForm textarea {
+      resize: vertical !important;
+      min-height: 60px !important;
+    }
+
+    /* Transport Controls kompakter */
+    .transport-group {
+      flex: 1 !important;
+    }
+
+    .transport-controls {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0.5rem !important;
+    }
+
+    .transport-input {
+      width: 100% !important;
+    }
+
+    .transport-buttons {
+      display: flex !important;
+      gap: 0.3rem !important;
+      flex-wrap: wrap !important;
+    }
+
+    .transport-btn {
+      padding: 0.3rem 0.5rem !important;
+      font-size: 0.8rem !important;
+      border: 1px solid var(--primary) !important;
+      background: white !important;
+      color: var(--primary) !important;
+      border-radius: 3px !important;
+      cursor: pointer !important;
+      min-width: 35px !important;
+    }
+
+    .transport-btn:hover {
+      background: var(--primary) !important;
+      color: white !important;
+    }
+
+    .transport-btn.clear {
+      background: var(--secondary) !important;
+      color: white !important;
+      border-color: var(--secondary) !important;
+    }
+
+    /* Tablet Querformat spezifische Optimierungen */
+    @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+      body {
+        font-size: 14px !important;
+      }
+
+      .form-container {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+      }
+
+      /* Kompaktere Anordnung für Transport */
+      .transport-buttons {
+        justify-content: flex-start !important;
+      }
+
+      .transport-btn {
+        flex: 0 0 auto !important;
+      }
+    }
+
+    /* Mobile Anpassungen */
+    @media (max-width: 768px) {
+      #gastForm .form-row {
+        flex-direction: column !important;
+        gap: 0.8rem !important;
+      }
+
+      .transport-controls {
+        align-items: stretch !important;
+      }
+
+      .transport-buttons {
+        justify-content: center !important;
+      }
+    }
+  </style>
+
+  <style>
+    /* Save Modal Styles */
+    .save-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 20000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .save-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease;
+    }
+
+    .save-modal-content h3 {
+      margin: 0 0 1rem 0;
+      color: var(--text);
+      font-size: 1.3rem;
+    }
+
+    .save-modal-content p {
+      margin: 0 0 2rem 0;
+      color: var(--secondary);
+      line-height: 1.5;
+    }
+
+    .save-modal-buttons {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .save-modal-btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 100px;
+    }
+
+    .save-modal-btn.save-btn {
+      background: var(--primary);
+      color: white;
+    }
+
+    .save-modal-btn.save-btn:hover {
+      background: #27ae60;
+      transform: translateY(-1px);
+    }
+
+    .save-modal-btn.discard-btn {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .save-modal-btn.discard-btn:hover {
+      background: #c0392b;
+      transform: translateY(-1px);
+    }
+
+    .save-modal-btn.stay-btn {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .save-modal-btn.stay-btn:hover {
+      background: #7f8c8d;
+      transform: translateY(-1px);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .save-modal-buttons {
+        flex-direction: column;
+      }
+
+      .save-modal-btn {
+        min-width: auto;
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <!-- Speicher-Modal -->
+  <div id="saveModal" class="save-modal" style="display: none;">
+    <div class="save-modal-content">
+      <h3>Ungespeicherte Änderungen</h3>
+      <p>Sie haben Änderungen vorgenommen, die noch nicht gespeichert wurden.</p>
+      <div class="save-modal-buttons">
+        <button class="save-modal-btn save-btn" onclick="handleModalAction('save')">Speichern</button>
+        <button class="save-modal-btn discard-btn" onclick="handleModalAction('discard')">Verwerfen</button>
+        <button class="save-modal-btn stay-btn" onclick="handleModalAction('stay')">Bleiben</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Navigation wird durch JavaScript eingefügt -->
 
   <main class="main-content">
     <header class="legacy-header">
       <h1>Gast-Details</h1>
+      <button type="button" class="btn-close header-btn" onclick="goBack()">Schließen</button>
     </header>
 
     <div class="form-container">
@@ -88,10 +384,6 @@
             <label for="bem">Bemerkung</label>
             <textarea id="bem" name="bem" rows="3"></textarea>
           </div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn-save">Speichern</button>
-          <button type="button" class="btn-close" onclick="history.back()">Schließen</button>
         </div>
       </form>
     </div>
@@ -267,7 +559,11 @@
       updatePromise
         .then(j => {
           if (j.success) {
-            history.back();
+            // Änderungen als gespeichert markieren
+            hasUnsavedChanges = false;
+
+            // Zurück navigieren
+            goBack();
           } else {
             alert('Fehler: ' + j.error);
           }
@@ -290,6 +586,10 @@
         // Ensure value is not below 0
         const finalValue = Math.max(0, newValue);
         transportInput.value = finalValue.toFixed(2).replace('.', ',');
+
+        // Manuell Change-Event auslösen für die Änderungserkennung
+        const changeEvent = new Event('change', { bubbles: true });
+        transportInput.dispatchEvent(changeEvent);
       }
 
       // Add event listeners to all transport buttons
@@ -308,6 +608,355 @@
           }
         });
       });
+    });
+  </script>
+
+  <script>
+    // Navigation und Modal-Verwaltung
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let swipeIndicator = null;
+    let hasUnsavedChanges = false;
+
+    // Modal-Funktionen
+    function showSaveModal() {
+      const modal = document.getElementById('saveModal');
+      if (modal.style.display === 'flex') {
+        return; // Modal ist bereits sichtbar
+      }
+      modal.style.display = 'flex';
+    }
+
+    function hideSaveModal() {
+      const modal = document.getElementById('saveModal');
+      modal.style.display = 'none';
+    }
+
+    function handleModalAction(action) {
+      console.log('🎯 MODAL ACTION:', action);
+      console.log('  - hasUnsavedChanges (vor):', hasUnsavedChanges);
+      console.log('  - navigationBlocked (vor):', navigationBlocked);
+      console.log('  - pendingNavigation (vor):', pendingNavigation);
+
+      hideSaveModal();
+
+      switch (action) {
+        case 'save':
+          console.log('💾 Modal: Speichern und zurück...');
+          // Formular speichern
+          const form = document.getElementById('gastForm');
+          if (form) {
+            const submitEvent = new Event('submit', {
+              bubbles: true,
+              cancelable: true
+            });
+            form.dispatchEvent(submitEvent);
+          }
+          // Änderungen als gespeichert markieren
+          hasUnsavedChanges = false;
+          navigationBlocked = false;
+          pendingNavigation = false;
+          console.log('  - Flags zurückgesetzt, navigiere in 300ms...');
+          // Kurz warten dann direkt zurück
+          setTimeout(() => {
+            goBack();
+          }, 300);
+          break;
+
+        case 'discard':
+          console.log('🗑️ Modal: Änderungen verwerfen und zurück...');
+          // Änderungen verwerfen
+          hasUnsavedChanges = false;
+          navigationBlocked = false;
+
+          if (pendingNavigation) {
+            console.log('  - PENDING NAVIGATION erkannt - Browser-Back!');
+            pendingNavigation = false;
+            // Bei Browser-Back: Doppelt zurück wegen vorherigem pushState
+            console.log('  - Führe doppeltes window.history.back() aus...');
+            setTimeout(() => {
+              console.log('🔄 EXECUTING: window.history.back() #1');
+              window.history.back();
+              setTimeout(() => {
+                console.log('🔄 EXECUTING: window.history.back() #2');
+                window.history.back();
+                console.log('✅ Doppelte Navigation ausgeführt');
+              }, 50);
+            }, 100);
+          } else {
+            console.log('  - Keine pending navigation - Button-Click!');
+            // Für Button-Clicks: Intelligente Navigation
+            if (document.referrer && document.referrer.includes('/wci/')) {
+              console.log('  - Referrer vorhanden, verwende history.back()');
+              let backCount = historyManipulated ? 2 : 1;
+              console.log('  - Anzahl history.back() calls:', backCount);
+              setTimeout(() => {
+                for (let i = 0; i < backCount; i++) {
+                  setTimeout(() => {
+                    console.log(`🔄 EXECUTING: window.history.back() #${i + 1}`);
+                    window.history.back();
+                  }, i * 50);
+                }
+              }, 100);
+            } else {
+              console.log('  - Kein Referrer, verwende NavigationSystem fallback');
+              if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
+                setTimeout(() => {
+                  NavigationSystem.goBack();
+                }, 100);
+              } else {
+                console.log('  - Direkter Fallback zu reservierungen.html');
+                setTimeout(() => {
+                  window.location.href = 'reservierungen.html';
+                }, 100);
+              }
+            }
+          }
+          break;
+
+        case 'stay':
+          console.log('🏠 Modal: Auf Seite bleiben...');
+          // Navigation wieder erlauben
+          navigationBlocked = false;
+          pendingNavigation = false;
+          historyManipulated = false;
+          console.log('  - Flags zurückgesetzt, bleibe auf Seite');
+          // Nichts tun - Modal ist bereits geschlossen
+          break;
+      }
+
+      console.log('  - hasUnsavedChanges (nach):', hasUnsavedChanges);
+      console.log('  - navigationBlocked (nach):', navigationBlocked);
+      console.log('  - pendingNavigation (nach):', pendingNavigation);
+      console.log('  - historyManipulated (nach):', historyManipulated);
+    }
+
+    // Zurück-Navigation (gleich wie Swipe)
+    function goBack() {
+      console.log('🔙 goBack() aufgerufen (wie Swipe)');
+      console.log('  - hasUnsavedChanges:', hasUnsavedChanges);
+
+      // Bei ungespeicherten Änderungen Modal zeigen
+      if (hasUnsavedChanges) {
+        console.log('⚠️ Ungespeicherte Änderungen - zeige Modal');
+        showSaveModal();
+        return;
+      }
+
+      console.log('✅ Navigiere zurück...');
+
+      // Versuche Browser History zuerst
+      if (document.referrer && document.referrer.includes('/wci/')) {
+        console.log('� Verwende window.history.back() (Referrer vorhanden)');
+        window.history.back();
+      } else {
+        // NavigationSystem als Fallback
+        if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
+          console.log('� Verwende NavigationSystem.goBack() (Fallback)');
+          NavigationSystem.goBack();
+        } else {
+          console.log('🏠 Direkt zu reservierungen.html (letzter Fallback)');
+          window.location.href = 'reservierungen.html';
+        }
+      }
+    }
+
+    // Überwache Formular-Änderungen
+    function setupChangeTracking() {
+      const form = document.getElementById('gastForm');
+      if (form) {
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+          // Speichere ursprüngliche Werte
+          input.dataset.originalValue = input.type === 'checkbox' ? input.checked : (input.value || '');
+
+          input.addEventListener('change', checkForChanges);
+          input.addEventListener('input', checkForChanges);
+        });
+      }
+    }
+
+    function checkForChanges() {
+      const form = document.getElementById('gastForm');
+      if (!form) return;
+
+      const inputs = form.querySelectorAll('input, select, textarea');
+      const oldHasChanges = hasUnsavedChanges;
+      hasUnsavedChanges = false;
+
+      inputs.forEach(input => {
+        const originalValue = input.dataset.originalValue || '';
+        const currentValue = input.type === 'checkbox' ? input.checked : input.value;
+
+        if (String(currentValue) !== String(originalValue)) {
+          hasUnsavedChanges = true;
+        }
+      });
+
+      if (oldHasChanges !== hasUnsavedChanges) {
+        console.log('🔄 Änderungsstatus geändert:', hasUnsavedChanges);
+      }
+    }
+
+    // Touch-Events nur für Touch-Geräte aktivieren
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.addEventListener('touchstart', function (e) {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function (e) {
+        const currentX = e.changedTouches[0].screenX;
+        const currentY = e.changedTouches[0].screenY;
+        const deltaX = currentX - touchStartX;
+        const deltaY = currentY - touchStartY;
+
+        // Nur bei horizontalem Swipe nach rechts und minimaler vertikaler Bewegung
+        if (deltaX > 30 && Math.abs(deltaY) < 50) {
+
+          // Swipe-Indikator erstellen (falls noch nicht vorhanden)
+          if (!swipeIndicator) {
+            swipeIndicator = document.createElement('div');
+            swipeIndicator.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        right: 20px;
+                        transform: translateY(-50%);
+                        background: rgba(46, 204, 113, 0.9);
+                        color: white;
+                        padding: 12px 18px;
+                        border-radius: 25px;
+                        font-size: 14px;
+                        font-weight: bold;
+                        z-index: 10000;
+                        pointer-events: none;
+                        transition: all 0.2s ease;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    `;
+            swipeIndicator.innerHTML = hasUnsavedChanges
+              ? 'Änderungen? <span style="font-size: 18px;">→</span>'
+              : 'Zurück <span style="font-size: 18px;">→</span>';
+            document.body.appendChild(swipeIndicator);
+          }
+
+          // Opacity und Skalierung basierend auf Swipe-Distanz
+          const progress = Math.min(Math.abs(deltaX) / 100, 1);
+          const opacity = Math.max(0.3, progress);
+          const scale = 0.8 + (progress * 0.2);
+
+          swipeIndicator.style.opacity = opacity;
+          swipeIndicator.style.transform = `translateY(-50%) scale(${scale})`;
+
+          // Verhindere Scroll während Swipe
+          if (progress > 0.3) {
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchend', function (e) {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+
+        // Indikator entfernen
+        if (swipeIndicator) {
+          swipeIndicator.style.opacity = '0';
+          swipeIndicator.style.transform = 'translateY(-50%) scale(0.5)';
+          setTimeout(() => {
+            if (swipeIndicator) {
+              swipeIndicator.remove();
+              swipeIndicator = null;
+            }
+          }, 200);
+        }
+
+        // Swipe-Geste auswerten
+        handleSwipeGesture();
+      }, { passive: true });
+    }
+
+    function handleSwipeGesture() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+      const minSwipeDistance = window.screen.width * 0.2; // 20% der Bildschirmbreite
+
+      // Mindest-Swipe-Distanz (20% Bildschirmbreite) und horizontaler Swipe dominiert
+      if (absDeltaX > minSwipeDistance && absDeltaX > absDeltaY * 1.5) {
+
+        // Swipe nach rechts = zurück zur vorherigen Seite
+        if (deltaX > 0) {
+          console.log('Swipe rechts erkannt - navigiere zurück...');
+          goBack();
+        }
+      }
+    }
+
+    // Initialisierung
+    document.addEventListener('DOMContentLoaded', function () {
+      // Change Tracking einrichten - nach dem Laden der Daten
+      setTimeout(() => {
+        setupChangeTracking();
+        console.log('✅ Änderungserkennung initialisiert');
+      }, 1000);
+
+      console.log('✅ GastDetail initialisiert');
+      console.log('✅ Swipe-Navigation aktiviert');
+    });
+
+    // Browser-Navigation abfangen - zeigt Modal bei ungespeicherten Änderungen
+    window.addEventListener('beforeunload', function (e) {
+      // Nur bei echtem "Seite verlassen" (refresh, neue URL), nicht bei Browser-Back
+      if (hasUnsavedChanges && !navigationBlocked) {
+        e.preventDefault();
+        e.returnValue = 'Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?';
+        return e.returnValue;
+      }
+    });
+
+    // Browser-Back abfangen - zeigt Modal
+    let navigationBlocked = false;
+    let pendingNavigation = false;
+    let historyManipulated = false;
+
+    window.addEventListener('popstate', function (e) {
+      console.log('🔄 POPSTATE EVENT');
+      console.log('  - hasUnsavedChanges:', hasUnsavedChanges);
+      console.log('  - navigationBlocked:', navigationBlocked);
+      console.log('  - pendingNavigation:', pendingNavigation);
+      console.log('  - historyManipulated:', historyManipulated);
+      console.log('  - event:', e);
+
+      if (hasUnsavedChanges && !navigationBlocked) {
+        navigationBlocked = true;
+        pendingNavigation = true;
+        historyManipulated = true;
+        console.log('❌ Navigation blockiert - zeige Modal');
+
+        // beforeunload temporär deaktivieren während Browser-Back Modal
+        const originalBeforeUnload = window.onbeforeunload;
+        window.onbeforeunload = null;
+
+        showSaveModal();
+
+        // beforeunload nach Modal wieder aktivieren
+        setTimeout(() => {
+          window.onbeforeunload = originalBeforeUnload;
+        }, 500);
+
+        // Navigation zurücksetzen - einen Schritt vorwärts
+        console.log('🔄 Führe history.pushState aus...');
+        history.pushState(null, null, window.location.href);
+        console.log('✅ History-State zurückgesetzt');
+      } else {
+        console.log('ℹ️ Popstate ignoriert (keine Änderungen oder bereits blockiert)');
+      }
     });
   </script>
   <script src="js/http-utils.js"></script>

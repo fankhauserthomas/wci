@@ -106,7 +106,7 @@ if (!empty($ids)) {
             
             // CardName berechnen
             $input = trim($row['rawName']);  // rawName ist bereits "nachname vorname"
-            $maxlen = 15;
+            $maxlen = 20;
             $cardName = cleanText($input, $maxlen);
             
             // Info-String aufbauen: Erste Zeile mit verkürzter Aufenthaltsdauer und Hauptname
@@ -139,10 +139,18 @@ foreach ($ids as $rn_id) {
     $roomInfo = $guestData[$rn_id]['roomInfo'] ?? '';
     $cardName = $guestData[$rn_id]['cardName'] ?? '';
     
-    // Lokale Datenbank
+    // Lokale Datenbank - prt_queue INSERT
     $stmt->bind_param('issss', $rn_id, $printer, $rawName, $roomInfo, $cardName);
     if ($stmt->execute()) {
         $localCount++;
+    }
+    
+    // Lokale Datenbank - AV-ResNamen.CardName UPDATE
+    $updateStmt = $mysqli->prepare("UPDATE `AV-ResNamen` SET CardName = ? WHERE id = ?");
+    if ($updateStmt) {
+        $updateStmt->bind_param('si', $cardName, $rn_id);
+        $updateStmt->execute();
+        $updateStmt->close();
     }
     
     // Remote Datenbank (parallel)
@@ -150,6 +158,14 @@ foreach ($ids as $rn_id) {
         $remoteStmt->bind_param('issss', $rn_id, $printer, $rawName, $roomInfo, $cardName);
         if ($remoteStmt->execute()) {
             $remoteCount++;
+        }
+        
+        // Remote Datenbank - AV-ResNamen.CardName UPDATE
+        $remoteUpdateStmt = $remoteDb->prepare("UPDATE `AV-ResNamen` SET CardName = ? WHERE id = ?");
+        if ($remoteUpdateStmt) {
+            $remoteUpdateStmt->bind_param('si', $cardName, $rn_id);
+            $remoteUpdateStmt->execute();
+            $remoteUpdateStmt->close();
         }
     }
 }

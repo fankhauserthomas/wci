@@ -165,6 +165,120 @@
   <script src="reservation.js"></script>
 
   <script>
+    // Swipe-Navigation für Touch-Geräte
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let swipeIndicator = null;
+
+    // Touch-Events nur für Touch-Geräte aktivieren
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.addEventListener('touchstart', function (e) {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function (e) {
+        const currentX = e.changedTouches[0].screenX;
+        const currentY = e.changedTouches[0].screenY;
+        const deltaX = currentX - touchStartX;
+        const deltaY = currentY - touchStartY;
+
+        // Nur bei horizontalem Swipe nach rechts und minimaler vertikaler Bewegung
+        if (deltaX > 30 && Math.abs(deltaY) < 50) {
+
+          // Swipe-Indikator erstellen (falls noch nicht vorhanden)
+          if (!swipeIndicator) {
+            swipeIndicator = document.createElement('div');
+            swipeIndicator.style.cssText = `
+              position: fixed;
+              top: 50%;
+              right: 20px;
+              transform: translateY(-50%);
+              background: rgba(46, 204, 113, 0.9);
+              color: white;
+              padding: 12px 18px;
+              border-radius: 25px;
+              font-size: 14px;
+              font-weight: bold;
+              z-index: 10000;
+              pointer-events: none;
+              transition: all 0.2s ease;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            `;
+            swipeIndicator.innerHTML = 'Zurück <span style="font-size: 18px;">→</span>';
+            document.body.appendChild(swipeIndicator);
+          }
+
+          // Opacity und Skalierung basierend auf Swipe-Distanz
+          const progress = Math.min(Math.abs(deltaX) / 100, 1);
+          const opacity = Math.max(0.3, progress);
+          const scale = 0.8 + (progress * 0.2);
+
+          swipeIndicator.style.opacity = opacity;
+          swipeIndicator.style.transform = `translateY(-50%) scale(${scale})`;
+
+          // Verhindere Scroll während Swipe
+          if (progress > 0.3) {
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchend', function (e) {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+
+        // Indikator entfernen
+        if (swipeIndicator) {
+          swipeIndicator.style.opacity = '0';
+          swipeIndicator.style.transform = 'translateY(-50%) scale(0.5)';
+          setTimeout(() => {
+            if (swipeIndicator) {
+              swipeIndicator.remove();
+              swipeIndicator = null;
+            }
+          }, 200);
+        }
+
+        // Swipe-Geste auswerten
+        handleSwipeGesture();
+      }, { passive: true });
+    }
+
+    function handleSwipeGesture() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(deltaY);
+      const minSwipeDistance = window.screen.width * 0.2; // 20% der Bildschirmbreite
+
+      // Mindest-Swipe-Distanz (20% Bildschirmbreite) und horizontaler Swipe dominiert
+      if (absDeltaX > minSwipeDistance && absDeltaX > absDeltaY * 1.5) {
+
+        // Swipe nach rechts = zurück zur vorherigen Seite
+        if (deltaX > 0) {
+          console.log('Swipe right detected - navigating back');
+
+          // NavigationSystem verwenden wenn verfügbar
+          if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
+            NavigationSystem.goBack();
+          } else {
+            // Fallback: Browser-History oder zur Reservierungsliste
+            if (document.referrer && document.referrer.includes('/wci/')) {
+              window.history.back();
+            } else {
+              window.location.href = 'reservierungen.html';
+            }
+          }
+        }
+      }
+    }
+
     // Navigation und Initialisierung
     document.addEventListener('DOMContentLoaded', function () {
       // Navigation Setup
@@ -181,8 +295,117 @@
         window.updateConnectionStatus();
       }
 
+      // Header-Daten beim Laden aktualisieren
+      refreshHeaderData();
+
       console.log('✅ Reservation page initialized');
+      console.log('✅ Swipe navigation enabled for touch devices');
     });
+
+    // Seitenfokus - Header aktualisieren wenn von anderen Seiten zurückgekehrt
+    window.addEventListener('focus', function () {
+      console.log('🔄 Page focus - refreshing header data...');
+      refreshHeaderData();
+    });
+
+    // Sichtbarkeit - Header aktualisieren wenn Seite wieder sichtbar wird
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        console.log('👁️ Page visible - refreshing header data...');
+        refreshHeaderData();
+      }
+    });
+
+    // Header-Daten neu laden
+    function refreshHeaderData() {
+      // Reservierungs-ID aus URL holen
+      const urlParams = new URLSearchParams(window.location.search);
+      const resId = urlParams.get('id');
+
+      if (!resId) {
+        console.warn('⚠️ Keine Reservierungs-ID in URL gefunden');
+        return;
+      }
+
+      console.log('🔄 Lade Header-Daten für Reservierung ID:', resId);
+
+      // Progressive Retry-Logik für reservation.js Funktionen
+      let retryCount = 0;
+      const maxRetries = 5;
+      const retryDelay = 200;
+
+      const tryLoadReservationData = () => {
+        if (typeof window.loadReservationData === 'function') {
+          console.log('✅ Verwende loadReservationData() aus reservation.js');
+          window.loadReservationData().then(() => {
+            console.log('✅ Header-Update über loadReservationData abgeschlossen');
+          }).catch(error => {
+            console.error('❌ Fehler beim Header-Update:', error);
+          });
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`⏳ loadReservationData noch nicht verfügbar (Versuch ${retryCount}/${maxRetries}), wiederhole in ${retryDelay}ms...`);
+          setTimeout(tryLoadReservationData, retryDelay);
+        } else {
+          console.warn('⚠️ loadReservationData nach mehreren Versuchen nicht verfügbar, verwende Fallback');
+          loadHeaderDataDirectly(resId);
+        }
+      };
+
+      tryLoadReservationData();
+    }
+
+    // Direkte Header-Daten-Abfrage über reservation.js loadReservationData
+    async function loadHeaderDataDirectly(resId) {
+      try {
+        console.log('📡 Lade Header-Daten über reservation.js loadReservationData...');
+
+        // reservation.js loadReservationData Funktion aufrufen wenn verfügbar
+        if (typeof loadReservationData === 'function') {
+          console.log('✅ Verwende loadReservationData() aus reservation.js');
+          await loadReservationData();
+          console.log('✅ Header-Update über loadReservationData abgeschlossen');
+        } else {
+          console.log('⚠️ loadReservationData nicht gefunden, verwende Fallback');
+
+          // Fallback: Direkte API-Abfrage
+          const response = window.HttpUtils
+            ? await HttpUtils.requestJson(`getReservationDetails.php?id=${resId}`, {}, { retries: 2, timeout: 8000 })
+            : await fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json());
+
+          if (response) {
+            console.log('✅ Header-Daten erfolgreich geladen (Fallback):', response);
+            updateHeaderDirectly(response);
+          } else {
+            console.warn('⚠️ Keine Daten von getReservationDetails.php erhalten');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Fehler beim Laden der Header-Daten:', error);
+      }
+    }
+
+    // Direkter DOM-Update falls keine passende Funktion gefunden wird
+    function updateHeaderDirectly(data) {
+      console.log('🔧 Führe direkten DOM-Update durch...');
+
+      // Header-Farbe basierend auf Invoice-Status setzen
+      if (data.invoice !== undefined) {
+        const headerElement = document.getElementById('resHeader');
+        if (headerElement) {
+          const color = data.invoice ? '#B8860B' : '#2d8f4f'; // Dark Gold : Dark Green
+          document.documentElement.style.setProperty('--res-header-bg', color, 'important');
+          console.log('🎨 Header-Farbe direkt gesetzt:', data.invoice ? 'DARK GOLD' : 'DARK GREEN');
+        }
+      }
+
+      // Header-Text aktualisieren falls vorhanden
+      const headerInfo = document.querySelector('.header-info');
+      if (headerInfo && data) {
+        // Hier können weitere DOM-Updates eingefügt werden
+        console.log('📝 Header-Info-Element gefunden - bereit für Updates');
+      }
+    }
   </script>
 </body>
 

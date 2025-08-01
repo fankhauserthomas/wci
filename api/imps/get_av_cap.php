@@ -59,27 +59,28 @@ function outputResponse($data, $httpCode = 200) {
     if ($isCLI) {
         // CLI output: formatted text
         if ($data['success']) {
-            echo "✅ SUCCESS\n";
+            echo "✅ SUCCESS - NEW AVAILABILITY API\n";
             echo "Hut ID: " . $data['summary']['hutId'] . "\n";
             echo "Date Range: " . $data['summary']['dateRange'] . "\n";
             echo "Total Days: " . $data['summary']['totalDays'] . "\n";
             echo "Retrieved: " . $data['summary']['dataRetrieved'] . "\n";
-            
-            if (isset($data['summary']['parametersUsed'])) {
-                $params = $data['summary']['parametersUsed'];
-                if ($params['days']) {
-                    echo "Days Parameter: " . $params['days'] . "\n";
-                }
-                if ($params['del_old']) {
-                    echo "Deleted Old Records: " . $data['summary']['deletedOldRecords'] . "\n";
-                }
-            }
+            echo "API Endpoint: " . $data['summary']['apiEndpoint'] . "\n";
             echo "\n";
             
             echo "📊 DATABASE RESULTS:\n";
             $db = $data['database'];
             echo "Local DB: " . ($db['local'] ? "✅ Success ({$db['local_count']} records)" : "❌ Failed") . "\n";
             echo "Remote DB: " . ($db['remote'] ? "✅ Success ({$db['remote_count']} records)" : "❌ Failed") . "\n";
+            
+            // Show category statistics
+            if (isset($data['summary']['categoryStats'])) {
+                echo "\n🏠 CATEGORY STATISTICS:\n";
+                $stats = $data['summary']['categoryStats'];
+                echo "Category 1958: avg " . round($stats['kat_1958']['avg'], 1) . " (max: {$stats['kat_1958']['max']})\n";
+                echo "Category 2293: avg " . round($stats['kat_2293']['avg'], 1) . " (max: {$stats['kat_2293']['max']})\n";
+                echo "Category 2381: avg " . round($stats['kat_2381']['avg'], 1) . " (max: {$stats['kat_2381']['max']})\n";
+                echo "Category 6106: avg " . round($stats['kat_6106']['avg'], 1) . " (max: {$stats['kat_6106']['max']})\n";
+            }
             
             if (!empty($db['errors'])) {
                 echo "\n⚠️  ERRORS:\n";
@@ -109,28 +110,78 @@ function outputResponse($data, $httpCode = 200) {
  * Save availability data to av_belegung table in both local and remote databases
  * @param array $availabilityData - Array of availability data from API
  * @param string $hutId - Hut ID
- * @param bool $deleteOldData - Whether to delete past dates
  * @return array - Result with success status and details
  */
-function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = false) {
+function saveAvailabilityToDatabase($availabilityData, $hutId) {
     global $mysqli, $dbHost, $dbUser, $dbPass, $dbName, $remoteDbHost, $remoteDbUser, $remoteDbPass, $remoteDbName;
     
-    $results = ['local' => false, 'remote' => false, 'errors' => [], 'deleted_old' => 0];
+    $results = ['local' => false, 'remote' => false, 'errors' => []];
     
     // Prepare the data for insertion
     $insertData = [];
     $dateList = [];
-    foreach ($availabilityData as $dayData) {
-        // Convert German date format (DD.MM.YYYY) to MySQL date format (YYYY-MM-DD)
-        $dateObj = DateTime::createFromFormat('d.m.Y', $dayData['date']);
+    $categoryStats = [
+        'kat_1958' => ['total' => 0, 'count' => 0, 'max' => 0],
+        'kat_2293' => ['total' => 0, 'count' => 0, 'max' => 0],
+        'kat_2381' => ['total' => 0, 'count' => 0, 'max' => 0],
+        'kat_6106' => ['total' => 0, 'count' => 0, 'max' => 0]
+    ];
+    
+    foreach ($availabilityData as $index => $dayData) {
+        // Convert ISO date format to MySQL date format
+        $dateObj = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $dayData['date']);
+        if (!$dateObj) {
+            // Try alternative format without timezone
+            $dateObj = DateTime::createFromFormat('Y-m-d\TH:i:s', $dayData['date']);
+        }
+        
         if ($dateObj) {
             $mysqlDate = $dateObj->format('Y-m-d');
+            
+            // Extract category data
+            $freeBedsPerCategory = $dayData['freeBedsPerCategory'] ?? [];
+            $kat_1958 = (int)($freeBedsPerCategory['1958'] ?? 0);
+            $kat_2293 = (int)($freeBedsPerCategory['2293'] ?? 0);
+            $kat_2381 = (int)($freeBedsPerCategory['2381'] ?? 0);
+            $kat_6106 = (int)($freeBedsPerCategory['6106'] ?? 0);
+            
+            // Debug: Show first few entries
+            global $isCLI;
+            if ($isCLI && $index < 3) {
+                echo "📊 PROCESSING DAY " . ($index + 1) . ":\n";
+                echo "Date: {$mysqlDate}\n";
+                echo "Free Beds: " . ($dayData['freeBeds'] ?? 'N/A') . "\n";
+                echo "Categories RAW: " . json_encode($freeBedsPerCategory) . "\n";
+                echo "kat_1958: {$kat_1958}, kat_2293: {$kat_2293}, kat_2381: {$kat_2381}, kat_6106: {$kat_6106}\n\n";
+            }
+            
             $insertData[] = [
                 'datum' => $mysqlDate,
-                'free_place' => (int)$dayData['freePlace'],
-                'hut_status' => $dayData['hutStatus']
+                'free_place' => (int)($dayData['freeBeds'] ?? 0),
+                'hut_status' => $dayData['hutStatus'] ?? 'UNKNOWN',
+                'kat_1958' => $kat_1958,
+                'kat_2293' => $kat_2293,
+                'kat_2381' => $kat_2381,
+                'kat_6106' => $kat_6106
             ];
             $dateList[] = $mysqlDate;
+            
+            // Update statistics
+            $categoryStats['kat_1958']['total'] += $kat_1958;
+            $categoryStats['kat_1958']['count']++;
+            $categoryStats['kat_1958']['max'] = max($categoryStats['kat_1958']['max'], $kat_1958);
+            
+            $categoryStats['kat_2293']['total'] += $kat_2293;
+            $categoryStats['kat_2293']['count']++;
+            $categoryStats['kat_2293']['max'] = max($categoryStats['kat_2293']['max'], $kat_2293);
+            
+            $categoryStats['kat_2381']['total'] += $kat_2381;
+            $categoryStats['kat_2381']['count']++;
+            $categoryStats['kat_2381']['max'] = max($categoryStats['kat_2381']['max'], $kat_2381);
+            
+            $categoryStats['kat_6106']['total'] += $kat_6106;
+            $categoryStats['kat_6106']['count']++;
+            $categoryStats['kat_6106']['max'] = max($categoryStats['kat_6106']['max'], $kat_6106);
         }
     }
     
@@ -139,36 +190,42 @@ function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = 
         return $results;
     }
     
+    // Calculate averages
+    foreach ($categoryStats as $key => &$stat) {
+        $stat['avg'] = $stat['count'] > 0 ? $stat['total'] / $stat['count'] : 0;
+    }
+    $results['categoryStats'] = $categoryStats;
+    
     $minDate = min($dateList);
     $maxDate = max($dateList);
     
     // Function to perform database operations
-    $performDbOperation = function($connection, $dbType) use ($insertData, $hutId, $deleteOldData, $minDate, $maxDate, $dateList, &$results) {
+    $performDbOperation = function($connection, $dbType) use ($insertData, $hutId, $dateList, &$results) {
         try {
             // Start transaction
             $connection->begin_transaction();
             
-            // Check if table has hut_id column
-            $checkColumnQuery = "SHOW COLUMNS FROM av_belegung LIKE 'hut_id'";
-            $checkResult = $connection->query($checkColumnQuery);
-            $hasHutIdColumn = $checkResult && $checkResult->num_rows > 0;
+            // Check if table has all required columns
+            $checkColumnsQuery = "SHOW COLUMNS FROM av_belegung";
+            $checkResult = $connection->query($checkColumnsQuery);
+            $existingColumns = [];
             
-            $deletedOldCount = 0;
+            if ($checkResult) {
+                while ($row = $checkResult->fetch_assoc()) {
+                    $existingColumns[] = $row['Field'];
+                }
+            }
+            
+            $hasHutIdColumn = in_array('hut_id', $existingColumns);
+            $hasCategoryColumns = in_array('kat_1958', $existingColumns) && 
+                                 in_array('kat_2293', $existingColumns) && 
+                                 in_array('kat_2381', $existingColumns) && 
+                                 in_array('kat_6106', $existingColumns);
+            
+            // Delete existing data for the date range we're updating
+            $dateListStr = "'" . implode("','", $dateList) . "'";
             
             if ($hasHutIdColumn) {
-                // Delete old data if requested
-                if ($deleteOldData) {
-                    $deleteOldStmt = $connection->prepare("DELETE FROM av_belegung WHERE hut_id = ? AND datum < ?");
-                    if ($deleteOldStmt) {
-                        $deleteOldStmt->bind_param('ss', $hutId, $minDate);
-                        $deleteOldStmt->execute();
-                        $deletedOldCount = $deleteOldStmt->affected_rows;
-                        $deleteOldStmt->close();
-                    }
-                }
-                
-                // Delete existing data only for the date range we're updating
-                $dateListStr = "'" . implode("','", $dateList) . "'";
                 $deleteQuery = "DELETE FROM av_belegung WHERE hut_id = ? AND datum IN ($dateListStr)";
                 $deleteStmt = $connection->prepare($deleteQuery);
                 if (!$deleteStmt) {
@@ -177,14 +234,47 @@ function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = 
                 $deleteStmt->bind_param('s', $hutId);
                 $deleteStmt->execute();
                 $deleteStmt->close();
-                
-                // Insert new data with hut_id
-                $insertStmt = $connection->prepare("INSERT INTO av_belegung (hut_id, datum, free_place, hut_status) VALUES (?, ?, ?, ?)");
+            } else {
+                $deleteQuery = "DELETE FROM av_belegung WHERE datum IN ($dateListStr)";
+                $connection->query($deleteQuery);
+            }
+            
+            // Prepare insert statement based on available columns
+            $insertedCount = 0;
+            
+            if ($hasHutIdColumn && $hasCategoryColumns) {
+                // Full insert with hut_id and category columns
+                $insertStmt = $connection->prepare("INSERT INTO av_belegung (hut_id, datum, free_place, hut_status, kat_1958, kat_2293, kat_2381, kat_6106) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                 if (!$insertStmt) {
-                    throw new Exception("Prepare insert failed: " . $connection->error);
+                    throw new Exception("Prepare full insert failed: " . $connection->error);
                 }
                 
-                $insertedCount = 0;
+                foreach ($insertData as $data) {
+                    $insertStmt->bind_param('ssisiiii', 
+                        $hutId, 
+                        $data['datum'], 
+                        $data['free_place'], 
+                        $data['hut_status'],
+                        $data['kat_1958'],
+                        $data['kat_2293'],
+                        $data['kat_2381'],
+                        $data['kat_6106']
+                    );
+                    if ($insertStmt->execute()) {
+                        $insertedCount++;
+                    } else {
+                        throw new Exception("Insert failed: " . $insertStmt->error);
+                    }
+                }
+                $insertStmt->close();
+                
+            } elseif ($hasHutIdColumn) {
+                // Insert with hut_id but without category columns
+                $insertStmt = $connection->prepare("INSERT INTO av_belegung (hut_id, datum, free_place, hut_status) VALUES (?, ?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new Exception("Prepare insert with hut_id failed: " . $connection->error);
+                }
+                
                 foreach ($insertData as $data) {
                     $insertStmt->bind_param('ssis', $hutId, $data['datum'], $data['free_place'], $data['hut_status']);
                     if ($insertStmt->execute()) {
@@ -194,32 +284,14 @@ function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = 
                     }
                 }
                 $insertStmt->close();
+                
             } else {
-                // Table doesn't have hut_id column
-                if ($deleteOldData) {
-                    // Delete old data
-                    $deleteOldQuery = "DELETE FROM av_belegung WHERE datum < ?";
-                    $deleteOldStmt = $connection->prepare($deleteOldQuery);
-                    if ($deleteOldStmt) {
-                        $deleteOldStmt->bind_param('s', $minDate);
-                        $deleteOldStmt->execute();
-                        $deletedOldCount = $deleteOldStmt->affected_rows;
-                        $deleteOldStmt->close();
-                    }
-                }
-                
-                // Delete existing data only for the date range we're updating
-                $dateListStr = "'" . implode("','", $dateList) . "'";
-                $deleteQuery = "DELETE FROM av_belegung WHERE datum IN ($dateListStr)";
-                $connection->query($deleteQuery);
-                
-                // Insert new data without hut_id
+                // Basic insert without hut_id or category columns
                 $insertStmt = $connection->prepare("INSERT INTO av_belegung (datum, free_place, hut_status) VALUES (?, ?, ?)");
                 if (!$insertStmt) {
-                    throw new Exception("Prepare insert failed: " . $connection->error);
+                    throw new Exception("Prepare basic insert failed: " . $connection->error);
                 }
                 
-                $insertedCount = 0;
                 foreach ($insertData as $data) {
                     $insertStmt->bind_param('sis', $data['datum'], $data['free_place'], $data['hut_status']);
                     if ($insertStmt->execute()) {
@@ -237,7 +309,7 @@ function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = 
             $results[$dbType] = true;
             $results[$dbType . '_count'] = $insertedCount;
             $results[$dbType . '_has_hut_id'] = $hasHutIdColumn;
-            $results['deleted_old'] = max($results['deleted_old'], $deletedOldCount);
+            $results[$dbType . '_has_categories'] = $hasCategoryColumns;
             
         } catch (Exception $e) {
             // Rollback transaction on error
@@ -272,92 +344,47 @@ function saveAvailabilityToDatabase($availabilityData, $hutId, $deleteOldData = 
 
 try {
     // Get parameters (works for both CLI and web)
-    $hutId = getParameter('hutID');
-    $von = getParameter('von');
-    $bis = getParameter('bis');
-    $days = getParameter('days');
-    $delOld = getParameter('del_old', 'false');
-    
-    // Handle days parameter - if provided, calculate von/bis from today
-    if ($days && is_numeric($days)) {
-        $today = new DateTime();
-        $von = $today->format('Y-m-d');
-        $futureDate = clone $today;
-        $futureDate->add(new DateInterval('P' . (int)$days . 'D'));
-        $bis = $futureDate->format('Y-m-d');
-    }
+    $hutId = getParameter('hutID') ?: getParameter('hutId'); // Support both formats
     
     // Show usage for CLI if no parameters provided
     if ($isCLI && !$hutId) {
+        echo "🏔️  HUT AVAILABILITY API - NEW ENDPOINT\n";
+        echo "=====================================\n\n";
         echo "Usage:\n";
-        echo "  php get_av_cap.php --hutID=675 --von=2025-07-25 --bis=2025-11-02\n";
-        echo "  php get_av_cap.php --hutID=675 --days=30 [--del_old=true]\n\n";
+        echo "  php get_av_cap_new.php --hutID=675\n";
+        echo "  php get_av_cap_new.php --hutId=675\n\n";
         echo "Parameters:\n";
-        echo "  --hutID        Hut ID (required)\n";
-        echo "  --von          Arrival date in YYYY-MM-DD format (required if not using --days)\n";
-        echo "  --bis          Departure date in YYYY-MM-DD format (required if not using --days)\n";
-        echo "  --days         Number of days from today (alternative to von/bis)\n";
-        echo "  --del_old      Delete past dates (true/false, default: false)\n";
-        echo "  --nextPossibleReservations  Number of next possible reservations (optional, default: 10)\n";
+        echo "  --hutID or --hutId   Hut ID (required)\n\n";
+        echo "Features:\n";
+        echo "  • Fetches 1 year of availability data\n";
+        echo "  • Includes detailed category breakdown\n";
+        echo "  • Supports both CLI and web execution\n";
+        echo "  • Automatic database saving (local + remote)\n";
+        echo "  • Enhanced debug output\n\n";
+        echo "API Endpoint: https://www.hut-reservation.org/api/v1/reservation/getHutAvailability\n";
         exit(1);
     }
     
     // Validate required parameters
     if (!$hutId) {
-        throw new Exception('Parameter hutID is required');
-    }
-    if (!$von || !$bis) {
-        if (!$days) {
-            throw new Exception('Either von/bis dates or days parameter is required');
-        }
+        throw new Exception('Parameter hutID (or hutId) is required');
     }
     
-    // Validate date format (YYYY-MM-DD)
-    if (!DateTime::createFromFormat('Y-m-d', $von)) {
-        throw new Exception('Invalid von date format. Use YYYY-MM-DD');
-    }
-    if (!DateTime::createFromFormat('Y-m-d', $bis)) {
-        throw new Exception('Invalid bis date format. Use YYYY-MM-DD');
+    // Validate hutId format (should be numeric)
+    if (!is_numeric($hutId)) {
+        throw new Exception('hutID must be numeric');
     }
     
-    // Validate date logic
-    $arrivalDate = new DateTime($von);
-    $departureDate = new DateTime($bis);
-    if ($arrivalDate >= $departureDate) {
-        throw new Exception('Departure date must be after arrival date');
+    // Prepare API URL with parameters
+    $apiUrl = "https://www.hut-reservation.org/api/v1/reservation/getHutAvailability?hutId={$hutId}&step=WIZARD";
+    
+    // Debug output for CLI
+    if ($isCLI) {
+        echo "🔍 DEBUG INFO:\n";
+        echo "Hut ID: {$hutId}\n";
+        echo "API URL: {$apiUrl}\n";
+        echo "Fetching data...\n\n";
     }
-    
-    // Check for reasonable date range (API might fail with very large ranges)
-    $daysDiff = $arrivalDate->diff($departureDate)->days;
-    if ($daysDiff > 365) {
-        throw new Exception('Date range too large. Maximum 365 days allowed.');
-    }
-    
-    // Check if dates are not too far in the past
-    $today = new DateTime();
-    if ($arrivalDate < $today->modify('-30 days')) {
-        throw new Exception('Arrival date cannot be more than 30 days in the past');
-    }
-    
-    // Get nextPossibleReservations parameter (optional, default 10)
-    $nextPossibleReservations = (int)(getParameter('nextPossibleReservations', 10));
-    if ($nextPossibleReservations < 1 || $nextPossibleReservations > 100) {
-        $nextPossibleReservations = 10; // Safe default
-    }
-    
-    // Prepare API URL
-    $apiUrl = "https://hut-reservation.org/api/v1/reservation/availabilityCalendar/{$hutId}";
-    
-    // Convert dates to German format (DD.MM.YYYY) as expected by the API
-    $arrivalDateFormatted = $arrivalDate->format('d.m.Y');
-    $departureDateFormatted = $departureDate->format('d.m.Y');
-    
-    // Prepare POST data
-    $postData = [
-        'arrivalDate' => $arrivalDateFormatted,
-        'departureDate' => $departureDateFormatted,
-        'nextPossibleReservations' => $nextPossibleReservations > 0 ? $nextPossibleReservations : false
-    ];
     
     // Initialize cURL
     $ch = curl_init();
@@ -365,15 +392,12 @@ try {
     // Set cURL options
     curl_setopt_array($ch, [
         CURLOPT_URL => $apiUrl,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($postData),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 45, // Longer timeout for yearly data
+        CURLOPT_CONNECTTIMEOUT => 15,
         CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
             'Accept: application/json',
-            'User-Agent: WCI-Capacity-Checker/1.0'
+            'User-Agent: WCI-New-Availability-Checker/1.0'
         ],
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
@@ -385,7 +409,18 @@ try {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
+    $responseSize = curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
     curl_close($ch);
+    
+    // Debug output for CLI
+    if ($isCLI) {
+        echo "HTTP Code: {$httpCode}\n";
+        echo "Response Size: " . number_format($responseSize) . " bytes\n";
+        if ($curlError) {
+            echo "cURL Error: {$curlError}\n";
+        }
+        echo "\n";
+    }
     
     // Check for cURL errors
     if ($response === false || !empty($curlError)) {
@@ -409,7 +444,7 @@ try {
         
         // For specific error codes, provide more context
         if ($httpCode === 500) {
-            $errorMessage .= ". This might be due to: invalid hutId, date range too large, or server issues.";
+            $errorMessage .= ". This might be due to: invalid hutId, server issues, or API changes.";
         } elseif ($httpCode === 404) {
             $errorMessage .= ". Check if hutId '{$hutId}' exists.";
         } elseif ($httpCode === 400) {
@@ -425,24 +460,60 @@ try {
         throw new Exception('Invalid JSON response from API: ' . json_last_error_msg());
     }
     
-    // Save availability data to database
-    $deleteOldData = strtolower($delOld) === 'true';
-    $dbSaveResult = saveAvailabilityToDatabase($apiData, $hutId, $deleteOldData);
+    // Validate response structure
+    if (!is_array($apiData)) {
+        throw new Exception('API response is not an array');
+    }
     
-    // Prepare successful response with summary only
+    if (empty($apiData)) {
+        throw new Exception('API returned empty data');
+    }
+    
+    // Debug: Show sample data structure
+    if ($isCLI && count($apiData) > 0) {
+        echo "📋 SAMPLE DATA STRUCTURE:\n";
+        $sample = $apiData[0];
+        echo "Date: " . ($sample['date'] ?? 'N/A') . "\n";
+        echo "Date Formatted: " . ($sample['dateFormatted'] ?? 'N/A') . "\n";
+        echo "Free Beds: " . ($sample['freeBeds'] ?? 'N/A') . "\n";
+        echo "Hut Status: " . ($sample['hutStatus'] ?? 'N/A') . "\n";
+        if (isset($sample['freeBedsPerCategory'])) {
+            echo "Categories RAW: " . json_encode($sample['freeBedsPerCategory']) . "\n";
+            echo "Category 1958: " . ($sample['freeBedsPerCategory']['1958'] ?? 'N/A') . "\n";
+            echo "Category 2293: " . ($sample['freeBedsPerCategory']['2293'] ?? 'N/A') . "\n";
+            echo "Category 2381: " . ($sample['freeBedsPerCategory']['2381'] ?? 'N/A') . "\n";
+            echo "Category 6106: " . ($sample['freeBedsPerCategory']['6106'] ?? 'N/A') . "\n";
+        }
+        echo "\n";
+    }
+    
+    // Save availability data to database
+    $dbSaveResult = saveAvailabilityToDatabase($apiData, $hutId);
+    
+    // Calculate date range
+    $dates = array_map(function($item) {
+        $dateObj = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $item['date']);
+        if (!$dateObj) {
+            $dateObj = DateTime::createFromFormat('Y-m-d\TH:i:s', $item['date']);
+        }
+        return $dateObj ? $dateObj->format('Y-m-d') : null;
+    }, $apiData);
+    $dates = array_filter($dates);
+    sort($dates);
+    
+    $dateRange = count($dates) > 0 ? reset($dates) . ' - ' . end($dates) : 'Unknown';
+    
+    // Prepare successful response with summary
     $result = [
         'success' => true,
         'database' => $dbSaveResult,
         'summary' => [
             'hutId' => $hutId,
-            'dateRange' => $von . ' - ' . $bis,
+            'dateRange' => $dateRange,
             'totalDays' => count($apiData),
             'dataRetrieved' => date('Y-m-d H:i:s'),
-            'deletedOldRecords' => $dbSaveResult['deleted_old'] ?? 0,
-            'parametersUsed' => [
-                'days' => $days ?? null,
-                'del_old' => $deleteOldData
-            ]
+            'apiEndpoint' => 'NEW - getHutAvailability with categories',
+            'categoryStats' => $dbSaveResult['categoryStats'] ?? null
         ]
     ];
     
@@ -456,15 +527,13 @@ try {
         'error' => $e->getMessage(),
         'request' => [
             'hutId' => $hutId ?? null,
-            'arrivalDate' => $von ?? null,
-            'departureDate' => $bis ?? null,
-            'nextPossibleReservations' => $nextPossibleReservations ?? null
+            'apiEndpoint' => 'https://www.hut-reservation.org/api/v1/reservation/getHutAvailability'
         ],
         'suggestions' => [
-            'Check if hutId exists and is valid',
-            'Ensure date range is reasonable (max 365 days)',
-            'Verify dates are in YYYY-MM-DD format',
-            'Try a smaller date range if the current one is very large'
+            'Check if hutId exists and is numeric',
+            'Verify the API endpoint is accessible',
+            'Try again - the API might be temporarily unavailable',
+            'Check if the database has the required columns (kat_1958, kat_2293, kat_2381, kat_6106)'
         ],
         'timestamp' => date('Y-m-d H:i:s')
     ];

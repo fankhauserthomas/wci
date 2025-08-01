@@ -100,6 +100,33 @@ document.addEventListener('DOMContentLoaded', () => {
       // Store reservation data globally
       currentReservationData = data;
 
+      // Header-Farbe basierend auf Invoice-Status setzen
+      const headerElement = document.getElementById('resHeader');
+      if (headerElement) {
+        // je nach Rückgabe-Format entweder data.names[0] oder direkt data
+        // neu: wenn data.detail existiert, nimm das, sonst fall auf altes Verhalten zurück
+        const detail = data.detail
+          ? data.detail
+          : (Array.isArray(data.names) && data.names.length
+            ? data.names[0]
+            : data);
+
+        // Debug: Log invoice status
+        console.log('Debug - Invoice Status:', detail.invoice, typeof detail.invoice);
+        console.log('Debug - Complete detail object:', detail);
+
+        // Header-Farbe basierend auf Invoice-Status - über CSS-Variable
+        if (detail.invoice === true || detail.invoice === 1 || detail.invoice === '1') {
+          // Dunkelgold für Invoice=true - über CSS-Variable
+          document.documentElement.style.setProperty('--res-header-bg', '#b8860b');
+          console.log('✅ Header set to DARK GOLD (invoice=true) via CSS variable');
+        } else {
+          // Normalgrün (etwas dunkler) für Invoice=false/null - über CSS-Variable
+          document.documentElement.style.setProperty('--res-header-bg', '#2d8f4f');
+          console.log('✅ Header set to DARK GREEN (invoice=false/null) via CSS variable');
+        }
+      }
+
       // Check for name correction needs
       setTimeout(() => {
         checkNameCorrection(detail);
@@ -2109,6 +2136,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Globale Funktion verfügbar machen
   window.updateNavigationStatus = updateNavigationStatus;
+
+  // loadReservationData global verfügbar machen für externe Header-Updates
+  window.loadReservationData = loadReservationData;
+
+  // loadNames global verfügbar machen für externe Updates
+  window.loadNames = loadNames;
 
   // Update Navigation Status alle 5 Sekunden
   setInterval(updateNavigationStatus, 5000);

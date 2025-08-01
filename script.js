@@ -476,16 +476,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     view.forEach(r => {
       const statusPct = getType() === 'arrival' ? r.percent_logged_in : r.percent_logged_out;
-      const nameText = `${r.nachname} ${r.vorname}` + (r.hund ? ' <img src="pic/dog.svg" alt1="Hund" style="width: 1em; height: 1em; vertical-align: middle;">' : '') + (r.av_id > 0 ? ' <img src="pic/AV.svg" alt="AV" style="width: 1em; height: 1em; vertical-align: middle;">' : '') + (r.storno ? ' <img src="pic/cancelled.svg" alt="Storniert" style="width: 4em; height: 1em; vertical-align: middle;">' : '');
-      const nameCell = `<td class="name-cell" data-id="${r.id}">${nameText}</td>`;
+      const nameText = `${r.nachname} ${r.vorname}` + (r.hund ? ' <img src="pic/dog.svg" alt1="Hund" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.av_id > 0 ? ' <img src="pic/AV.svg" alt="AV" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.invoice ? ' <img src="pic/invoice.svg" alt="Debitor" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.storno ? ' <img src="pic/cancelled.svg" alt="Storniert" style="width: 4.6em; height: 1.15em; vertical-align: middle;">' : '');
+
+      // Prüfen ob Nachname fehlt oder leer ist
+      const missingLastname = !r.nachname || r.nachname.trim() === '';
+      const nameClass = missingLastname ? 'name-cell name-missing-lastname' : 'name-cell';
+      const nameCell = `<td class="${nameClass}" data-id="${r.id}">${nameText}</td>`;
+
       const bemHtml = r.bem && r.bem_av
         ? `${r.bem}<hr>${r.bem_av}`
         : r.bem || r.bem_av || '';
+
+      // Funktion zum Prüfen ob Text mehr als 2 Zeilen benötigt
+      const needsModal = (text, maxChars = 40) => {
+        if (!text) return false;
+        return text.length > maxChars || text.split('\n').length > 2;
+      };
+
       const bemCell = bemHtml
-        ? `<td class="bem-cell" data-id="${r.id}" title="${bemHtml}"><img src="pic/info.svg" alt="Info" style="width: 1em; height: 1em;"></td>`
+        ? `<td class="bem-cell ${needsModal(bemHtml) ? 'has-overflow' : ''}" data-id="${r.id}" title="${bemHtml}"><span class="bem-text">${bemHtml}</span></td>`
         : '<td class="bem-cell" data-id="${r.id}"></td>';
+
       const origCell = r.origin
-        ? `<td class="orig-cell" data-id="${r.id}" title="${r.origin}"><img src="pic/info.svg" alt="Origin" style="width: 1em; height: 1em;"></td>`
+        ? `<td class="orig-cell ${needsModal(r.origin, 40) ? 'has-overflow' : ''}" data-id="${r.id}" title="${r.origin}"><span class="orig-text">${r.origin}</span></td>`
         : '<td class="orig-cell" data-id="${r.id}"></td>';
 
       // Calculate length of stay and determine background color
@@ -543,27 +556,27 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Bemerkung-Zellen -> Modal mit Inhalt anzeigen
+    // Bemerkung-Zellen -> Modal mit vollem Text anzeigen
     document.querySelectorAll('.bem-cell').forEach(cell => {
       cell.addEventListener('click', () => {
         const title = cell.getAttribute('title');
         if (title && title.trim()) {
           const modalText = document.getElementById('modalText');
           const modal = document.getElementById('modal');
-          modalText.innerHTML = `<h3>Bemerkung</h3><div style="margin-top: 1rem;">${title.replace('<hr>', '<br><br>')}</div>`;
+          modalText.innerHTML = `<h3>Bemerkung</h3><div style="margin-top: 1rem; white-space: pre-wrap; word-wrap: break-word;">${title.replace('<hr>', '\n\n')}</div>`;
           modal.classList.add('visible');
         }
       });
     });
 
-    // Origin-Zellen -> Modal mit Inhalt anzeigen
+    // Origin-Zellen -> Modal mit vollem Text anzeigen
     document.querySelectorAll('.orig-cell').forEach(cell => {
       cell.addEventListener('click', () => {
         const title = cell.getAttribute('title');
         if (title && title.trim()) {
           const modalText = document.getElementById('modalText');
           const modal = document.getElementById('modal');
-          modalText.innerHTML = `<h3>Origin</h3><div style="margin-top: 1rem;">${title}</div>`;
+          modalText.innerHTML = `<h3>Herkunft</h3><div style="margin-top: 1rem; white-space: pre-wrap; word-wrap: break-word;">${title}</div>`;
           modal.classList.add('visible');
         }
       });
@@ -835,6 +848,28 @@ document.addEventListener('DOMContentLoaded', () => {
   localStorage.removeItem('searchTerm');
 
   loadData();
+
+  // Seite neu laden wenn von anderen Seiten zurückgekehrt wird
+  window.addEventListener('focus', function () {
+    console.log('🔄 Reservierungen-Seite erhält Fokus - lade Daten neu');
+    loadData();
+  });
+
+  // Pagehide/Pageshow für bessere Mobile-Unterstützung
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      console.log('🔄 Seite aus Cache geladen - lade Daten neu');
+      loadData();
+    }
+  });
+
+  // Visibility API für Tab-Wechsel
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) {
+      console.log('🔄 Tab wieder sichtbar - lade Daten neu');
+      loadData();
+    }
+  });
 
   // === Universelle Verbindungsstatus-Funktionen ===
   // Stelle sicher, dass updateNavigationStatus global verfügbar ist, auch wenn keine Navigation vorhanden
