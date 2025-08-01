@@ -23,7 +23,8 @@
 /* Grüner Info-Header */
 .res-header {
   width: 100%;
-  background: var(--primary);
+  background: var(--res-header-bg, #2d8f4f);
+  /* CSS Variable mit Fallback */
   color: #fff;
   padding: 0.5rem 1rem;
   /* Reduziertes vertikales Padding */

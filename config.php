@@ -2,10 +2,15 @@
 // config.php – hier die Zugangsdaten zur MySQL-Datenbank
 
 // Lokale DB (primär)
-$dbHost = '192.168.15.14';
-$dbUser = 'root';
-$dbPass = 'Fsh2147m!1';
-$dbName = 'booking_franzsen';
+$GLOBALS['dbHost'] = '192.168.15.14';
+$GLOBALS['dbUser'] = 'root';
+$GLOBALS['dbPass'] = 'Fsh2147m!1';
+$GLOBALS['dbName'] = 'booking_franzsen';
+
+$dbHost = $GLOBALS['dbHost'];
+$dbUser = $GLOBALS['dbUser'];
+$dbPass = $GLOBALS['dbPass'];
+$dbName = $GLOBALS['dbName'];
 
 // Remote DB Konfiguration (für Sync)
 $remoteDbHost = 'booking.franzsennhuette.at';
@@ -20,6 +25,9 @@ if ($mysqli->connect_error) {
     die(json_encode(['error' => 'DB-Verbindung fehlgeschlagen']));
 }
 $mysqli->set_charset('utf8mb4');
+
+// Make mysqli available globally
+$GLOBALS['mysqli'] = $mysqli;
 
 // Sync-Konfiguration
 define('SYNC_ENABLED', true);
