@@ -7,28 +7,16 @@ ob_start();
 
 require 'config.php';
 
-// CleanText-Funktion für Code39-kompatible Namen
+// CleanText-Funktion für QR-Codes (unterstützt Unicode)
 function cleanText($input, $maxlen) {
-    // Gültige Code39-Zeichen (ohne Start/Stoppzeichen *)
-    $allowedChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.$/+%';
-    
-    // Alles in Großbuchstaben umwandeln
-    $input = strtoupper(trim($input));
-    
-    // Erlaubte Zeichen filtern
-    $cleaned = '';
-    for ($i = 0; $i < strlen($input); $i++) {
-        $char = $input[$i];
-        if (strpos($allowedChars, $char) !== false) {
-            $cleaned .= $char;
-        }
-    }
+    // Nur trimmen und auf maximale Länge kürzen
+    $input = trim($input);
     
     // Auf maximal $maxlen Zeichen kürzen
-    if (strlen($cleaned) > $maxlen) {
-        return substr($cleaned, 0, $maxlen);
+    if (strlen($input) > $maxlen) {
+        return substr($input, 0, $maxlen);
     } else {
-        return $cleaned;
+        return $input;
     }
 }
 
@@ -51,20 +39,7 @@ if (!$stmt) {
     exit;
 }
 
-// 2) Remote Datenbank - Verbindung und INSERT vorbereiten
-$remoteDb = new mysqli($remoteDbHost, $remoteDbUser, $remoteDbPass, $remoteDbName);
-$remoteStmt = null;
-$remoteSuccess = false;
-
-if (!$remoteDb->connect_error) {
-    $remoteDb->set_charset('utf8mb4');
-    $remoteStmt = $remoteDb->prepare("INSERT INTO prt_queue (rn_id, prt, rawName, Info, cardName) VALUES (?, ?, ?, ?, ?)");
-    if ($remoteStmt) {
-        $remoteSuccess = true;
-    }
-}
-
-// 3) Gastnamen und Zimmerinformationen für alle IDs laden
+// 2) Gastnamen und Zimmerinformationen für alle IDs laden
 $guestData = [];
 if (!empty($ids)) {
     $idPlaceholders = implode(',', array_fill(0, count($ids), '?'));
@@ -124,10 +99,8 @@ if (!empty($ids)) {
     }
 }
 
-// 4) Für jede übergebene Namens-ID parallel in beide Datenbanken einfügen
-// 4) Für jede übergebene Namens-ID parallel in beide Datenbanken einfügen
+// 3) Für jede übergebene Namens-ID in lokale Datenbank einfügen
 $localCount = 0;
-$remoteCount = 0;
 
 foreach ($ids as $rn_id) {
     if (!ctype_digit((string)$rn_id)) {
@@ -152,39 +125,17 @@ foreach ($ids as $rn_id) {
         $updateStmt->execute();
         $updateStmt->close();
     }
-    
-    // Remote Datenbank (parallel)
-    if ($remoteSuccess && $remoteStmt) {
-        $remoteStmt->bind_param('issss', $rn_id, $printer, $rawName, $roomInfo, $cardName);
-        if ($remoteStmt->execute()) {
-            $remoteCount++;
-        }
-        
-        // Remote Datenbank - AV-ResNamen.CardName UPDATE
-        $remoteUpdateStmt = $remoteDb->prepare("UPDATE `AV-ResNamen` SET CardName = ? WHERE id = ?");
-        if ($remoteUpdateStmt) {
-            $remoteUpdateStmt->bind_param('si', $cardName, $rn_id);
-            $remoteUpdateStmt->execute();
-            $remoteUpdateStmt->close();
-        }
-    }
 }
 
-// 5) Cleanup
+// 4) Cleanup
 $stmt->close();
-if ($remoteStmt) {
-    $remoteStmt->close();
-}
-if ($remoteDb && !$remoteDb->connect_error) {
-    $remoteDb->close();
-}
 
-// 6) Optional: Sync-Trigger für Konsistenz
+// 5) Optional: Sync-Trigger für Konsistenz
 if (function_exists('triggerAutoSync')) {
     triggerAutoSync('print_jobs');
 }
 
-// 7) Output Buffer leeren und zurück zur Reservierungs-Detailseite
+// 6) Output Buffer leeren und zurück zur Reservierungs-Detailseite
 ob_end_clean();
 header('Location: reservation.html?id=' . urlencode($resId));
 exit;
