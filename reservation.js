@@ -89,48 +89,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1) Load reservation header + Zimmerliste
   const loadReservationData = async () => {
+    // Signal für HTML dass reservation.js am Laden ist
+    window.reservationJsLoading = true;
+
     try {
+      // Include color parameter for accurate header coloring
+      const apiUrl = `getReservationDetails.php?id=${resId}&includeColor=true`;
       const data = await (window.HttpUtils
-        ? HttpUtils.requestJsonWithLoading(`getReservationDetails.php?id=${resId}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsdetails werden geladen...')
+        ? HttpUtils.requestJsonWithLoading(apiUrl, {}, { retries: 3, timeout: 12000 }, 'Reservierungsdetails werden geladen...')
         : window.LoadingOverlay
-          ? LoadingOverlay.wrapFetch(() => fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json()), 'Reservierungsdetails')
-          : fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json())
+          ? LoadingOverlay.wrapFetch(() => fetch(apiUrl).then(r => r.json()), 'Reservierungsdetails')
+          : fetch(apiUrl).then(r => r.json())
       );
 
       // Store reservation data globally
+      const oldInvoiceStatus = currentReservationData?.detail?.invoice;
       currentReservationData = data;
 
-      // Header-Farbe basierend auf Invoice-Status setzen
-      const headerElement = document.getElementById('resHeader');
-      if (headerElement) {
-        // je nach Rückgabe-Format entweder data.names[0] oder direkt data
-        // neu: wenn data.detail existiert, nimm das, sonst fall auf altes Verhalten zurück
-        const detail = data.detail
-          ? data.detail
-          : (Array.isArray(data.names) && data.names.length
-            ? data.names[0]
-            : data);
-
-        // Debug: Log invoice status
-        console.log('Debug - Invoice Status:', detail.invoice, typeof detail.invoice);
-        console.log('Debug - Complete detail object:', detail);
-
-        // Header-Farbe basierend auf Invoice-Status - über CSS-Variable
-        if (detail.invoice === true || detail.invoice === 1 || detail.invoice === '1') {
-          // Dunkelgold für Invoice=true - über CSS-Variable
-          document.documentElement.style.setProperty('--res-header-bg', '#b8860b');
-          console.log('✅ Header set to DARK GOLD (invoice=true) via CSS variable');
-        } else {
-          // Normalgrün (etwas dunkler) für Invoice=false/null - über CSS-Variable
-          document.documentElement.style.setProperty('--res-header-bg', '#2d8f4f');
-          console.log('✅ Header set to DARK GREEN (invoice=false/null) via CSS variable');
-        }
+      // Check if invoice status changed
+      const newInvoiceStatus = data.detail?.invoice;
+      if (oldInvoiceStatus !== undefined && oldInvoiceStatus !== newInvoiceStatus) {
+        console.log('🔄 Invoice status changed:', oldInvoiceStatus, '=>', newInvoiceStatus);
+        // Dispatch custom event for header color update
+        window.dispatchEvent(new CustomEvent('invoiceStatusChanged', {
+          detail: { oldStatus: oldInvoiceStatus, newStatus: newInvoiceStatus }
+        }));
       }
-
-      // Check for name correction needs
-      setTimeout(() => {
-        checkNameCorrection(detail);
-      }, 500);
 
       // je nach Rückgabe-Format entweder data.names[0] oder direkt data
       // neu: wenn data.detail existiert, nimm das, sonst fall auf altes Verhalten zurück
@@ -139,6 +123,55 @@ document.addEventListener('DOMContentLoaded', () => {
         : (Array.isArray(data.names) && data.names.length
           ? data.names[0]
           : data);
+
+      // Header-Farbe basierend auf Invoice-Status setzen
+      const headerElement = document.getElementById('resHeader');
+      if (headerElement) {
+        // Debug: Log invoice status and color data
+        console.log('Debug - Invoice Status:', detail.invoice, typeof detail.invoice);
+        console.log('Debug - Server Color:', detail.headerColor, detail.headerColorName);
+        console.log('Debug - Complete detail object:', detail);
+
+        // Use server-provided color if available (more reliable)
+        if (detail.headerColor) {
+          console.log('✅ Using server-calculated color:', detail.headerColor);
+
+          // Multiple approaches for robust color update
+          document.documentElement.style.setProperty('--res-header-bg', detail.headerColor, 'important');
+          headerElement.style.setProperty('background-color', detail.headerColor, 'important');
+
+          // Force re-render with class toggle
+          headerElement.classList.remove('invoice-header', 'normal-header');
+          setTimeout(() => {
+            headerElement.classList.add(detail.isInvoice ? 'invoice-header' : 'normal-header');
+          }, 10);
+
+          console.log('✅ Header color set via server calculation:', detail.headerColorName);
+
+        } else {
+          // Fallback: Client-side calculation
+          console.log('⚙️ Using client-side color calculation');
+
+          if (detail.invoice === true || detail.invoice === 1 || detail.invoice === '1') {
+            // Dunkelgold für Invoice=true
+            const color = '#b8860b';
+            document.documentElement.style.setProperty('--res-header-bg', color, 'important');
+            headerElement.style.setProperty('background-color', color, 'important');
+            console.log('✅ Header set to DARK GOLD (invoice=true) via CSS variable');
+          } else {
+            // Normalgrün für Invoice=false/null
+            const color = '#2d8f4f';
+            document.documentElement.style.setProperty('--res-header-bg', color, 'important');
+            headerElement.style.setProperty('background-color', color, 'important');
+            console.log('✅ Header set to DARK GREEN (invoice=false/null) via CSS variable');
+          }
+        }
+      }
+
+      // Check for name correction needs
+      setTimeout(() => {
+        checkNameCorrection(detail);
+      }, 500);
 
       // Schlafkategorien (nur >0) sammeln
       const cats = [];
@@ -236,6 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error loading reservation data:', error);
       alert('Fehler beim Laden der Reservierungsdaten.');
       history.back();
+    } finally {
+      // Signal für HTML dass reservation.js fertig ist
+      window.reservationJsLoading = false;
     }
   };
 
@@ -2060,12 +2096,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial load nach kurzer Verzögerung
   debounceLoadNames('initial');
 
-  // Wenn der Benutzer von GastDetail.html zurückkommt, automatisch die Namensliste aktualisieren
+  // Wenn der Benutzer von GastDetail.html oder ReservationDetails zurückkommt, automatisch alle Daten aktualisieren
   window.addEventListener('pageshow', (event) => {
     // event.persisted = true bedeutet die Seite kam aus dem Browser Cache (history.back())
     if (event.persisted) {
-      console.log('Page shown from cache - refreshing names list');
-      debounceLoadNames('pageshow-cache');
+      console.log('Page shown from cache - refreshing all data (header + names)');
+      // Header-Daten zuerst laden (wichtig für Invoice-Status Updates)
+      loadReservationData().then(() => {
+        // Dann Namen-Liste aktualisieren
+        debounceLoadNames('pageshow-cache');
+      }).catch(error => {
+        console.error('Error refreshing header data on pageshow:', error);
+        // Auch bei Fehler die Namen-Liste aktualisieren
+        debounceLoadNames('pageshow-cache');
+      });
     }
   });
 
@@ -2074,8 +2118,16 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('focus', () => {
     // Prüfe ob die Seite in den letzten 2 Sekunden im Hintergrund war
     if (document.hidden === false) {
-      console.log('Window focused - refreshing names list');
-      debounceLoadNames('window-focus');
+      console.log('Window focused - refreshing all data (header + names)');
+      // Header-Daten zuerst laden (wichtig für Invoice-Status Updates)
+      loadReservationData().then(() => {
+        // Dann Namen-Liste aktualisieren
+        debounceLoadNames('window-focus');
+      }).catch(error => {
+        console.error('Error refreshing header data on focus:', error);
+        // Auch bei Fehler die Namen-Liste aktualisieren
+        debounceLoadNames('window-focus');
+      });
     }
   });
 

@@ -81,7 +81,7 @@ if (!empty($ids)) {
             
             // CardName berechnen
             $input = trim($row['rawName']);  // rawName ist bereits "nachname vorname"
-            $maxlen = 20;
+            $maxlen = 40;
             $cardName = cleanText($input, $maxlen);
             
             // Info-String aufbauen: Erste Zeile mit verkürzter Aufenthaltsdauer und Hauptname

@@ -105,12 +105,19 @@ class SimpleBarcodeScanner {
                 this.reset();
             }
 
+            // Buffer erweitern, aber auf max 50 Zeichen begrenzen
             this.buffer += event.key;
+            if (this.buffer.length > 50) {
+                this.buffer = this.buffer.substring(0, 50);
+                console.log('✂️ Scanner Buffer auf 50 Zeichen gekürzt');
+            }
             this.lastKeyTime = currentTime;
 
             // Input-Feld nur aktualisieren wenn es sich vom Buffer unterscheidet
-            if (this.input.value !== this.buffer) {
-                this.input.value = this.buffer;
+            // Aber Input-Feld auf 20 Zeichen für Suche begrenzen
+            const displayValue = this.buffer.substring(0, 20);
+            if (this.input.value !== displayValue) {
+                this.input.value = displayValue;
             }
 
             // Scanner-Erkennung: Schnelle Eingabe
@@ -179,14 +186,25 @@ class SimpleBarcodeScanner {
                     // Modal schließen
                     this.closeModal();
 
-                    // Reservierungsformular öffnen mit Hervorhebungsparameter
-                    const highlightName = encodeURIComponent(data.data.cardName || barcode);
+                    // Reservierungsformular öffnen mit Hervorhebungsparameter (max 20 Zeichen)
+                    const cardNameForHighlight = (data.data.cardName || barcode).substring(0, 20);
+                    const highlightName = encodeURIComponent(cardNameForHighlight);
+                    console.log(`✅ Navigiere zu Reservierung mit Highlight (ersten 20 Zeichen): "${cardNameForHighlight}"`);
                     window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
 
                 } else {
                     // Karte nicht gefunden
                     console.log('❌ Karte nicht gefunden:', barcode);
                     this.updateStatus('❌ Karte nicht gefunden', 'error');
+
+                    // Fallback: Normal suchen mit max 20 Zeichen von links
+                    if (this.searchInput) {
+                        const searchTerm = barcode.substring(0, 20); // Max 20 Zeichen von links
+                        console.log(`🔍 Fallback-Suche mit ersten 20 Zeichen: "${searchTerm}" (Original: "${barcode}")`);
+                        this.searchInput.value = searchTerm;
+                        const inputEvent = new Event('input', { bubbles: true });
+                        this.searchInput.dispatchEvent(inputEvent);
+                    }
 
                     // Modal nach kurzer Zeit schließen
                     setTimeout(() => {
@@ -199,9 +217,11 @@ class SimpleBarcodeScanner {
                 console.error('❌ Fehler bei der Karten-Suche:', error);
                 this.updateStatus('❌ Suchfehler', 'error');
 
-                // Fallback: Normal suchen
+                // Fallback: Normal suchen mit max 20 Zeichen von links
                 if (this.searchInput) {
-                    this.searchInput.value = barcode;
+                    const searchTerm = barcode.substring(0, 20); // Max 20 Zeichen von links
+                    console.log(`🔍 Fallback-Suche nach Fehler mit ersten 20 Zeichen: "${searchTerm}" (Original: "${barcode}")`);
+                    this.searchInput.value = searchTerm;
                     const inputEvent = new Event('input', { bubbles: true });
                     this.searchInput.dispatchEvent(inputEvent);
                 }
