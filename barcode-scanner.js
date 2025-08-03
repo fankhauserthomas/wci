@@ -116,18 +116,24 @@ class BarcodeScanner {
                 event.stopPropagation();
             }
 
+            // Buffer erweitern, aber auf max 50 Zeichen begrenzen (mehr als 20 für komplette Barcode-Aufzeichnung)
             this.buffer += event.key;
+            if (this.buffer.length > 50) {
+                this.buffer = this.buffer.substring(0, 50);
+                console.log('✂️ Buffer auf 50 Zeichen gekürzt');
+            }
             this.lastKeyTime = currentTime;
 
             console.log('📝 Buffer:', this.buffer, '(Scanner:', this.isScannerInput + ')');
 
-            // Ins Suchfeld weiterleiten (nur wenn nicht bereits fokussiert)
+            // Ins Suchfeld weiterleiten (nur wenn nicht bereits fokussiert) - mit 20 Zeichen Limit
+            const searchTerm = this.buffer.substring(0, 20);
             if (!isSearchInputFocused) {
                 this.searchInput.focus();
-                this.searchInput.value = this.buffer;
+                this.searchInput.value = searchTerm;
             } else if (this.isScannerInput) {
                 // Bei Scanner im searchInput: manuell setzen um Timing-Probleme zu vermeiden
-                this.searchInput.value = this.buffer;
+                this.searchInput.value = searchTerm;
             }
 
             // Visuelles Feedback bei Scanner
@@ -159,24 +165,35 @@ class BarcodeScanner {
     }
 
     handleBarcodeScanned(barcode) {
-        // Msgbox mit gescanntem Text
-        alert(`📊 Barcode gescannt:\n\n${barcode}\n\n(Diese Funktion wird später erweitert)`);
+        // Begrenzen auf max 20 Zeichen von links für Suche
+        const searchTerm = barcode.substring(0, 20);
 
-        // Optional: Auch ins Suchfeld und suchen
-        this.searchInput.value = barcode;
-        this.triggerSearch(barcode);
+        // Msgbox mit gescanntem Text (zeige Original und Suchterm)
+        let message = `📊 Barcode gescannt:\n\n${barcode}`;
+        if (barcode.length > 20) {
+            message += `\n\nSuche mit ersten 20 Zeichen:\n${searchTerm}`;
+        }
+        message += `\n\n(Diese Funktion wird später erweitert)`;
+        alert(message);
 
-        // Feedback
+        // Ins Suchfeld mit begrenztem Text und suchen
+        this.searchInput.value = searchTerm;
+        this.triggerSearch(searchTerm);
+
+        // Feedback mit Original-Barcode
         this.showFeedback(barcode, true);
+
+        console.log(`🎯 Barcode gescannt: "${barcode}" -> Suche mit: "${searchTerm}"`);
     }
 
     handleNormalInput(text) {
-        // Normale Eingabe: Direkt ins Suchfeld und suchen
-        this.searchInput.value = text;
+        // Normale Eingabe: Direkt ins Suchfeld und suchen (auch hier 20 Zeichen max)
+        const searchTerm = text.substring(0, 20);
+        this.searchInput.value = searchTerm;
         this.searchInput.focus();
-        this.triggerSearch(text);
+        this.triggerSearch(searchTerm);
 
-        console.log('🔍 Normale Suche gestartet:', text);
+        console.log(`🔍 Normale Suche gestartet: "${text}" -> Suche mit: "${searchTerm}"`);
     }
 
     triggerSearch(searchText) {

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Header Color Test</title>
+    <link rel="stylesheet" href="reservation.css">
+</head>
+
+<body>
+    <div id="resHeader" class="res-header">
+        <div class="header-content">
+            <div class="header-info">Test Reservierung - Header Farb-Test</div>
+        </div>
+    </div>
+
+    <div style="padding: 20px;">
+        <h3>Header Color Update Test</h3>
+        <p>Aktuelle Reservierungs-ID: <span id="currentId">-</span></p>
+        <p>Invoice Status: <span id="invoiceStatus">-</span></p>
+        <p>Header Color: <span id="headerColor">-</span></p>
+
+        <button onclick="testColorUpdate(6441, false)">Test Normal (Green)</button>
+        <button onclick="testColorUpdate(6441, true)">Test Invoice (Gold)</button>
+        <button onclick="loadRealData()">Load Real Data</button>
+
+        <div id="log" style="margin-top: 20px; padding: 10px; background: #f5f5f5; height: 200px; overflow-y: auto;">
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function testColorUpdate(resId, isInvoice) {
+            log(`Testing color update for ID ${resId}, invoice: ${isInvoice}`);
+
+            const headerElement = document.getElementById('resHeader');
+            const color = isInvoice ? '#B8860B' : '#2d8f4f';
+
+            // Multiple update methods
+            document.documentElement.style.setProperty('--res-header-bg', color, 'important');
+            headerElement.style.setProperty('background-color', color, 'important');
+
+            // Class-based update
+            headerElement.classList.remove('invoice-header', 'normal-header');
+            setTimeout(() => {
+                headerElement.classList.add(isInvoice ? 'invoice-header' : 'normal-header');
+            }, 10);
+
+            // Update display
+            document.getElementById('currentId').textContent = resId;
+            document.getElementById('invoiceStatus').textContent = isInvoice ? 'true (Invoice)' : 'false (Normal)';
+            document.getElementById('headerColor').textContent = color + (isInvoice ? ' (Dark Gold)' : ' (Dark Green)');
+
+            log(`Color updated to: ${color} (${isInvoice ? 'Dark Gold' : 'Dark Green'})`);
+        }
+
+        async function loadRealData() {
+            try {
+                log('Loading real data from API...');
+                const response = await fetch('getReservationDetails.php?id=6441&includeColor=true');
+                const data = await response.json();
+
+                log('API Response: ' + JSON.stringify(data.detail, null, 2));
+
+                if (data.detail) {
+                    const detail = data.detail;
+                    const headerElement = document.getElementById('resHeader');
+
+                    if (detail.headerColor) {
+                        log('Using server-provided color: ' + detail.headerColor);
+
+                        document.documentElement.style.setProperty('--res-header-bg', detail.headerColor, 'important');
+                        headerElement.style.setProperty('background-color', detail.headerColor, 'important');
+
+                        headerElement.classList.remove('invoice-header', 'normal-header');
+                        setTimeout(() => {
+                            headerElement.classList.add(detail.isInvoice ? 'invoice-header' : 'normal-header');
+                        }, 10);
+
+                        document.getElementById('currentId').textContent = detail.id;
+                        document.getElementById('invoiceStatus').textContent = detail.invoice + ' (isInvoice: ' + detail.isInvoice + ')';
+                        document.getElementById('headerColor').textContent = detail.headerColor + ' (' + detail.headerColorName + ')';
+
+                        log('Real data color applied: ' + detail.headerColorName);
+                    } else {
+                        log('No server color provided, using fallback');
+                        testColorUpdate(detail.id, detail.invoice);
+                    }
+                }
+            } catch (error) {
+                log('Error loading real data: ' + error.message);
+            }
+        }
+
+        // Initial test
+        log('Header Color Test loaded');
+        testColorUpdate(6441, false);
+    </script>
+</body>
+
+</html>

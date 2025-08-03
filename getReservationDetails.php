@@ -11,6 +11,9 @@ if (!ctype_digit($id)) {
     exit;
 }
 
+// Optional: Include color calculation parameter
+$includeColor = isset($_GET['includeColor']) && $_GET['includeColor'] === 'true';
+
 // 1) Reservierungs-Basisdaten abfragen (inkl. Betten/DZ/Lager/Sonder)
 $sql1 = "
 SELECT
@@ -88,7 +91,16 @@ while ($stmt2->fetch()) {
 }
 $stmt2->close();
 
-// 3) Ausgabe
+// 3) Calculate header color if requested
+if ($includeColor && $detail) {
+    // Determine header color based on invoice status
+    $isInvoice = ($detail['invoice'] === 1 || $detail['invoice'] === '1' || $detail['invoice'] === true);
+    $detail['headerColor'] = $isInvoice ? '#B8860B' : '#2d8f4f'; // Dark Gold : Dark Green
+    $detail['headerColorName'] = $isInvoice ? 'DARK_GOLD' : 'DARK_GREEN';
+    $detail['isInvoice'] = $isInvoice;
+}
+
+// 4) Ausgabe
 echo json_encode([
     'detail' => $detail,
     'rooms'  => $rooms,

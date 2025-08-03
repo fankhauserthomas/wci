@@ -295,40 +295,216 @@
         window.updateConnectionStatus();
       }
 
-      // Header-Daten beim Laden aktualisieren
-      refreshHeaderData();
+      // Prüfe ob reservation.js bereits Daten lädt
+      if (window.reservationJsLoading || window.currentReservationData) {
+        console.log('🚫 reservation.js already loading/loaded, skipping HTML initialization');
+        return;
+      }
+
+      // Globales Flag setzen um doppelte Aufrufe zu verhindern
+      window.headerDataLoadInitiated = true;
+      window.htmlInitializationActive = true;
+
+      // Warte kurz ab ob reservation.js sich meldet
+      setTimeout(() => {
+        if (!window.reservationJsLoading && !window.currentReservationData) {
+          console.log('✅ HTML startet Header-Load nach Wartezeit');
+          refreshHeaderData();
+        } else {
+          console.log('🚫 reservation.js hat sich gemeldet, HTML überspringt Load');
+        }
+        window.htmlInitializationActive = false;
+      }, 50);
 
       console.log('✅ Reservation page initialized');
       console.log('✅ Swipe navigation enabled for touch devices');
     });
 
-    // Seitenfokus - Header aktualisieren wenn von anderen Seiten zurückgekehrt
+    // Debounce-Variablen für Header-Refresh
+    let headerRefreshTimeout = null;
+    let isHeaderRefreshing = false;
+    let lastFocusTime = 0;
+    let wasHidden = false;
+
+    // Optimierte Event Listener - immer bei Fokus-Wechsel aktualisieren
     window.addEventListener('focus', function () {
-      console.log('🔄 Page focus - refreshing header data...');
-      refreshHeaderData();
+      const now = Date.now();
+      console.log('🔄 Page focus detected - force refreshing header data...');
+      // Forciere Header-Update bei Focus (wichtig nach ReservationDetails Änderungen)
+      forceHeaderRefresh();
+      lastFocusTime = now;
     });
 
-    // Sichtbarkeit - Header aktualisieren wenn Seite wieder sichtbar wird
+    // Visibility Change - immer bei Tab-Wechsel aktualisieren
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) {
-        console.log('👁️ Page visible - refreshing header data...');
-        refreshHeaderData();
+      if (document.hidden) {
+        wasHidden = true;
+      } else if (wasHidden) {
+        console.log('👁️ Page visible (after being hidden) - force refreshing header data...');
+        // Forciere Header-Update nach Tab-Wechsel
+        forceHeaderRefresh();
+        wasHidden = false;
       }
     });
 
-    // Header-Daten neu laden
-    function refreshHeaderData() {
-      // Reservierungs-ID aus URL holen
-      const urlParams = new URLSearchParams(window.location.search);
-      const resId = urlParams.get('id');
+    // PageShow Event - wichtig für Navigation zurück von anderen Seiten
+    window.addEventListener('pageshow', function (event) {
+      // Besonders wichtig wenn von Browser-Cache geladen (bfcache)
+      if (event.persisted) {
+        console.log('🔄 Page restored from cache - force refreshing header data...');
+        forceHeaderRefresh();
+      }
+    });
 
-      if (!resId) {
-        console.warn('⚠️ Keine Reservierungs-ID in URL gefunden');
+    // Custom Event für Invoice Status Änderungen
+    window.addEventListener('invoiceStatusChanged', function (event) {
+      console.log('💰 Invoice status changed detected:', event.detail);
+      // Forciere sofortiges Header-Update bei Invoice-Änderung
+      forceHeaderRefresh();
+    });
+
+    // Force Header Refresh - umgeht alle Koordinations- und Debounce-Mechanismen
+    function forceHeaderRefresh() {
+      console.log('🚀 FORCE Header Refresh - bypassing all coordination');
+
+      // Reset aller Flags
+      isHeaderRefreshing = false;
+      window.reservationJsLoading = false;
+
+      // Lösche vorherige Timeouts
+      if (headerRefreshTimeout) {
+        clearTimeout(headerRefreshTimeout);
+      }
+
+      // Direkte Ausführung ohne Debouncing
+      performForceHeaderRefresh();
+    }
+
+    async function performForceHeaderRefresh() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resId = urlParams.get('id');
+
+        if (!resId) {
+          console.warn('⚠️ Keine Reservierungs-ID in URL gefunden');
+          return;
+        }
+
+        console.log('🚀 FORCE Lade Header-Daten für Reservierung ID:', resId);
+
+        // Direkt reservation.js loadReservationData aufrufen wenn verfügbar
+        if (typeof window.loadReservationData === 'function') {
+          console.log('✅ FORCE Verwende loadReservationData() aus reservation.js');
+          await window.loadReservationData();
+          console.log('✅ FORCE Header-Update über loadReservationData abgeschlossen');
+        } else {
+          console.log('⚠️ loadReservationData nicht verfügbar, verwende Fallback');
+
+          // Fallback: Direkte API-Abfrage mit Force-Flag und Color-Parameter
+          const apiUrl = `getReservationDetails.php?id=${resId}&includeColor=true&force=${Date.now()}`;
+          const response = window.HttpUtils
+            ? await HttpUtils.requestJson(apiUrl, {}, { retries: 2, timeout: 8000 })
+            : await fetch(apiUrl).then(r => r.json());
+
+          if (response && response.detail) {
+            console.log('✅ FORCE Header-Daten erfolgreich geladen:', response.detail);
+            updateHeaderDirectly(response.detail);
+          } else {
+            console.warn('⚠️ Keine gültigen Daten von getReservationDetails.php erhalten');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Fehler beim FORCE Header-Update:', error);
+      }
+    }
+
+    // Header-Daten neu laden mit Debouncing
+    function refreshHeaderData() {
+      // Verhindere mehrfache gleichzeitige Aufrufe
+      if (isHeaderRefreshing) {
+        console.log('🔄 Header-Refresh bereits aktiv, überspringe...');
         return;
       }
 
-      console.log('🔄 Lade Header-Daten für Reservierung ID:', resId);
+      // Vorherige Timeouts löschen
+      if (headerRefreshTimeout) {
+        clearTimeout(headerRefreshTimeout);
+      }
 
+      // Debounced Refresh nach 100ms
+      headerRefreshTimeout = setTimeout(() => {
+        performHeaderRefresh();
+      }, 100);
+    }
+
+    async function performHeaderRefresh() {
+      if (isHeaderRefreshing) {
+        return;
+      }
+
+      // Zusätzliche Prüfung auf reservation.js Aktivität
+      if (window.reservationJsLoading) {
+        console.log('🚫 reservation.js ist bereits am Laden, HTML überspringt');
+        return;
+      }
+
+      isHeaderRefreshing = true;
+
+      try {
+        // Reservierungs-ID aus URL holen
+        const urlParams = new URLSearchParams(window.location.search);
+        const resId = urlParams.get('id');
+
+        if (!resId) {
+          console.warn('⚠️ Keine Reservierungs-ID in URL gefunden');
+          return;
+        }
+
+        console.log('🔄 Lade Header-Daten für Reservierung ID:', resId);
+
+        // Prüfe ob reservation.js bereits geladen wurde und die Daten lädt
+        if (window.headerDataLoadInitiated && typeof window.loadReservationData === 'function') {
+          // Prüfe sofort ob reservation.js bereits aktiv ist
+          if (window.reservationJsLoading || window.currentReservationData) {
+            console.log('✅ reservation.js bereits aktiv, HTML überspringt komplett');
+            return;
+          }
+
+          // Warte kurz ab ob reservation.js bereits am Laden ist
+          let reservationJsTimeout = setTimeout(() => {
+            console.log('⏳ reservation.js scheint nicht zu laden, verwende eigene Logik...');
+            performActualRefresh(resId);
+          }, 150); // Erhöht von 300ms auf 150ms für bessere Reaktion
+
+          // Prüfe alle 25ms ob reservation.js bereits aktiv ist (häufiger)
+          let checkInterval = setInterval(() => {
+            if (window.reservationJsLoading || window.currentReservationData || document.querySelector('.header-info').textContent.trim()) {
+              console.log('✅ reservation.js hat bereits Daten geladen, überspringe eigenen Aufruf');
+              clearTimeout(reservationJsTimeout);
+              clearInterval(checkInterval);
+            }
+          }, 25);
+
+          // Cleanup nach 1 Sekunde (reduziert von 2 Sekunden)
+          setTimeout(() => {
+            clearTimeout(reservationJsTimeout);
+            clearInterval(checkInterval);
+          }, 1000);
+
+        } else {
+          // reservation.js nicht verfügbar, verwende direkte Logik
+          performActualRefresh(resId);
+        }
+
+      } finally {
+        // Nach 1 Sekunde wieder freigeben
+        setTimeout(() => {
+          isHeaderRefreshing = false;
+        }, 1000);
+      }
+    }
+
+    async function performActualRefresh(resId) {
       // Progressive Retry-Logik für reservation.js Funktionen
       let retryCount = 0;
       const maxRetries = 5;
@@ -368,10 +544,11 @@
         } else {
           console.log('⚠️ loadReservationData nicht gefunden, verwende Fallback');
 
-          // Fallback: Direkte API-Abfrage
+          // Fallback: Direkte API-Abfrage mit Color-Parameter
+          const apiUrl = `getReservationDetails.php?id=${resId}&includeColor=true`;
           const response = window.HttpUtils
-            ? await HttpUtils.requestJson(`getReservationDetails.php?id=${resId}`, {}, { retries: 2, timeout: 8000 })
-            : await fetch(`getReservationDetails.php?id=${resId}`).then(r => r.json());
+            ? await HttpUtils.requestJson(apiUrl, {}, { retries: 2, timeout: 8000 })
+            : await fetch(apiUrl).then(r => r.json());
 
           if (response) {
             console.log('✅ Header-Daten erfolgreich geladen (Fallback):', response);
@@ -387,22 +564,73 @@
 
     // Direkter DOM-Update falls keine passende Funktion gefunden wird
     function updateHeaderDirectly(data) {
-      console.log('🔧 Führe direkten DOM-Update durch...');
+      console.log('🔧 Führe direkten DOM-Update durch...', data);
 
-      // Header-Farbe basierend auf Invoice-Status setzen
-      if (data.invoice !== undefined) {
-        const headerElement = document.getElementById('resHeader');
-        if (headerElement) {
-          const color = data.invoice ? '#B8860B' : '#2d8f4f'; // Dark Gold : Dark Green
-          document.documentElement.style.setProperty('--res-header-bg', color, 'important');
-          console.log('🎨 Header-Farbe direkt gesetzt:', data.invoice ? 'DARK GOLD' : 'DARK GREEN');
-        }
+      const headerElement = document.getElementById('resHeader');
+      if (!headerElement) {
+        console.warn('⚠️ Header-Element nicht gefunden');
+        return;
+      }
+
+      // Use server-provided color if available
+      if (data.headerColor) {
+        console.log('✅ Verwende Server-berechnete Farbe:', data.headerColor, data.headerColorName);
+
+        // Multiple approaches to ensure color update works
+        // 1. CSS Variable (primary method)
+        document.documentElement.style.setProperty('--res-header-bg', data.headerColor, 'important');
+
+        // 2. Direct style on element (fallback)
+        headerElement.style.setProperty('background-color', data.headerColor, 'important');
+
+        // 3. Force re-render by toggling class
+        headerElement.classList.remove('invoice-header', 'normal-header');
+        setTimeout(() => {
+          headerElement.classList.add(data.isInvoice ? 'invoice-header' : 'normal-header');
+        }, 10);
+
+        console.log('🎨 FORCE Header-Farbe gesetzt (Server):', {
+          invoice: data.invoice,
+          isInvoice: data.isInvoice,
+          color: data.headerColor,
+          colorName: data.headerColorName
+        });
+
+      } else if (data.invoice !== undefined) {
+        // Fallback: Client-side calculation
+        console.log('⚙️ Verwende Client-seitige Farb-Berechnung');
+
+        // Explizite Behandlung aller möglichen Invoice-Werte
+        const isInvoice = data.invoice === true || data.invoice === 1 || data.invoice === '1' || data.invoice === 'true';
+        const color = isInvoice ? '#B8860B' : '#2d8f4f'; // Dark Gold : Dark Green
+
+        // Multiple approaches to ensure color update works
+        // 1. CSS Variable
+        document.documentElement.style.setProperty('--res-header-bg', color, 'important');
+
+        // 2. Direct style on element
+        headerElement.style.setProperty('background-color', color, 'important');
+
+        // 3. Force re-render by toggling class
+        headerElement.classList.remove('invoice-header', 'normal-header');
+        setTimeout(() => {
+          headerElement.classList.add(isInvoice ? 'invoice-header' : 'normal-header');
+        }, 10);
+
+        console.log('🎨 FORCE Header-Farbe gesetzt (Client):', {
+          invoice: data.invoice,
+          isInvoice: isInvoice,
+          color: color,
+          result: isInvoice ? 'DARK GOLD' : 'DARK GREEN'
+        });
+
+      } else {
+        console.warn('⚠️ Keine invoice-Daten in Response gefunden:', data);
       }
 
       // Header-Text aktualisieren falls vorhanden
       const headerInfo = document.querySelector('.header-info');
       if (headerInfo && data) {
-        // Hier können weitere DOM-Updates eingefügt werden
         console.log('📝 Header-Info-Element gefunden - bereit für Updates');
       }
     }

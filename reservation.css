@@ -33,6 +33,19 @@
   /* Kompaktere Zeilenhöhe */
   margin-bottom: 0.75rem;
   /* Weniger Abstand nach unten */
+  transition: background-color 0.3s ease;
+  /* Smooth color transitions */
+}
+
+/* Header-Farben-Klassen für robuste Updates */
+.res-header.invoice-header {
+  background-color: #B8860B !important;
+  /* Dark Gold for invoices */
+}
+
+.res-header.normal-header {
+  background-color: #2d8f4f !important;
+  /* Dark Green for normal reservations */
 }
 
 /* Namensliste-Tabelle */
