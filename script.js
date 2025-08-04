@@ -843,9 +843,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial Load
   loadFiltersFromStorage();
 
-  // Suchfeld sofort leeren (auch bei F5)
-  searchInput.value = '';
-  localStorage.removeItem('searchTerm');
+  // URL-Parameter auswerten (z.B. für Barcode-Navigation)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSearchTerm = urlParams.get('search');
+
+  if (urlSearchTerm) {
+    console.log('🔍 Suchterm aus URL erkannt:', urlSearchTerm);
+    searchInput.value = urlSearchTerm;
+    // Entferne URL-Parameter nach dem Lesen
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else {
+    // Suchfeld sofort leeren (auch bei F5) nur wenn kein URL-Parameter
+    searchInput.value = '';
+    localStorage.removeItem('searchTerm');
+  }
 
   loadData();
 
