@@ -1473,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const content = document.createElement('div');
     content.className = 'modal-content';
+    content.style.maxWidth = '800px'; // Breitere Modal für zwei Spalten
     backdrop.appendChild(content);
 
     const close = document.createElement('span');
@@ -1484,47 +1485,196 @@ document.addEventListener('DOMContentLoaded', () => {
     title.textContent = 'Drucker wählen';
     content.appendChild(title);
 
-    printers.forEach(p => {
-      const btn = document.createElement('button');
-      btn.textContent = p.bez;
+    // Container für vertikale Anordnung (alle Drucker untereinander)
+    const columnsContainer = document.createElement('div');
+    columnsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 20px;
+    `;
+    content.appendChild(columnsContainer);
 
-      // Erweiterte Styles für bessere Touch-Bedienung
-      btn.style.cssText = `
+    // Farbpalette für verschiedene Drucker
+    const printerColors = [
+      { bg: '#28a745', hover: '#218838' }, // Grün
+      { bg: '#007bff', hover: '#0056b3' }, // Blau
+      { bg: '#ffc107', hover: '#d39e00' }, // Gelb
+      { bg: '#dc3545', hover: '#c82333' }, // Rot
+      { bg: '#6f42c1', hover: '#5a359a' }, // Lila
+      { bg: '#fd7e14', hover: '#e65100' }, // Orange
+      { bg: '#20c997', hover: '#17a085' }, // Türkis
+      { bg: '#e83e8c', hover: '#d91a72' }  // Pink
+    ];
+
+    printers.forEach((p, index) => {
+      const colors = printerColors[index % printerColors.length];
+
+      // Container für jeden Drucker (horizontale Anordnung der beiden Buttons)
+      const printerRow = document.createElement('div');
+      printerRow.style.cssText = `
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        align-items: stretch;
+      `;
+      columnsContainer.appendChild(printerRow);
+
+      // Linker Button - Normales Drucken
+      const leftBtn = document.createElement('button');
+      leftBtn.textContent = p.bez;
+      leftBtn.style.cssText = `
         width: 100%;
-        height: 60px;
-        margin: 8px 0;
-        padding: 15px 20px;
+        height: 90px;
+        padding: 20px;
         font-size: 16px;
         font-weight: 500;
-        background: #28a745;
+        background: ${colors.bg};
         color: white;
         border: none;
         border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
         text-align: center;
         line-height: 1.2;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       `;
 
-      // Hover-Effekt hinzufügen
-      btn.addEventListener('mouseenter', () => {
-        btn.style.backgroundColor = '#218838';
+      leftBtn.addEventListener('mouseenter', () => {
+        leftBtn.style.backgroundColor = colors.hover;
+        leftBtn.style.transform = 'translateY(-1px)';
+        leftBtn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
       });
-      btn.addEventListener('mouseleave', () => {
-        btn.style.backgroundColor = '#28a745';
+      leftBtn.addEventListener('mouseleave', () => {
+        leftBtn.style.backgroundColor = colors.bg;
+        leftBtn.style.transform = 'translateY(0)';
+        leftBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
       });
 
-      btn.addEventListener('click', () => {
+      leftBtn.addEventListener('click', () => {
         document.body.removeChild(backdrop);
         const q = ids.map(i => `id[]=${i}`).join('&');
         const url = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
-        // Im selben Tab darauf navigieren:
         window.location.href = url;
       });
-      content.appendChild(btn);
+      printerRow.appendChild(leftBtn);
+
+      // Rechter Button - Drucken + Check-in
+      const rightBtn = document.createElement('button');
+      rightBtn.innerHTML = `${p.bez}<br><small style="opacity: 0.9; font-size: 12px;">+ Check-in</small>`;
+      rightBtn.style.cssText = `
+        width: 100%;
+        height: 90px;
+        padding: 20px;
+        font-size: 16px;
+        font-weight: 500;
+        background: linear-gradient(135deg, ${colors.bg} 0%, ${colors.hover} 100%);
+        color: white;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.2;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+      `;
+
+      // Check-in Icon hinzufügen
+      const checkIcon = document.createElement('span');
+      checkIcon.innerHTML = '✓';
+      checkIcon.style.cssText = `
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        opacity: 0.8;
+      `;
+      rightBtn.appendChild(checkIcon);
+
+      rightBtn.addEventListener('mouseenter', () => {
+        rightBtn.style.transform = 'translateY(-2px) scale(1.02)';
+        rightBtn.style.boxShadow = '0 6px 12px rgba(0,0,0,0.3)';
+        rightBtn.style.borderColor = 'rgba(255,255,255,0.6)';
+      });
+      rightBtn.addEventListener('mouseleave', () => {
+        rightBtn.style.transform = 'translateY(0) scale(1)';
+        rightBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        rightBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+      });
+
+      rightBtn.addEventListener('click', async () => {
+        try {
+          // Modal schließen
+          document.body.removeChild(backdrop);
+
+          // Erst Check-in für alle IDs durchführen
+          console.log('🔄 Führe automatisches Check-in durch für IDs:', ids);
+
+          // Check-in für alle IDs parallel durchführen
+          const checkinPromises = ids.map(async (id) => {
+            const response = await fetch('updateReservationNamesCheckin.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, action: 'set' })
+            });
+
+            if (!response.ok) {
+              throw new Error(`Check-in fehlgeschlagen für ID ${id}: HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (!result.success) {
+              throw new Error(`Check-in fehlgeschlagen für ID ${id}: ${result.error}`);
+            }
+
+            return { id, success: true, result };
+          });
+
+          // Warte auf alle Check-in Operationen
+          const checkinResults = await Promise.allSettled(checkinPromises);
+
+          // Ergebnisse auswerten
+          const successful = checkinResults.filter(r => r.status === 'fulfilled').length;
+          const failed = checkinResults.filter(r => r.status === 'rejected');
+
+          console.log(`✅ Check-in Ergebnisse: ${successful} erfolgreich, ${failed.length} fehlgeschlagen`);
+
+          // Bei Fehlern warnen, aber trotzdem drucken
+          if (failed.length > 0) {
+            const failedIds = failed.map((f, index) => ids[checkinResults.findIndex(r => r === f)]);
+            console.warn('❌ Check-in fehlgeschlagen für IDs:', failedIds);
+            alert(`Check-in für ${failed.length} von ${ids.length} Gästen fehlgeschlagen.\nDruckvorgang wird trotzdem fortgesetzt.`);
+          }
+
+          // Dann Druckauftrag senden
+          const q = ids.map(i => `id[]=${i}`).join('&');
+          const printUrl = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+
+          // Kurz warten für UI-Update und dann drucken
+          setTimeout(() => {
+            window.location.href = printUrl;
+          }, 300);
+
+        } catch (error) {
+          console.error('❌ Fehler beim Check-in + Drucken:', error);
+          alert('Fehler beim Check-in: ' + error.message);
+
+          // Trotzdem drucken versuchen
+          const q = ids.map(i => `id[]=${i}`).join('&');
+          const printUrl = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+          window.location.href = printUrl;
+        }
+      });
+      printerRow.appendChild(rightBtn);
     });
 
     backdrop.addEventListener('click', e => {
