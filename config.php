@@ -26,7 +26,7 @@ if ($mysqli->connect_error) {
 }
 $mysqli->set_charset('utf8mb4');
 
-// Make mysqli available globally
+// Make main connection available globally
 $GLOBALS['mysqli'] = $mysqli;
 
 // Sync-Konfiguration
