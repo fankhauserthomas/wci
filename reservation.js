@@ -1648,11 +1648,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           console.log(`✅ Check-in Ergebnisse: ${successful} erfolgreich, ${failed.length} fehlgeschlagen`);
 
-          // Bei Fehlern warnen, aber trotzdem drucken
+          // Bei Fehlern nur in Konsole loggen, aber keine Benutzer-Bestätigung
           if (failed.length > 0) {
             const failedIds = failed.map((f, index) => ids[checkinResults.findIndex(r => r === f)]);
             console.warn('❌ Check-in fehlgeschlagen für IDs:', failedIds);
-            alert(`Check-in für ${failed.length} von ${ids.length} Gästen fehlgeschlagen.\nDruckvorgang wird trotzdem fortgesetzt.`);
+            // Keine alert() - stilles Fortfahren mit Drucken
           }
 
           // Dann Druckauftrag senden
@@ -1666,7 +1666,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
           console.error('❌ Fehler beim Check-in + Drucken:', error);
-          alert('Fehler beim Check-in: ' + error.message);
+          // Keine alert() - stilles Fortfahren mit Drucken
 
           // Trotzdem drucken versuchen
           const q = ids.map(i => `id[]=${i}`).join('&');
