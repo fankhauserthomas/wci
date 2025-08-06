@@ -397,14 +397,11 @@ if (!AuthManager::checkSession()) {
     <!-- Quick Actions -->
     <div class="dashboard-grid">
       <div class="dashboard-card">
-        <h2 class="card-title">Schnellzugriff</h2>
+        <h2 class="card-title">Tischübersicht</h2>
         <p class="card-description">
-          Direkte Links zu häufig verwendeten Funktionen und Ansichten.
+          Aktuelle Tischbelegung der anwesenden Gäste
         </p>
-        <div class="quick-actions">
-          <a href="reservierungen.html?filter=heute-anreise" class="card-button">Anreise heute</a>
-          <a href="reservierungen.html?filter=heute-abreise" class="card-button secondary">Abreise heute</a>
-        </div>
+        <a href="tisch-uebersicht.php" class="card-button">Tischübersicht anzeigen</a>
       </div>
 
       <div class="dashboard-card">
