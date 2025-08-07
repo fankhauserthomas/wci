@@ -199,6 +199,77 @@ $tischData = getTischUebersicht();
             flex-direction: column;
         }
         
+        /* Ribbon-Style Button Bar */
+        .ribbon-bar {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 2px solid #dee2e6;
+            padding: 8px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 56px;
+        }
+        
+        .ribbon-button {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #495057;
+            transition: all 0.2s ease;
+            position: relative;
+            text-decoration: none;
+        }
+        
+        .ribbon-button:hover {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-color: #2196f3;
+            color: #1976d2;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        
+        .ribbon-button:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .ribbon-button-tooltip {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c3e50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .ribbon-button:hover .ribbon-button-tooltip {
+            opacity: 1;
+        }
+        
+        /* Separator zwischen Button-Gruppen */
+        .ribbon-separator {
+            width: 1px;
+            height: 24px;
+            background: #ced4da;
+            margin: 0 4px;
+        }
+        
         .error, .info {
             background: white;
             border-radius: 8px;
@@ -222,7 +293,7 @@ $tischData = getTischUebersicht();
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            height: calc(100vh - 56px); /* Abzug der Ribbon-Höhe */
         }
         
         .table {
@@ -746,6 +817,11 @@ $tischData = getTischUebersicht();
             }
         }
         
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .modal-content {
@@ -762,7 +838,7 @@ $tischData = getTischUebersicht();
             }
             
             .table-container {
-                height: 100vh;
+                height: calc(100vh - 56px); /* Abzug der Ribbon-Höhe */
             }
             
             .table {
@@ -800,6 +876,21 @@ $tischData = getTischUebersicht();
                 <a href="index.php" class="back-button">← Zurück zum Dashboard</a>
             </div>
         <?php else: ?>
+            <!-- Ribbon Button Bar -->
+            <div class="ribbon-bar">
+                <a href="index.php" class="ribbon-button" title="Zurück zum Dashboard">
+                    <span>←</span>
+                    <div class="ribbon-button-tooltip">Zurück</div>
+                </a>
+                
+                <div class="ribbon-separator"></div>
+                
+                <button class="ribbon-button" onclick="syncDatabase()" title="Datenbank synchronisieren">
+                    <span>⟲</span>
+                    <div class="ribbon-button-tooltip">Sync DB</div>
+                </button>
+            </div>
+            
             <!-- Tabelle -->
             <div class="table-container">
                 <table class="table">
@@ -1216,6 +1307,85 @@ $tischData = getTischUebersicht();
         
         // Mache testModal global verfügbar
         window.testModal = testModal;
+        
+        // Sync Database Funktion (implementiert)
+        async function syncDatabase() {
+            console.log('Starting database synchronization...');
+            
+            // Button visuell deaktivieren mit pulsierender Animation und orange Hintergrund
+            const syncButton = document.querySelector('button[onclick="syncDatabase()"]');
+            if (syncButton) {
+                syncButton.style.opacity = '0.8';
+                syncButton.style.pointerEvents = 'none';
+                syncButton.style.backgroundColor = '#ff8c00';
+                syncButton.innerHTML = '<span>⟲</span>';
+                syncButton.style.animation = 'pulse 1.5s ease-in-out infinite';
+                
+                // Add pulse animation if not exists
+                if (!document.querySelector('#pulseAnimation')) {
+                    const style = document.createElement('style');
+                    style.id = 'pulseAnimation';
+                    style.textContent = `
+                        @keyframes pulse {
+                            0% { transform: scale(1); }
+                            50% { transform: scale(1.1); }
+                            100% { transform: scale(1); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+            
+            try {
+                const response = await fetch('sync-database.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}\nResponse: ${responseText}`);
+                }
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (jsonError) {
+                    throw new Error(`JSON Parse Error: ${jsonError.message}\nResponse: ${responseText.substring(0, 500)}`);
+                }
+                
+                console.log('Sync result:', result);
+                
+                if (result.success) {
+                    alert('✅ Sync erfolgreich');
+                    
+                    // Seite nach erfolgreichem Sync neu laden
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    alert(`❌ Synchronisation fehlgeschlagen:\n\n${result.error}`);
+                }
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                alert(`❌ Fehler bei der Synchronisation:\n\n${error.message}`);
+            } finally {
+                // Button wieder aktivieren und Styling zurücksetzen
+                if (syncButton) {
+                    syncButton.style.opacity = '1';
+                    syncButton.style.pointerEvents = 'auto';
+                    syncButton.style.backgroundColor = '';
+                    syncButton.innerHTML = '<span>⟲</span>';
+                    syncButton.style.animation = 'none';
+                }
+            }
+        }
     </script>
 </body>
 </html>
