@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Visuelle Parser-Vorschau</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .test-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #27ae60;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .parser-preview {
+            background: white;
+            border: 2px solid #27ae60;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+
+        .parser-preview-empty {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+        }
+
+        .parser-entry {
+            display: inline-flex;
+            align-items: center;
+            margin: 2px 4px 2px 0;
+            white-space: nowrap;
+        }
+
+        .parser-anzahl {
+            background: #27ae60;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 12px;
+            min-width: 20px;
+            text-align: center;
+            margin-right: 4px;
+        }
+
+        .parser-bemerkung {
+            color: #27ae60;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .parser-bemerkung.empty {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Visuelle Parser-Vorschau Test</h2>
+
+    <div class="test-container">
+        <h3>Live-Test:</h3>
+        <input type="text" id="liveInput" class="test-input" placeholder="z.B. 5 3veg 3 veg 1" />
+        <div id="livePreview" class="parser-preview">
+            <div class="parser-preview-empty">Geben Sie eine Eingabe ein...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>Beispiele:</h3>
+        <div id="examples"></div>
+    </div>
+
+    <script>
+        function parseInputForPreview(inputText) {
+            if (!inputText) return [];
+
+            let normalized = inputText.replace(/\s*[,:]\s*/g, ' ');
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+
+            const tokens = normalized.split(' ');
+
+            const expandedTokens = [];
+            for (const token of tokens) {
+                if (/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/.test(token)) {
+                    const matches = token.match(/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/);
+                    expandedTokens.push(matches[1]);
+                    expandedTokens.push(matches[2]);
+                } else {
+                    expandedTokens.push(token);
+                }
+            }
+
+            const entries = [];
+            let i = 0;
+
+            while (i < expandedTokens.length) {
+                const token = expandedTokens[i];
+
+                if (/^\d+$/.test(token)) {
+                    const anzahl = parseInt(token);
+                    let bemerkung = '';
+
+                    const bemerkungParts = [];
+                    let j = i + 1;
+                    while (j < expandedTokens.length && !/^\d+$/.test(expandedTokens[j])) {
+                        bemerkungParts.push(expandedTokens[j]);
+                        j++;
+                    }
+
+                    if (bemerkungParts.length > 0) {
+                        bemerkung = bemerkungParts.join(' ');
+                    }
+
+                    if (anzahl > 0) {
+                        entries.push({
+                            anz: anzahl,
+                            bem: bemerkung.trim()
+                        });
+                    }
+
+                    i = j;
+                } else {
+                    i++;
+                }
+            }
+
+            const grouped = {};
+            for (const entry of entries) {
+                const bemerkung = entry.bem;
+                const anzahl = entry.anz;
+
+                if (grouped.hasOwnProperty(bemerkung)) {
+                    grouped[bemerkung] += anzahl;
+                } else {
+                    grouped[bemerkung] = anzahl;
+                }
+            }
+
+            const results = [];
+            for (const [bemerkung, totalAnzahl] of Object.entries(grouped)) {
+                results.push({
+                    anz: totalAnzahl,
+                    bem: bemerkung
+                });
+            }
+
+            return results;
+        }
+
+        function createParserPreview(inputValue) {
+            const parsed = parseInputForPreview(inputValue);
+
+            if (parsed.length === 0) {
+                return '<div class="parser-preview-empty">Keine gültige Eingabe erkannt</div>';
+            }
+
+            let html = '';
+            for (const entry of parsed) {
+                html += '<div class="parser-entry">';
+                html += `<span class="parser-anzahl">${entry.anz}</span>`;
+
+                if (entry.bem === '') {
+                    html += '<span class="parser-bemerkung empty">(leer)</span>';
+                } else {
+                    html += `<span class="parser-bemerkung">${entry.bem}</span>`;
+                }
+
+                html += '</div>';
+            }
+
+            return html;
+        }
+
+        // Live-Test Setup
+        const liveInput = document.getElementById('liveInput');
+        const livePreview = document.getElementById('livePreview');
+
+        function updateLivePreview() {
+            const inputValue = liveInput.value.trim();
+            const previewHtml = createParserPreview(inputValue);
+            livePreview.innerHTML = previewHtml;
+        }
+
+        liveInput.addEventListener('input', updateLivePreview);
+        liveInput.addEventListener('keyup', updateLivePreview);
+
+        // Beispiele generieren
+        const examples = [
+            "5 3veg 3 veg 1",
+            "5,3veg, 3    veg, 1",
+            "5    3 veg,3veg 1",
+            "2fleisch 1 3veg 2fleisch",
+            "1,2:veg,3fl,1fl"
+        ];
+
+        let exampleHtml = '';
+        examples.forEach((example, index) => {
+            const previewHtml = createParserPreview(example);
+            exampleHtml += `
+                <div style="margin-bottom: 15px; border: 1px solid #dee2e6; padding: 10px; border-radius: 4px;">
+                    <strong>Eingabe:</strong> "${example}"<br>
+                    <strong>Geparst:</strong><br>
+                    <div style="margin-top: 5px;">${previewHtml}</div>
+                </div>
+            `;
+        });
+
+        document.getElementById('examples').innerHTML = exampleHtml;
+
+        // Initial mit Beispiel füllen
+        liveInput.value = examples[0];
+        updateLivePreview();
+    </script>
+</body>
+
+</html>
