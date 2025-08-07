@@ -9,6 +9,83 @@ if (!AuthManager::checkSession()) {
     exit;
 }
 
+/**
+ * Parst komplexe Arrangement-Eingaben und gibt strukturierte Daten zurück
+ */
+function parseArrangementContent($content) {
+    if (empty($content)) {
+        return [];
+    }
+    
+    // Vereinfachte Parsing-Logik für die Darstellung
+    $lines = explode("\n", trim($content));
+    $entries = [];
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) continue;
+        
+        // Prüfe ob es eine reine Zahl ist
+        if (is_numeric($line)) {
+            $entries[] = [
+                'anz' => intval($line),
+                'bem' => ''
+            ];
+        } else {
+            // Versuche Zahl am Anfang zu extrahieren
+            if (preg_match('/^(\d+)\s*(.*)$/', $line, $matches)) {
+                $entries[] = [
+                    'anz' => intval($matches[1]),
+                    'bem' => trim($matches[2])
+                ];
+            }
+        }
+    }
+    
+    return $entries;
+}
+
+/**
+ * Erstellt HTML für ovale Darstellung von Arrangement-Einträgen
+ */
+function createArrangementCellHtml($entries) {
+    if (empty($entries)) {
+        return '';
+    }
+    
+    // Prüfen ob Bemerkungen vorhanden sind
+    $hasRemarks = false;
+    foreach ($entries as $entry) {
+        if (!empty($entry['bem'])) {
+            $hasRemarks = true;
+            break;
+        }
+    }
+    
+    if ($hasRemarks) {
+        // Ovale Darstellung verwenden
+        $html = '';
+        foreach ($entries as $entry) {
+            $html .= '<div class="cell-entry">';
+            $html .= '<span class="cell-anzahl">' . intval($entry['anz']) . '</span>';
+            
+            if (!empty($entry['bem'])) {
+                $html .= '<span class="cell-bemerkung">' . htmlspecialchars($entry['bem']) . '</span>';
+            }
+            
+            $html .= '</div>';
+        }
+        return $html;
+    } else {
+        // Normale Darstellung für nur Zahlen
+        $parts = [];
+        foreach ($entries as $entry) {
+            $parts[] = $entry['anz'];
+        }
+        return implode('<br>', $parts);
+    }
+}
+
 // Daten von HP-Datenbank laden
 function getTischUebersicht() {
     $hpConn = getHpDbConnection();
@@ -300,7 +377,7 @@ $tischData = getTischUebersicht();
             width: 100%;
             border-collapse: collapse;
             min-width: 800px;
-            border: 1px solid #e9ecef;
+            border: 2px solid #adb5bd;
         }
         
         .table-container {
@@ -326,7 +403,7 @@ $tischData = getTischUebersicht();
             text-align: center;
             font-weight: 600;
             border-bottom: 2px solid #27ae60;
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            border-right: 2px solid rgba(255, 255, 255, 0.3);
             font-size: 0.8rem;
             white-space: nowrap;
             line-height: 1.1;
@@ -334,8 +411,8 @@ $tischData = getTischUebersicht();
         
         .table td {
             padding: 3px 4px;
-            border-bottom: 1px solid #e9ecef;
-            border-right: 1px solid #f1f3f4;
+            border-bottom: 2px solid #ced4da;
+            border-right: 2px solid #ced4da;
             vertical-align: middle;
             text-align: center;
             line-height: 1.2;
@@ -417,7 +494,7 @@ $tischData = getTischUebersicht();
         }
         
         .table tr:last-child td {
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 2px solid #ced4da;
         }
         
         .table td:last-child,
@@ -502,6 +579,32 @@ $tischData = getTischUebersicht();
             margin: 1px;
         }
         
+        /* Oval-Darstellung für Anzahl in Zellen */
+        .cell-entry {
+            display: inline-flex;
+            align-items: center;
+            margin: 1px 2px 1px 0;
+            white-space: nowrap;
+        }
+        
+        .cell-anzahl {
+            background: #27ae60;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            min-width: 16px;
+            text-align: center;
+            margin-right: 3px;
+        }
+        
+        .cell-bemerkung {
+            color: #27ae60;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+        
         .arrangement-cell.has-value {
             color: #27ae60;
             font-weight: 700;
@@ -509,6 +612,95 @@ $tischData = getTischUebersicht();
         
         .arrangement-cell.empty {
             color: #6c757d;
+        }
+        
+        /* Inline editing für Arrangement-Zellen */
+        .arrangement-cell.editable {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .arrangement-cell.editable:hover {
+            background-color: rgba(46, 204, 113, 0.1) !important;
+        }
+        
+        .arrangement-cell-input {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #2ecc71;
+            background: white;
+            text-align: center;
+            font-weight: 600;
+            font-size: inherit;
+            padding: 4px;
+            margin: 0;
+            box-sizing: border-box;
+            border-radius: 3px;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            line-height: 1.2;
+        }
+        
+        /* Spezielle Styles für Textarea */
+        .arrangement-cell-input:focus {
+            border-color: #27ae60;
+            box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.2);
+        }
+        
+        /* Visuelle Parser-Vorschau */
+        .parser-preview {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #27ae60;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 8px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        
+        .parser-preview-empty {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        .parser-entry {
+            display: inline-flex;
+            align-items: center;
+            margin: 2px 4px 2px 0;
+            white-space: nowrap;
+        }
+        
+        .parser-anzahl {
+            background: #27ae60;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            min-width: 20px;
+            text-align: center;
+            margin-right: 4px;
+        }
+        
+        .parser-bemerkung {
+            color: #27ae60;
+            font-weight: 500;
+            font-size: 0.8rem;
+        }
+        
+        .parser-bemerkung.empty {
+            color: #6c757d;
+            font-style: italic;
         }
         
         .arrangement-header {
@@ -521,7 +713,7 @@ $tischData = getTischUebersicht();
             font-size: 0.75rem;
             padding: 3px 4px;
             line-height: 1.0;
-            border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
         }
         
         /* Modal Styles */
@@ -1031,16 +1223,22 @@ $tischData = getTischUebersicht();
                                             $cssClass .= 'empty';
                                         }
                                         
-                                        echo '<td class="' . $cssClass . '">';
+                                        echo '<td class="' . $cssClass . ' editable" 
+                                              data-guest-id="' . intval($row['iid']) . '" 
+                                              data-arr-id="' . $arrId . '" 
+                                              data-arr-name="' . htmlspecialchars($bezeichnung) . '">';
                                         if ($hasValue) {
-                                            // Doppelte/mehrfache LF durch einfache <br> ersetzen
-                                            $cleanContent = preg_replace('/\n+/', '<br>', trim($content));
-                                            // Erst HTML escapen, dann <br> wieder als HTML-Tag zulassen
-                                            $escapedContent = htmlspecialchars($cleanContent);
-                                            $finalContent = str_replace('&lt;br&gt;', '<br>', $escapedContent);
-                                            echo $finalContent;
-                                        } else {
-                                            echo '-';
+                                            // Parse den Inhalt und erstelle ovale Darstellung wenn nötig
+                                            $parsedEntries = parseArrangementContent($content);
+                                            if (!empty($parsedEntries)) {
+                                                echo createArrangementCellHtml($parsedEntries);
+                                            } else {
+                                                // Fallback: normale Darstellung
+                                                $cleanContent = preg_replace('/\n+/', '<br>', trim($content));
+                                                $escapedContent = htmlspecialchars($cleanContent);
+                                                $finalContent = str_replace('&lt;br&gt;', '<br>', $escapedContent);
+                                                echo $finalContent;
+                                            }
                                         }
                                         echo '</td>';
                                     }
@@ -1100,11 +1298,31 @@ $tischData = getTischUebersicht();
         
         // Event Delegation für klickbare Zellen
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up event listeners');
+            
             const tableContainer = document.querySelector('.table-container');
+            console.log('Table container found:', tableContainer);
+            
             if (tableContainer) {
                 tableContainer.addEventListener('click', function(e) {
+                    console.log('Click detected on:', e.target);
+                    console.log('Target classes:', e.target.className);
+                    
+                    // Prüfe zuerst auf Arrangement-Zellen
+                    const arrangementCell = e.target.closest('.arrangement-cell.editable');
+                    console.log('Arrangement cell found:', arrangementCell);
+                    
+                    if (arrangementCell) {
+                        console.log('Starting inline edit for arrangement cell');
+                        e.stopPropagation();
+                        startInlineEdit(arrangementCell);
+                        return;
+                    }
+                    
+                    // Dann auf andere klickbare Zellen
                     const clickableCell = e.target.closest('.clickable');
                     if (clickableCell) {
+                        console.log('Clickable cell found, opening modal');
                         const row = clickableCell.closest('tr');
                         if (row) {
                             const guestId = row.getAttribute('data-guest-id');
@@ -1124,9 +1342,415 @@ $tischData = getTischUebersicht();
                             }
                         }
                     }
+                }); // Ende click event listener
+            } // Ende if tableContainer
+        }); // Ende DOMContentLoaded
+        
+        // Inline Editing für Arrangement-Zellen
+        let currentEditingCell = null; // Verhindere mehrfache Bearbeitung
+        
+        /**
+         * Konvertiert Anzeige-Format zu Eingabe-Format
+         * z.B. "6\n6 veg" → "6 6 veg" (flache Darstellung für Eingabe)
+         */
+        function convertDisplayToInput(displayText) {
+            if (!displayText) return '';
+            
+            // Zeilenumbrüche durch Leerzeichen ersetzen und bereinigen
+            return displayText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+        
+        /**
+         * Konvertiert Eingabe zurück zu Anzeige-Format mit Gruppierung
+         * z.B. "5 3veg 3 veg 1" → "6\n6 veg" (gruppiert)
+         */
+        function convertInputToDisplay(inputText) {
+            if (!inputText) return '';
+            
+            // Schritt 1: Normalisierung - Kommas und Doppelpunkte mit optionalen Leerzeichen durch Leerzeichen ersetzen
+            let normalized = inputText.replace(/\s*[,:]\s*/g, ' ');
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+            
+            // Schritt 2: Tokenisierung
+            const tokens = normalized.split(' ');
+            
+            // Schritt 3: Verknüpfte Muster erweitern (z.B. "2veg" → ["2", "veg"])
+            const expandedTokens = [];
+            for (const token of tokens) {
+                if (/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/.test(token)) {
+                    const matches = token.match(/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/);
+                    expandedTokens.push(matches[1]); // Zahl
+                    expandedTokens.push(matches[2]); // Text
+                } else {
+                    expandedTokens.push(token);
+                }
+            }
+            
+            // Schritt 4: Parsing in Anzahl-Bemerkung Paare
+            const entries = [];
+            let i = 0;
+            
+            while (i < expandedTokens.length) {
+                const token = expandedTokens[i];
+                
+                if (/^\d+$/.test(token)) {
+                    const anzahl = parseInt(token);
+                    let bemerkung = '';
+                    
+                    // Sammle alle nachfolgenden nicht-numerischen Tokens als Bemerkung
+                    const bemerkungParts = [];
+                    let j = i + 1;
+                    while (j < expandedTokens.length && !/^\d+$/.test(expandedTokens[j])) {
+                        bemerkungParts.push(expandedTokens[j]);
+                        j++;
+                    }
+                    
+                    if (bemerkungParts.length > 0) {
+                        bemerkung = bemerkungParts.join(' ');
+                    }
+                    
+                    if (anzahl > 0) {
+                        entries.push({
+                            anz: anzahl,
+                            bem: bemerkung.trim()
+                        });
+                    }
+                    
+                    i = j; // Springe zur nächsten Zahl
+                } else {
+                    i++; // Überspringe nicht-numerische Tokens
+                }
+            }
+            
+            // Schritt 5: Gruppierung nach gleichen Bemerkungen
+            const grouped = {};
+            for (const entry of entries) {
+                const bemerkung = entry.bem;
+                const anzahl = entry.anz;
+                
+                if (grouped.hasOwnProperty(bemerkung)) {
+                    grouped[bemerkung] += anzahl;
+                } else {
+                    grouped[bemerkung] = anzahl;
+                }
+            }
+            
+            // Schritt 6: Zurück in Anzeige-Format konvertieren
+            const displayParts = [];
+            for (const [bemerkung, totalAnzahl] of Object.entries(grouped)) {
+                if (bemerkung === '') {
+                    displayParts.push(totalAnzahl.toString());
+                } else {
+                    displayParts.push(totalAnzahl + ' ' + bemerkung);
+                }
+            }
+            
+            return displayParts.join('\n');
+        }
+        
+        /**
+         * Parst Input und gibt strukturierte Daten zurück (für Vorschau)
+         */
+        function parseInputForPreview(inputText) {
+            if (!inputText) return [];
+            
+            // Schritt 1: Normalisierung - Kommas und Doppelpunkte mit optionalen Leerzeichen durch Leerzeichen ersetzen
+            let normalized = inputText.replace(/\s*[,:]\s*/g, ' ');
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+            
+            // Schritt 2: Tokenisierung
+            const tokens = normalized.split(' ');
+            
+            // Schritt 3: Verknüpfte Muster erweitern (z.B. "2veg" → ["2", "veg"])
+            const expandedTokens = [];
+            for (const token of tokens) {
+                if (/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/.test(token)) {
+                    const matches = token.match(/^(\d+)([a-zA-ZäöüÄÖÜß].*)$/);
+                    expandedTokens.push(matches[1]); // Zahl
+                    expandedTokens.push(matches[2]); // Text
+                } else {
+                    expandedTokens.push(token);
+                }
+            }
+            
+            // Schritt 4: Parsing in Anzahl-Bemerkung Paare
+            const entries = [];
+            let i = 0;
+            
+            while (i < expandedTokens.length) {
+                const token = expandedTokens[i];
+                
+                if (/^\d+$/.test(token)) {
+                    const anzahl = parseInt(token);
+                    let bemerkung = '';
+                    
+                    // Sammle alle nachfolgenden nicht-numerischen Tokens als Bemerkung
+                    const bemerkungParts = [];
+                    let j = i + 1;
+                    while (j < expandedTokens.length && !/^\d+$/.test(expandedTokens[j])) {
+                        bemerkungParts.push(expandedTokens[j]);
+                        j++;
+                    }
+                    
+                    if (bemerkungParts.length > 0) {
+                        bemerkung = bemerkungParts.join(' ');
+                    }
+                    
+                    if (anzahl > 0) {
+                        entries.push({
+                            anz: anzahl,
+                            bem: bemerkung.trim()
+                        });
+                    }
+                    
+                    i = j; // Springe zur nächsten Zahl
+                } else {
+                    i++; // Überspringe nicht-numerische Tokens
+                }
+            }
+            
+            // Schritt 5: Gruppierung nach gleichen Bemerkungen
+            const grouped = {};
+            for (const entry of entries) {
+                const bemerkung = entry.bem;
+                const anzahl = entry.anz;
+                
+                if (grouped.hasOwnProperty(bemerkung)) {
+                    grouped[bemerkung] += anzahl;
+                } else {
+                    grouped[bemerkung] = anzahl;
+                }
+            }
+            
+            // Schritt 6: Als Array zurückgeben
+            const results = [];
+            for (const [bemerkung, totalAnzahl] of Object.entries(grouped)) {
+                results.push({
+                    anz: totalAnzahl,
+                    bem: bemerkung
                 });
             }
-        });
+            
+            return results;
+        }
+        
+        /**
+         * Erstellt visuelle Vorschau der geparsten Eingabe
+         */
+        function createParserPreview(inputValue) {
+            const parsed = parseInputForPreview(inputValue);
+            
+            if (parsed.length === 0) {
+                return '<div class="parser-preview-empty">Keine gültige Eingabe erkannt</div>';
+            }
+            
+            let html = '';
+            for (const entry of parsed) {
+                html += '<div class="parser-entry">';
+                html += `<span class="parser-anzahl">${entry.anz}</span>`;
+                
+                if (entry.bem === '') {
+                    html += '<span class="parser-bemerkung empty">(leer)</span>';
+                } else {
+                    html += `<span class="parser-bemerkung">${entry.bem}</span>`;
+                }
+                
+                html += '</div>';
+            }
+            
+            return html;
+        }
+        
+        function startInlineEdit(cell) {
+            // Prüfe ob bereits eine Zelle bearbeitet wird
+            if (currentEditingCell) {
+                return; // Verhindere mehrfache Inputs
+            }
+            
+            // Prüfe ob bereits ein Input in dieser Zelle aktiv ist
+            if (cell.querySelector('.arrangement-cell-input')) {
+                return;
+            }
+            
+            currentEditingCell = cell; // Markiere als aktiv bearbeitet
+            
+            const guestId = cell.getAttribute('data-guest-id');
+            const arrId = cell.getAttribute('data-arr-id');
+            
+            // Aktuellen Wert extrahieren und für komplexe Eingabe aufbereiten
+            const rawContent = cell.innerHTML.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '').trim();
+            const currentValue = convertDisplayToInput(rawContent);
+            
+            console.log('Starte Inline-Edit für:', guestId, arrId, 'Wert:', currentValue);
+            
+            // Container für Input und Vorschau erstellen
+            const inputContainer = document.createElement('div');
+            inputContainer.style.position = 'relative';
+            inputContainer.style.width = '100%';
+            inputContainer.style.height = '100%';
+            
+            // Textarea für komplexere Eingaben verwenden
+            const input = document.createElement('textarea');
+            input.className = 'arrangement-cell-input';
+            input.value = currentValue;
+            input.style.width = '100%';
+            input.style.textAlign = 'center';
+            input.style.resize = 'none';
+            input.style.minHeight = '60px';
+            input.style.fontSize = 'inherit';
+            input.rows = 3;
+            input.placeholder = 'z.B. "3 Vollpension 2" oder "1,2veg,3:fl"';
+            
+            // Vorschau-Container erstellen
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'parser-preview';
+            previewContainer.style.display = 'none';
+            
+            // Container zusammenbauen
+            inputContainer.appendChild(input);
+            inputContainer.appendChild(previewContainer);
+            
+            // Cell-Inhalt ersetzen
+            cell.innerHTML = '';
+            cell.appendChild(inputContainer);
+            
+            // Live-Vorschau aktualisieren
+            function updatePreview() {
+                const inputValue = input.value.trim();
+                if (inputValue === '') {
+                    previewContainer.style.display = 'none';
+                } else {
+                    const previewHtml = createParserPreview(inputValue);
+                    previewContainer.innerHTML = previewHtml;
+                    previewContainer.style.display = 'block';
+                }
+            }
+            
+            // Sofort fokussieren und selektieren
+            setTimeout(() => {
+                input.focus();
+                input.select();
+                updatePreview(); // Initiale Vorschau
+            }, 10);
+            
+            // Event-Handler für Live-Vorschau
+            input.addEventListener('input', updatePreview);
+            input.addEventListener('keyup', updatePreview);
+            
+            // Event-Handler für Speichern
+            const saveEdit = async function() {
+                const newValue = input.value.trim();
+                console.log('Speichere neuen Wert:', newValue);
+                
+                try {
+                    const response = await fetch('save-arrangement-inline.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            guest_id: parseInt(guestId),
+                            arr_id: parseInt(arrId),
+                            value: newValue
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        console.log('Erfolgreich gespeichert');
+                        previewContainer.style.display = 'none'; // Vorschau ausblenden
+                        restoreCellContent(cell, newValue);
+                    } else {
+                        console.error('Speicherfehler:', result.error);
+                        alert('Fehler beim Speichern: ' + result.error);
+                        previewContainer.style.display = 'none'; // Vorschau ausblenden
+                        restoreCellContent(cell, currentValue);
+                    }
+                    
+                } catch (error) {
+                    console.error('Fehler:', error);
+                    alert('Fehler beim Speichern: ' + error.message);
+                    previewContainer.style.display = 'none'; // Vorschau ausblenden
+                    restoreCellContent(cell, currentValue);
+                }
+                
+                currentEditingCell = null; // Freigeben
+            };
+            
+            const cancelEdit = function() {
+                previewContainer.style.display = 'none'; // Vorschau ausblenden
+                restoreCellContent(cell, currentValue);
+                currentEditingCell = null; // Freigeben
+            };
+            
+            // Event-Listener
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+            
+            input.addEventListener('blur', function() {
+                saveEdit();
+            });
+        }
+        
+        function restoreCellContent(cell, value) {
+            // Eingabe zu Anzeige-Format konvertieren
+            const displayValue = convertInputToDisplay(value);
+            
+            // CSS-Klassen bestimmen
+            const hasValue = displayValue && displayValue.length > 0;
+            const isMultiLine = hasValue && displayValue.includes('\n');
+            const isSingleNumber = hasValue && /^\d+$/.test(displayValue.trim());
+            
+            // CSS-Klassen aktualisieren
+            cell.className = cell.className.replace(/\b(has-value|empty|single-value|multi-value)\b/g, '').trim();
+            
+            if (hasValue) {
+                cell.classList.add('has-value');
+                if (isSingleNumber) {
+                    cell.classList.add('single-value');
+                } else if (isMultiLine) {
+                    cell.classList.add('multi-value');
+                }
+            } else {
+                cell.classList.add('empty');
+            }
+            
+            // Inhalt setzen - prüfen ob ovale Darstellung verwendet werden soll
+            if (hasValue) {
+                const parsed = parseInputForPreview(value);
+                const hasRemarks = parsed.some(entry => entry.bem !== '');
+                
+                if (hasRemarks) {
+                    // Ovale Darstellung verwenden
+                    let htmlContent = '';
+                    for (const entry of parsed) {
+                        htmlContent += '<div class="cell-entry">';
+                        htmlContent += `<span class="cell-anzahl">${entry.anz}</span>`;
+                        
+                        if (entry.bem !== '') {
+                            htmlContent += `<span class="cell-bemerkung">${entry.bem}</span>`;
+                        }
+                        
+                        htmlContent += '</div>';
+                    }
+                    cell.innerHTML = htmlContent;
+                } else {
+                    // Normale Darstellung für nur Zahlen
+                    const htmlContent = displayValue.replace(/\n/g, '<br>');
+                    cell.innerHTML = htmlContent;
+                }
+            } else {
+                cell.innerHTML = '';
+            }
+        }
 
         // Auto-refresh alle 5 Minuten
         setTimeout(() => {

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Ovale Darstellung</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .arrangement-cell {
+            border: 2px solid #ced4da;
+            padding: 8px;
+            margin: 5px;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+            background: white;
+        }
+
+        .arrangement-cell.has-value {
+            border-color: #27ae60;
+        }
+
+        /* Oval-Darstellung für Anzahl in Zellen */
+        .cell-entry {
+            display: inline-flex;
+            align-items: center;
+            margin: 1px 2px 1px 0;
+            white-space: nowrap;
+        }
+
+        .cell-anzahl {
+            background: #27ae60;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            min-width: 16px;
+            text-align: center;
+            margin-right: 3px;
+        }
+
+        .cell-bemerkung {
+            color: #27ae60;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Test: Ovale Darstellung in Arrangement-Zellen</h2>
+
+    <div class="test-container">
+        <h3>Mit Bemerkungen (Ovale Darstellung):</h3>
+
+        <div class="arrangement-cell has-value">
+            <div class="cell-entry">
+                <span class="cell-anzahl">3</span>
+                <span class="cell-bemerkung">veg</span>
+            </div>
+            <div class="cell-entry">
+                <span class="cell-anzahl">2</span>
+            </div>
+        </div>
+
+        <div class="arrangement-cell has-value">
+            <div class="cell-entry">
+                <span class="cell-anzahl">4</span>
+                <span class="cell-bemerkung">fleisch</span>
+            </div>
+            <div class="cell-entry">
+                <span class="cell-anzahl">1</span>
+                <span class="cell-bemerkung">ohne extras</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>Nur Zahlen (Normale Darstellung):</h3>
+
+        <div class="arrangement-cell has-value">
+            5<br>2
+        </div>
+
+        <div class="arrangement-cell has-value">
+            3
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>Leer:</h3>
+
+        <div class="arrangement-cell">
+            <!-- leer -->
+        </div>
+    </div>
+</body>
+
+</html>

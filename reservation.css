@@ -1075,6 +1075,14 @@ td.diet-cell {
   border-radius: 4px;
   text-align: center;
   font-size: 0.9rem;
+  cursor: pointer;
+  background-color: #f8f9fa;
+}
+
+.hp-arr-quantity input:focus {
+  outline: none;
+  border-color: #007bff;
+  background-color: #fff;
 }
 
 .hp-arr-remark {
@@ -1116,6 +1124,97 @@ td.diet-cell {
   color: #6c757d;
   font-style: italic;
   padding: 2rem;
+}
+
+/* Number Pad Modal Styles */
+.number-pad-modal {
+  max-width: 320px;
+  width: 90vw;
+  min-width: 280px;
+}
+
+.number-display {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.number-display input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: #f8f9fa;
+  color: #333;
+}
+
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.num-btn {
+  padding: 1rem;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.num-btn:hover {
+  background: #e9ecef;
+  border-color: #007bff;
+  transform: translateY(-1px);
+}
+
+.num-btn:active {
+  background: #dee2e6;
+  transform: translateY(0);
+}
+
+.clear-btn {
+  background: #ffc107;
+  color: #000;
+  border-color: #ffc107;
+}
+
+.clear-btn:hover {
+  background: #e0a800;
+  border-color: #d39e00;
+}
+
+.backspace-btn {
+  background: #6c757d;
+  color: #fff;
+  border-color: #6c757d;
+}
+
+.backspace-btn:hover {
+  background: #5a6268;
+  border-color: #545b62;
+}
+
+.number-pad-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.number-pad-actions button {
+  flex: 1;
+  margin: 0;
 }
 
 /* Responsive adjustments for header */

@@ -2526,7 +2526,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </select>
         </div>
         <div class="hp-arr-quantity">
-          <input type="number" min="1" value="${arr.total_count || 1}" data-field="count" placeholder="Anzahl">
+          <input type="text" readonly min="1" value="${arr.total_count || 1}" data-field="count" placeholder="Anzahl" class="quantity-input">
         </div>
         <div class="hp-arr-remark">
           <input type="text" value="${arr.details[0]?.remark || ''}" data-field="remark" placeholder="Bemerkung">
@@ -2568,6 +2568,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.matches('.hp-arr-delete')) {
       const index = parseInt(e.target.dataset.index);
       removeHpArrangement(index);
+    } else if (e.target.matches('.quantity-input')) {
+      // Open number pad for quantity input
+      openNumberPad(e.target);
     }
   }
 
@@ -2676,6 +2679,137 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error saving HP arrangements:', error);
       alert('❌ Fehler beim Speichern: ' + error.message);
     }
+  }
+
+  // Number Pad functionality
+  let currentQuantityInput = null;
+  let isFirstDigitEntry = true;
+
+  // Open number pad for quantity input
+  function openNumberPad(inputElement) {
+    currentQuantityInput = inputElement;
+    const modal = document.getElementById('numberPadModal');
+    const display = document.getElementById('numberDisplay');
+
+    if (!modal || !display) return;
+
+    // Set current value or default to 1
+    const currentValue = inputElement.value || '1';
+    display.value = currentValue;
+
+    // Reset first digit flag
+    isFirstDigitEntry = true;
+
+    modal.classList.remove('hidden');
+    setupNumberPadHandlers();
+  }
+
+  // Close number pad
+  function closeNumberPad() {
+    const modal = document.getElementById('numberPadModal');
+    modal?.classList.add('hidden');
+    currentQuantityInput = null;
+    isFirstDigitEntry = true;
+  }
+
+  // Setup number pad event handlers
+  function setupNumberPadHandlers() {
+    // Remove existing event listeners to prevent duplicates
+    const modal = document.getElementById('numberPadModal');
+    if (modal.hasAttribute('data-handlers-setup')) {
+      return;
+    }
+    modal.setAttribute('data-handlers-setup', 'true');
+
+    // Close handlers
+    document.getElementById('numberPadClose')?.addEventListener('click', closeNumberPad);
+    document.getElementById('numberPadCancel')?.addEventListener('click', closeNumberPad);
+
+    // OK handler
+    document.getElementById('numberPadOk')?.addEventListener('click', () => {
+      const display = document.getElementById('numberDisplay');
+      const value = parseInt(display.value) || 1;
+
+      // Validate range 1-99
+      if (value >= 1 && value <= 99) {
+        if (currentQuantityInput) {
+          currentQuantityInput.value = value;
+          // Trigger change event for data sync
+          const event = new Event('change', { bubbles: true });
+          currentQuantityInput.dispatchEvent(event);
+        }
+        closeNumberPad();
+      } else {
+        alert('Bitte geben Sie eine Zahl zwischen 1 und 99 ein.');
+      }
+    });
+
+    // Number button handlers
+    modal.addEventListener('click', (e) => {
+      if (e.target.matches('[data-num]')) {
+        const num = e.target.dataset.num;
+        addNumberToDisplay(num);
+      } else if (e.target.matches('[data-action="clear"]')) {
+        clearDisplay();
+      } else if (e.target.matches('[data-action="backspace"]')) {
+        backspaceDisplay();
+      } else if (e.target === modal) {
+        closeNumberPad();
+      }
+    });
+  }
+
+  // Add number to display
+  function addNumberToDisplay(num) {
+    const display = document.getElementById('numberDisplay');
+    let current = display.value;
+
+    // Clear display on first digit entry (like a calculator)
+    if (isFirstDigitEntry) {
+      current = '';
+      isFirstDigitEntry = false;
+    } else {
+      // Remove leading zeros unless it's just "0"
+      if (current === '0') {
+        current = '';
+      }
+    }
+
+    const newValue = current + num;
+    const intValue = parseInt(newValue);
+
+    // Limit to 99
+    if (intValue <= 99 && intValue > 0) {
+      display.value = newValue;
+    } else if (newValue === '0') {
+      // Don't allow starting with 0
+      display.value = num;
+    }
+  }
+
+  // Clear display
+  function clearDisplay() {
+    const display = document.getElementById('numberDisplay');
+    display.value = '1';
+    isFirstDigitEntry = true;
+  }
+
+  // Backspace display
+  function backspaceDisplay() {
+    const display = document.getElementById('numberDisplay');
+    let current = display.value;
+
+    // Mark as no longer first digit entry since user is editing
+    isFirstDigitEntry = false;
+
+    if (current.length > 1) {
+      current = current.slice(0, -1);
+    } else {
+      current = '1';
+      isFirstDigitEntry = true; // Reset flag when going back to default
+    }
+
+    display.value = current;
   }
 
   // Close modal

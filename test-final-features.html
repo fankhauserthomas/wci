@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test: Ovale immer + Komma-Format</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .arrangement-cell {
+            border: 2px solid #ced4da;
+            padding: 8px;
+            margin: 5px;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+            background: white;
+            vertical-align: top;
+        }
+
+        .arrangement-cell.has-value {
+            border-color: #27ae60;
+        }
+
+        .arrangement-cell.multi-line {
+            text-align: left !important;
+            justify-content: flex-start;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        /* Oval-Darstellung für Anzahl in Zellen */
+        .cell-entry {
+            display: inline-flex;
+            align-items: center;
+            margin: 1px 2px 1px 0;
+            white-space: nowrap;
+        }
+
+        .cell-anzahl {
+            background: #27ae60;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            min-width: 16px;
+            text-align: center;
+            margin-right: 3px;
+        }
+
+        .cell-bemerkung {
+            color: #27ae60;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .input-test {
+            width: 200px;
+            padding: 5px;
+            margin: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Test: Ovale immer + Komma-Format im Edit</h2>
+
+    <div class="test-container">
+        <h3>1. Einzelne Zahl (mit Oval):</h3>
+        <div class="arrangement-cell has-value single-value">
+            <div class="cell-entry">
+                <span class="cell-anzahl">5</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>2. Multiple ohne Bemerkung (mit Ovalen):</h3>
+        <div class="arrangement-cell has-value multi-line">
+            <div class="cell-entry">
+                <span class="cell-anzahl">3</span>
+            </div>
+            <div class="cell-entry">
+                <span class="cell-anzahl">2</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>3. Mit Bemerkungen (linkszentriert):</h3>
+        <div class="arrangement-cell has-value multi-line">
+            <div class="cell-entry">
+                <span class="cell-anzahl">3</span>
+                <span class="cell-bemerkung">veg</span>
+            </div>
+            <div class="cell-entry">
+                <span class="cell-anzahl">2</span>
+                <span class="cell-bemerkung">fleisch</span>
+            </div>
+            <div class="cell-entry">
+                <span class="cell-anzahl">1</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h3>4. Komma-Format Test:</h3>
+        <input type="text" class="input-test" id="testInput" placeholder="Klicke 'Konvertieren'">
+        <button onclick="testConversion()">Konvertieren</button>
+        <div id="result"></div>
+
+        <script>
+            function convertDisplayToInput(displayText) {
+                if (!displayText) return '';
+
+                // Falls es bereits normaler Text ist, einfach bereinigen
+                if (displayText.indexOf('cell-entry') === -1) {
+                    return displayText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+                }
+
+                // Ovale Darstellung parsen
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = displayText;
+
+                const entries = tempDiv.querySelectorAll('.cell-entry');
+                const inputParts = [];
+
+                entries.forEach(entry => {
+                    const anzahlSpan = entry.querySelector('.cell-anzahl');
+                    const bemerkungSpan = entry.querySelector('.cell-bemerkung');
+
+                    if (anzahlSpan) {
+                        const anzahl = anzahlSpan.textContent.trim();
+                        const bemerkung = bemerkungSpan ? bemerkungSpan.textContent.trim() : '';
+
+                        if (bemerkung) {
+                            inputParts.push(anzahl + bemerkung);
+                        } else {
+                            inputParts.push(anzahl);
+                        }
+                    }
+                });
+
+                // Mit Kommas verbinden (lehrreich für den User)
+                return inputParts.join(',');
+            }
+
+            function testConversion() {
+                // Test mit dem dritten Beispiel
+                const testCell = document.querySelector('.arrangement-cell.multi-line');
+                const html = testCell.innerHTML;
+                const result = convertDisplayToInput(html);
+
+                document.getElementById('testInput').value = result;
+                document.getElementById('result').innerHTML = `<strong>Konvertiert zu:</strong> "${result}"`;
+            }
+
+            // Initial Test
+            setTimeout(testConversion, 500);
+        </script>
+    </div>
+</body>
+
+</html>
