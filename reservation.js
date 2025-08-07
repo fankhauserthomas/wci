@@ -250,6 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       }
 
+      // Load HP arrangements for the middle column
+      loadHpArrangements(resId);
+
       // Event-Listener für Arrangement-Button hinzufügen
       setTimeout(() => {
         const arrangementBtn = document.getElementById('reservationArrangementBtn');
@@ -2373,5 +2376,312 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   };
+
+  // === HP Arrangements Functionality ===
+  let currentHpArrangements = [];
+  let availableArrangements = {};
+
+  // Load HP arrangements data and display in header
+  async function loadHpArrangements(resId) {
+    const headerArrContent = document.getElementById('headerArrContent');
+    if (!headerArrContent) return;
+
+    try {
+      headerArrContent.innerHTML = '<div class="loading-arr">Arrangements laden...</div>';
+
+      const response = await fetch(`get-hp-arrangements.php?res_id=${resId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Fehler beim Laden der Arrangements');
+      }
+
+      if (data.success) {
+        currentHpArrangements = data.arrangements || [];
+        availableArrangements = data.available_arrangements || {};
+
+        displayHpArrangements(currentHpArrangements);
+
+        // Setup click handlers for header arrangements area
+        setupHpArrangementsHandlers();
+      } else {
+        throw new Error(data.error || 'Unbekannter Fehler');
+      }
+
+    } catch (error) {
+      console.error('Error loading HP arrangements:', error);
+      headerArrContent.innerHTML = '<div class="empty-arr">Fehler beim Laden</div>';
+    }
+  }
+
+  // Display HP arrangements in header
+  function displayHpArrangements(arrangements) {
+    const headerArrContent = document.getElementById('headerArrContent');
+    if (!headerArrContent) return;
+
+    if (!arrangements || arrangements.length === 0) {
+      headerArrContent.innerHTML = '<div class="empty-arr">Keine Arrangements</div>';
+      return;
+    }
+
+    let html = '';
+    arrangements.forEach(arr => {
+      // Use display_name (remark if available, otherwise arrangement name)
+      const displayName = arr.display_name || arr.name;
+      // Show count with guest count in parentheses if multiple guests
+      const guestCount = Object.keys(arr.guests).length;
+      const countDisplay = guestCount > 1 ? `${arr.total_count}x (${guestCount} Gäste)` : `${arr.total_count}x`;
+
+      html += `
+        <div class="header-arr-item">
+          ${displayName}: ${countDisplay}
+        </div>
+      `;
+    });
+
+    headerArrContent.innerHTML = html;
+  }
+
+  // Setup event handlers for HP arrangements
+  function setupHpArrangementsHandlers() {
+    // Header arrangements area click
+    const headerArrangements = document.getElementById('headerArrangements');
+    const editBtn = document.getElementById('headerArrEditBtn');
+
+    if (headerArrangements) {
+      headerArrangements.addEventListener('click', openHpArrangementsModal);
+    }
+
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openHpArrangementsModal();
+      });
+    }
+  }
+
+  // Open HP arrangements modal
+  function openHpArrangementsModal() {
+    const modal = document.getElementById('hpArrangementsModal');
+    const container = document.getElementById('hpArrangementsContainer');
+
+    if (!modal || !container) return;
+
+    // Store original state to determine if this was initially empty
+    const wasOriginallyEmpty = currentHpArrangements.length === 0;
+
+    // Populate modal with current arrangements
+    renderHpArrangementsModal();
+
+    // Handle Add button visibility for originally empty arrangements
+    const addBtn = document.getElementById('hpArrangementsAdd');
+    if (addBtn && wasOriginallyEmpty) {
+      addBtn.style.display = 'inline-block';
+    }
+
+    modal.classList.remove('hidden');
+
+    // Setup modal event handlers
+    setupHpArrangementsModalHandlers();
+  }
+
+  // Render arrangements in modal
+  function renderHpArrangementsModal() {
+    const container = document.getElementById('hpArrangementsContainer');
+    if (!container) return;
+
+    let html = '';
+
+    if (currentHpArrangements.length === 0) {
+      html = '<div class="hp-arr-empty">Keine Arrangements vorhanden</div>';
+    } else {
+      currentHpArrangements.forEach((arr, index) => {
+        html += createHpArrangementItemHtml(arr, index);
+      });
+    }
+
+    container.innerHTML = html;
+
+    // Show/hide Add button based on arrangements
+    const addBtn = document.getElementById('hpArrangementsAdd');
+    if (addBtn) {
+      // Show add button if arrangements exist, or if no arrangements exist (initial state)
+      // Hide add button only if we just added the first arrangement to an empty list
+      addBtn.style.display = 'inline-block';
+    }
+  }
+
+  // Create HTML for single arrangement item
+  function createHpArrangementItemHtml(arr, index, isNew = false) {
+    const options = Object.entries(availableArrangements)
+      .map(([id, name]) => `<option value="${id}" ${arr.id == id ? 'selected' : ''}>${name}</option>`)
+      .join('');
+
+    return `
+      <div class="hp-arr-item ${isNew ? 'new-item' : ''}" data-index="${index}">
+        <div class="hp-arr-select">
+          <select data-field="arr_id">
+            <option value="">Arrangement wählen</option>
+            ${options}
+          </select>
+        </div>
+        <div class="hp-arr-quantity">
+          <input type="number" min="1" value="${arr.total_count || 1}" data-field="count" placeholder="Anzahl">
+        </div>
+        <div class="hp-arr-remark">
+          <input type="text" value="${arr.details[0]?.remark || ''}" data-field="remark" placeholder="Bemerkung">
+        </div>
+        <button class="hp-arr-delete" data-index="${index}" title="Löschen">×</button>
+      </div>
+    `;
+  }
+
+  // Setup modal event handlers
+  function setupHpArrangementsModalHandlers() {
+    // Close modal
+    document.getElementById('hpArrangementsModalClose')?.addEventListener('click', closeHpArrangementsModal);
+    document.getElementById('hpArrangementsCancel')?.addEventListener('click', closeHpArrangementsModal);
+
+    // Add new arrangement
+    document.getElementById('hpArrangementsAdd')?.addEventListener('click', addNewHpArrangement);
+
+    // Save arrangements
+    document.getElementById('hpArrangementsSave')?.addEventListener('click', saveHpArrangements);
+
+    // Modal backdrop click
+    const modal = document.getElementById('hpArrangementsModal');
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeHpArrangementsModal();
+      }
+    });
+
+    // Delegate events for dynamic content
+    const container = document.getElementById('hpArrangementsContainer');
+    container?.addEventListener('click', handleModalItemEvents);
+    container?.addEventListener('change', handleModalItemEvents);
+    container?.addEventListener('input', handleModalItemEvents);
+  }
+
+  // Handle events on modal items
+  function handleModalItemEvents(e) {
+    if (e.target.matches('.hp-arr-delete')) {
+      const index = parseInt(e.target.dataset.index);
+      removeHpArrangement(index);
+    }
+  }
+
+  // Add new arrangement
+  function addNewHpArrangement() {
+    // Only allow adding one row if no arrangements exist yet
+    if (currentHpArrangements.length === 0) {
+      const newArr = {
+        id: '',
+        name: '',
+        total_count: 1,
+        details: [{ remark: '' }]
+      };
+
+      currentHpArrangements.push(newArr);
+
+      const container = document.getElementById('hpArrangementsContainer');
+      const newIndex = currentHpArrangements.length - 1;
+
+      if (container.querySelector('.hp-arr-empty')) {
+        container.innerHTML = '';
+      }
+
+      container.insertAdjacentHTML('beforeend', createHpArrangementItemHtml(newArr, newIndex, true));
+
+      // Hide add button after adding first row when no arrangements existed
+      const addBtn = document.getElementById('hpArrangementsAdd');
+      if (addBtn) {
+        addBtn.style.display = 'none';
+      }
+    } else {
+      // Normal behavior for existing arrangements
+      const newArr = {
+        id: '',
+        name: '',
+        total_count: 1,
+        details: [{ remark: '' }]
+      };
+
+      currentHpArrangements.push(newArr);
+
+      const container = document.getElementById('hpArrangementsContainer');
+      const newIndex = currentHpArrangements.length - 1;
+
+      container.insertAdjacentHTML('beforeend', createHpArrangementItemHtml(newArr, newIndex, true));
+    }
+  }
+
+  // Remove arrangement
+  function removeHpArrangement(index) {
+    if (confirm('Arrangement wirklich löschen?')) {
+      currentHpArrangements.splice(index, 1);
+      renderHpArrangementsModal();
+    }
+  }
+
+  // Save arrangements
+  async function saveHpArrangements() {
+    try {
+      // Collect data from modal
+      const items = document.querySelectorAll('.hp-arr-item');
+      const arrangements = [];
+
+      items.forEach((item, index) => {
+        const arrId = item.querySelector('[data-field="arr_id"]').value;
+        const count = parseInt(item.querySelector('[data-field="count"]').value) || 1;
+        const remark = item.querySelector('[data-field="remark"]').value;
+
+        if (arrId && count > 0) {
+          arrangements.push({
+            arr_id: arrId,
+            count: count,
+            remark: remark
+          });
+        }
+      });
+
+      const payload = {
+        res_id: resId,
+        arrangements: arrangements
+      };
+
+      const response = await fetch('save-hp-arrangements.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fehler beim Speichern');
+      }
+
+      if (result.success) {
+        closeHpArrangementsModal();
+        // Reload arrangements
+        loadHpArrangements(resId);
+      } else {
+        throw new Error(result.error || 'Unbekannter Fehler');
+      }
+
+    } catch (error) {
+      console.error('Error saving HP arrangements:', error);
+      alert('❌ Fehler beim Speichern: ' + error.message);
+    }
+  }
+
+  // Close modal
+  function closeHpArrangementsModal() {
+    const modal = document.getElementById('hpArrangementsModal');
+    modal?.classList.add('hidden');
+  }
 
 });
