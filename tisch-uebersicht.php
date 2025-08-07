@@ -219,7 +219,7 @@ $tischData = getTischUebersicht();
         .table-container {
             flex: 1;
             background: white;
-            overflow: hidden;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             height: 100vh;
@@ -229,10 +229,16 @@ $tischData = getTischUebersicht();
             width: 100%;
             border-collapse: collapse;
             min-width: 800px;
-            height: 100%;
+            border: 1px solid #e9ecef;
+        }
+        
+        .table-container {
+            flex: 1;
+            background: white;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            border: 1px solid #e9ecef;
+            height: 100vh;
         }
         
         .table thead {
@@ -242,23 +248,10 @@ $tischData = getTischUebersicht();
             background: #2ecc71;
         }
         
-        .table tbody {
-            flex: 1;
-            overflow-y: auto;
-            display: block;
-        }
-        
-        .table thead tr,
-        .table tbody tr {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
-        }
-        
         .table th {
             background: #2ecc71;
             color: white;
-            padding: 1px 2px;
+            padding: 3px 4px;
             text-align: center;
             font-weight: 600;
             border-bottom: 2px solid #27ae60;
@@ -269,7 +262,7 @@ $tischData = getTischUebersicht();
         }
         
         .table td {
-            padding: 1px 2px;
+            padding: 3px 4px;
             border-bottom: 1px solid #e9ecef;
             border-right: 1px solid #f1f3f4;
             vertical-align: middle;
@@ -279,9 +272,29 @@ $tischData = getTischUebersicht();
         
         /* Überschreibung für linksbündige Zellen */
         .table td.nam-cell,
-        .table td.bem-cell,
-        .table td.tisch-cell {
+        .table td.bem-cell {
             text-align: left !important;
+        }
+        
+        /* Tischnummer-Styling */
+        .table td.tisch-cell {
+            text-align: center !important;
+            font-size: 1.6rem !important;
+            font-weight: bold;
+            line-height: 1.0 !important;
+        }
+        
+        /* Mehrzeilige Arrangement-Zellen */
+        .table td.arrangement-cell.multi-value {
+            line-height: 1.0 !important;
+        }
+        
+        /* BR-Tags in Tisch- und Arrangement-Zellen kompakter machen */
+        .table td.tisch-cell br,
+        .table td.arrangement-cell.multi-value br {
+            line-height: 0.1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         /* Farbzuordnung basierend auf colname (Original-Helligkeit) */
@@ -384,7 +397,7 @@ $tischData = getTischUebersicht();
             min-width: 80px;
             white-space: pre-line;
             line-height: 1.0;
-            padding: 1px 2px;
+            padding: 3px 4px;
         }
         
         /* Große Schrift für einzelne Zahlen */
@@ -416,7 +429,7 @@ $tischData = getTischUebersicht();
             vertical-align: middle;
             min-width: 70px;
             font-size: 0.75rem;
-            padding: 1px 2px;
+            padding: 3px 4px;
             line-height: 1.0;
             border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
         }
@@ -803,12 +816,12 @@ $tischData = getTischUebersicht();
                                 $arrangementCount = count($tischData[0]['arrangements']);
                             }
                             if ($arrangementCount > 0): ?>
-                                <th colspan="<?php echo $arrangementCount; ?>" style="text-align: center; border-bottom: 1px solid #27ae60;">Arrangements</th>
+                                <th colspan="<?php echo $arrangementCount; ?>">Arrangements</th>
                             <?php endif; ?>
                         </tr>
                         <tr>
                             <?php 
-                            // Dynamische Arrangement-Spalten aus erstem Datensatz
+                            // Dynamische Arrangement-Spalten aus erstem Datensatz - nur die Arrangement-Header
                             if (!empty($tischData) && isset($tischData[0]['arrangements'])) {
                                 foreach ($tischData[0]['arrangements'] as $arrId => $bezeichnung) {
                                     echo '<th class="arrangement-header">' . htmlspecialchars($bezeichnung) . '</th>';
@@ -868,7 +881,12 @@ $tischData = getTischUebersicht();
                             }
                         ?>
                             <tr class="<?php echo $rowClass; ?>">
-                                <td class="tisch-cell"><?php echo nl2br(htmlspecialchars($row['Tisch'] ?? '-')); ?></td>
+                                <td class="tisch-cell"><?php 
+                                    $tischText = $row['Tisch'] ?? '-';
+                                    // Doppelte/mehrfache LF durch einfache ersetzen und direkt <br> verwenden
+                                    $cleanTischText = preg_replace('/\n+/', '<br>', trim($tischText));
+                                    echo htmlspecialchars_decode($cleanTischText, ENT_NOQUOTES); 
+                                ?></td>
                                 <td class="anz-cell"><?php echo htmlspecialchars($row['anz'] ?? '0'); ?></td>
                                 <td class="nam-cell">
                                     <?php echo htmlspecialchars($row['nam'] ?? '-'); ?>
@@ -900,7 +918,12 @@ $tischData = getTischUebersicht();
                                         
                                         echo '<td class="' . $cssClass . '">';
                                         if ($hasValue) {
-                                            echo nl2br(htmlspecialchars($content));
+                                            // Doppelte/mehrfache LF durch einfache <br> ersetzen
+                                            $cleanContent = preg_replace('/\n+/', '<br>', trim($content));
+                                            // Erst HTML escapen, dann <br> wieder als HTML-Tag zulassen
+                                            $escapedContent = htmlspecialchars($cleanContent);
+                                            $finalContent = str_replace('&lt;br&gt;', '<br>', $escapedContent);
+                                            echo $finalContent;
                                         } else {
                                             echo '-';
                                         }
