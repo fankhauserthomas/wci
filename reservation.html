@@ -21,6 +21,16 @@
         <div class="header-info">
           <!-- Wird durch JavaScript befüllt -->
         </div>
+        <div class="header-arrangements" id="headerArrangements">
+          <!-- HP Arrangement Details werden hier angezeigt -->
+          <div class="header-arr-title">HP Arrangements</div>
+          <div class="header-arr-content" id="headerArrContent">
+            <div class="loading-arr">Arrangements laden...</div>
+          </div>
+          <button class="header-arr-edit-btn" id="headerArrEditBtn" title="HP Arrangements bearbeiten">
+            <span>✏️</span>
+          </button>
+        </div>
         <div class="header-buttons">
           <button id="editBtn" class="header-btn">Bearbeiten</button>
           <button id="emailBtn" class="header-btn header-btn-blue">E-Mail</button>
@@ -146,6 +156,26 @@
         <div class="modal-buttons">
           <button id="nameCorrectionApply" class="btn-confirm">Anwenden</button>
           <button id="nameCorrectionSkip" class="btn-cancel">Überspringen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HP Arrangements Modal -->
+    <div id="hpArrangementsModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-large">
+        <span class="modal-close" id="hpArrangementsModalClose">&times;</span>
+        <h3>HP Arrangements bearbeiten</h3>
+        <p>Arrangements für diese Reservierung in der HP-Datenbank:</p>
+
+        <div id="hpArrangementsContainer">
+          <!-- Arrangements werden hier dynamisch eingefügt -->
+        </div>
+
+        <div class="modal-buttons">
+          <button id="hpArrangementsAdd" class="btn-confirm">+ Hinzufügen</button>
+          <button id="hpArrangementsSave" class="btn-confirm">Speichern</button>
+          <button id="hpArrangementsCancel" class="btn-cancel">Abbrechen</button>
         </div>
       </div>
     </div>
