@@ -355,6 +355,15 @@ $tischData = getTischUebersicht();
             line-height: 1.0 !important;
         }
         
+        .table td.tisch-cell.clickable {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .table td.tisch-cell.clickable:hover {
+            background-color: rgba(46, 204, 113, 0.1) !important;
+        }
+        
         /* Mehrzeilige Arrangement-Zellen */
         .table td.arrangement-cell.multi-value {
             line-height: 1.0 !important;
@@ -440,6 +449,16 @@ $tischData = getTischUebersicht();
             text-align: left;
             max-width: 200px;
             line-height: 1.2;
+        }
+        
+        .nam-cell.clickable {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .nam-cell.clickable:hover {
+            background-color: rgba(46, 204, 113, 0.1) !important;
+            color: #2ecc71;
         }
         
         .bem-cell {
@@ -971,18 +990,23 @@ $tischData = getTischUebersicht();
                                 $rowClass .= ' dark';
                             }
                         ?>
-                            <tr class="<?php echo $rowClass; ?>">
-                                <td class="tisch-cell"><?php 
+                            <tr class="<?php echo $rowClass; ?>" 
+                                data-guest-id="<?php echo intval($row['iid']); ?>"
+                                data-guest-name="<?php echo htmlspecialchars($row['nam'] ?? '', ENT_QUOTES); ?>"
+                                data-guest-remark="<?php echo htmlspecialchars($row['bem'] ?? '', ENT_QUOTES); ?>"
+                                data-guest-count="<?php echo intval($row['anz'] ?? 0); ?>"
+                                data-guest-table="<?php echo htmlspecialchars($row['Tisch'] ?? '', ENT_QUOTES); ?>">
+                                <td class="tisch-cell clickable"><?php 
                                     $tischText = $row['Tisch'] ?? '-';
                                     // Doppelte/mehrfache LF durch einfache ersetzen und direkt <br> verwenden
                                     $cleanTischText = preg_replace('/\n+/', '<br>', trim($tischText));
                                     echo htmlspecialchars_decode($cleanTischText, ENT_NOQUOTES); 
                                 ?></td>
                                 <td class="anz-cell"><?php echo htmlspecialchars($row['anz'] ?? '0'); ?></td>
-                                <td class="nam-cell">
+                                <td class="nam-cell clickable">
                                     <?php echo htmlspecialchars($row['nam'] ?? '-'); ?>
                                 </td>
-                                <td class="bem-cell clickable" onclick="openArrangementModal(<?php echo $row['iid']; ?>, '<?php echo htmlspecialchars($row['nam'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($row['bem'] ?? '', ENT_QUOTES); ?>', <?php echo $row['anz']; ?>, '<?php echo htmlspecialchars($row['Tisch'], ENT_QUOTES); ?>')"><?php echo htmlspecialchars($row['bem'] ?? '-'); ?></td>
+                                <td class="bem-cell clickable"><?php echo htmlspecialchars($row['bem'] ?? '-'); ?></td>
                                 
                                 <?php 
                                 // Dynamische Arrangement-Spalten
@@ -1073,6 +1097,36 @@ $tischData = getTischUebersicht();
 
         // Debug: Console-Log hinzufügen
         console.log('JavaScript geladen');
+        
+        // Event Delegation für klickbare Zellen
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableContainer = document.querySelector('.table-container');
+            if (tableContainer) {
+                tableContainer.addEventListener('click', function(e) {
+                    const clickableCell = e.target.closest('.clickable');
+                    if (clickableCell) {
+                        const row = clickableCell.closest('tr');
+                        if (row) {
+                            const guestId = row.getAttribute('data-guest-id');
+                            const guestName = row.getAttribute('data-guest-name');
+                            const guestRemark = row.getAttribute('data-guest-remark');
+                            const guestCount = row.getAttribute('data-guest-count');
+                            const guestTable = row.getAttribute('data-guest-table');
+                            
+                            if (guestId) {
+                                openArrangementModal(
+                                    parseInt(guestId), 
+                                    guestName || '', 
+                                    guestRemark || '', 
+                                    parseInt(guestCount) || 0, 
+                                    guestTable || ''
+                                );
+                            }
+                        }
+                    }
+                });
+            }
+        });
 
         // Auto-refresh alle 5 Minuten
         setTimeout(() => {
@@ -1270,11 +1324,22 @@ $tischData = getTischUebersicht();
                 
                 console.log('Response status:', response.status);
                 
+                // Response text lesen für bessere Fehlerdiagnose
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}\nResponse: ${responseText}`);
                 }
                 
-                const result = await response.json();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error('JSON Parse Error:', jsonError);
+                    throw new Error(`JSON Parse Error: ${jsonError.message}\nResponse: ${responseText.substring(0, 500)}`);
+                }
+                
                 console.log('Speichern Ergebnis:', result);
                 
                 if (result.success) {
