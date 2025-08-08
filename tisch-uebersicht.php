@@ -48,13 +48,15 @@ function parseArrangementContent($content) {
 /**
  * Erstellt HTML für ovale Darstellung von Arrangement-Einträgen
  */
-function createArrangementCellHtml($entries) {
+function createArrangementCellHtml($entries, $timeClass = 'time-old') {
     if (empty($entries)) {
         return '';
     }
     
-    // Prüfen ob Bemerkungen vorhanden sind
+    // Prüfen ob Bemerkungen vorhanden sind oder mehrere Einträge
     $hasRemarks = false;
+    $multipleEntries = count($entries) > 1;
+    
     foreach ($entries as $entry) {
         if (!empty($entry['bem'])) {
             $hasRemarks = true;
@@ -62,22 +64,23 @@ function createArrangementCellHtml($entries) {
         }
     }
     
-    if ($hasRemarks) {
-        // Ovale Darstellung verwenden
+    // Ovale Darstellung verwenden wenn Bemerkungen vorhanden ODER mehrere Einträge
+    if ($hasRemarks || $multipleEntries) {
+        // Ovale Darstellung verwenden mit Zeitklasse
         $html = '';
         foreach ($entries as $entry) {
             $html .= '<div class="cell-entry">';
-            $html .= '<span class="cell-anzahl">' . intval($entry['anz']) . '</span>';
+            $html .= '<span class="cell-anzahl ' . $timeClass . '">' . intval($entry['anz']) . '</span>';
             
             if (!empty($entry['bem'])) {
-                $html .= '<span class="cell-bemerkung">' . htmlspecialchars($entry['bem']) . '</span>';
+                $html .= '<span class="cell-bemerkung ' . $timeClass . '">' . htmlspecialchars($entry['bem']) . '</span>';
             }
             
             $html .= '</div>';
         }
         return $html;
     } else {
-        // Normale Darstellung für nur Zahlen
+        // Normale Darstellung nur für einzelne Zahl ohne Bemerkung
         $parts = [];
         foreach ($entries as $entry) {
             $parts[] = $entry['anz'];
@@ -163,8 +166,10 @@ function getTischUebersicht() {
                     hp_det.arr_id,
                     hp_det.anz,
                     hp_det.bem,
+                    hp_det.ts,
                     hp_art.bez,
-                    hp_art.sort
+                    hp_art.sort,
+                    TIMESTAMPDIFF(SECOND, hp_det.ts, NOW()) as seconds_ago
                 FROM hpdet hp_det
                 LEFT JOIN hparr hp_art ON hp_det.arr_id = hp_art.iid
                 WHERE hp_det.hp_id = " . intval($row['iid']) . "
@@ -176,9 +181,35 @@ function getTischUebersicht() {
                 while ($detail = $detailResult->fetch_assoc()) {
                     $arrId = $detail['arr_id'];
                     $bezeichnung = $detail['bez'];
+                    $secondsAgo = intval($detail['seconds_ago'] ?? 0);
+                    
+                    // Bestimme Zeitklasse basierend auf seconds_ago
+                    $timeClass = 'time-old'; // Standard: schwarz (>=2 Minuten)
+                    if ($secondsAgo < 60) {
+                        $timeClass = 'time-fresh'; // rot (<1 Minute)
+                    } elseif ($secondsAgo < 120) {
+                        $timeClass = 'time-recent'; // gold (<2 Minuten)
+                    } else {
+                        // Zusätzliche Regel: Wenn Timestamp-Datum vom Vortag oder früher ist
+                        $currentDate = date('Y-m-d');
+                        $tsDate = date('Y-m-d', strtotime($detail['ts']));
+                        if ($tsDate < $currentDate) {
+                            $timeClass = 'time-future'; // himmelblau für Timestamps von vortag oder früher
+                        }
+                    }
                     
                     if (!isset($arrangementData[$arrId])) {
-                        $arrangementData[$arrId] = [];
+                        $arrangementData[$arrId] = [
+                            'timeClass' => $timeClass
+                        ];
+                    } else {
+                        // Verwende die "frischeste" Zeitklasse wenn mehrere Einträge vorhanden
+                        $currentTimeClass = $arrangementData[$arrId]['timeClass'] ?? 'time-old';
+                        if ($timeClass === 'time-fresh' || 
+                            ($timeClass === 'time-recent' && $currentTimeClass === 'time-old') ||
+                            ($timeClass === 'time-future' && $currentTimeClass === 'time-old')) {
+                            $arrangementData[$arrId]['timeClass'] = $timeClass;
+                        }
                     }
                     
                     if (empty($detail['bem'])) {
@@ -197,8 +228,10 @@ function getTischUebersicht() {
             // Arrangement-Spalten formatieren
             foreach ($arrangements as $arrId => $bezeichnung) {
                 $cellContent = '';
+                $timeClass = 'time-old'; // Standard
                 
                 if (isset($arrangementData[$arrId])) {
+                    $timeClass = $arrangementData[$arrId]['timeClass'] ?? 'time-old';
                     $parts = [];
                     
                     // Erst Summe ohne Bemerkung
@@ -215,6 +248,7 @@ function getTischUebersicht() {
                 }
                 
                 $row['arr_' . $arrId] = $cellContent;
+                $row['arr_' . $arrId . '_timeClass'] = $timeClass;
             }
             
             $row['arrangements'] = $arrangements;
@@ -427,9 +461,11 @@ $tischData = getTischUebersicht();
         /* Tischnummer-Styling */
         .table td.tisch-cell {
             text-align: center !important;
-            font-size: 1.6rem !important;
-            font-weight: bold;
+            font-size: 1.28rem !important; /* -20% von 1.6rem */
+            font-weight: 400 !important; /* nicht bold */
+            color: #0d47a1 !important; /* dunkelblau */
             line-height: 1.0 !important;
+            margin: 2px; /* leichter Außenabstand */
         }
         
         .table td.tisch-cell.clickable {
@@ -503,14 +539,15 @@ $tischData = getTischUebersicht();
         }
         
         .tisch-cell {
-            font-weight: 600;
-            color: #2ecc71;
+            font-weight: 400; /* nicht bold */
+            color: #0d47a1; /* dunkelblau */
             max-width: 150px;
             text-align: left;
             word-wrap: break-word;
             white-space: pre-line;
             line-height: 1.1;
-            font-size: 0.85rem;
+            font-size: 0.68rem; /* -20% von 0.85rem */
+            margin-left: 2px; /* kleiner Versatz */
         }
         
         .anz-cell {
@@ -572,11 +609,12 @@ $tischData = getTischUebersicht();
             font-size: 1.1rem;
         }
         
-        /* Kleine Schrift für mehrzeilige Inhalte */
+        /* Kleine Schrift für mehrzeilige Inhalte - linksbündig */
         .arrangement-cell.multi-value {
             font-size: 0.75rem;
             line-height: 1.0;
             margin: 1px;
+            text-align: left;
         }
         
         /* Oval-Darstellung für Anzahl in Zellen */
@@ -590,19 +628,55 @@ $tischData = getTischUebersicht();
         .cell-anzahl {
             background: #27ae60;
             color: white;
-            padding: 1px 6px;
+            padding: 1px 8px;
             border-radius: 10px;
             font-weight: 600;
             font-size: 0.7rem;
-            min-width: 16px;
+            min-width: 24px;
             text-align: center;
             margin-right: 3px;
+        }
+        
+        /* Zeitbasierte Farbgebung für ovale Anzahlen */
+        .cell-anzahl.time-fresh {
+            background: #dc3545 !important; /* Rot für <1 Minute */
+        }
+        
+        .cell-anzahl.time-recent {
+            background: #ffc107 !important; /* Gold für <2 Minuten */
+            color: #000 !important; /* Schwarzer Text für bessere Lesbarkeit auf Gold */
+        }
+        
+        .cell-anzahl.time-old {
+            background: #495057 !important; /* Schwarz für >=2 Minuten */
+        }
+        
+        .cell-anzahl.time-future {
+            background: #87ceeb !important; /* Himmelblau für Timestamps von vortag oder früher */
+            color: #000 !important; /* Schwarzer Text für bessere Lesbarkeit auf Himmelblau */
         }
         
         .cell-bemerkung {
             color: #27ae60;
             font-weight: 500;
             font-size: 0.75rem;
+        }
+        
+        /* Zeitbasierte Farbgebung für Bemerkungen */
+        .cell-bemerkung.time-fresh {
+            color: #dc3545 !important;
+        }
+        
+        .cell-bemerkung.time-recent {
+            color: #ffc107 !important;
+        }
+        
+        .cell-bemerkung.time-old {
+            color: #495057 !important;
+        }
+        
+        .cell-bemerkung.time-future {
+            color: #87ceeb !important;
         }
         
         .arrangement-cell.has-value {
@@ -612,6 +686,44 @@ $tischData = getTischUebersicht();
         
         .arrangement-cell.empty {
             color: #6c757d;
+        }
+        
+        /* Zeitbasierte Farbgebung für Arrangement-Zellen */
+        .arrangement-cell.time-fresh {
+            color: #dc3545 !important; /* Rot für <1 Minute */
+        }
+        
+        .arrangement-cell.time-recent {
+            color: #ffc107 !important; /* Gold für <2 Minuten */
+        }
+        
+        .arrangement-cell.time-old {
+            color: #495057 !important; /* Schwarz für >=2 Minuten */
+        }
+        
+        .arrangement-cell.time-future {
+            color: #87ceeb !important; /* Himmelblau für Timestamps von vortag oder früher */
+        }
+        
+        /* Spezielle Behandlung für has-value Klasse bei Zeitfärbung */
+        .arrangement-cell.has-value.time-fresh {
+            color: #dc3545 !important;
+            font-weight: 700;
+        }
+        
+        .arrangement-cell.has-value.time-recent {
+            color: #ffc107 !important;
+            font-weight: 700;
+        }
+        
+        .arrangement-cell.has-value.time-old {
+            color: #495057 !important;
+            font-weight: 700;
+        }
+        
+        .arrangement-cell.has-value.time-future {
+            color: #87ceeb !important;
+            font-weight: 700;
         }
         
         /* Inline editing für Arrangement-Zellen */
@@ -687,7 +799,7 @@ $tischData = getTischUebersicht();
             border-radius: 12px;
             font-weight: 600;
             font-size: 0.75rem;
-            min-width: 20px;
+            min-width: 24px;
             text-align: center;
             margin-right: 4px;
         }
@@ -1205,13 +1317,14 @@ $tischData = getTischUebersicht();
                                 if (isset($row['arrangements'])) {
                                     foreach ($row['arrangements'] as $arrId => $bezeichnung) {
                                         $content = isset($row['arr_' . $arrId]) ? $row['arr_' . $arrId] : '';
+                                        $timeClass = isset($row['arr_' . $arrId . '_timeClass']) ? $row['arr_' . $arrId . '_timeClass'] : 'time-old';
                                         $hasValue = !empty($content);
                                         
                                         // Bestimme ob es mehrzeilig ist oder nur eine Zahl
                                         $isMultiLine = $hasValue && (strpos($content, "\n") !== false || !is_numeric(trim($content)));
                                         $isSingleNumber = $hasValue && is_numeric(trim($content)) && strpos($content, "\n") === false;
                                         
-                                        $cssClass = 'arrangement-cell ';
+                                        $cssClass = 'arrangement-cell ' . $timeClass . ' ';
                                         if ($hasValue) {
                                             $cssClass .= 'has-value ';
                                             if ($isSingleNumber) {
@@ -1231,7 +1344,7 @@ $tischData = getTischUebersicht();
                                             // Parse den Inhalt und erstelle ovale Darstellung wenn nötig
                                             $parsedEntries = parseArrangementContent($content);
                                             if (!empty($parsedEntries)) {
-                                                echo createArrangementCellHtml($parsedEntries);
+                                                echo createArrangementCellHtml($parsedEntries, $timeClass);
                                             } else {
                                                 // Fallback: normale Darstellung
                                                 $cleanContent = preg_replace('/\n+/', '<br>', trim($content));
@@ -1351,13 +1464,13 @@ $tischData = getTischUebersicht();
         
         /**
          * Konvertiert Anzeige-Format zu Eingabe-Format
-         * z.B. "6\n6 veg" → "6 6 veg" (flache Darstellung für Eingabe)
+         * z.B. "6\n6 veg" → "6, 6 veg" (mit Komma-Delimiter für bessere Lesbarkeit)
          */
         function convertDisplayToInput(displayText) {
             if (!displayText) return '';
             
-            // Zeilenumbrüche durch Leerzeichen ersetzen und bereinigen
-            return displayText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+            // Zeilenumbrüche durch Komma + Leerzeichen ersetzen für bessere Lesbarkeit
+            return displayText.replace(/\n+/g, ', ').replace(/\s+/g, ' ').trim();
         }
         
         /**
@@ -1577,9 +1690,36 @@ $tischData = getTischUebersicht();
             const guestId = cell.getAttribute('data-guest-id');
             const arrId = cell.getAttribute('data-arr-id');
             
-            // Aktuellen Wert extrahieren und für komplexe Eingabe aufbereiten
-            const rawContent = cell.innerHTML.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '').trim();
-            const currentValue = convertDisplayToInput(rawContent);
+            // Intelligente Extraktion des aktuellen Werts
+            let currentValue;
+            
+            // Prüfe ob es ovale Darstellung gibt (cell-entry Elemente)
+            const cellEntries = cell.querySelectorAll('.cell-entry');
+            
+            if (cellEntries.length > 0) {
+                // Ovale Darstellung vorhanden - extrahiere strukturiert
+                const parts = [];
+                cellEntries.forEach(entry => {
+                    const anzahlSpan = entry.querySelector('.cell-anzahl');
+                    const bemerkungSpan = entry.querySelector('.cell-bemerkung');
+                    
+                    if (anzahlSpan) {
+                        const anzahl = anzahlSpan.textContent.trim();
+                        const bemerkung = bemerkungSpan ? bemerkungSpan.textContent.trim() : '';
+                        
+                        if (bemerkung === '') {
+                            parts.push(anzahl);
+                        } else {
+                            parts.push(anzahl + ' ' + bemerkung);
+                        }
+                    }
+                });
+                currentValue = parts.join(', ');
+            } else {
+                // Normale Darstellung - bereinige HTML
+                const rawContent = cell.innerHTML.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '').trim();
+                currentValue = convertDisplayToInput(rawContent);
+            }
             
             console.log('Starte Inline-Edit für:', guestId, arrId, 'Wert:', currentValue);
             
@@ -1596,10 +1736,9 @@ $tischData = getTischUebersicht();
             input.style.width = '100%';
             input.style.textAlign = 'center';
             input.style.resize = 'none';
-            input.style.minHeight = '60px';
+            input.style.minHeight = '30px';
             input.style.fontSize = 'inherit';
-            input.rows = 3;
-            input.placeholder = 'z.B. "3 Vollpension 2" oder "1,2veg,3:fl"';
+            input.rows = 1;
             
             // Vorschau-Container erstellen
             const previewContainer = document.createElement('div');
@@ -1661,6 +1800,9 @@ $tischData = getTischUebersicht();
                         console.log('Erfolgreich gespeichert');
                         previewContainer.style.display = 'none'; // Vorschau ausblenden
                         restoreCellContent(cell, newValue);
+                        
+                        // Alle Arrangement-Zellen aktualisieren (wegen Farbdarstellung)
+                        refreshAllArrangementCells();
                     } else {
                         console.error('Speicherfehler:', result.error);
                         alert('Fehler beim Speichern: ' + result.error);
@@ -1700,6 +1842,82 @@ $tischData = getTischUebersicht();
             });
         }
         
+        /**
+         * Aktualisiert alle Arrangement-Zellen mit neuen Daten und Zeitfarben
+         */
+        async function refreshAllArrangementCells() {
+            console.log('Aktualisiere alle Arrangement-Zellen...');
+            
+            try {
+                // Lade neue Daten vom Server
+                const response = await fetch('get-arrangement-cells-data.php');
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    // Durchlaufe alle Arrangement-Zellen und aktualisiere sie
+                    const arrangementCells = document.querySelectorAll('.arrangement-cell.editable');
+                    
+                    arrangementCells.forEach(cell => {
+                        const guestId = cell.getAttribute('data-guest-id');
+                        const arrId = cell.getAttribute('data-arr-id');
+                        
+                        // Finde entsprechende Daten
+                        const cellData = result.data.find(data => 
+                            data.guest_id == guestId && data.arr_id == arrId
+                        );
+                        
+                        if (cellData) {
+                            // Aktualisiere Zeitklasse
+                            const oldTimeClass = cell.className.match(/time-\w+/);
+                            if (oldTimeClass) {
+                                cell.classList.remove(oldTimeClass[0]);
+                            }
+                            cell.classList.add(cellData.timeClass);
+                            
+                            // Aktualisiere Inhalt falls vorhanden
+                            if (cellData.content) {
+                                // Parse und erstelle HTML wie in PHP
+                                const parsed = parseInputForPreview(cellData.content);
+                                const hasRemarks = parsed.some(entry => entry.bem !== '');
+                                const multipleEntries = parsed.length > 1;
+                                
+                                if (hasRemarks || multipleEntries) {
+                                    // Ovale Darstellung mit neuer Zeitklasse
+                                    let htmlContent = '';
+                                    for (const entry of parsed) {
+                                        htmlContent += '<div class="cell-entry">';
+                                        htmlContent += `<span class="cell-anzahl ${cellData.timeClass}">${entry.anz}</span>`;
+                                        
+                                        if (entry.bem !== '') {
+                                            htmlContent += `<span class="cell-bemerkung ${cellData.timeClass}">${entry.bem}</span>`;
+                                        }
+                                        
+                                        htmlContent += '</div>';
+                                    }
+                                    cell.innerHTML = htmlContent;
+                                } else {
+                                    // Normale Darstellung
+                                    const displayValue = convertInputToDisplay(cellData.content);
+                                    const htmlContent = displayValue.replace(/\n/g, '<br>');
+                                    cell.innerHTML = htmlContent;
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Alle Arrangement-Zellen aktualisiert');
+                } else {
+                    console.warn('Keine Daten für Zellenaktualisierung erhalten');
+                }
+                
+            } catch (error) {
+                console.error('Fehler beim Aktualisieren der Zellen:', error);
+                // Fallback: Seite neu laden wenn API nicht verfügbar
+                console.log('Fallback: Lade Seite neu...');
+                window.location.reload();
+            }
+        }
+        
         function restoreCellContent(cell, value) {
             // Eingabe zu Anzeige-Format konvertieren
             const displayValue = convertInputToDisplay(value);
@@ -1727,8 +1945,10 @@ $tischData = getTischUebersicht();
             if (hasValue) {
                 const parsed = parseInputForPreview(value);
                 const hasRemarks = parsed.some(entry => entry.bem !== '');
+                const multipleEntries = parsed.length > 1;
                 
-                if (hasRemarks) {
+                // Ovale Darstellung verwenden wenn Bemerkungen vorhanden ODER mehrere Einträge
+                if (hasRemarks || multipleEntries) {
                     // Ovale Darstellung verwenden
                     let htmlContent = '';
                     for (const entry of parsed) {
@@ -1743,7 +1963,7 @@ $tischData = getTischUebersicht();
                     }
                     cell.innerHTML = htmlContent;
                 } else {
-                    // Normale Darstellung für nur Zahlen
+                    // Normale Darstellung nur für einzelne Zahl ohne Bemerkung
                     const htmlContent = displayValue.replace(/\n/g, '<br>');
                     cell.innerHTML = htmlContent;
                 }
