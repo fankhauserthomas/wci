@@ -2487,15 +2487,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         headerArrContent.innerHTML = html;
-        setupHpArrangementsHandlers();
 
       } else {
         headerArrContent.innerHTML = '<div class="empty-arr">Keine Arrangements</div>';
       }
 
+      // Event Handler immer setzen, unabhängig davon ob Arrangements vorhanden sind
+      setupHpArrangementsHandlers();
+
     } catch (error) {
       console.error('Error loading HP arrangements:', error);
       headerArrContent.innerHTML = '<div class="empty-arr">Fehler: ' + error.message + '</div>';
+      // Event Handler auch bei Fehlern setzen
+      setupHpArrangementsHandlers();
     }
   }
 
@@ -2539,21 +2543,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup event handlers for HP arrangements
   function setupHpArrangementsHandlers() {
-    // Header arrangements area click
+    // Header arrangements area click - öffnet Tisch-Übersicht Modal
     const headerArrangements = document.getElementById('headerArrangements');
-    const editBtn = document.getElementById('headerArrEditBtn');
+
+    console.log('🔧 setupHpArrangementsHandlers aufgerufen');
+    console.log('🔧 headerArrangements Element:', headerArrangements);
 
     if (headerArrangements) {
-      headerArrangements.addEventListener('click', openHpArrangementsModal);
-    }
+      console.log('✅ headerArrangements gefunden, Event Listener wird hinzugefügt');
 
-    if (editBtn) {
-      editBtn.addEventListener('click', (e) => {
+      headerArrangements.addEventListener('click', (e) => {
+        console.log('🖱️ Click auf headerArrangements erkannt!');
+        e.preventDefault();
         e.stopPropagation();
-        openHpArrangementsModal();
+        openTischUebersichtModal();
       });
+
+      // Cursor pointer für bessere UX
+      headerArrangements.style.cursor = 'pointer';
+      headerArrangements.title = 'Klicken um Tischübersicht zu öffnen';
+    } else {
+      console.error('❌ headerArrangements Element nicht gefunden!');
     }
   }
+
+  // Open Tisch-Uebersicht Modal mit iframe
+  function openTischUebersichtModal() {
+    console.log('🚀 openTischUebersichtModal aufgerufen');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const resId = urlParams.get('id');
+
+    console.log('🔧 Reservierungs-ID:', resId);
+
+    if (!resId) {
+      console.error('❌ Keine Reservierungs-ID gefunden');
+      alert('Fehler: Keine Reservierungs-ID gefunden');
+      return;
+    }
+
+    const modal = document.getElementById('tischUebersichtModal');
+    const iframe = document.getElementById('tischUebersichtIframe');
+    const closeBtn = document.getElementById('tischUebersichtClose');
+
+    console.log('🔧 Modal Elemente:', {
+      modal: modal,
+      iframe: iframe,
+      closeBtn: closeBtn
+    });
+
+    if (!modal || !iframe || !closeBtn) {
+      console.error('❌ Tisch-Übersicht Modal Elemente nicht gefunden');
+      console.error('Modal:', modal);
+      console.error('Iframe:', iframe);
+      console.error('Close Button:', closeBtn);
+      return;
+    }
+
+    // iframe URL setzen
+    const iframeUrl = `http://192.168.15.14:8080/wci/tisch-uebersicht-resid.php?resid=${resId}`;
+    console.log('🔗 iframe URL:', iframeUrl);
+    iframe.src = iframeUrl;
+
+    // Modal öffnen
+    console.log('🎯 Modal wird geöffnet...');
+    modal.classList.remove('hidden');
+    console.log('✅ Modal classList nach remove:', modal.classList.toString());
+
+    // Event Handlers
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      iframe.src = ''; // iframe leeren für Performance
+    };
+
+    // Close Button
+    closeBtn.onclick = closeModal;
+
+    // Backdrop Click
+    const backdrop = modal.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.onclick = closeModal;
+    }
+
+    // ESC Taste
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    console.log('✅ Tisch-Übersicht Modal geöffnet für Reservierung:', resId);
+  }
+
+  // Globale Verfügbarkeit sicherstellen
+  window.openTischUebersichtModal = openTischUebersichtModal;
 
   // Open HP arrangements modal
   function openHpArrangementsModal() {

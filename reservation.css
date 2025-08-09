@@ -685,8 +685,8 @@ td.diet-cell {
 .room-list .room-item {
   color: #fff;
   /* weißer Text */
-  font-size: 1rem;
-  /* etwas größere Schrift */
+  font-size: 10px;
+  /* reduziert von 1rem auf 10px */
   line-height: 1.4;
   /* Abstand zwischen den Zeilen */
   background: transparent;
@@ -805,7 +805,8 @@ td.diet-cell {
 .header-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: stretch;
+  /* Geändert von flex-start zu stretch für gleiche Höhe */
   width: 100%;
   gap: 1rem;
 }
@@ -949,6 +950,7 @@ td.diet-cell {
   min-width: 100px;
   flex: 0 0 100px;
   justify-content: flex-start;
+  /* min-height entfernt, da jetzt durch align-items: stretch automatisch gleiche Höhe */
 }
 
 .header-btn {
@@ -1052,15 +1054,25 @@ td.diet-cell {
   min-width: 700px;
 }
 
-/* Namen hinzufügen Modal - große Version */
+/* Namen hinzufügen Modal - kompaktere Version für Tastatur */
 .modal-add-names {
   max-width: none;
   width: 90vw;
-  height: 90vh;
-  max-height: 90vh;
+  /* 90% der Viewport-Breite */
+  height: 50vh;
+  /* 50% der Viewport-Höhe */
+  max-height: 50vh;
   min-width: 320px;
   display: flex;
   flex-direction: column;
+}
+
+/* Spezielle Positionierung für Namen-Modal - oben statt zentriert */
+#addNamesModal {
+  align-items: flex-start;
+  /* Überschreibt center vom allgemeinen Modal */
+  padding-top: 5vh;
+  /* Abstand vom oberen Rand */
 }
 
 .modal-add-names .modal-content {
@@ -1075,7 +1087,8 @@ td.diet-cell {
 .modal-add-names textarea {
   width: 100%;
   flex: 1;
-  min-height: 400px;
+  min-height: 200px;
+  /* Reduziert von 400px auf 200px für kompakteres Layout */
   resize: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -1560,4 +1573,64 @@ td.diet-cell {
 .connection-status .status-text {
   font-size: 0.85rem;
   color: #2c3e50;
+}
+
+/* ===========================
+   Tisch-Uebersicht Modal
+   =========================== */
+
+.modal-tisch-uebersicht {
+  max-width: 70vw;
+  /* Reduziert von 95vw auf 70vw */
+  width: 70vw;
+  /* Reduziert von 95vw auf 70vw */
+  min-width: 550px;
+  /* Mindestbreite von 550 Pixel */
+  max-height: 40vh;
+  /* Reduziert von 90vh auf 40vh */
+  height: 40vh;
+  /* Reduziert von 90vh auf 40vh */
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-tisch-uebersicht .modal-content {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-tisch-uebersicht h3 {
+  margin: 0 0 1rem 0;
+  padding-right: 2rem;
+  /* Platz für X-Button */
+  color: #2d8f4f;
+  font-size: 1.2rem;
+}
+
+.modal-tisch-uebersicht .iframe-container {
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.modal-tisch-uebersicht #tischUebersichtIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Spezielle Positionierung für Tisch-Übersicht Modal - oben statt zentriert */
+#tischUebersichtModal {
+  align-items: flex-start;
+  /* Überschreibt center vom allgemeinen Modal */
+  padding-top: 5vh;
+  /* Abstand vom oberen Rand */
 }
