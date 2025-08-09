@@ -27,12 +27,10 @@
           <div class="header-arr-content" id="headerArrContent">
             <div class="loading-arr">Arrangements laden...</div>
           </div>
-          <button class="header-arr-edit-btn" id="headerArrEditBtn" title="HP Arrangements bearbeiten">
-            <span>✏️</span>
-          </button>
         </div>
         <div class="header-buttons">
           <button id="editBtn" class="header-btn">Bearbeiten</button>
+          <button id="addNamesBtn" class="header-btn">Namen+</button>
           <button id="emailBtn" class="header-btn header-btn-blue">E-Mail</button>
           <button id="stornoBtn" class="header-btn header-btn-orange">Storno</button>
           <button id="deleteReservationBtn" class="header-btn header-btn-danger">Löschen</button>
@@ -95,19 +93,30 @@
       </div>
     </div>
 
-    <!-- Namen hinzufügen -->
-    <details id="addNamesDetails">
-      <summary>Namen hinzufügen</summary>
-      <div class="import-format-selector">
-        <label for="importFormat">Format:</label>
-        <select id="importFormat">
-          <option value="firstname-lastname">Vorname Nachname</option>
-          <option value="lastname-firstname">Nachname Vorname</option>
-        </select>
+    <!-- Namen hinzufügen Modal -->
+    <div id="addNamesModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-add-names">
+        <span class="modal-close" id="addNamesModalClose">&times;</span>
+        <h3>Namen hinzufügen</h3>
+        <p>Fügen Sie neue Namen zur Reservierung hinzu. Pro Zeile ein Name:</p>
+
+        <div class="import-format-selector">
+          <label for="importFormat">Format:</label>
+          <select id="importFormat">
+            <option value="firstname-lastname">Vorname Nachname</option>
+            <option value="lastname-firstname">Nachname Vorname</option>
+          </select>
+        </div>
+
+        <textarea id="newNamesTextarea" placeholder="pro Zeile ein Eintrag"></textarea>
+
+        <div class="modal-buttons">
+          <button id="importNamesBtn" class="btn-confirm">Namen hinzufügen</button>
+          <button id="addNamesCancel" class="btn-cancel">Abbrechen</button>
+        </div>
       </div>
-      <textarea id="newNamesTextarea" rows="5" placeholder="pro Zeile ein Eintrag"></textarea>
-      <button id="importNamesBtn">Importieren</button>
-    </details>
+    </div>
 
     <!-- Custom Confirmation Modal -->
     <div id="confirmModal" class="modal hidden">
@@ -156,26 +165,6 @@
         <div class="modal-buttons">
           <button id="nameCorrectionApply" class="btn-confirm">Anwenden</button>
           <button id="nameCorrectionSkip" class="btn-cancel">Überspringen</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- HP Arrangements Modal -->
-    <div id="hpArrangementsModal" class="modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-content modal-large">
-        <span class="modal-close" id="hpArrangementsModalClose">&times;</span>
-        <h3>HP Arrangements bearbeiten</h3>
-        <p>Arrangements für diese Reservierung in der HP-Datenbank:</p>
-
-        <div id="hpArrangementsContainer">
-          <!-- Arrangements werden hier dynamisch eingefügt -->
-        </div>
-
-        <div class="modal-buttons">
-          <button id="hpArrangementsAdd" class="btn-confirm">+ Hinzufügen</button>
-          <button id="hpArrangementsSave" class="btn-confirm">Speichern</button>
-          <button id="hpArrangementsCancel" class="btn-cancel">Abbrechen</button>
         </div>
       </div>
     </div>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Einfacher HP Test</title>
+    <style>
+        .debug {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            margin: 10px;
+            font-family: monospace;
+        }
+
+        .arr-item {
+            background: #f0f0f0;
+            padding: 5px;
+            margin: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Einfacher HP-Arrangements Test</h1>
+    <div class="debug" id="debug">Loading...</div>
+    <div id="arrangements"></div>
+
+    <script>
+        document.getElementById('debug').innerHTML = 'Script started...';
+
+        // Direkte API-Abfrage für ResID 7144
+        fetch('get-hp-arrangements-header.php?res_id=7144')
+            .then(response => {
+                document.getElementById('debug').innerHTML += '<br>Response status: ' + response.status;
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('debug').innerHTML += '<br>Data received: ' + JSON.stringify(data).substring(0, 200) + '...';
+
+                if (data.success && data.arrangements) {
+                    let html = '<h3>Gefundene Arrangements:</h3>';
+                    data.arrangements.forEach(arr => {
+                        html += `<div class="arr-item">${arr.display_name}: ${arr.total_count}x (${arr.time_class})</div>`;
+                    });
+                    document.getElementById('arrangements').innerHTML = html;
+                } else {
+                    document.getElementById('arrangements').innerHTML = '<div>Keine Arrangements gefunden</div>';
+                }
+            })
+            .catch(error => {
+                document.getElementById('debug').innerHTML += '<br>ERROR: ' + error.message;
+            });
+    </script>
+</body>
+
+</html>

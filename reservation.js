@@ -15,6 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const newArea = document.getElementById('newNamesTextarea');
   const formatSelect = document.getElementById('importFormat');
 
+  // Action Bar Namen hinzufügen Button
+  const addNamesBtn = document.getElementById('addNamesBtn');
+
+  // Namen hinzufügen Modal elements
+  const addNamesModal = document.getElementById('addNamesModal');
+  const addNamesModalClose = document.getElementById('addNamesModalClose');
+  const addNamesCancel = document.getElementById('addNamesCancel');
+
   // Header button elements (no longer dropdown)
   const editBtn = document.getElementById('editBtn');
   const stornoBtn = document.getElementById('stornoBtn');
@@ -251,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Load HP arrangements for the middle column
+      console.log('🔥 CALLING loadHpArrangements with resId:', resId);
       loadHpArrangements(resId);
 
       // Event-Listener für Arrangement-Button hinzufügen
@@ -2012,7 +2021,14 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(j => {
         if (j.success) {
           newArea.value = '';
-          document.getElementById('addNamesDetails').removeAttribute('open');
+          // Modal schließen statt details element
+          if (addNamesModal) {
+            addNamesModal.classList.add('hidden');
+          } else {
+            // Fallback für altes System
+            const details = document.getElementById('addNamesDetails');
+            if (details) details.removeAttribute('open');
+          }
           loadNames();
         } else alert('Fehler: ' + j.error);
       })
@@ -2037,6 +2053,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 10) Back to list
   backBtn.addEventListener('click', () => location.href = 'reservierungen.html');
+
+  // Namen hinzufügen Button (Action Bar)
+  if (addNamesBtn) {
+    addNamesBtn.addEventListener('click', () => {
+      if (window.openAddNamesModal && window.openAddNamesModal()) {
+        console.log('Opened add names modal via global function');
+      } else {
+        console.log('Failed to open modal - fallback to direct manipulation');
+        const modal = document.getElementById('addNamesModal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          setTimeout(() => {
+            const textarea = document.getElementById('newNamesTextarea');
+            if (textarea) textarea.focus();
+          }, 100);
+        }
+      }
+    });
+  }
 
   // Edit button - open reservation details page
   editBtn.addEventListener('click', () => {
@@ -2231,6 +2266,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Namen hinzufügen Modal handlers
+  if (addNamesModalClose) {
+    addNamesModalClose.addEventListener('click', () => {
+      addNamesModal.classList.add('hidden');
+    });
+  }
+
+  if (addNamesCancel) {
+    addNamesCancel.addEventListener('click', () => {
+      addNamesModal.classList.add('hidden');
+    });
+  }
+
+  if (addNamesModal) {
+    addNamesModal.addEventListener('click', (e) => {
+      if (e.target === addNamesModal) {
+        addNamesModal.classList.add('hidden');
+      }
+    });
+  }
+
   // === Auto-Refresh nach dem Speichern ===
   // Debounce-Mechanismus um mehrfache Ladungen zu verhindern
   let loadNamesDebounce = null;
@@ -2351,6 +2407,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update Navigation Status alle 5 Sekunden
   setInterval(updateNavigationStatus, 5000);
 
+  // Update HP Arrangements alle 30 Sekunden für aktuelle Zeitklassen
+  setInterval(() => {
+    if (resId && currentHpArrangements.length > 0) {
+      loadHpArrangements(resId);
+    }
+  }, 30000);
+
   // Initial Status Update nach kurzer Verzögerung
   setTimeout(updateNavigationStatus, 2000);
 
@@ -2383,41 +2446,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load HP arrangements data and display in header
   async function loadHpArrangements(resId) {
+    console.log('🚀 loadHpArrangements called with resId:', resId);
     const headerArrContent = document.getElementById('headerArrContent');
-    if (!headerArrContent) return;
+    if (!headerArrContent) {
+      console.error('❌ headerArrContent element not found');
+      return;
+    }
+
+    console.log('✅ headerArrContent found, starting API call...');
 
     try {
-      headerArrContent.innerHTML = '<div class="loading-arr">Arrangements laden...</div>';
+      headerArrContent.innerHTML = '<div class="loading-arr">🔄 Laden...</div>';
 
+      // Verwende die bestehende HP-Arrangements API
       const response = await fetch(`get-hp-arrangements.php?res_id=${resId}`);
-      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Fehler beim Laden der Arrangements');
+        throw new Error('HTTP ' + response.status);
       }
 
-      if (data.success) {
+      const data = await response.json();
+      console.log('HP Arrangements API Response:', data);
+
+      if (data.success && data.arrangements && data.arrangements.length > 0) {
         currentHpArrangements = data.arrangements || [];
         availableArrangements = data.available_arrangements || {};
 
-        displayHpArrangements(currentHpArrangements);
+        let html = '';
+        data.arrangements.forEach(arr => {
+          const displayName = arr.display_name || arr.name;
+          const guestCount = Object.keys(arr.guests || {}).length;
+          const countDisplay = guestCount > 1 ? `${arr.total_count}x (${guestCount} Gäste)` : `${arr.total_count}x`;
 
-        // Setup click handlers for header arrangements area
+          html += `
+            <div class="header-arr-item">
+              <span class="arr-display-name">${displayName}</span>: 
+              <span class="arr-count">${countDisplay}</span>
+            </div>
+          `;
+        });
+
+        headerArrContent.innerHTML = html;
         setupHpArrangementsHandlers();
+
       } else {
-        throw new Error(data.error || 'Unbekannter Fehler');
+        headerArrContent.innerHTML = '<div class="empty-arr">Keine Arrangements</div>';
       }
 
     } catch (error) {
       console.error('Error loading HP arrangements:', error);
-      headerArrContent.innerHTML = '<div class="empty-arr">Fehler beim Laden</div>';
+      headerArrContent.innerHTML = '<div class="empty-arr">Fehler: ' + error.message + '</div>';
     }
   }
 
   // Display HP arrangements in header
   function displayHpArrangements(arrangements) {
     const headerArrContent = document.getElementById('headerArrContent');
-    if (!headerArrContent) return;
+    if (!headerArrContent) {
+      console.error('headerArrContent element not found');
+      return;
+    }
+
+    console.log('displayHpArrangements called with:', arrangements);
 
     if (!arrangements || arrangements.length === 0) {
       headerArrContent.innerHTML = '<div class="empty-arr">Keine Arrangements</div>';
@@ -2429,16 +2519,21 @@ document.addEventListener('DOMContentLoaded', () => {
       // Use display_name (remark if available, otherwise arrangement name)
       const displayName = arr.display_name || arr.name;
       // Show count with guest count in parentheses if multiple guests
-      const guestCount = Object.keys(arr.guests).length;
+      const guestCount = Object.keys(arr.guests || {}).length;
       const countDisplay = guestCount > 1 ? `${arr.total_count}x (${guestCount} Gäste)` : `${arr.total_count}x`;
 
+      // Verwende die Zeitklasse aus der Tischübersicht für die Farbgebung
+      const timeClass = arr.time_class || 'time-old';
+
       html += `
-        <div class="header-arr-item">
-          ${displayName}: ${countDisplay}
+        <div class="header-arr-item ${timeClass}">
+          <span class="arr-display-name">${displayName}</span>: 
+          <span class="arr-count ${timeClass}">${countDisplay}</span>
         </div>
       `;
     });
 
+    console.log('Setting headerArrContent HTML to:', html);
     headerArrContent.innerHTML = html;
   }
 
@@ -2486,28 +2581,96 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Render arrangements in modal
-  function renderHpArrangementsModal() {
+  async function renderHpArrangementsModal() {
     const container = document.getElementById('hpArrangementsContainer');
     if (!container) return;
 
-    let html = '';
+    container.innerHTML = '<div class="loading-arr">Lade HP Arrangements Tabelle...</div>';
 
-    if (currentHpArrangements.length === 0) {
-      html = '<div class="hp-arr-empty">Keine Arrangements vorhanden</div>';
-    } else {
-      currentHpArrangements.forEach((arr, index) => {
-        html += createHpArrangementItemHtml(arr, index);
-      });
-    }
+    try {
+      // Load available arrangements and current data
+      const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+      const data = await response.json();
 
-    container.innerHTML = html;
+      if (!data.success) {
+        throw new Error(data.error || 'Fehler beim Laden der Arrangements');
+      }
 
-    // Show/hide Add button based on arrangements
-    const addBtn = document.getElementById('hpArrangementsAdd');
-    if (addBtn) {
-      // Show add button if arrangements exist, or if no arrangements exist (initial state)
-      // Hide add button only if we just added the first arrangement to an empty list
-      addBtn.style.display = 'inline-block';
+      const arrangements = data.arrangements || [];
+      const currentData = data.current_data || [];
+
+      // Create table HTML
+      let html = `
+        <div class="hp-arrangements-table-container">
+          <h4>HP Arrangements bearbeiten</h4>
+          <p>Geben Sie für jedes Arrangement die Anzahl und Bemerkungen ein:</p>
+          
+          <table class="hp-arrangements-table" id="hpArrangementsTable">
+            <thead>
+              <tr>
+                ${arrangements.map(arr => `<th>${arr.bez}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="quantity-row">
+                ${arrangements.map(arr => {
+        const current = currentData.find(d => d.arr_id == arr.id);
+        const anz = current ? current.anz : '';
+        return `
+                    <td>
+                      <input type="number" 
+                             class="hp-arr-quantity" 
+                             data-arr-id="${arr.id}"
+                             data-arr-name="${arr.bez}"
+                             value="${anz}"
+                             min="0" 
+                             max="99"
+                             placeholder="0">
+                    </td>
+                  `;
+      }).join('')}
+              </tr>
+              <tr class="remark-row">
+                ${arrangements.map(arr => {
+        const current = currentData.find(d => d.arr_id == arr.id);
+        const bem = current ? current.bem : '';
+        return `
+                    <td>
+                      <input type="text" 
+                             class="hp-arr-remark" 
+                             data-arr-id="${arr.id}"
+                             value="${bem}"
+                             placeholder="Bemerkung">
+                    </td>
+                  `;
+      }).join('')}
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="hp-arrangements-preview" id="hpArrangementsPreview">
+            <!-- Preview wird hier angezeigt -->
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+
+      // Setup input event listeners for live preview
+      setupHpTableInputHandlers();
+
+      // Initial preview update
+      updateHpArrangementsPreview();
+
+    } catch (error) {
+      console.error('Error loading HP arrangements table:', error);
+      container.innerHTML = `
+        <div class="hp-arr-error">
+          <p>Fehler beim Laden der HP Arrangements:</p>
+          <p>${error.message}</p>
+          <button onclick="renderHpArrangementsModal()" class="btn-confirm">Erneut versuchen</button>
+        </div>
+      `;
     }
   }
 
@@ -2542,11 +2705,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('hpArrangementsModalClose')?.addEventListener('click', closeHpArrangementsModal);
     document.getElementById('hpArrangementsCancel')?.addEventListener('click', closeHpArrangementsModal);
 
-    // Add new arrangement
-    document.getElementById('hpArrangementsAdd')?.addEventListener('click', addNewHpArrangement);
+    // Save arrangements (updated for table format)
+    document.getElementById('hpArrangementsSave')?.addEventListener('click', saveHpArrangementsTable);
 
-    // Save arrangements
-    document.getElementById('hpArrangementsSave')?.addEventListener('click', saveHpArrangements);
+    // Remove Add button event (not needed for table format)
+    const addBtn = document.getElementById('hpArrangementsAdd');
+    if (addBtn) {
+      addBtn.style.display = 'none'; // Hide add button for table format
+    }
 
     // Modal backdrop click
     const modal = document.getElementById('hpArrangementsModal');
@@ -2555,12 +2721,153 @@ document.addEventListener('DOMContentLoaded', () => {
         closeHpArrangementsModal();
       }
     });
+  }
 
-    // Delegate events for dynamic content
-    const container = document.getElementById('hpArrangementsContainer');
-    container?.addEventListener('click', handleModalItemEvents);
-    container?.addEventListener('change', handleModalItemEvents);
-    container?.addEventListener('input', handleModalItemEvents);
+  // Setup input handlers for HP arrangements table
+  function setupHpTableInputHandlers() {
+    const table = document.getElementById('hpArrangementsTable');
+    if (!table) return;
+
+    // Add event listeners to all quantity and remark inputs
+    const quantityInputs = table.querySelectorAll('.hp-arr-quantity');
+    const remarkInputs = table.querySelectorAll('.hp-arr-remark');
+
+    [...quantityInputs, ...remarkInputs].forEach(input => {
+      input.addEventListener('input', updateHpArrangementsPreview);
+      input.addEventListener('change', updateHpArrangementsPreview);
+    });
+  }
+
+  // Update preview showing current arrangements like in tisch-übersicht
+  function updateHpArrangementsPreview() {
+    const preview = document.getElementById('hpArrangementsPreview');
+    if (!preview) return;
+
+    const quantityInputs = document.querySelectorAll('.hp-arr-quantity');
+    const remarkInputs = document.querySelectorAll('.hp-arr-remark');
+
+    let previewItems = [];
+
+    quantityInputs.forEach(qInput => {
+      const arrId = qInput.dataset.arrId;
+      const arrName = qInput.dataset.arrName;
+      const quantity = parseInt(qInput.value) || 0;
+
+      if (quantity > 0) {
+        const remarkInput = document.querySelector(`.hp-arr-remark[data-arr-id="${arrId}"]`);
+        const remark = remarkInput ? remarkInput.value.trim() : '';
+
+        // Create preview item like in tisch-übersicht
+        let itemText = '';
+        if (remark) {
+          itemText = `${arrName}: ${quantity}x ${remark}`;
+        } else {
+          itemText = `${arrName}: ${quantity}x`;
+        }
+
+        previewItems.push({
+          text: itemText,
+          quantity: quantity,
+          remark: remark
+        });
+      }
+    });
+
+    // Create preview HTML with oval quantity display like tisch-übersicht
+    let previewHtml = '';
+    if (previewItems.length > 0) {
+      previewHtml = `
+        <div class="hp-preview-title">Vorschau der HP Arrangements:</div>
+        <div class="hp-preview-items">
+          ${previewItems.map(item => `
+            <div class="hp-preview-item">
+              <span class="hp-quantity-oval">${item.quantity}</span>
+              <span class="hp-item-text">${item.text}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      previewHtml = '<div class="hp-preview-empty">Keine Arrangements eingegeben</div>';
+    }
+
+    preview.innerHTML = previewHtml;
+  }
+
+  // Save HP arrangements table data
+  async function saveHpArrangementsTable() {
+    const table = document.getElementById('hpArrangementsTable');
+    if (!table) return;
+
+    const saveBtn = document.getElementById('hpArrangementsSave');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Speichern...';
+    }
+
+    try {
+      const arrangements = [];
+      const quantityInputs = table.querySelectorAll('.hp-arr-quantity');
+
+      quantityInputs.forEach(qInput => {
+        const arrId = parseInt(qInput.dataset.arrId);
+        const quantity = parseInt(qInput.value) || 0;
+
+        if (quantity > 0) {
+          const remarkInput = document.querySelector(`.hp-arr-remark[data-arr-id="${arrId}"]`);
+          const remark = remarkInput ? remarkInput.value.trim() : '';
+
+          arrangements.push({
+            arr_id: arrId,
+            anz: quantity,
+            bem: remark
+          });
+        }
+      });
+
+      const response = await fetch('save-hp-arrangements-table.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          resId: resId,
+          arrangements: arrangements
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Close modal
+        closeHpArrangementsModal();
+
+        // Refresh HP arrangements display in header
+        if (window.loadHpArrangements) {
+          window.loadHpArrangements();
+        }
+
+        console.log('HP Arrangements saved successfully:', result);
+
+        // Show success message
+        if (result.total_count > 0) {
+          console.log(`${result.total_count} HP Arrangements gespeichert`);
+        } else {
+          console.log('Alle HP Arrangements entfernt');
+        }
+      } else {
+        throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
+      }
+
+    } catch (error) {
+      console.error('Error saving HP arrangements:', error);
+      alert('Fehler beim Speichern der HP Arrangements: ' + error.message);
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Speichern';
+      }
+    }
   }
 
   // Handle events on modal items
@@ -2817,5 +3124,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('hpArrangementsModal');
     modal?.classList.add('hidden');
   }
+
+  // Global function to open add names modal (for navigation system)
+  window.openAddNamesModal = function () {
+    const modal = document.getElementById('addNamesModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      // Focus auf textarea setzen
+      setTimeout(() => {
+        const textarea = document.getElementById('newNamesTextarea');
+        if (textarea) textarea.focus();
+      }, 100);
+      return true;
+    }
+    return false;
+  };
 
 });

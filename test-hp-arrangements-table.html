@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: HP Arrangements Tabelle</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="reservation.css">
+    <style>
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .info {
+            color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 class="success">✅ Test: HP Arrangements Tabelle Modal</h1>
+
+    <div class="test-section">
+        <h2>Test für ResID 7144:</h2>
+        <button onclick="testLoadArrangements()" class="btn-confirm">HP Arrangements Tabelle laden</button>
+        <button onclick="openModal()" class="btn-confirm" style="margin-left: 10px;">Modal öffnen</button>
+    </div>
+
+    <!-- HP Arrangements Modal -->
+    <div id="hpArrangementsModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-large">
+            <span class="modal-close" id="hpArrangementsModalClose">&times;</span>
+            <h3>HP Arrangements bearbeiten</h3>
+
+            <div id="hpArrangementsContainer">
+                <!-- Arrangements werden hier dynamisch eingefügt -->
+            </div>
+
+            <div class="modal-buttons">
+                <button id="hpArrangementsSave" class="btn-confirm">Speichern</button>
+                <button id="hpArrangementsCancel" class="btn-cancel">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Ergebnisse:</h3>
+        <div id="testResults" style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+            Noch keine Tests ausgeführt...
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Test-Seite für HP Arrangements Tabelle geladen');
+
+        // Mock resId for testing
+        const resId = 7144;
+
+        // Test function to load arrangements
+        async function testLoadArrangements() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '🔄 Lade HP Arrangements...';
+
+            try {
+                const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+                const data = await response.json();
+
+                console.log('📊 HP Arrangements Data:', data);
+
+                let html = `
+                    <h4>✅ API Test erfolgreich</h4>
+                    <p><strong>Arrangements:</strong> ${data.arrangements?.length || 0}</p>
+                    <p><strong>Current Data:</strong> ${data.current_data?.length || 0}</p>
+                `;
+
+                if (data.arrangements?.length > 0) {
+                    html += '<h5>Verfügbare Arrangements:</h5><ul>';
+                    data.arrangements.forEach(arr => {
+                        html += `<li>${arr.bez} (ID: ${arr.id})</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                if (data.current_data?.length > 0) {
+                    html += '<h5>Aktuelle Daten:</h5><ul>';
+                    data.current_data.forEach(curr => {
+                        html += `<li>${curr.arr_name}: ${curr.anz}x ${curr.bem || '(keine Bemerkung)'}</li>`;
+                    });
+                    html += '</ul>';
+                }
+
+                results.innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Error loading arrangements:', error);
+                results.innerHTML = `<p style="color: red;">❌ Fehler: ${error.message}</p>`;
+            }
+        }
+
+        function openModal() {
+            const modal = document.getElementById('hpArrangementsModal');
+            modal.classList.remove('hidden');
+            renderHpArrangementsModal();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('hpArrangementsModal');
+            modal.classList.add('hidden');
+        }
+
+        // Simplified version of the main function
+        async function renderHpArrangementsModal() {
+            const container = document.getElementById('hpArrangementsContainer');
+            if (!container) return;
+
+            container.innerHTML = '<div class="loading-arr">Lade HP Arrangements Tabelle...</div>';
+
+            try {
+                const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Fehler beim Laden der Arrangements');
+                }
+
+                const arrangements = data.arrangements || [];
+                const currentData = data.current_data || [];
+
+                let html = `
+                    <div class="hp-arrangements-table-container">
+                      <h4>HP Arrangements bearbeiten</h4>
+                      <p>Geben Sie für jedes Arrangement die Anzahl und Bemerkungen ein:</p>
+                      
+                      <table class="hp-arrangements-table" id="hpArrangementsTable">
+                        <thead>
+                          <tr>
+                            ${arrangements.map(arr => `<th>${arr.bez}</th>`).join('')}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr class="quantity-row">
+                            ${arrangements.map(arr => {
+                    const current = currentData.find(d => d.arr_id == arr.id);
+                    const anz = current ? current.anz : '';
+                    return `
+                                <td>
+                                  <input type="number" 
+                                         class="hp-arr-quantity" 
+                                         data-arr-id="${arr.id}"
+                                         data-arr-name="${arr.bez}"
+                                         value="${anz}"
+                                         min="0" 
+                                         max="99"
+                                         placeholder="0">
+                                </td>
+                              `;
+                }).join('')}
+                          </tr>
+                          <tr class="remark-row">
+                            ${arrangements.map(arr => {
+                    const current = currentData.find(d => d.arr_id == arr.id);
+                    const bem = current ? current.bem : '';
+                    return `
+                                <td>
+                                  <input type="text" 
+                                         class="hp-arr-remark" 
+                                         data-arr-id="${arr.id}"
+                                         value="${bem}"
+                                         placeholder="Bemerkung">
+                                </td>
+                              `;
+                }).join('')}
+                          </tr>
+                        </tbody>
+                      </table>
+                      
+                      <div class="hp-arrangements-preview" id="hpArrangementsPreview">
+                        <!-- Preview wird hier angezeigt -->
+                      </div>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+
+                // Setup input event listeners for live preview
+                setupHpTableInputHandlers();
+
+                // Initial preview update
+                updateHpArrangementsPreview();
+
+            } catch (error) {
+                console.error('Error loading HP arrangements table:', error);
+                container.innerHTML = `
+                    <div class="hp-arr-error">
+                      <p>Fehler beim Laden der HP Arrangements:</p>
+                      <p>${error.message}</p>
+                      <button onclick="renderHpArrangementsModal()" class="btn-confirm">Erneut versuchen</button>
+                    </div>
+                `;
+            }
+        }
+
+        function setupHpTableInputHandlers() {
+            const table = document.getElementById('hpArrangementsTable');
+            if (!table) return;
+
+            const quantityInputs = table.querySelectorAll('.hp-arr-quantity');
+            const remarkInputs = table.querySelectorAll('.hp-arr-remark');
+
+            [...quantityInputs, ...remarkInputs].forEach(input => {
+                input.addEventListener('input', updateHpArrangementsPreview);
+                input.addEventListener('change', updateHpArrangementsPreview);
+            });
+        }
+
+        function updateHpArrangementsPreview() {
+            const preview = document.getElementById('hpArrangementsPreview');
+            if (!preview) return;
+
+            const quantityInputs = document.querySelectorAll('.hp-arr-quantity');
+            let previewItems = [];
+
+            quantityInputs.forEach(qInput => {
+                const arrId = qInput.dataset.arrId;
+                const arrName = qInput.dataset.arrName;
+                const quantity = parseInt(qInput.value) || 0;
+
+                if (quantity > 0) {
+                    const remarkInput = document.querySelector(`.hp-arr-remark[data-arr-id="${arrId}"]`);
+                    const remark = remarkInput ? remarkInput.value.trim() : '';
+
+                    let itemText = '';
+                    if (remark) {
+                        itemText = `${arrName}: ${quantity}x ${remark}`;
+                    } else {
+                        itemText = `${arrName}: ${quantity}x`;
+                    }
+
+                    previewItems.push({
+                        text: itemText,
+                        quantity: quantity,
+                        remark: remark
+                    });
+                }
+            });
+
+            let previewHtml = '';
+            if (previewItems.length > 0) {
+                previewHtml = `
+                    <div class="hp-preview-title">Vorschau der HP Arrangements:</div>
+                    <div class="hp-preview-items">
+                      ${previewItems.map(item => `
+                        <div class="hp-preview-item">
+                          <span class="hp-quantity-oval">${item.quantity}</span>
+                          <span class="hp-item-text">${item.text}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                `;
+            } else {
+                previewHtml = '<div class="hp-preview-empty">Keine Arrangements eingegeben</div>';
+            }
+
+            preview.innerHTML = previewHtml;
+        }
+
+        // Modal handlers
+        document.getElementById('hpArrangementsModalClose')?.addEventListener('click', closeModal);
+        document.getElementById('hpArrangementsCancel')?.addEventListener('click', closeModal);
+
+        document.getElementById('hpArrangementsSave')?.addEventListener('click', async function () {
+            const saveBtn = this;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Speichern...';
+
+            try {
+                const table = document.getElementById('hpArrangementsTable');
+                const arrangements = [];
+                const quantityInputs = table.querySelectorAll('.hp-arr-quantity');
+
+                quantityInputs.forEach(qInput => {
+                    const arrId = parseInt(qInput.dataset.arrId);
+                    const quantity = parseInt(qInput.value) || 0;
+
+                    if (quantity > 0) {
+                        const remarkInput = document.querySelector(`.hp-arr-remark[data-arr-id="${arrId}"]`);
+                        const remark = remarkInput ? remarkInput.value.trim() : '';
+
+                        arrangements.push({
+                            arr_id: arrId,
+                            anz: quantity,
+                            bem: remark
+                        });
+                    }
+                });
+
+                console.log('💾 Saving arrangements:', arrangements);
+
+                const response = await fetch('save-hp-arrangements-table.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resId: resId,
+                        arrangements: arrangements
+                    })
+                });
+
+                const result = await response.json();
+                console.log('📝 Save result:', result);
+
+                if (result.success) {
+                    alert(`✅ Erfolgreich gespeichert: ${result.total_count} Arrangements`);
+                    closeModal();
+                } else {
+                    throw new Error(result.error || 'Unbekannter Fehler');
+                }
+
+            } catch (error) {
+                console.error('❌ Error saving:', error);
+                alert('Fehler beim Speichern: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Speichern';
+            }
+        });
+
+        console.log('✅ Test-Setup completed');
+        console.log('📋 ResID für Tests:', resId);
+    </script>
+</body>
+
+</html>
