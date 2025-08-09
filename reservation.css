@@ -865,6 +865,42 @@ td.diet-cell {
   text-overflow: ellipsis;
 }
 
+/* Zeitbasierte Farbgebung für HP Arrangements im Header (basierend auf tisch-uebersicht.php) */
+.header-arr-item.time-fresh,
+.header-arr-item.time-fresh .arr-count {
+  color: #dc3545 !important;
+  /* Rot für <1 Minute */
+  font-weight: 700 !important;
+}
+
+.header-arr-item.time-recent,
+.header-arr-item.time-recent .arr-count {
+  color: #ffc107 !important;
+  /* Gold für <2 Minuten */
+  font-weight: 600 !important;
+}
+
+.header-arr-item.time-old,
+.header-arr-item.time-old .arr-count {
+  color: rgba(255, 255, 255, 0.9) !important;
+  /* Weiß für >=2 Minuten */
+}
+
+.header-arr-item.time-future,
+.header-arr-item.time-future .arr-count {
+  color: #87ceeb !important;
+  /* Himmelblau für Timestamps von vortag oder früher */
+  font-weight: 500 !important;
+}
+
+.arr-display-name {
+  font-weight: 500;
+}
+
+.arr-count {
+  font-weight: 600;
+}
+
 .header-arr-item:last-child {
   border-bottom: none;
 }
@@ -1014,6 +1050,199 @@ td.diet-cell {
   max-width: 900px;
   width: 95vw;
   min-width: 700px;
+}
+
+/* Namen hinzufügen Modal - große Version */
+.modal-add-names {
+  max-width: none;
+  width: 90vw;
+  height: 90vh;
+  max-height: 90vh;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-add-names .modal-content {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-add-names textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 400px;
+  resize: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.modal-add-names textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.modal-add-names .import-format-selector {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.modal-add-names .import-format-selector label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+  color: #495057;
+}
+
+.modal-add-names .import-format-selector select {
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* HP Arrangements Table Styles */
+.hp-arrangements-table-container {
+  padding: 1rem 0;
+}
+
+.hp-arrangements-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 14px;
+}
+
+.hp-arrangements-table th {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  vertical-align: middle;
+  min-width: 120px;
+}
+
+.hp-arrangements-table td {
+  border: 1px solid #e9ecef;
+  padding: 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.hp-arrangements-table .hp-arr-quantity {
+  width: 100%;
+  max-width: 80px;
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hp-arrangements-table .hp-arr-quantity:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.hp-arrangements-table .hp-arr-remark {
+  width: 100%;
+  max-width: 150px;
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.hp-arrangements-table .hp-arr-remark:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+/* HP Arrangements Preview */
+.hp-arrangements-preview {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.hp-preview-title {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 1rem;
+  font-size: 16px;
+}
+
+.hp-preview-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.hp-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid #dee2e6;
+  font-size: 14px;
+}
+
+.hp-quantity-oval {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+.hp-item-text {
+  color: #495057;
+  font-weight: 500;
+}
+
+.hp-preview-empty {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+}
+
+.hp-arr-error {
+  text-align: center;
+  color: #dc3545;
+  padding: 2rem;
+}
+
+.hp-arr-error p {
+  margin-bottom: 1rem;
 }
 
 #hpArrangementsContainer {

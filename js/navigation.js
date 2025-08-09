@@ -489,21 +489,37 @@ class NavigationSystem {
   }
 
   static addPerson() {
-    // Integration mit bestehender "Person hinzufügen" Funktion
-    if (typeof addNameBtn !== 'undefined' && addNameBtn.click) {
-      addNameBtn.click();
-    } else if (window.addNewName) {
-      window.addNewName();
-    } else {
-      console.log('[NAV] Add person triggered');
-      // Fallback - versuche Modal zu öffnen
-      const addModal = document.querySelector('.modal');
-      if (addModal) {
-        addModal.style.display = 'block';
-      } else {
-        alert('Person hinzufügen: Funktion wird geladen...');
-      }
+    // Versuche zuerst die globale Funktion aus reservation.js
+    if (window.openAddNamesModal && window.openAddNamesModal()) {
+      console.log('[NAV] Opened add names modal via global function');
+      return;
     }
+
+    // Fallback: Direkte Modal-Manipulation
+    const modal = document.getElementById('addNamesModal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        const textarea = document.getElementById('newNamesTextarea');
+        if (textarea) textarea.focus();
+      }, 100);
+      console.log('[NAV] Opened add names modal directly');
+      return;
+    }
+
+    // Legacy Fallback - old details element
+    const addDetails = document.getElementById('addNamesDetails');
+    if (addDetails) {
+      addDetails.setAttribute('open', '');
+      const textarea = document.getElementById('newNamesTextarea');
+      if (textarea) textarea.focus();
+      console.log('[NAV] Opened old add names details element');
+      return;
+    }
+
+    // Final fallback
+    console.log('[NAV] Add person triggered - no modal found');
+    alert('Namen hinzufügen: Modal wird geladen...');
   }
 
   /**

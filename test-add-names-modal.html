@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Namen hinzufügen Modal</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="reservation.css">
+    <style>
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .info {
+            color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 class="success">✅ Test: Namen hinzufügen Modal</h1>
+
+    <div class="test-section">
+        <h2>Test-Buttons:</h2>
+        <button id="testOpenModal" class="header-btn">Namen+ (Test)</button>
+        <button onclick="testGlobalFunction()" style="margin-left: 10px; padding: 8px 16px;">Test Global
+            Function</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Header Buttons Simulation:</h3>
+        <div class="header-buttons">
+            <button class="header-btn">Bearbeiten</button>
+            <button id="addNamesBtn" class="header-btn">Namen+</button>
+            <button class="header-btn header-btn-blue">E-Mail</button>
+        </div>
+    </div>
+
+    <!-- Namen hinzufügen Modal -->
+    <div id="addNamesModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-add-names">
+            <span class="modal-close" id="addNamesModalClose">&times;</span>
+            <h3>Namen hinzufügen</h3>
+            <p>Fügen Sie neue Namen zur Reservierung hinzu. Pro Zeile ein Name:</p>
+
+            <div class="import-format-selector">
+                <label for="importFormat">Format:</label>
+                <select id="importFormat">
+                    <option value="firstname-lastname">Vorname Nachname</option>
+                    <option value="lastname-firstname">Nachname Vorname</option>
+                </select>
+            </div>
+
+            <textarea id="newNamesTextarea" placeholder="pro Zeile ein Eintrag"></textarea>
+
+            <div class="modal-buttons">
+                <button id="importNamesBtn" class="btn-confirm">Namen hinzufügen</button>
+                <button id="addNamesCancel" class="btn-cancel">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Test-Seite für Namen hinzufügen Modal geladen');
+
+        // Mock URLs for testing
+        const resId = '7144';
+
+        // Grundlegende Modal-Handler
+        const addNamesModal = document.getElementById('addNamesModal');
+        const addNamesModalClose = document.getElementById('addNamesModalClose');
+        const addNamesCancel = document.getElementById('addNamesCancel');
+        const addNamesBtn = document.getElementById('addNamesBtn');
+        const testOpenModal = document.getElementById('testOpenModal');
+
+        // Global function (copy from reservation.js)
+        window.openAddNamesModal = function () {
+            const modal = document.getElementById('addNamesModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    const textarea = document.getElementById('newNamesTextarea');
+                    if (textarea) textarea.focus();
+                }, 100);
+                return true;
+            }
+            return false;
+        };
+
+        // Modal handlers
+        if (addNamesModalClose) {
+            addNamesModalClose.addEventListener('click', () => {
+                addNamesModal.classList.add('hidden');
+            });
+        }
+
+        if (addNamesCancel) {
+            addNamesCancel.addEventListener('click', () => {
+                addNamesModal.classList.add('hidden');
+            });
+        }
+
+        if (addNamesModal) {
+            addNamesModal.addEventListener('click', (e) => {
+                if (e.target === addNamesModal) {
+                    addNamesModal.classList.add('hidden');
+                }
+            });
+        }
+
+        // Test buttons
+        if (testOpenModal) {
+            testOpenModal.addEventListener('click', () => {
+                console.log('🔄 Test Button clicked');
+                window.openAddNamesModal();
+            });
+        }
+
+        if (addNamesBtn) {
+            addNamesBtn.addEventListener('click', () => {
+                console.log('📋 Action Bar Button clicked');
+                window.openAddNamesModal();
+            });
+        }
+
+        // Mock import function
+        const importBtn = document.getElementById('importNamesBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                const textarea = document.getElementById('newNamesTextarea');
+                const text = textarea.value.trim();
+
+                if (!text) {
+                    alert('Bitte Namen eingeben!');
+                    return;
+                }
+
+                console.log('📝 Mock Import:', text);
+                alert(`Mock Import:\n\n${text}\n\nIn der echten App würde dies an addReservationNames.php gesendet.`);
+
+                // Modal schließen
+                addNamesModal.classList.add('hidden');
+                textarea.value = '';
+            });
+        }
+
+        function testGlobalFunction() {
+            console.log('🔧 Testing global function...');
+            if (window.openAddNamesModal && window.openAddNamesModal()) {
+                console.log('✅ Global function works!');
+            } else {
+                console.log('❌ Global function failed');
+                alert('Global function test failed');
+            }
+        }
+
+        // Placeholder update functionality (copy from reservation.js)
+        const formatSelect = document.getElementById('importFormat');
+        const newArea = document.getElementById('newNamesTextarea');
+
+        function updatePlaceholder() {
+            const format = formatSelect.value;
+            if (format === 'lastname-firstname') {
+                newArea.placeholder = 'Nachname Vorname – pro Zeile ein Eintrag';
+            } else {
+                newArea.placeholder = 'Vorname Nachname – pro Zeile ein Eintrag';
+            }
+        }
+
+        if (formatSelect) {
+            updatePlaceholder();
+            formatSelect.addEventListener('change', updatePlaceholder);
+        }
+
+        console.log('✅ Test-Setup completed');
+        console.log('📋 Action Bar Button verfügbar:', !!addNamesBtn);
+        console.log('🔧 Global function verfügbar:', !!window.openAddNamesModal);
+        console.log('🎨 Modal verfügbar:', !!addNamesModal);
+    </script>
+</body>
+
+</html>
