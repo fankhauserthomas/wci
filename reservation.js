@@ -1,4 +1,87 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Intelligente Namen-Bereinigungsfunktion
+  function cleanNamesText(text) {
+    if (!text) return '';
+
+    // Alle Sonderzeichen außer Bindestrich (-) entfernen
+    // Erlaubt: Buchstaben, Zahlen (werden später separat entfernt), Leerzeichen, Zeilenumbrüche, Bindestrich
+    const allowedCharsRegex = /[^a-zA-ZäöüÄÖÜß0-9\s\n-]/g;
+
+    // Akademische Titel (deutsch und englisch)
+    const academicTitles = [
+      'dr', 'prof', 'professor', 'doktor', 'phd', 'md', 'mag', 'dipl', 'ing',
+      'ba', 'ma', 'bsc', 'msc', 'llm', 'mba', 'ddr', 'dds', 'dvm'
+    ];
+
+    // Anreden (deutsch, englisch, weitere)
+    const salutations = [
+      'herr', 'frau', 'mr', 'mrs', 'ms', 'miss', 'mister', 'sir', 'madam', 'madame',
+      'dr', 'prof', 'professor', 'fräulein', 'mademoiselle', 'monsieur', 'señor',
+      'señora', 'señorita', 'signore', 'signora', 'signorina'
+    ];
+
+    // Zusätzliche Wörter die entfernt werden sollen
+    const wordsToRemove = [
+      'alpenverein', 'mitglied', 'bergführer', 'führer', 'leiter', 'trainer',
+      'vegetarier', 'vegetarisch', 'vegan', 'veganer'
+    ];
+
+    let cleanedText = text
+      // Tabs durch Leerzeichen ersetzen
+      .replace(/\t/g, ' ')
+      // Alle Sonderzeichen außer Bindestrich entfernen (inkl. alle Klammern)
+      .replace(allowedCharsRegex, '')
+      // Zahlen entfernen
+      .replace(/[0-9]/g, '')
+      // Doppelte Leerzeichen in einfache umwandeln (mehrfach wiederholen)
+      .replace(/  +/g, ' ')
+      .replace(/  +/g, ' ')
+      .replace(/  +/g, ' ')
+      // Doppelte Zeilenumbrüche in einfache umwandeln
+      .replace(/\n\n+/g, '\n');
+
+    // Zeilen einzeln verarbeiten
+    const lines = cleanedText.split('\n');
+    const cleanedLines = [];
+
+    lines.forEach(line => {
+      if (!line.trim()) return; // Leere Zeilen überspringen
+
+      let cleanedLine = line.trim();
+
+      // Wörter in der Zeile aufteilen
+      let words = cleanedLine.split(' ').filter(word => word.length > 0);
+
+      // Akademische Titel entfernen
+      words = words.filter(word => {
+        const lowerWord = word.toLowerCase().replace(/[^a-z]/g, '');
+        return !academicTitles.includes(lowerWord);
+      });
+
+      // Zusätzliche unerwünschte Wörter entfernen
+      words = words.filter(word => {
+        const lowerWord = word.toLowerCase().replace(/[^a-z]/g, '');
+        return !wordsToRemove.includes(lowerWord);
+      });
+
+      // Anreden entfernen (nur am Anfang)
+      if (words.length > 0) {
+        const firstWord = words[0].toLowerCase().replace(/[^a-z]/g, '');
+        if (salutations.includes(firstWord)) {
+          words.shift(); // Erstes Wort entfernen
+        }
+      }
+
+      // Nur behalten wenn noch Wörter übrig sind
+      if (words.length > 0) {
+        cleanedLines.push(words.join(' '));
+      }
+    });
+
+    return cleanedLines.join('\n');
+  }
+
   const resId = new URLSearchParams(location.search).get('id');
   const highlightName = new URLSearchParams(location.search).get('highlight');
   const source = new URLSearchParams(location.search).get('source');
@@ -2276,6 +2359,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (addNamesCancel) {
     addNamesCancel.addEventListener('click', () => {
       addNamesModal.classList.add('hidden');
+    });
+  }
+
+  // Bereinigen Button Handler
+  const cleanNamesBtn = document.getElementById('cleanNamesBtn');
+  if (cleanNamesBtn) {
+    cleanNamesBtn.addEventListener('click', () => {
+      const textarea = document.getElementById('newNamesTextarea');
+      if (textarea) {
+        textarea.value = cleanNamesText(textarea.value);
+      }
     });
   }
 

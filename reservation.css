@@ -2,6 +2,13 @@
    Reservation-Detail Styles
    =========================== */
 
+/* Äußeren Scrollbar deaktivieren - nur inneres Scrollen der Tabelle */
+html,
+body {
+  overflow: hidden;
+  height: 100vh;
+}
+
 /* Header über volle Breite */
 .main-content .legacy-header {
   width: 100%;
@@ -56,13 +63,17 @@
   /* Remove display: inline-table - causes width problems */
 }
 
-/* Table Container für horizontales Scrollen bei kleinen Bildschirmen */
+/* Table Container für sticky Header und vertikales Scrollen */
 .table-container {
   width: 100%;
   overflow-x: auto;
   margin: 0 -20px;
   /* Negiert main-content padding */
   padding: 0 20px;
+  /* Höhe angepasst für vertikales Scrollen ohne äußeren Scrollbar */
+  max-height: calc(100vh - 320px);
+  /* Erhöht von 220px auf 320px für mehr Platz */
+  overflow-y: auto;
 }
 
 /* Hervorhebung für durch Barcode gefundene Namen */
@@ -123,6 +134,12 @@
   background: #34495e;
   color: #ecf0f1;
   font-weight: bold;
+  position: sticky;
+  /* Sticky Header */
+  top: 0;
+  /* Am oberen Rand des Containers festhalten */
+  z-index: 10;
+  /* Über andere Inhalte legen */
 }
 
 .names-list tbody tr:nth-child(odd) {
@@ -1045,6 +1062,21 @@ td.diet-cell {
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
+}
+
+.btn-secondary {
+  background: #3498db;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #2980b9;
 }
 
 /* HP Arrangements Modal Styles */
