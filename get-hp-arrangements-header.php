@@ -1,14 +1,6 @@
 <?php
-// get-hp-arrangements-header.php - Lädt HP Arrangements für Header-Anzeige in Reservierungsansicht
-require_once 'auth-simple.php';
+// get-hp-arrangements-header.php - Lädt HP Arrangements für Header-Anzeige
 require_once 'hp-db-config.php';
-
-// Authentifizierung prüfen
-if (!AuthManager::checkSession()) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Nicht authentifiziert']);
-    exit;
-}
 
 header('Content-Type: application/json');
 

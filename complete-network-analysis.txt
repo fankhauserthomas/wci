@@ -1,0 +1,4050 @@
+# WCI COMPLETE NETWORK ANALYSIS
+# Generated: Sun Aug 10 12:24:28 PM CEST 2025
+# Total files: 249
+
+==================================================================
+FILE: addReservationNames.php (1/249)
+==================================================================
+📊 Size: 1150B, Lines: 40
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // addReservationNames.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: addReservation.php (2/249)
+==================================================================
+📊 Size: 3981B, Lines: 110
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // addReservation.php - Backend für neue Reservierungen
+    📄 Line 4: require_once 'config.php';
+    📄 Line 40: // DB-Insert mit MySQLi (da config.php MySQLi verwendet)
+
+==================================================================
+FILE: api/imps/get_av_cap_new.php (3/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: api/imps/get_av_cap_old.php (4/249)
+==================================================================
+📊 Size: 18842B, Lines: 486
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/../../config.php';
+    📝 Line 296:         echo "  --hutID        Hut ID (required)\n";
+    📝 Line 297:         echo "  --von          Arrival date in YYYY-MM-DD format (required if not using --days)\n";
+    📝 Line 298:         echo "  --bis          Departure date in YYYY-MM-DD format (required if not using --days)\n";
+    📝 Line 305:     // Validate required parameters
+    📝 Line 307:         throw new Exception('Parameter hutID is required');
+    📝 Line 311:             throw new Exception('Either von/bis dates or days parameter is required');
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require_once __DIR__ . '/../../config.php';
+    📄 Line 293: echo "  php get_av_cap.php --hutID=675 --von=2025-07-25 --bis=2025-11-02\n";
+    📄 Line 294: echo "  php get_av_cap.php --hutID=675 --days=30 [--del_old=true]\n\n";
+
+==================================================================
+FILE: api/imps/get_av_cap.php (5/249)
+==================================================================
+📊 Size: 22224B, Lines: 555
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/../../config.php';
+    📝 Line 208:             // Check if table has all required columns
+    📝 Line 357:         echo "  --hutID or --hutId   Hut ID (required)\n\n";
+    📝 Line 368:     // Validate required parameters
+    📝 Line 370:         throw new Exception('Parameter hutID (or hutId) is required');
+    📝 Line 536:             'Check if the database has the required columns (kat_1958, kat_2293, kat_2381, kat_6106)'
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require_once __DIR__ . '/../../config.php';
+    📄 Line 354: echo "  php get_av_cap_new.php --hutID=675\n";
+    📄 Line 355: echo "  php get_av_cap_new.php --hutId=675\n\n";
+
+==================================================================
+FILE: api/imps/hrs_getres.php (6/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: api/sync_matrix.php (7/249)
+==================================================================
+📊 Size: 3482B, Lines: 119
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // api/sync_matrix.php - Live Sync-Log API für Matrix-Display
+    📄 Line 79: if (class_exists('SyncManager') || file_exists(__DIR__ . '/../SyncManager.php')) {
+
+==================================================================
+FILE: authenticate.php (8/249)
+==================================================================
+📊 Size: 1834B, Lines: 67
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once __DIR__ . '/auth.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once __DIR__ . '/auth.php';
+
+==================================================================
+FILE: authenticate-simple.php (9/249)
+==================================================================
+📊 Size: 1908B, Lines: 69
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/auth-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // authenticate-simple.php - Login ohne .htaccess-Blockierung
+    📄 Line 3: require_once __DIR__ . '/auth-simple.php';
+    📄 Line 47: 'redirect' => 'index.php'
+
+==================================================================
+FILE: auth.php (10/249)
+==================================================================
+📊 Size: 3957B, Lines: 111
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 70:     public static function requireAuth() {
+    📝 Line 83:             error_log("Auth error in requireAuth: " . $e->getMessage());
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // auth.php - Vereinfachte Version für Debugging
+    📄 Line 78: 'redirect' => 'login.html'
+
+📊 Progress: 10/249 files analyzed...
+==================================================================
+FILE: auth-simple.php (11/249)
+==================================================================
+📊 Size: 1676B, Lines: 55
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 42:     public static function requireAuth() {
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // auth.php - Einfache Authentifizierung (PHP 7.0 kompatibel)
+    📄 Line 49: 'redirect' => 'login.html'
+
+==================================================================
+FILE: auth-test.php (12/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: auto-barcode-scanner.js (13/249)
+==================================================================
+📊 Size: 8684B, Lines: 244
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 147: searchBarcode.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 147:         fetch(`searchBarcode.php?barcode=${encodeURIComponent(originalBarcode)}`)
+  🟨 WINDOW.LOCATION:
+    🔄 Line 12:         this.isReservationPage = window.location.pathname.includes('reservation.html');
+    🔄 Line 13:         this.isReservationListPage = window.location.pathname.includes('reservierungen.html') ||
+    🔄 Line 14:             window.location.pathname.includes('index.html') ||
+    🔄 Line 164:                         window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
+    🔄 Line 188:                 window.location.href = `reservierungen.html?search=${encodeURIComponent(searchTerm)}`;
+  🔍 ALL FILE REFERENCES:
+    📄 Line 12: this.isReservationPage = window.location.pathname.includes('reservation.html');
+    📄 Line 13: this.isReservationListPage = window.location.pathname.includes('reservierungen.html') ||
+    📄 Line 14: window.location.pathname.includes('index.html') ||
+    📄 Line 147: fetch(`searchBarcode.php?barcode=${encodeURIComponent(originalBarcode)}`)
+    📄 Line 148: .then(response => response.json())
+    📄 Line 164: window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
+    📄 Line 188: window.location.href = `reservierungen.html?search=${encodeURIComponent(searchTerm)}`;
+
+==================================================================
+FILE: backups/index_backup.html (14/249)
+==================================================================
+📊 Size: 9998B, Lines: 359
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 7: style.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 270: js/http-utils.js (EXISTS)
+    ✅ Line 271: js/loading-overlay.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 212: reservierungen.html (EXISTS)
+    ✅ Line 220: statistiken.html (EXISTS)
+    ✅ Line 228: simple-timeline.html (EXISTS)
+    ✅ Line 236: loading-test.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: <link rel="stylesheet" href="style.css">
+    📄 Line 212: <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
+    📄 Line 220: <a href="statistiken.html" class="card-button">Statistiken anzeigen</a>
+    📄 Line 228: <a href="simple-timeline.html" class="card-button">Zimmerplan öffnen</a>
+    📄 Line 236: <a href="loading-test.html" class="card-button">Tools öffnen</a>
+    📄 Line 248: <a href="reservierungen.html?filter=heute-anreise" class="card-button">Anreise heute</a>
+    📄 Line 249: <a href="reservierungen.html?filter=heute-abreise" class="card-button secondary">Abreise heute</a>
+    📄 Line 258: <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+    📄 Line 270: <script src="js/http-utils.js"></script>
+    📄 Line 271: <script src="js/loading-overlay.js"></script>
+    📄 Line 278: fetch('logout.php', { method: 'POST' })
+    📄 Line 280: window.location.href = 'login.html';
+    📄 Line 283: // Fallback wenn logout.php nicht erreichbar
+    📄 Line 284: window.location.href = 'login.html';
+
+==================================================================
+FILE: backups/index_broken.php (15/249)
+==================================================================
+📊 Size: 22089B, Lines: 756
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+    🔄 Line 7:     header('Location: login.html');
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // index.php - WebCheckin Dashboard mit Authentifizierung
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 7: header('Location: login.html');
+    📄 Line 17: <link rel="stylesheet" href="style.css">
+    📄 Line 235: <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
+    📄 Line 243: <a href="statistiken.html" class="card-button">Statistiken anzeigen</a>
+    📄 Line 251: <a href="simple-timeline.html" class="card-button">Zimmerplan öffnen</a>
+    📄 Line 259: <a href="loading-test.html" class="card-button">Tools öffnen</a>
+    📄 Line 271: <a href="reservierungen.html?filter=heute-anreise" class="card-button">Anreise heute</a>
+    📄 Line 272: <a href="reservierungen.html?filter=heute-abreise" class="card-button secondary">Abreise heute</a>
+    📄 Line 281: <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+    📄 Line 293: <script src="js/http-utils.js"></script>
+    📄 Line 294: <script src="js/loading-overlay.js"></script>
+    📄 Line 301: fetch('logout.php', { method: 'POST' })
+    📄 Line 303: window.location.href = 'login.html';
+    📄 Line 306: // Fallback wenn logout.php nicht erreichbar
+    📄 Line 307: window.location.href = 'login.html';
+    📄 Line 614: <a href="reservierungen.html" class="card-button">Reservierungen anzeigen</a>
+    📄 Line 622: <a href="simple-timeline.html" class="card-button">Zimmerplan öffnen</a>
+    📄 Line 630: <a href="loading-test.html" class="card-button">Tools öffnen</a>
+
+==================================================================
+FILE: barcode-scanner.js (16/249)
+==================================================================
+📊 Size: 8897B, Lines: 242
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: buildSearchIndex.php (17/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: bulk-checkout-test.html (18/249)
+==================================================================
+📊 Size: 8094B, Lines: 232
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ✅ Line 82: js/loading-overlay.js (EXISTS)
+    ✅ Line 83: js/http-utils.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 82: <script src="js/loading-overlay.js"></script>
+    📄 Line 83: <script src="js/http-utils.js"></script>
+    📄 Line 134: // Test Bulk Checkout (wie in reservation.js)
+    📄 Line 142: url: 'mock://updateReservationNamesCheckout.php',
+
+==================================================================
+FILE: canvas-timeline.html (19/249)
+==================================================================
+📊 Size: 5166B, Lines: 126
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ❌ Line 7: timeline-canvas.css (MISSING)
+  📄 JS INCLUDES:
+    ❌ Line 53: timeline-canvas.js (MISSING)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: <link rel="stylesheet" href="timeline-canvas.css">
+    📄 Line 53: <script src="timeline-canvas.js"></script>
+
+==================================================================
+FILE: checkAuth.php (20/249)
+==================================================================
+📊 Size: 810B, Lines: 29
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once __DIR__ . '/auth.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once __DIR__ . '/auth.php';
+    📄 Line 18: 'redirect' => 'login.html'
+
+📊 Progress: 20/249 files analyzed...
+==================================================================
+FILE: checkAuth-simple.php (21/249)
+==================================================================
+📊 Size: 898B, Lines: 32
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/auth-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // checkAuth-simple.php - Session-Check ohne .htaccess-Blockierung
+    📄 Line 3: require_once __DIR__ . '/auth-simple.php';
+
+==================================================================
+FILE: check_db_table.php (22/249)
+==================================================================
+📊 Size: 2809B, Lines: 81
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require_once __DIR__ . '/config.php';
+
+==================================================================
+FILE: check-hp-db-structure.php (23/249)
+==================================================================
+📊 Size: 3172B, Lines: 85
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // check-hp-db-structure.php - Prüft HP-Datenbank Struktur
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: check-hp-tables.php (24/249)
+==================================================================
+📊 Size: 3531B, Lines: 99
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7: require_once 'auth-simple.php';
+    📝 Line 8: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // check-hp-tables.php - Check HP database structure
+    📄 Line 7: require_once 'auth-simple.php';
+    📄 Line 8: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: check_sync_data.php (25/249)
+==================================================================
+📊 Size: 2295B, Lines: 60
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+
+==================================================================
+FILE: complete_migration.php (26/249)
+==================================================================
+📊 Size: 5982B, Lines: 141
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: config.php (27/249)
+==================================================================
+📊 Size: 1311B, Lines: 43
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // config.php – hier die Zugangsdaten zur MySQL-Datenbank
+    📄 Line 42: $cmd = "php " . __DIR__ . "/syncTrigger.php?action=$action > /dev/null 2>&1 &";
+
+==================================================================
+FILE: config-safe.php (28/249)
+==================================================================
+📊 Size: 1134B, Lines: 36
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // config-safe.php - Sichere Datenbank-Konfiguration ohne Auth-Check für HTML-Seiten
+
+==================================================================
+FILE: config-simple.php (29/249)
+==================================================================
+📊 Size: 842B, Lines: 32
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // config-simple.php - Einfache Datenbankverbindung ohne Auth
+
+==================================================================
+FILE: create_extended_triggers.php (30/249)
+==================================================================
+📊 Size: 7125B, Lines: 201
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+    📄 Line 196: echo "Next: Update SyncManager.php to handle multiple tables\n";
+
+📊 Progress: 30/249 files analyzed...
+==================================================================
+FILE: create_fallback_triggers.php (31/249)
+==================================================================
+📊 Size: 2786B, Lines: 83
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: create-test-arrangement.php (32/249)
+==================================================================
+📊 Size: 2063B, Lines: 66
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // create-test-arrangement.php - Erstelle Test-Arrangement für Zeitklassen-Demo
+    📄 Line 3: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: css/barcode-scanner.css (33/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: css/navigation.css (34/249)
+==================================================================
+📊 Size: 9416B, Lines: 517
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: css/navigation-integration-backup.css (35/249)
+==================================================================
+📊 Size: 6916B, Lines: 341
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: css/navigation-integration-clean.css (36/249)
+==================================================================
+📊 Size: 1609B, Lines: 76
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 35: /* Verstecke nur die unnötige legacy-controls Zeile in reservierungen.html */
+
+==================================================================
+FILE: css/navigation-integration.css (37/249)
+==================================================================
+📊 Size: 2235B, Lines: 92
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 5: /* Verstecke page-actions in reservation.html da bereits Action Bar vorhanden */
+
+==================================================================
+FILE: dashboard.html (38/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: dashboard-stats-test.php (39/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: data.php (40/249)
+==================================================================
+📊 Size: 3253B, Lines: 108
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 5: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // data.php
+    📄 Line 5: require 'config.php';
+
+📊 Progress: 40/249 files analyzed...
+==================================================================
+FILE: db-test.php (41/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: db-test-quick.php (42/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: debug/dashboard-stats-test.php (43/249)
+==================================================================
+📊 Size: 5138B, Lines: 115
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 32: <p><a href="index.php">← Zurück zum Dashboard</a></p>
+    📄 Line 48: const response = await fetch(`getDashboardStats-simple.php?date=${date}`);
+    📄 Line 54: const stats = await response.json();
+    📄 Line 74: await fetch('logout-simple.php');
+    📄 Line 78: const response = await fetch(`getDashboardStats-simple.php?date=${date}`);
+    📄 Line 84: const stats = await response.json();
+
+==================================================================
+FILE: debug-db.php (44/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: debug/debug-db.php (45/249)
+==================================================================
+📊 Size: 2100B, Lines: 68
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 11:     require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // debug-db.php - Direkter Datenbank-Test
+    📄 Line 11: require_once __DIR__ . '/config-simple.php';
+    📄 Line 12: echo "✅ config-simple.php geladen<br>";
+    📄 Line 64: echo "<h3>5. getDashboardStats-noauth.php Test:</h3>";
+    📄 Line 65: echo '<a href="getDashboardStats-noauth.php" target="_blank">📊 Direkt aufrufen</a><br>';
+    📄 Line 67: echo '<p><a href="index.php">← Zurück zum Dashboard</a></p>';
+
+==================================================================
+FILE: debug/debug.php (46/249)
+==================================================================
+📊 Size: 4248B, Lines: 118
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 76:               require_once 'auth.php';
+    📝 Line 91:               require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // debug.php - Dashboard OHNE Authentifizierung für Testing
+    📄 Line 12: <link rel="stylesheet" href="style.css">
+    📄 Line 66: <li>auth.php: <?php echo file_exists('auth.php') ? '✅ Vorhanden' : '❌ Fehlt'; ?></li>
+    📄 Line 67: <li>config.php: <?php echo file_exists('config.php') ? '✅ Vorhanden' : '❌ Fehlt'; ?></li>
+    📄 Line 68: <li>login.html: <?php echo file_exists('login.html') ? '✅ Vorhanden' : '❌ Fehlt'; ?></li>
+    📄 Line 69: <li>getDashboardStats.php: <?php echo file_exists('getDashboardStats.php') ? '✅ Vorhanden' : '❌ Fehlt'; ?></li>
+    📄 Line 75: if (file_exists('auth.php')) {
+    📄 Line 76: require_once 'auth.php';
+    📄 Line 80: echo "<p>❌ auth.php nicht gefunden</p>";
+    📄 Line 90: if (file_exists('config.php')) {
+    📄 Line 91: require_once 'config.php';
+    📄 Line 99: echo "<p>❌ config.php nicht gefunden</p>";
+    📄 Line 109: <li><a href="test.php">Basis PHP-Test aufrufen</a></li>
+    📄 Line 110: <li><a href="login.html">Login-Seite testen</a></li>
+    📄 Line 111: <li><a href="index.php">Normale index.php testen</a></li>
+    📄 Line 112: <li><a href="getDashboardStats.php">API-Endpoint testen</a></li>
+
+==================================================================
+FILE: debug-hp-arrangements.html (47/249)
+==================================================================
+📊 Size: 4162B, Lines: 118
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: reservation.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="reservation.css">
+    📄 Line 74: const response = await fetch('get-hp-arrangements-header.php?res_id=7144');
+    📄 Line 77: const data = await response.json();
+
+==================================================================
+FILE: debug-hp-db.php (48/249)
+==================================================================
+📊 Size: 5479B, Lines: 138
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+    📝 Line 7:     echo "Authentication required";
+    📝 Line 87:     require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // debug-hp-db.php - Debug HP database structure for arrangements
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+    📄 Line 87: require_once 'config.php';
+
+==================================================================
+FILE: debug-hp-tables.php (49/249)
+==================================================================
+📊 Size: 732B, Lines: 30
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: debug-indicators.js (50/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 50/249 files analyzed...
+==================================================================
+FILE: debug.php (51/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: debug_remote_triggers.php (52/249)
+==================================================================
+📊 Size: 4282B, Lines: 106
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: debug_trigger_definer.php (53/249)
+==================================================================
+📊 Size: 2188B, Lines: 61
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // debug_trigger_definer.php - Check Trigger Definer Issues
+
+==================================================================
+FILE: deleteReservationNames.php (54/249)
+==================================================================
+📊 Size: 981B, Lines: 34
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // deleteReservationNames.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: deleteReservation.php (55/249)
+==================================================================
+📊 Size: 2734B, Lines: 90
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // deleteReservation.php - Backend für komplettes Löschen von Reservierungen
+    📄 Line 4: require_once 'config.php';
+
+==================================================================
+FILE: extend_sync_system.php (56/249)
+==================================================================
+📊 Size: 9019B, Lines: 209
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+    📝 Line 201:     echo "2. Update SyncManager.php to include the new tables\n";
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+    📄 Line 201: echo "2. Update SyncManager.php to include the new tables\n";
+
+==================================================================
+FILE: final_sync_test.php (57/249)
+==================================================================
+📊 Size: 6470B, Lines: 135
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: fix_trigger_definer.php (58/249)
+==================================================================
+📊 Size: 3911B, Lines: 109
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // fix_trigger_definer.php - Fix Trigger Definer Issues
+
+==================================================================
+FILE: GastDetail.html (59/249)
+==================================================================
+📊 Size: 32866B, Lines: 967
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 962: js/http-utils.js (EXISTS)
+    ✅ Line 965: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 405: ? await HttpUtils.requestJson('getCountries.php', {}, { retries: 2, timeout: 8000 })
+    📄 Line 406: : await fetch('getCountries.php').then(r => r.json());
+    📄 Line 429: ? await HttpUtils.requestJson('getArrangements.php', {}, { retries: 2, timeout: 8000 })
+    📄 Line 430: : await fetch('getArrangements.php').then(r => r.json());
+    📄 Line 459: ? await HttpUtils.requestJson('getDiets.php', {}, { retries: 2, timeout: 8000 })
+    📄 Line 460: : await fetch('getDiets.php').then(r => r.json());
+    📄 Line 494: ? await HttpUtils.requestJson(`getGastDetail.php?id=${gastId}`, {}, { retries: 3, timeout: 10000 })
+    📄 Line 495: : await fetch(`getGastDetail.php?id=${gastId}`).then(r => r.json());
+    📄 Line 552: ? HttpUtils.postJson('updateGastDetail.php', formData, { retries: 2, timeout: 8000 })
+    📄 Line 553: : fetch('updateGastDetail.php', {
+    📄 Line 557: }).then(r => r.json());
+    📄 Line 710: console.log('  - Direkter Fallback zu reservierungen.html');
+    📄 Line 712: window.location.href = 'reservierungen.html';
+    📄 Line 760: console.log('🏠 Direkt zu reservierungen.html (letzter Fallback)');
+    📄 Line 761: window.location.href = 'reservierungen.html';
+    📄 Line 822: swipeIndicator.style.cssText = `
+
+==================================================================
+FILE: get-arrangement-cells-data.php (60/249)
+==================================================================
+📊 Size: 1739B, Lines: 61
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+    📝 Line 3: require_once 'auth.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+    📄 Line 3: require_once 'auth.php';
+    📄 Line 55: error_log("get-arrangement-cells-data.php: " . $e->getMessage());
+
+📊 Progress: 60/249 files analyzed...
+==================================================================
+FILE: get-arrangements.php (61/249)
+==================================================================
+📊 Size: 943B, Lines: 38
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-arrangements.php - Verfügbare Arrangements laden
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: getArrangements.php (62/249)
+==================================================================
+📊 Size: 541B, Lines: 24
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getArrangements.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: getBookingUrl.php (63/249)
+==================================================================
+📊 Size: 724B, Lines: 34
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require 'config.php';
+    📄 Line 15: 'https://booking.franzsennhuette.at/webform/api/gettokenfsh.php?id=%s&pwd=%s',
+
+==================================================================
+FILE: GetCardPrinters.php (64/249)
+==================================================================
+📊 Size: 534B, Lines: 22
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // GetCardPrinters.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: getCountries.php (65/249)
+==================================================================
+📊 Size: 450B, Lines: 19
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+
+==================================================================
+FILE: getDashboardStats-debug.php (66/249)
+==================================================================
+📊 Size: 5772B, Lines: 173
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 16:     require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getDashboardStats-debug.php - Mit ausführlichem Debug-Output
+    📄 Line 16: require_once __DIR__ . '/config-simple.php';
+
+==================================================================
+FILE: getDashboardStats-noauth.php (67/249)
+==================================================================
+📊 Size: 3777B, Lines: 113
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getDashboardStats-noauth.php - Dashboard-Statistiken OHNE Authentifizierung (für Tests)
+    📄 Line 6: require_once __DIR__ . '/config-simple.php';
+
+==================================================================
+FILE: getDashboardStats.php (68/249)
+==================================================================
+📊 Size: 4678B, Lines: 133
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once __DIR__ . '/auth.php';
+    📝 Line 7: AuthManager::requireAuth();
+    📝 Line 10: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getDashboardStats.php - Erweiterte Dashboard-Statistiken mit Authentifizierung
+    📄 Line 4: require_once __DIR__ . '/auth.php';
+    📄 Line 10: require 'config.php';
+
+==================================================================
+FILE: getDashboardStats-simple.php (69/249)
+==================================================================
+📊 Size: 3770B, Lines: 116
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once __DIR__ . '/auth-simple.php';
+    📝 Line 14: require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getDashboardStats-simple.php - Dashboard-Statistiken ohne blockierte Auth-Dateien
+    📄 Line 4: require_once __DIR__ . '/auth-simple.php';
+    📄 Line 14: require_once __DIR__ . '/config-simple.php';
+
+==================================================================
+FILE: getDiets.php (70/249)
+==================================================================
+📊 Size: 418B, Lines: 17
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require 'config.php';
+
+📊 Progress: 70/249 files analyzed...
+==================================================================
+FILE: getDuplicateReservations.php (71/249)
+==================================================================
+📊 Size: 10158B, Lines: 303
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getDuplicateReservations.php - Optimized duplicate reservation detection
+    📄 Line 7: require 'config.php';
+
+==================================================================
+FILE: getGastDetail.php (72/249)
+==================================================================
+📊 Size: 1959B, Lines: 63
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: require_once 'config.php';
+
+==================================================================
+FILE: get-guest-arrangements.php (73/249)
+==================================================================
+📊 Size: 1531B, Lines: 64
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-guest-arrangements.php - Arrangements eines Gastes laden
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: get-hp-arrangements-header-debug.php (74/249)
+==================================================================
+📊 Size: 7208B, Lines: 204
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-hp-arrangements-header-debug.php - Debug-Version ohne Auth für Tests
+    📄 Line 3: require_once 'hp-db-config.php';
+    📄 Line 113: // Bestimme Zeitklasse basierend auf seconds_ago (wie in tisch-uebersicht.php)
+
+==================================================================
+FILE: get-hp-arrangements-header.php (75/249)
+==================================================================
+📊 Size: 7321B, Lines: 211
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-hp-arrangements-header.php - Lädt HP Arrangements für Header-Anzeige in Reservierungsansicht
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+    📄 Line 120: // Bestimme Zeitklasse basierend auf seconds_ago (wie in tisch-uebersicht.php)
+
+==================================================================
+FILE: get-hp-arrangements-new.php (76/249)
+==================================================================
+📊 Size: 5420B, Lines: 168
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung (nur HP-Datenbank!)
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: get-hp-arrangements-old.php (77/249)
+==================================================================
+📊 Size: 5057B, Lines: 164
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+    📝 Line 41:         require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+    📄 Line 41: require_once 'config.php';
+
+==================================================================
+FILE: get-hp-arrangements.php (78/249)
+==================================================================
+📊 Size: 6615B, Lines: 197
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung (nur HP-Datenbank!)
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: get-hp-arrangements-table.php (79/249)
+==================================================================
+📊 Size: 2713B, Lines: 95
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 15: require_once 'auth-simple.php';
+    📝 Line 18: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 15: require_once 'auth-simple.php';
+    📄 Line 18: require_once 'hp-db-config.php';
+    📄 Line 88: error_log("Error in get-hp-arrangements-table.php: " . $e->getMessage());
+
+==================================================================
+FILE: getIncompleteReservations.php (80/249)
+==================================================================
+📊 Size: 3024B, Lines: 91
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getIncompleteReservations.php - API für unvollständige Reservierungen
+    📄 Line 6: require_once __DIR__ . '/config-simple.php';
+    📄 Line 84: error_log('Error in getIncompleteReservations.php: ' . $e->getMessage());
+
+📊 Progress: 80/249 files analyzed...
+==================================================================
+FILE: getOrigins.php (81/249)
+==================================================================
+📊 Size: 715B, Lines: 28
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getOrigins.php - API für Origin-Daten
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: getReservationDetailsFull.php (82/249)
+==================================================================
+📊 Size: 2646B, Lines: 90
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getReservationDetailsFull.php - Vollständige API für ReservationDetails.html
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: getReservationDetails.php (83/249)
+==================================================================
+📊 Size: 3048B, Lines: 107
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+    📝 Line 15: $includeColor = isset($_GET['includeColor']) && $_GET['includeColor'] === 'true';
+    📝 Line 95: if ($includeColor && $detail) {
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getReservationDetails.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: getReservationNames.php (84/249)
+==================================================================
+📊 Size: 3763B, Lines: 131
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // getReservationNames.php
+    📄 Line 6: require 'config.php';
+
+==================================================================
+FILE: getRooms.php (85/249)
+==================================================================
+📊 Size: 1710B, Lines: 59
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 13:     require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 13: require 'config.php';
+
+==================================================================
+FILE: getZimmerplanData.php (86/249)
+==================================================================
+📊 Size: 12583B, Lines: 347
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 6: require_once 'config.php';
+
+==================================================================
+FILE: hp-db-config.php (87/249)
+==================================================================
+📊 Size: 1200B, Lines: 47
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // hp-db-config.php - Completely separate HP database connection
+
+==================================================================
+FILE: hp-db-test.php (88/249)
+==================================================================
+📊 Size: 925B, Lines: 38
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 8:     require 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // hp-db-test.php - Test HP database separately
+    📄 Line 8: require 'hp-db-config.php';
+
+==================================================================
+FILE: hrs/hrs-fileget.php (89/249)
+==================================================================
+📊 Size: 4095B, Lines: 113
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 90:                 // Step 3: Try a simple API call that might not require authentication
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: hrs/hrs.php (90/249)
+==================================================================
+📊 Size: 12433B, Lines: 330
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 90/249 files analyzed...
+==================================================================
+FILE: hrs/hrs-simple.php (91/249)
+==================================================================
+📊 Size: 4513B, Lines: 133
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: hrs_login_debug.php (92/249)
+==================================================================
+📊 Size: 31636B, Lines: 742
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 363:         require_once __DIR__ . '/config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 362: // Datenbankverbindung (config.php einbinden)
+    📄 Line 363: require_once __DIR__ . '/config.php';
+    📄 Line 699: echo "<p><small>💡 <strong>CLI Usage:</strong> <code>php hrs_login_debug.php [dateFrom] [dateTo] [size]</code><br>";
+    📄 Line 700: echo "💡 <strong>URL Usage:</strong> <code>hrs_login_debug.php?dateFrom=01.08.2024&dateTo=01.09.2025&size=100</code></small></p>";
+
+==================================================================
+FILE: index.html (93/249)
+==================================================================
+📊 Size: 9646B, Lines: 287
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 230: js/navigation.js (EXISTS)
+    ✅ Line 231: js/http-utils.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 161: reservierungen.html (EXISTS)
+    ✅ Line 183: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 161: <a href="reservierungen.html" class="card-btn">📋 Reservierungen anzeigen</a>
+    📄 Line 183: <a href="statistiken.html" class="card-btn">📈 Statistiken anzeigen</a>
+    📄 Line 230: <script src="js/navigation.js"></script>
+    📄 Line 231: <script src="js/http-utils.js"></script>
+
+==================================================================
+FILE: index.php (94/249)
+==================================================================
+📊 Size: 19851B, Lines: 714
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 636:         if (message.includes('error') || message.includes('failed') || message.includes('exception')) {
+    📝 Line 638:         } else if (message.includes('warning') || message.includes('retry')) {
+    📝 Line 640:         } else if (message.includes('success') || message.includes('completed') || message.includes('✓')) {
+  🟦 PHP HEADER REDIRECTS:
+    🔄 Line 7:     header('Location: login.html');
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // index.php - WebCheckin Dashboard mit Authentifizierung
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 7: header('Location: login.html');
+    📄 Line 17: <link rel="stylesheet" href="style.css">
+    📄 Line 399: <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
+    📄 Line 407: <a href="statistiken.html" class="card-button">Statistiken anzeigen</a>
+    📄 Line 415: <a href="zp/timeline-unified.html" class="card-button">Zimmerplan öffnen</a>
+    📄 Line 424: <a href="loading-test.html" class="card-button">System Tools</a>
+    📄 Line 425: <a href="hrs_login_debug.php" class="card-button hrs-debug">🔧 HRS Debug</a>
+    📄 Line 426: <a href="system-analysis.php" class="card-button system-analysis">🔍 System Analyse</a>
+    📄 Line 438: <a href="tisch-uebersicht.php" class="card-button">Tischübersicht anzeigen</a>
+    📄 Line 446: <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+    📄 Line 475: <script src="js/http-utils.js"></script>
+    📄 Line 476: <script src="js/loading-overlay.js"></script>
+    📄 Line 483: fetch('logout.php', { method: 'POST' })
+    📄 Line 485: window.location.href = 'login.html';
+    📄 Line 488: // Fallback wenn logout.php nicht erreichbar
+    📄 Line 489: window.location.href = 'login.html';
+    📄 Line 612: const response = await fetch('api/sync_matrix.php');
+    📄 Line 613: const data = await response.json();
+
+==================================================================
+FILE: indicator-demo.html (95/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: js/auth-protection.js (96/249)
+==================================================================
+📊 Size: 2016B, Lines: 71
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 10: checkAuth-simple.php (EXISTS)
+    ✅ Line 31: logout-simple.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 10:             const response = await fetch('checkAuth-simple.php');
+    📞 Line 31:             await fetch('logout-simple.php');
+    📞 Line 49:         const response = await fetch(url, {
+  🟨 WINDOW.LOCATION:
+    🔄 Line 24:         if (window.location.pathname !== '/login.html') {
+    🔄 Line 25:             window.location.href = 'login.html';
+  🔍 ALL FILE REFERENCES:
+    📄 Line 10: const response = await fetch('checkAuth-simple.php');
+    📄 Line 24: if (window.location.pathname !== '/login.html') {
+    📄 Line 25: window.location.href = 'login.html';
+    📄 Line 31: await fetch('logout-simple.php');
+
+==================================================================
+FILE: js/barcode-scanner.js (97/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: js/email-utils.js (98/249)
+==================================================================
+📊 Size: 4869B, Lines: 133
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 32: getBookingUrl.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 32:       const bookingResponse = await fetch(`getBookingUrl.php?id=${id}`);
+  🟨 WINDOW.LOCATION:
+    🔄 Line 90:       window.location.href = mailtoLink;
+    🔄 Line 130:       window.location.href = mailtoLink;
+  🔍 ALL FILE REFERENCES:
+    📄 Line 32: const bookingResponse = await fetch(`getBookingUrl.php?id=${id}`);
+    📄 Line 33: const bookingData = await bookingResponse.json();
+
+==================================================================
+FILE: js/emergency-fix.js (99/249)
+==================================================================
+📊 Size: 2520B, Lines: 71
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: js/http-utils.js (100/249)
+==================================================================
+📊 Size: 22496B, Lines: 656
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 183: ping.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 37:         const response = await fetch(url, {
+    📞 Line 183:           const response = await fetch(window.location.origin + '/wci/ping.php', {
+    📞 Line 466:       return fetch(url, options);
+    📞 Line 620:       fetch(url, options).then(r => r.json());
+  🟨 WINDOW.LOCATION:
+    🔄 Line 183:           const response = await fetch(window.location.origin + '/wci/ping.php', {
+  🔍 ALL FILE REFERENCES:
+    📄 Line 78: const data = await response.json();
+    📄 Line 183: const response = await fetch(window.location.origin + '/wci/ping.php', {
+    📄 Line 227: status.style.cssText = `
+    📄 Line 620: fetch(url, options).then(r => r.json());
+    📄 Line 653: // Export für Node.js/Module wenn verfügbar
+
+📊 Progress: 100/249 files analyzed...
+==================================================================
+FILE: js/loading-overlay.js (101/249)
+==================================================================
+📊 Size: 19233B, Lines: 651
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+    📞 Line 334:       const response = await fetch(url, options);
+    📞 Line 383:             const response = await fetch(request.url, request.options);
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 340: const result = await response.json();
+    📄 Line 387: const result = await response.json();
+
+==================================================================
+FILE: js/navigation.js (102/249)
+==================================================================
+📊 Size: 18697B, Lines: 595
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 72: index.php (EXISTS)
+    ✅ Line 112: index.php (EXISTS)
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+    🔄 Line 28:     const path = window.location.pathname;
+    🔄 Line 149:         { label: '📝 Reservation', url: 'reservation.html' + window.location.search }
+    🔄 Line 154:         { label: '📝 Reservation', url: 'reservation.html' + window.location.search }
+    🔄 Line 219:       const urlParams = new URLSearchParams(window.location.search);
+    🔄 Line 353:     if (document.referrer && document.referrer.includes(window.location.origin)) {
+    🔄 Line 363:           const urlParams = new URLSearchParams(window.location.search);
+  🔍 ALL FILE REFERENCES:
+    📄 Line 29: const filename = path.split('/').pop() || 'index.html';
+    📄 Line 32: 'index.html': 'dashboard',
+    📄 Line 33: 'reservierungen.html': 'reservations',
+    📄 Line 34: 'reservation.html': 'reservation',
+    📄 Line 35: 'ReservationDetails.html': 'reservation-details',
+    📄 Line 36: 'GastDetail.html': 'guest-details',
+    📄 Line 37: 'calendar.html': 'calendar',
+    📄 Line 38: 'reports.html': 'reports',
+    📄 Line 39: 'statistiken.html': 'reports'
+    📄 Line 67: <img src="pic/logo.png" alt="Franzsen Hütte" class="nav-logo" onerror="this.style.display='none'">
+    📄 Line 72: <a href="index.php" class="nav-item" data-page="dashboard">
+    📄 Line 75: <a href="reservierungen.html" class="nav-item" data-page="reservations">
+    📄 Line 78: <a href="statistiken.html" class="nav-item" data-page="reports">
+    📄 Line 112: <a href="index.php" class="mobile-nav-item" data-page="dashboard">📊 Dashboard</a>
+    📄 Line 113: <a href="reservierungen.html" class="mobile-nav-item" data-page="reservations">📋 Reservierungen</a>
+    📄 Line 114: <a href="statistiken.html" class="mobile-nav-item" data-page="reports">📈 Statistiken</a>
+    📄 Line 140: { label: '🏠 Dashboard', url: 'index.html' }
+    📄 Line 143: { label: '🏠 Dashboard', url: 'index.html' },
+    📄 Line 144: { label: '📋 Reservierungen', url: 'reservierungen.html' }
+    📄 Line 147: { label: '🏠 Dashboard', url: 'index.html' },
+
+==================================================================
+FILE: js/sync-utils.js (103/249)
+==================================================================
+📊 Size: 6963B, Lines: 222
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 30: syncTrigger.php (EXISTS)
+    ✅ Line 132: syncTrigger.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 30:             const response = await fetch('syncTrigger.php', {
+    📞 Line 132:             const response = await fetch('syncTrigger.php?action=status');
+  🟨 WINDOW.LOCATION:
+    🔄 Line 193:     if (window.location.hostname === '192.168.15.14' || window.location.search.includes('sync_debug=1')) {
+  🔍 ALL FILE REFERENCES:
+    📄 Line 30: const response = await fetch('syncTrigger.php', {
+    📄 Line 132: const response = await fetch('syncTrigger.php?action=status');
+    📄 Line 133: return await response.json();
+    📄 Line 165: indicator.style.cssText = `
+
+==================================================================
+FILE: libs/jquery.min.js (104/249)
+==================================================================
+📊 Size: 93638B, Lines: 1
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: libs/qrcode.js (105/249)
+==================================================================
+📊 Size: 33782B, Lines: 614
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ❌ Line 22: mit-license.php (MISSING)
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 22: //   http://www.opensource.org/licenses/mit-license.php
+    📄 Line 26: //   http://www.denso-wave.com/qrcode/faqpatent-e.html
+
+==================================================================
+FILE: libs/qrcode.min.js (106/249)
+==================================================================
+📊 Size: 19927B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: loading-test.html (107/249)
+==================================================================
+📊 Size: 7564B, Lines: 208
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ✅ Line 70: js/loading-overlay.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 70: <script src="js/loading-overlay.js"></script>
+
+==================================================================
+FILE: login.html (108/249)
+==================================================================
+📊 Size: 9968B, Lines: 301
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 7: style.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: <link rel="stylesheet" href="style.css">
+    📄 Line 221: const response = await fetch('authenticate-simple.php', {
+    📄 Line 230: const result = await response.json();
+    📄 Line 235: window.location.href = 'index.php';
+    📄 Line 281: const response = await fetch('checkAuth.php');
+    📄 Line 283: const result = await response.json();
+    📄 Line 285: window.location.href = 'index.php';
+
+==================================================================
+FILE: login-test.php (109/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: logout.php (110/249)
+==================================================================
+📊 Size: 517B, Lines: 22
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once __DIR__ . '/auth.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once __DIR__ . '/auth.php';
+
+📊 Progress: 110/249 files analyzed...
+==================================================================
+FILE: logout-simple.php (111/249)
+==================================================================
+📊 Size: 649B, Lines: 26
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once __DIR__ . '/auth-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // logout-simple.php - Logout ohne .htaccess-Blockierung
+    📄 Line 3: require_once __DIR__ . '/auth-simple.php';
+
+==================================================================
+FILE: migrate_fixed.php (112/249)
+==================================================================
+📊 Size: 6979B, Lines: 166
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: migrate_remote_to_local.php (113/249)
+==================================================================
+📊 Size: 7008B, Lines: 163
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: minimal-test.php (114/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: navigation-clean.html (115/249)
+==================================================================
+📊 Size: 6198B, Lines: 176
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 45: index.html (EXISTS)
+    ✅ Line 48: index.html (EXISTS)
+    ✅ Line 49: reservierungen.html (EXISTS)
+    ✅ Line 50: statistiken.html (EXISTS)
+    ✅ Line 66: index.html (EXISTS)
+    ✅ Line 102: index.html (EXISTS)
+    ✅ Line 103: reservierungen.html (EXISTS)
+    ✅ Line 104: reservation.html (EXISTS)
+    ✅ Line 105: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 45: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 48: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 49: <a href="reservierungen.html" class="nav-link active">Reservierungen</a>
+    📄 Line 50: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 66: <a href="index.html">Dashboard</a>
+    📄 Line 82: <button class="btn btn-secondary" onclick="location.href='index.html'">
+    📄 Line 102: <a href="index.html" class="btn" style="margin: 5px;">🏠 Dashboard</a>
+    📄 Line 103: <a href="reservierungen.html" class="btn" style="margin: 5px;">📋 Reservierungen</a>
+    📄 Line 104: <a href="reservation.html" class="btn" style="margin: 5px;">📝 Reservation Details</a>
+    📄 Line 105: <a href="statistiken.html" class="btn" style="margin: 5px;">📊 Statistiken</a>
+    📄 Line 140: location.href = 'index.html';
+    📄 Line 146: location.href = 'reservierungen.html';
+
+==================================================================
+FILE: navigation-debug.html (116/249)
+==================================================================
+📊 Size: 8428B, Lines: 232
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 116: js/loading-overlay.js (EXISTS)
+    ✅ Line 117: js/http-utils.js (EXISTS)
+    ✅ Line 118: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 69: index.html (EXISTS)
+    ✅ Line 72: index.html (EXISTS)
+    ✅ Line 73: reservierungen.html (EXISTS)
+    ✅ Line 74: statistiken.html (EXISTS)
+    ✅ Line 107: index.html (EXISTS)
+    ✅ Line 108: reservierungen.html (EXISTS)
+    ✅ Line 109: reservation.html (EXISTS)
+    ✅ Line 110: navigation-demo.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 69: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 72: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 73: <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+    📄 Line 74: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 107: <a href="index.html" class="btn" style="margin: 5px;">Dashboard</a>
+    📄 Line 108: <a href="reservierungen.html" class="btn" style="margin: 5px;">Reservierungen</a>
+    📄 Line 109: <a href="reservation.html" class="btn" style="margin: 5px;">Reservation</a>
+    📄 Line 110: <a href="navigation-demo.html" class="btn" style="margin: 5px;">Demo Page</a>
+    📄 Line 116: <script src="js/loading-overlay.js"></script>
+    📄 Line 117: <script src="js/http-utils.js"></script>
+    📄 Line 118: <script src="js/navigation.js"></script>
+    📄 Line 175: bodyStyle: document.body.style.cssText,
+
+==================================================================
+FILE: navigation-demo.html (117/249)
+==================================================================
+📊 Size: 14874B, Lines: 419
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+    ✅ Line 244: css/navigation.css (EXISTS)
+    ✅ Line 245: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 253: js/navigation.js (EXISTS)
+    ✅ Line 295: js/emergency-fix.js (EXISTS)
+    ✅ Line 298: js/navigation.js (EXISTS)
+    ✅ Line 299: js/loading-overlay.js (EXISTS)
+    ✅ Line 300: js/http-utils.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 156: index.html (EXISTS)
+    ✅ Line 162: reservierungen.html (EXISTS)
+    ✅ Line 174: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 156: <a href="index.html" class="demo-link">Öffnen</a>
+    📄 Line 162: <a href="reservierungen.html" class="demo-link">Öffnen</a>
+    📄 Line 168: <a href="reservation.html?id=6837" class="demo-link">Öffnen</a>
+    📄 Line 174: <a href="statistiken.html" class="demo-link">Öffnen</a>
+    📄 Line 244: &lt;link rel="stylesheet" href="css/navigation.css"&gt;
+    📄 Line 245: &lt;link rel="stylesheet" href="css/navigation-integration.css"&gt;
+    📄 Line 253: &lt;script src="js/navigation.js"&gt;&lt;/script&gt;
+    📄 Line 295: <script src="js/emergency-fix.js"></script>
+    📄 Line 298: <script src="js/navigation.js"></script>
+    📄 Line 299: <script src="js/loading-overlay.js"></script>
+    📄 Line 300: <script src="js/http-utils.js"></script>
+    📄 Line 400: location.href = 'index.html';
+    📄 Line 404: location.href = 'reservierungen.html';
+
+==================================================================
+FILE: performance-test.html (118/249)
+==================================================================
+📊 Size: 7671B, Lines: 207
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ✅ Line 124: js/loading-overlay.js (EXISTS)
+    ✅ Line 125: js/http-utils.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 124: <script src="js/loading-overlay.js"></script>
+    📄 Line 125: <script src="js/http-utils.js"></script>
+
+==================================================================
+FILE: ping.php (119/249)
+==================================================================
+📊 Size: 883B, Lines: 30
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // ping.php - Simple health check endpoint
+
+==================================================================
+FILE: printSelected.php (120/249)
+==================================================================
+📊 Size: 5022B, Lines: 141
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 8: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+    🔄 Line 30:     header('Location: reservation.html?id=' . urlencode($resId));
+    🔄 Line 38:     header('Location: reservation.html?id=' . urlencode($resId));
+    🔄 Line 140: header('Location: reservation.html?id=' . urlencode($resId));
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // printSelected.php
+    📄 Line 8: require 'config.php';
+    📄 Line 30: header('Location: reservation.html?id=' . urlencode($resId));
+    📄 Line 38: header('Location: reservation.html?id=' . urlencode($resId));
+    📄 Line 140: header('Location: reservation.html?id=' . urlencode($resId));
+
+📊 Progress: 120/249 files analyzed...
+==================================================================
+FILE: reservation-clean.html (121/249)
+==================================================================
+📊 Size: 5299B, Lines: 153
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 126: js/navigation.js (EXISTS)
+    ✅ Line 127: js/email-utils.js (EXISTS)
+    ✅ Line 128: js/http-utils.js (EXISTS)
+    ✅ Line 129: js/loading-overlay.js (EXISTS)
+    ✅ Line 130: reservation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 126: <script src="js/navigation.js"></script>
+    📄 Line 127: <script src="js/email-utils.js"></script>
+    📄 Line 128: <script src="js/http-utils.js"></script>
+    📄 Line 129: <script src="js/loading-overlay.js"></script>
+    📄 Line 130: <script src="reservation.js"></script>
+
+==================================================================
+FILE: reservation.css (122/249)
+==================================================================
+📊 Size: 32176B, Lines: 1668
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 887: /* Zeitbasierte Farbgebung für HP Arrangements im Header (basierend auf tisch-uebersicht.php) */
+
+==================================================================
+FILE: reservation-debug.html (123/249)
+==================================================================
+📊 Size: 11758B, Lines: 322
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 137: js/navigation.js (EXISTS)
+    ✅ Line 138: js/http-utils.js (EXISTS)
+    ✅ Line 139: js/loading-overlay.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 47: index.html (EXISTS)
+    ✅ Line 50: index.html (EXISTS)
+    ✅ Line 51: reservierungen.html (EXISTS)
+    ✅ Line 52: reservation.html (EXISTS)
+    ✅ Line 53: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 47: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 50: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 51: <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+    📄 Line 52: <a href="reservation.html" class="nav-link active">Reservation</a>
+    📄 Line 53: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 137: <script src="js/navigation.js"></script>
+    📄 Line 138: <script src="js/http-utils.js"></script>
+    📄 Line 139: <script src="js/loading-overlay.js"></script>
+    📄 Line 173: fetch(`getReservationNames.php?id=${resId}`)
+    📄 Line 176: return response.json();
+    📄 Line 193: const url = `getReservationNames.php?id=${resId}`;
+    📄 Line 220: HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {},
+
+==================================================================
+FILE: ReservationDetails.html (124/249)
+==================================================================
+📊 Size: 34136B, Lines: 934
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 659: js/http-utils.js (EXISTS)
+    ✅ Line 660: js/loading-overlay.js (EXISTS)
+    ✅ Line 661: ReservationDetails.js (EXISTS)
+    ✅ Line 932: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 659: <script src="js/http-utils.js"></script>
+    📄 Line 660: <script src="js/loading-overlay.js"></script>
+    📄 Line 661: <script src="ReservationDetails.js"></script>
+    📄 Line 801: window.location.href = 'reservierungen.html';
+    📄 Line 825: swipeIndicator.style.cssText = `
+    📄 Line 932: <script src="js/navigation.js"></script>
+
+==================================================================
+FILE: ReservationDetails.js (125/249)
+==================================================================
+📊 Size: 20903B, Lines: 506
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 52: getArrangements.php (EXISTS)
+    ✅ Line 54: getArrangements.php (EXISTS)
+    ✅ Line 55: getArrangements.php (EXISTS)
+    ✅ Line 76: getOrigins.php (EXISTS)
+    ✅ Line 78: getOrigins.php (EXISTS)
+    ✅ Line 79: getOrigins.php (EXISTS)
+    ✅ Line 95: getCountries.php (EXISTS)
+    ✅ Line 97: getCountries.php (EXISTS)
+    ✅ Line 98: getCountries.php (EXISTS)
+    ✅ Line 119: getReservationDetailsFull.php (EXISTS)
+    ✅ Line 122: getReservationDetailsFull.php (EXISTS)
+    ✅ Line 130: getReservationDetailsFull.php (EXISTS)
+    ✅ Line 336: updateReservationDetails.php (EXISTS)
+    ✅ Line 339: updateReservationDetails.php (EXISTS)
+    ✅ Line 357: updateReservationDetails.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 54:                     ? await LoadingOverlay.wrapFetch(() => fetch('getArrangements.php').then(response => response.json()), 'Arrangements')
+    📞 Line 55:                     : await fetch('getArrangements.php').then(response => response.json());
+    📞 Line 78:                     ? await LoadingOverlay.wrapFetch(() => fetch('getOrigins.php').then(response => response.json()), 'Herkunftsdaten')
+    📞 Line 79:                     : await fetch('getOrigins.php').then(response => response.json());
+    📞 Line 97:                         ? await LoadingOverlay.wrapFetch(() => fetch('getCountries.php').then(response => response.json()), 'Länderdaten')
+    📞 Line 98:                         : await fetch('getCountries.php').then(response => response.json());
+    📞 Line 122:                         fetch(`getReservationDetailsFull.php?id=${resId}`)
+    📞 Line 130:                     : await fetch(`getReservationDetailsFull.php?id=${resId}`)
+    📞 Line 339:                         const response = await fetch('updateReservationDetails.php', {
+    📞 Line 357:                     : await fetch('updateReservationDetails.php', {
+  🟨 WINDOW.LOCATION:
+    🔄 Line 2:     const urlParams = new URLSearchParams(window.location.search);
+    🔄 Line 504:         window.location.href = 'reservierungen.html';
+  🔍 ALL FILE REFERENCES:
+    📄 Line 52: ? await HttpUtils.requestJsonWithLoading('getArrangements.php', {}, { retries: 2, timeout: 8000 }, 'Arrangements werden geladen...')
+    📄 Line 54: ? await LoadingOverlay.wrapFetch(() => fetch('getArrangements.php').then(response => response.json()), 'Arrangements')
+    📄 Line 55: : await fetch('getArrangements.php').then(response => response.json());
+    📄 Line 76: ? await HttpUtils.requestJsonWithLoading('getOrigins.php', {}, { retries: 2, timeout: 8000 }, 'Herkunftsdaten werden geladen...')
+    📄 Line 78: ? await LoadingOverlay.wrapFetch(() => fetch('getOrigins.php').then(response => response.json()), 'Herkunftsdaten')
+    📄 Line 79: : await fetch('getOrigins.php').then(response => response.json());
+    📄 Line 95: ? await HttpUtils.requestJsonWithLoading('getCountries.php', {}, { retries: 2, timeout: 8000 }, 'Länderdaten werden geladen...')
+    📄 Line 97: ? await LoadingOverlay.wrapFetch(() => fetch('getCountries.php').then(response => response.json()), 'Länderdaten')
+    📄 Line 98: : await fetch('getCountries.php').then(response => response.json());
+    📄 Line 119: ? await HttpUtils.requestJsonWithLoading(`getReservationDetailsFull.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Reservierungsdetails werden geladen...')
+    📄 Line 122: fetch(`getReservationDetailsFull.php?id=${resId}`)
+    📄 Line 127: return response.json();
+    📄 Line 130: : await fetch(`getReservationDetailsFull.php?id=${resId}`)
+    📄 Line 135: return response.json();
+    📄 Line 336: ? await HttpUtils.postJsonWithLoading('updateReservationDetails.php', data, { retries: 2, timeout: 10000 }, 'Reservierungsdetails werden gespeichert...')
+    📄 Line 339: const response = await fetch('updateReservationDetails.php', {
+    📄 Line 357: : await fetch('updateReservationDetails.php', {
+    📄 Line 504: window.location.href = 'reservierungen.html';
+
+==================================================================
+FILE: reservation.html (126/249)
+==================================================================
+📊 Size: 27202B, Lines: 705
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 226: js/navigation.js (EXISTS)
+    ✅ Line 227: js/email-utils.js (EXISTS)
+    ✅ Line 228: js/http-utils.js (EXISTS)
+    ✅ Line 229: js/loading-overlay.js (EXISTS)
+    ✅ Line 230: auto-barcode-scanner.js (EXISTS)
+    ✅ Line 231: reservation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 226: <script src="js/navigation.js"></script>
+    📄 Line 227: <script src="js/email-utils.js"></script>
+    📄 Line 228: <script src="js/http-utils.js"></script>
+    📄 Line 229: <script src="js/loading-overlay.js"></script>
+    📄 Line 230: <script src="auto-barcode-scanner.js"></script>
+    📄 Line 231: <script src="reservation.js"></script>
+    📄 Line 260: swipeIndicator.style.cssText = `
+    📄 Line 341: window.location.href = 'reservierungen.html';
+    📄 Line 364: // Prüfe ob reservation.js bereits Daten lädt
+    📄 Line 366: console.log('🚫 reservation.js already loading/loaded, skipping HTML initialization');
+    📄 Line 372: window.htmlInitializationActive = true;
+    📄 Line 374: // Warte kurz ab ob reservation.js sich meldet
+    📄 Line 380: console.log('🚫 reservation.js hat sich gemeldet, HTML überspringt Load');
+    📄 Line 382: window.htmlInitializationActive = false;
+    📄 Line 461: // Direkt reservation.js loadReservationData aufrufen wenn verfügbar
+    📄 Line 463: console.log('✅ FORCE Verwende loadReservationData() aus reservation.js');
+
+==================================================================
+FILE: reservation.js (127/249)
+==================================================================
+📊 Size: 121617B, Lines: 3322
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 188: getReservationDetails.php (EXISTS)
+    ✅ Line 580: updateReservationNames.php (EXISTS)
+    ✅ Line 623: getReservationNames.php (EXISTS)
+    ✅ Line 625: getReservationNames.php (EXISTS)
+    ✅ Line 626: getReservationNames.php (EXISTS)
+    ✅ Line 636: getReservationNames.php (EXISTS)
+    ✅ Line 822: addReservationNames.php (EXISTS)
+    ✅ Line 1033: updateReservationNamesCheckin.php (EXISTS)
+    ✅ Line 1081: updateReservationNamesCheckin.php (EXISTS)
+    ✅ Line 1190: updateReservationNamesCheckout.php (EXISTS)
+    ✅ Line 1237: updateReservationNamesCheckout.php (EXISTS)
+    ✅ Line 1330: toggleGuideFlag.php (EXISTS)
+    ✅ Line 1375: toggleNoShow.php (EXISTS)
+    ✅ Line 1414: updateReservationNamesCheckin.php (EXISTS)
+    ✅ Line 1437: updateReservationNamesCheckin.php (EXISTS)
+    ✅ Line 1470: updateReservationNamesCheckout.php (EXISTS)
+    ✅ Line 1493: updateReservationNamesCheckout.php (EXISTS)
+    ✅ Line 1525: deleteReservationNames.php (EXISTS)
+    ✅ Line 1555: GetCardPrinters.php (EXISTS)
+    ✅ Line 1655: printSelected.php (EXISTS)
+    ✅ Line 1719: updateReservationNamesCheckin.php (EXISTS)
+    ✅ Line 1755: printSelected.php (EXISTS)
+    ✅ Line 1768: printSelected.php (EXISTS)
+    ✅ Line 1806: getArrangements.php (EXISTS)
+    ✅ Line 1831: updateReservationNamesArrangement.php (EXISTS)
+    ✅ Line 1869: getArrangements.php (EXISTS)
+    ✅ Line 1874: getArrangements.php (EXISTS)
+    ✅ Line 1891: updateReservationNamesArrangement.php (EXISTS)
+    ✅ Line 1941: updateReservationNamesArrangement.php (EXISTS)
+    ✅ Line 2013: getDiets.php (EXISTS)
+    ✅ Line 2038: updateReservationNamesDiet.php (EXISTS)
+    ✅ Line 2098: addReservationNames.php (EXISTS)
+    ✅ Line 2193: toggleStorno.php (EXISTS)
+    ✅ Line 2274: toggleStorno.php (EXISTS)
+    ✅ Line 2444: deleteReservation.php (EXISTS)
+    ✅ Line 2556: get-hp-arrangements.php (EXISTS)
+    ✅ Line 2698: tisch-uebersicht-resid.php (EXISTS)
+    ✅ Line 2771: get-hp-arrangements-table.php (EXISTS)
+    ✅ Line 3007: save-hp-arrangements-table.php (EXISTS)
+    ✅ Line 3142: save-hp-arrangements.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 192:           ? LoadingOverlay.wrapFetch(() => fetch(apiUrl).then(r => r.json()), 'Reservierungsdetails')
+    📞 Line 193:           : fetch(apiUrl).then(r => r.json())
+    📞 Line 580:       const response = await fetch('updateReservationNames.php', {
+    📞 Line 625:           ? LoadingOverlay.wrapFetch(() => fetch(`getReservationNames.php?id=${resId}`).then(r => r.json()), 'Namensliste')
+    📞 Line 626:           : fetch(`getReservationNames.php?id=${resId}`).then(r => r.json())
+    📞 Line 636:           const newList = await fetch(`getReservationNames.php?id=${resId}`).then(r => r.json());
+    📞 Line 822:       const response = await fetch('addReservationNames.php', {
+    📞 Line 1081:             fetch('updateReservationNamesCheckin.php', {
+    📞 Line 1237:             fetch('updateReservationNamesCheckout.php', {
+    📞 Line 1330:         const response = await fetch('toggleGuideFlag.php', {
+    📞 Line 1375:       fetch('toggleNoShow.php', {
+    📞 Line 1414:           const response = await fetch('updateReservationNamesCheckin.php', {
+    📞 Line 1437:           const response = await fetch('updateReservationNamesCheckin.php', {
+    📞 Line 1470:           const response = await fetch('updateReservationNamesCheckout.php', {
+    📞 Line 1493:           const response = await fetch('updateReservationNamesCheckout.php', {
+    📞 Line 1525:     fetch('deleteReservationNames.php', {
+    📞 Line 1555:     fetch('GetCardPrinters.php')
+    📞 Line 1719:             const response = await fetch('updateReservationNamesCheckin.php', {
+    📞 Line 1806:     fetch('getArrangements.php')
+    📞 Line 1831:     fetch('updateReservationNamesArrangement.php', {
+    📞 Line 1869:           fetch('getArrangements.php').then(r => {
+    📞 Line 1874:         fetch('getArrangements.php').then(r => {
+    📞 Line 1941:             fetch('updateReservationNamesArrangement.php', {
+    📞 Line 2013:     fetch('getDiets.php')
+    📞 Line 2038:     fetch('updateReservationNamesDiet.php', {
+    📞 Line 2098:     fetch('addReservationNames.php', {
+    📞 Line 2193:     fetch(`toggleStorno.php`, {
+    📞 Line 2274:     fetch('toggleStorno.php', {
+    📞 Line 2444:     fetch('deleteReservation.php', {
+    📞 Line 2556:       const response = await fetch(`get-hp-arrangements.php?res_id=${resId}`);
+    📞 Line 2771:       const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+    📞 Line 3007:       const response = await fetch('save-hp-arrangements-table.php', {
+    📞 Line 3142:       const response = await fetch('save-hp-arrangements.php', {
+  🟨 WINDOW.LOCATION:
+    🔄 Line 1304:       window.location.href = `GastDetail.html?id=${id}`;
+    🔄 Line 1312:       window.location.href = `GastDetail.html?id=${id}`;
+    🔄 Line 1320:       window.location.href = `GastDetail.html?id=${id}`;
+    🔄 Line 1656:         window.location.href = url;
+    🔄 Line 1759:             window.location.href = printUrl;
+    🔄 Line 1769:           window.location.href = printUrl;
+    🔄 Line 2162:     window.location.href = `ReservationDetails.html?id=${resId}`;
+    🔄 Line 2458:           window.location.href = 'reservierungen.html';
+    🔄 Line 2668:     const urlParams = new URLSearchParams(window.location.search);
+  🔍 ALL FILE REFERENCES:
+    📄 Line 183: // Signal für HTML dass reservation.js am Laden ist
+    📄 Line 188: const apiUrl = `getReservationDetails.php?id=${resId}&includeColor=true`;
+    📄 Line 192: ? LoadingOverlay.wrapFetch(() => fetch(apiUrl).then(r => r.json()), 'Reservierungsdetails')
+    📄 Line 193: : fetch(apiUrl).then(r => r.json())
+    📄 Line 368: // Signal für HTML dass reservation.js fertig ist
+    📄 Line 580: const response = await fetch('updateReservationNames.php', {
+    📄 Line 594: const data = await response.json();
+    📄 Line 623: ? HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Namensliste wird geladen...')
+    📄 Line 625: ? LoadingOverlay.wrapFetch(() => fetch(`getReservationNames.php?id=${resId}`).then(r => r.json()), 'Namensliste')
+    📄 Line 626: : fetch(`getReservationNames.php?id=${resId}`).then(r => r.json())
+    📄 Line 636: const newList = await fetch(`getReservationNames.php?id=${resId}`).then(r => r.json());
+    📄 Line 694: detailIcons += `<img src="./pic/luggage.svg" alt="Transport" class="detail-icon" title="Transport: ${n.transport}€">`;
+    📄 Line 697: detailIcons += `<img src="./pic/food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
+    📄 Line 700: detailIcons += `<img src="./pic/info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
+    📄 Line 703: detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
+    📄 Line 726: : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+    📄 Line 731: : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+    📄 Line 822: const response = await fetch('addReservationNames.php', {
+    📄 Line 831: const result = await response.json();
+    📄 Line 1033: url: 'updateReservationNamesCheckin.php',
+
+==================================================================
+FILE: reservation-layout-test.html (128/249)
+==================================================================
+📊 Size: 9045B, Lines: 240
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 68: index.html (EXISTS)
+    ✅ Line 71: index.html (EXISTS)
+    ✅ Line 72: reservierungen.html (EXISTS)
+    ✅ Line 73: reservation.html (EXISTS)
+    ✅ Line 74: statistiken.html (EXISTS)
+    ✅ Line 98: index.html (EXISTS)
+    ✅ Line 100: reservierungen.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 68: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 71: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 72: <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+    📄 Line 73: <a href="reservation.html" class="nav-link active">Reservation</a>
+    📄 Line 74: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 98: <a href="index.html">Dashboard</a>
+    📄 Line 100: <a href="reservierungen.html">Reservierungen</a>
+
+==================================================================
+FILE: reservation-quick-fix.html (129/249)
+==================================================================
+📊 Size: 11117B, Lines: 267
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 153: js/http-utils.js (EXISTS)
+    ✅ Line 154: js/loading-overlay.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 29: index.html (EXISTS)
+    ✅ Line 32: index.html (EXISTS)
+    ✅ Line 33: reservierungen.html (EXISTS)
+    ✅ Line 34: reservation.html (EXISTS)
+    ✅ Line 35: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 29: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 32: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 33: <a href="reservierungen.html" class="nav-link">Reservierungen</a>
+    📄 Line 34: <a href="reservation.html" class="nav-link active">Reservation</a>
+    📄 Line 35: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 153: <script src="js/http-utils.js"></script>
+    📄 Line 154: <script src="js/loading-overlay.js"></script>
+    📄 Line 176: const response = await fetch(`getReservationDetails.php?id=${resId}`);
+    📄 Line 177: const data = await response.json();
+    📄 Line 201: const response = await fetch(`getReservationNames.php?id=${resId}`);
+    📄 Line 202: const names = await response.json();
+
+==================================================================
+FILE: reservierungen-backup.html (130/249)
+==================================================================
+📊 Size: 8810B, Lines: 257
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 9: style.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ❌ Line 93: https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js (MISSING)
+    ✅ Line 94: js/email-utils.js (EXISTS)
+    ✅ Line 95: js/http-utils.js (EXISTS)
+    ✅ Line 96: js/loading-overlay.js (EXISTS)
+    ✅ Line 97: js/sync-utils.js (EXISTS)
+    ✅ Line 98: barcode-scanner.js (EXISTS)
+    ✅ Line 99: script.js (EXISTS)
+    ✅ Line 165: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 1: <!-- reservierungen.html -->
+    📄 Line 9: <link rel="stylesheet" href="style.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 59: <!-- wird per script.js befüllt -->
+    📄 Line 92: <!-- QRCode.js (CDN) -->
+    📄 Line 93: <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    📄 Line 94: <script src="js/email-utils.js"></script>
+    📄 Line 95: <script src="js/http-utils.js"></script>
+    📄 Line 96: <script src="js/loading-overlay.js"></script>
+    📄 Line 97: <script src="js/sync-utils.js"></script>
+    📄 Line 98: <script src="barcode-scanner.js"></script>
+    📄 Line 99: <script src="script.js"></script>
+    📄 Line 165: <script src="js/navigation.js"></script>
+    📄 Line 178: // Barcode-Scanner wird automatisch durch barcode-scanner.js geladen
+
+📊 Progress: 130/249 files analyzed...
+==================================================================
+FILE: reservierungen-clean.html (131/249)
+==================================================================
+📊 Size: 6822B, Lines: 182
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 9: style.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ❌ Line 93: https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js (MISSING)
+    ✅ Line 94: js/email-utils.js (EXISTS)
+    ✅ Line 95: js/http-utils.js (EXISTS)
+    ✅ Line 96: js/loading-overlay.js (EXISTS)
+    ✅ Line 97: js/sync-utils.js (EXISTS)
+    ✅ Line 98: barcode-scanner.js (EXISTS)
+    ✅ Line 99: script.js (EXISTS)
+    ✅ Line 164: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 1: <!-- reservierungen.html -->
+    📄 Line 9: <link rel="stylesheet" href="style.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 59: <!-- wird per script.js befüllt -->
+    📄 Line 92: <!-- QRCode.js (CDN) -->
+    📄 Line 93: <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    📄 Line 94: <script src="js/email-utils.js"></script>
+    📄 Line 95: <script src="js/http-utils.js"></script>
+    📄 Line 96: <script src="js/loading-overlay.js"></script>
+    📄 Line 97: <script src="js/sync-utils.js"></script>
+    📄 Line 98: <script src="barcode-scanner.js"></script>
+    📄 Line 99: <script src="script.js"></script>
+    📄 Line 164: <script src="js/navigation.js"></script>
+    📄 Line 177: // Barcode-Scanner wird automatisch durch barcode-scanner.js geladen
+
+==================================================================
+FILE: reservierungen.html (132/249)
+==================================================================
+📊 Size: 8726B, Lines: 316
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 9: style.css (EXISTS)
+    ✅ Line 10: css/navigation.css (EXISTS)
+    ✅ Line 11: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ❌ Line 227: https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js (MISSING)
+    ✅ Line 228: js/email-utils.js (EXISTS)
+    ✅ Line 229: js/http-utils.js (EXISTS)
+    ✅ Line 230: js/loading-overlay.js (EXISTS)
+    ✅ Line 231: js/sync-utils.js (EXISTS)
+    ✅ Line 232: auto-barcode-scanner.js (EXISTS)
+    ✅ Line 233: script.js (EXISTS)
+    ✅ Line 298: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 1: <!-- reservierungen.html -->
+    📄 Line 9: <link rel="stylesheet" href="style.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 11: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 190: <!-- wird per script.js befüllt -->
+    📄 Line 226: <!-- QRCode.js (CDN) -->
+    📄 Line 227: <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    📄 Line 228: <script src="js/email-utils.js"></script>
+    📄 Line 229: <script src="js/http-utils.js"></script>
+    📄 Line 230: <script src="js/loading-overlay.js"></script>
+    📄 Line 231: <script src="js/sync-utils.js"></script>
+    📄 Line 232: <script src="auto-barcode-scanner.js"></script>
+    📄 Line 233: <script src="script.js"></script>
+    📄 Line 298: <script src="js/navigation.js"></script>
+
+==================================================================
+FILE: reservierungen-test.html (133/249)
+==================================================================
+📊 Size: 6097B, Lines: 158
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ✅ Line 47: index.html (EXISTS)
+    ✅ Line 50: index.html (EXISTS)
+    ✅ Line 51: reservierungen.html (EXISTS)
+    ✅ Line 52: statistiken.html (EXISTS)
+    ✅ Line 85: index.html (EXISTS)
+    ✅ Line 86: reservierungen.html (EXISTS)
+    ✅ Line 88: statistiken.html (EXISTS)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 47: <a href="index.html">🏨 WebCheckin</a>
+    📄 Line 50: <a href="index.html" class="nav-link">Dashboard</a>
+    📄 Line 51: <a href="reservierungen.html" class="nav-link active">Reservierungen</a>
+    📄 Line 52: <a href="statistiken.html" class="nav-link">Statistiken</a>
+    📄 Line 85: <a href="index.html" class="btn btn-primary" style="margin: 5px;">🏠 Dashboard</a>
+    📄 Line 86: <a href="reservierungen.html" class="btn btn-secondary" style="margin: 5px;">📋 Original
+    📄 Line 88: <a href="statistiken.html" class="btn btn-secondary" style="margin: 5px;">📊 Statistiken</a>
+
+==================================================================
+FILE: save-arrangement-inline.php (134/249)
+==================================================================
+📊 Size: 6900B, Lines: 214
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 134:     require_once 'auth-simple.php';
+    📝 Line 135:     require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // save-arrangement-inline.php - Complex input parsing for arrangements
+    📄 Line 134: require_once 'auth-simple.php';
+    📄 Line 135: require_once 'hp-db-config.php';
+    📄 Line 209: error_log("save-arrangement-inline.php Error: " . $e->getMessage());
+
+==================================================================
+FILE: save-arrangements.php (135/249)
+==================================================================
+📊 Size: 8310B, Lines: 200
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // save-arrangements.php - Arrangements eines Gastes speichern
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: save-hp-arrangements.php (136/249)
+==================================================================
+📊 Size: 6338B, Lines: 172
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // save-hp-arrangements.php - Speichert HP Arrangements für eine Reservierung
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: save-hp-arrangements-table.php (137/249)
+==================================================================
+📊 Size: 3582B, Lines: 115
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 15: require_once 'auth-simple.php';
+    📝 Line 18: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 15: require_once 'auth-simple.php';
+    📄 Line 18: require_once 'hp-db-config.php';
+    📄 Line 108: error_log("Error in save-hp-arrangements-table.php: " . $e->getMessage());
+
+==================================================================
+FILE: save-reservation-arrangement.php (138/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: schema-debug.php (139/249)
+==================================================================
+📊 Size: 11315B, Lines: 244
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require_once 'SyncManager.php';
+    📄 Line 236: echo "<br><p><a href='sync-debug.php' style='background: green; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>🔍 Zurück zum Sync-Debug</a></p>";
+
+==================================================================
+FILE: score-debug-test.html (140/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 140/249 files analyzed...
+==================================================================
+FILE: script.js (141/249)
+==================================================================
+📊 Size: 34886B, Lines: 907
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 141: getOrigins.php (EXISTS)
+    ✅ Line 150: getArrangements.php (EXISTS)
+    ✅ Line 228: addReservation.php (EXISTS)
+    ✅ Line 229: addReservation.php (EXISTS)
+    ✅ Line 415: data.php (EXISTS)
+    ✅ Line 417: data.php (EXISTS)
+    ✅ Line 418: data.php (EXISTS)
+    ✅ Line 598: getBookingUrl.php (EXISTS)
+    ✅ Line 600: getBookingUrl.php (EXISTS)
+    ✅ Line 601: getBookingUrl.php (EXISTS)
+    ✅ Line 614: getReservationDetails.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 141:       fetch('getOrigins.php')
+    📞 Line 150:       fetch('getArrangements.php')
+    📞 Line 229:       fetch('addReservation.php', {
+    📞 Line 417:         ? LoadingOverlay.wrapFetch(() => fetch(`data.php?${params}`).then(res => res.json()), 'Reservierungsliste')
+    📞 Line 418:         : fetch(`data.php?${params}`).then(res => res.json());
+    📞 Line 600:             ? LoadingOverlay.wrapFetch(() => fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json()), 'QR-Code')
+    📞 Line 601:             : fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json());
+    📞 Line 614:               fetch(`getReservationDetails.php?id=${reservationId}`)
+  🟨 WINDOW.LOCATION:
+    🔄 Line 555:         window.location.href = `reservation.html?id=${cell.dataset.id}`;
+    🔄 Line 847:   const urlParams = new URLSearchParams(window.location.search);
+    🔄 Line 854:     window.history.replaceState({}, document.title, window.location.pathname);
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: * script.js
+    📄 Line 141: fetch('getOrigins.php')
+    📄 Line 142: .then(r => r.json())
+    📄 Line 150: fetch('getArrangements.php')
+    📄 Line 151: .then(r => r.json())
+    📄 Line 228: // AJAX-Request an addReservation.php
+    📄 Line 229: fetch('addReservation.php', {
+    📄 Line 237: .then(r => r.json())
+    📄 Line 415: ? HttpUtils.requestJsonWithLoading(`data.php?${params}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsliste wird geladen...')
+    📄 Line 417: ? LoadingOverlay.wrapFetch(() => fetch(`data.php?${params}`).then(res => res.json()), 'Reservierungsliste')
+    📄 Line 418: : fetch(`data.php?${params}`).then(res => res.json());
+    📄 Line 479: const nameText = `${r.nachname} ${r.vorname}` + (r.hund ? ' <img src="pic/dog.svg" alt1="Hund" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.av_id > 0 ? ' <img src="pic/AV.svg" alt="AV" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.invoice ? ' <img src="pic/invoice.svg" alt="Debitor" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.storno ? ' <img src="pic/cancelled.svg" alt="Storniert" style="width: 4.6em; height: 1.15em; vertical-align: middle;">' : '');
+    📄 Line 555: window.location.href = `reservation.html?id=${cell.dataset.id}`;
+    📄 Line 598: ? HttpUtils.requestJsonWithLoading(`getBookingUrl.php?id=${reservationId}`, {}, {}, 'QR-Code wird generiert...')
+    📄 Line 600: ? LoadingOverlay.wrapFetch(() => fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json()), 'QR-Code')
+    📄 Line 601: : fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json());
+    📄 Line 614: fetch(`getReservationDetails.php?id=${reservationId}`)
+    📄 Line 615: .then(response => response.json())
+
+==================================================================
+FILE: searchBarcode.php (142/249)
+==================================================================
+📊 Size: 3165B, Lines: 91
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+
+==================================================================
+FILE: searchLookup.php (143/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: searchReservations.php (144/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: simple-barcode-scanner.js (145/249)
+==================================================================
+📊 Size: 10110B, Lines: 260
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+    ✅ Line 173: searchBarcode.php (EXISTS)
+  🟨 FETCH CALLS:
+    📞 Line 173:         fetch(`searchBarcode.php?barcode=${encodeURIComponent(barcode)}`)
+  🟨 WINDOW.LOCATION:
+    🔄 Line 193:                     window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
+  🔍 ALL FILE REFERENCES:
+    📄 Line 173: fetch(`searchBarcode.php?barcode=${encodeURIComponent(barcode)}`)
+    📄 Line 174: .then(response => response.json())
+    📄 Line 193: window.location.href = `reservation.html?id=${av_id}&highlight=${highlightName}&source=barcode`;
+
+==================================================================
+FILE: simple-hp-test.html (146/249)
+==================================================================
+📊 Size: 1894B, Lines: 57
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 34: fetch('get-hp-arrangements-header.php?res_id=7144')
+    📄 Line 37: return response.json();
+
+==================================================================
+FILE: simple-test.php (147/249)
+==================================================================
+📊 Size: 733B, Lines: 32
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7:     require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // simple-test.php - Test main database only
+    📄 Line 7: require 'config.php';
+
+==================================================================
+FILE: simple-timeline.html (148/249)
+==================================================================
+📊 Size: 4030B, Lines: 96
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ❌ Line 7: timeline.css (MISSING)
+  📄 JS INCLUDES:
+    ✅ Line 94: js/http-utils.js (EXISTS)
+    ❌ Line 95: timeline.js (MISSING)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: <link rel="stylesheet" href="timeline.css">
+    📄 Line 94: <script src="js/http-utils.js"></script>
+    📄 Line 95: <script src="timeline.js"></script>
+
+==================================================================
+FILE: statistiken.html (149/249)
+==================================================================
+📊 Size: 34392B, Lines: 1007
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: css/navigation.css (EXISTS)
+    ✅ Line 10: css/navigation-integration.css (EXISTS)
+  📄 JS INCLUDES:
+    ✅ Line 480: js/http-utils.js (EXISTS)
+    ✅ Line 481: js/loading-overlay.js (EXISTS)
+    ✅ Line 1005: js/navigation.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="css/navigation.css">
+    📄 Line 10: <link rel="stylesheet" href="css/navigation-integration.css">
+    📄 Line 480: <script src="js/http-utils.js"></script>
+    📄 Line 481: <script src="js/loading-overlay.js"></script>
+    📄 Line 526: ? HttpUtils.requestJsonWithLoading(`stats-api.php?date=${date}`, {}, {}, 'Statistiken werden geladen...')
+    📄 Line 527: : LoadingOverlay.wrapFetch(() => fetch(`stats-api.php?date=${date}`).then(r => r.json()), 'Statistiken');
+    📄 Line 568: ? HttpUtils.requestJsonWithLoading(`weekly-stats-api.php?start_date=${date}`, {}, {}, 'Wochendaten werden geladen...')
+    📄 Line 569: : LoadingOverlay.wrapFetch(() => fetch(`weekly-stats-api.php?start_date=${date}`).then(r => r.json()), 'Wochendaten');
+    📄 Line 588: <div style="margin-top: 8px;"><img src="pic/dog.svg" style="width: 16px; height: 16px; vertical-align: middle;"> ${day.dogs_in_house}</div>
+    📄 Line 729: const response = await fetch(`getIncompleteReservations.php?min_guests=${minGuests}&max_percentage=${maxPercentage}&days=${days}`);
+    📄 Line 735: const data = await response.json();
+    📄 Line 805: window.open(`reservation.html?id=${reservationId}`, '_blank');
+    📄 Line 878: const response = await fetch(`getDuplicateReservations.php?days=${days}&min_similarity=${threshold}`);
+    📄 Line 884: const data = await response.json();
+    📄 Line 997: window.open(`reservation.html?id=${id1}`, '_blank');
+    📄 Line 999: window.open(`reservation.html?id=${id2}`, '_blank');
+    📄 Line 1005: <script src="js/navigation.js"></script>
+
+==================================================================
+FILE: stats-api.php (150/249)
+==================================================================
+📊 Size: 6024B, Lines: 215
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 5: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // stats-api.php - Dedicated API for statistics calculations
+    📄 Line 5: require 'config.php';
+
+📊 Progress: 150/249 files analyzed...
+==================================================================
+FILE: style.css (151/249)
+==================================================================
+📊 Size: 13867B, Lines: 746
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 408: /* GastDetail.html Formular */
+
+==================================================================
+FILE: sw-barcode.js (152/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: sync-database.php (153/249)
+==================================================================
+📊 Size: 11869B, Lines: 327
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 10:     require_once 'auth-simple.php';
+    📝 Line 11:     require_once 'config.php';
+    📝 Line 12:     require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // sync-database.php - Database synchronization from AV-Res to HP database
+    📄 Line 10: require_once 'auth-simple.php';
+    📄 Line 11: require_once 'config.php';
+    📄 Line 12: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: sync_debug_output.html (154/249)
+==================================================================
+📊 Size: 11082B, Lines: 239
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: sync-debug.php (155/249)
+==================================================================
+📊 Size: 39322B, Lines: 720
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 9: require_once 'SyncManager.php';
+    📝 Line 148:     echo "<input type='number' name='record_id' placeholder='Record ID' required style='padding: 5px;'>";
+    📝 Line 149:     echo "<select name='table_name' required style='padding: 5px;'>";
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 9: require_once 'SyncManager.php';
+
+==================================================================
+FILE: sync_debug.php (156/249)
+==================================================================
+📊 Size: 8666B, Lines: 191
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: SyncManager.php (157/249)
+==================================================================
+📊 Size: 33663B, Lines: 798
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: sync-simple.php (158/249)
+==================================================================
+📊 Size: 2027B, Lines: 71
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 17:         require_once 'auth-simple.php';
+    📝 Line 26:         require_once 'config.php';
+    📝 Line 35:         require_once 'hp-db-config.php';
+    📝 Line 41:     $steps[] = "Step 8: All includes successful";
+    📝 Line 56:         'message' => 'All includes working',
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // sync-simple.php - Simplified sync test
+    📄 Line 14: // Test auth-simple.php
+    📄 Line 15: if (file_exists('auth-simple.php')) {
+    📄 Line 16: $steps[] = "Step 2: auth-simple.php exists";
+    📄 Line 17: require_once 'auth-simple.php';
+    📄 Line 18: $steps[] = "Step 3: auth-simple.php loaded";
+    📄 Line 20: throw new Exception("auth-simple.php not found");
+    📄 Line 23: // Test config.php
+    📄 Line 24: if (file_exists('config.php')) {
+    📄 Line 25: $steps[] = "Step 4: config.php exists";
+    📄 Line 26: require_once 'config.php';
+    📄 Line 27: $steps[] = "Step 5: config.php loaded";
+    📄 Line 29: throw new Exception("config.php not found");
+    📄 Line 32: // Test hp-db-config.php
+    📄 Line 33: if (file_exists('hp-db-config.php')) {
+    📄 Line 34: $steps[] = "Step 6: hp-db-config.php exists";
+    📄 Line 35: require_once 'hp-db-config.php';
+    📄 Line 36: $steps[] = "Step 7: hp-db-config.php loaded";
+    📄 Line 38: throw new Exception("hp-db-config.php not found");
+
+==================================================================
+FILE: sync-test.php (159/249)
+==================================================================
+📊 Size: 3396B, Lines: 112
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 15: // Test 1: File includes
+    📝 Line 16: echo "1. Testing file includes...\n";
+    📝 Line 20:         require_once 'auth-simple.php';
+    📝 Line 32:         require_once 'config.php';
+    📝 Line 44:         require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // sync-test.php - Debug script for sync-database issues
+    📄 Line 18: if (file_exists('auth-simple.php')) {
+    📄 Line 19: echo "   ✅ auth-simple.php exists\n";
+    📄 Line 20: require_once 'auth-simple.php';
+    📄 Line 21: echo "   ✅ auth-simple.php loaded\n";
+    📄 Line 23: echo "   ❌ auth-simple.php NOT found\n";
+    📄 Line 26: echo "   ❌ auth-simple.php error: " . $e->getMessage() . "\n";
+    📄 Line 30: if (file_exists('config.php')) {
+    📄 Line 31: echo "   ✅ config.php exists\n";
+    📄 Line 32: require_once 'config.php';
+    📄 Line 33: echo "   ✅ config.php loaded\n";
+    📄 Line 35: echo "   ❌ config.php NOT found\n";
+    📄 Line 38: echo "   ❌ config.php error: " . $e->getMessage() . "\n";
+    📄 Line 42: if (file_exists('hp-db-config.php')) {
+    📄 Line 43: echo "   ✅ hp-db-config.php exists\n";
+    📄 Line 44: require_once 'hp-db-config.php';
+    📄 Line 45: echo "   ✅ hp-db-config.php loaded\n";
+    📄 Line 47: echo "   ❌ hp-db-config.php NOT found\n";
+    📄 Line 50: echo "   ❌ hp-db-config.php error: " . $e->getMessage() . "\n";
+
+==================================================================
+FILE: syncTrigger.php (160/249)
+==================================================================
+📊 Size: 1704B, Lines: 63
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once 'config.php';
+    📝 Line 7: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 6: require_once 'config.php';
+    📄 Line 7: require_once 'SyncManager.php';
+
+📊 Progress: 160/249 files analyzed...
+==================================================================
+FILE: system-analysis-network.php (161/249)
+==================================================================
+📊 Size: 36077B, Lines: 1021
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 152: 'php_files' => count(glob('*.php')),
+    📄 Line 154: 'js_files' => count(glob('*.js')),
+    📄 Line 155: 'css_files' => count(glob('*.css')),
+    📄 Line 234: <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    📄 Line 382: .node-sample.php { background: #8892d9; }
+    📄 Line 383: .node-sample.html { background: #e74c3c; }
+    📄 Line 384: .node-sample.js { background: #f1c40f; }
+    📄 Line 385: .node-sample.css { background: #3498db; }
+    📄 Line 477: <a href="index.php" class="back-button">
+    📄 Line 629: const data = await response.json();
+    📄 Line 658: const analysisResult = await analysisResponse.json();
+    📄 Line 673: const networkResult = await networkResponse.json();
+
+==================================================================
+FILE: system-analysis.php (162/249)
+==================================================================
+📊 Size: 23720B, Lines: 666
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 542:                 if (line.includes('Total files analyzed:')) {
+    📝 Line 545:                 if (line.includes('Size:') && line.includes('B,')) {
+  🟦 PHP HEADER REDIRECTS:
+    🔄 Line 7:     header('Location: login.html');
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // system-analysis.php - WCI System Analysis Dashboard
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 7: header('Location: login.html');
+    📄 Line 102: <link rel="stylesheet" href="style.css">
+    📄 Line 364: <a href="index.php" class="back-button">← Zurück zum Dashboard</a>
+    📄 Line 507: const result = await response.json();
+    📄 Line 566: const result = await response.json();
+    📄 Line 656: window.open('system-analysis-network.php', '_blank', 'width=1400,height=900');
+
+==================================================================
+FILE: test-add-names-modal.html (163/249)
+==================================================================
+📊 Size: 6854B, Lines: 196
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 91: // Global function (copy from reservation.js)
+    📄 Line 154: alert(`Mock Import:\n\n${text}\n\nIn der echten App würde dies an addReservationNames.php gesendet.`);
+    📄 Line 172: // Placeholder update functionality (copy from reservation.js)
+
+==================================================================
+FILE: test_age_calculation.php (164/249)
+==================================================================
+📊 Size: 1792B, Lines: 60
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+    📄 Line 4: // MySQL Error Mode lockern (wie in getReservationNames.php)
+
+==================================================================
+FILE: test_av_res_complete.php (165/249)
+==================================================================
+📊 Size: 15337B, Lines: 398
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_av_resdet_complete.php (166/249)
+==================================================================
+📊 Size: 6636B, Lines: 176
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_av_resdet_sync.php (167/249)
+==================================================================
+📊 Size: 3705B, Lines: 99
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test_av_resdet_sync.php - Spezieller Test für AV_ResDet Sync-Problem
+    📄 Line 4: require 'SyncManager.php';
+
+==================================================================
+FILE: test_av_res_direct.php (168/249)
+==================================================================
+📊 Size: 8703B, Lines: 212
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_av_res_simplified.php (169/249)
+==================================================================
+📊 Size: 14192B, Lines: 392
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_cardname.php (170/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 170/249 files analyzed...
+==================================================================
+FILE: test-config.php (171/249)
+==================================================================
+📊 Size: 1492B, Lines: 53
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7:     require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-config.php - Quick test of database connections
+    📄 Line 7: require 'config.php';
+
+==================================================================
+FILE: test_db_schema.php (172/249)
+==================================================================
+📊 Size: 689B, Lines: 24
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: // test_db_schema.php - Test to see what fields are actually required
+    📝 Line 3: require_once 'config.php';
+    📝 Line 6:     // Try a minimal insert to see what's required
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test_db_schema.php - Test to see what fields are actually required
+    📄 Line 3: require_once 'config.php';
+
+==================================================================
+FILE: test-debug-api.php (173/249)
+==================================================================
+📊 Size: 140B, Lines: 5
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: include 'get-hp-arrangements-header-debug.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-debug-api.php - Teste die HP-Arrangements direkt
+    📄 Line 4: include 'get-hp-arrangements-header-debug.php';
+
+==================================================================
+FILE: test_disposition.php (174/249)
+==================================================================
+📊 Size: 1010B, Lines: 33
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test-final-features.html (175/249)
+==================================================================
+📊 Size: 5545B, Lines: 178
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test_final.php (176/249)
+==================================================================
+📊 Size: 3292B, Lines: 75
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test-grouping.php (177/249)
+==================================================================
+📊 Size: 5197B, Lines: 165
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test-header-color.html (178/249)
+==================================================================
+📊 Size: 4621B, Lines: 107
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: reservation.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="reservation.css">
+    📄 Line 67: const response = await fetch('getReservationDetails.php?id=6441&includeColor=true');
+    📄 Line 68: const data = await response.json();
+
+==================================================================
+FILE: test-hp-api-direct.php (179/249)
+==================================================================
+📊 Size: 603B, Lines: 25
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 8: include 'get-hp-arrangements-table.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: include 'get-hp-arrangements-table.php';
+
+==================================================================
+FILE: test-hp-arrangements-display.html (180/249)
+==================================================================
+📊 Size: 3446B, Lines: 99
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: reservation.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="reservation.css">
+
+📊 Progress: 180/249 files analyzed...
+==================================================================
+FILE: test-hp-arrangements.php (181/249)
+==================================================================
+📊 Size: 893B, Lines: 29
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: test-hp-arrangements-table.html (182/249)
+==================================================================
+📊 Size: 13554B, Lines: 348
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+    ✅ Line 8: style.css (EXISTS)
+    ✅ Line 9: reservation.css (EXISTS)
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 8: <link rel="stylesheet" href="style.css">
+    📄 Line 9: <link rel="stylesheet" href="reservation.css">
+    📄 Line 80: const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+    📄 Line 81: const data = await response.json();
+    📄 Line 134: const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+    📄 Line 135: const data = await response.json();
+    📄 Line 314: const response = await fetch('save-hp-arrangements-table.php', {
+    📄 Line 325: const result = await response.json();
+
+==================================================================
+FILE: test-hp-data.php (183/249)
+==================================================================
+📊 Size: 1597B, Lines: 53
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+    📝 Line 52: include 'get-hp-arrangements-header.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-hp-data.php - Teste HP-Arrangements für Reservierungen
+    📄 Line 3: require_once 'hp-db-config.php';
+    📄 Line 52: include 'get-hp-arrangements-header.php';
+
+==================================================================
+FILE: test-hp-header-direct.php (184/249)
+==================================================================
+📊 Size: 6946B, Lines: 196
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-hp-header-direct.php - Direkter Test der HP-Header-API ohne Auth
+    📄 Line 3: require_once 'hp-db-config.php';
+    📄 Line 106: // Bestimme Zeitklasse basierend auf seconds_ago (wie in tisch-uebersicht.php)
+
+==================================================================
+FILE: test-hp-structure.php (185/249)
+==================================================================
+📊 Size: 1663B, Lines: 58
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-hp-structure.php - Test der HP-Datenbankstruktur
+    📄 Line 3: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: test-js-grouping.html (186/249)
+==================================================================
+📊 Size: 4444B, Lines: 130
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test_migration.php (187/249)
+==================================================================
+📊 Size: 4244B, Lines: 102
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_multi_table_complete.php (188/249)
+==================================================================
+📊 Size: 9255B, Lines: 230
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_multi_table_sync.php (189/249)
+==================================================================
+📊 Size: 1432B, Lines: 47
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test-oval-display.html (190/249)
+==================================================================
+📊 Size: 2811B, Lines: 112
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 190/249 files analyzed...
+==================================================================
+FILE: test-parser-extended.php (191/249)
+==================================================================
+📊 Size: 3549B, Lines: 122
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test-parser-final.php (192/249)
+==================================================================
+📊 Size: 3999B, Lines: 131
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test-parser.php (193/249)
+==================================================================
+📊 Size: 2450B, Lines: 95
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test.php (194/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test_post_migration.php (195/249)
+==================================================================
+📊 Size: 7055B, Lines: 165
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test-presence.html (196/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test_remote_triggers.php (197/249)
+==================================================================
+📊 Size: 2698B, Lines: 73
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_reservation_names.php (198/249)
+==================================================================
+📊 Size: 1343B, Lines: 47
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'config.php';
+    📝 Line 28:     include 'getReservationNames.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'config.php';
+    📄 Line 8: echo "=== Test getReservationNames.php functionality ===\n";
+    📄 Line 28: include 'getReservationNames.php';
+
+==================================================================
+FILE: test-resid-7144.php (199/249)
+==================================================================
+📊 Size: 146B, Lines: 5
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: include 'get-hp-arrangements-header-debug.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-resid-7144.php - Teste HP-Arrangements für ResID 7144
+    📄 Line 4: include 'get-hp-arrangements-header-debug.php';
+
+==================================================================
+FILE: test-rooms.html (200/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 200/249 files analyzed...
+==================================================================
+FILE: tests/auth-test.php (201/249)
+==================================================================
+📊 Size: 2523B, Lines: 68
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 53:                 <input type="password" name="password" placeholder="Passwort eingeben..." required>
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // auth-test.php - Test der Authentifizierung
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 65: <p><a href="index.php">← Zurück zum Dashboard</a></p>
+
+==================================================================
+FILE: test-save-arrangements.php (202/249)
+==================================================================
+📊 Size: 3579B, Lines: 111
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 43: require_once 'auth-simple.php';
+    📝 Line 44: require_once 'hp-db-config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-save-arrangements.php - Debug script for save-arrangements.php
+    📄 Line 8: echo "<h2>Testing save-arrangements.php functionality</h2>";
+    📄 Line 38: echo "<h3>Simulating save-arrangements.php...</h3>";
+    📄 Line 43: require_once 'auth-simple.php';
+    📄 Line 44: require_once 'hp-db-config.php';
+
+==================================================================
+FILE: tests/config-simple.php (203/249)
+==================================================================
+📊 Size: 842B, Lines: 32
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // config-simple.php - Einfache Datenbankverbindung ohne Auth
+
+==================================================================
+FILE: tests/db-test.php (204/249)
+==================================================================
+📊 Size: 1825B, Lines: 51
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 22:             require_once 'config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // db-test.php - Datenbankverbindung testen
+    📄 Line 22: require_once 'config-simple.php';
+    📄 Line 48: <p><a href="index.php">← Zurück zum Dashboard</a></p>
+
+==================================================================
+FILE: tests/db-test-quick.php (205/249)
+==================================================================
+📊 Size: 2537B, Lines: 70
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // db-test-quick.php - Schneller Datenbanktest mit Timeouts
+    📄 Line 66: <p><a href="index.php">← Zurück zum Dashboard</a></p>
+    📄 Line 67: <p><a href="minimal-test.php">→ Minimal Test</a></p>
+
+==================================================================
+FILE: test-search-api.php (206/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: test-simple-stats.php (207/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: tests/login-test.php (208/249)
+==================================================================
+📊 Size: 3855B, Lines: 101
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 31: <p><a href="index.php">← Zurück zum Dashboard</a></p>
+    📄 Line 32: <p><a href="login.html">→ Zur Login-Seite</a></p>
+    📄 Line 48: const response = await fetch('authenticate-simple.php', {
+    📄 Line 54: const result = await response.json();
+    📄 Line 70: const response = await fetch('checkAuth-simple.php');
+    📄 Line 71: const result = await response.json();
+    📄 Line 87: const response = await fetch('logout-simple.php');
+    📄 Line 88: const result = await response.json();
+
+==================================================================
+FILE: tests/minimal-test.php (209/249)
+==================================================================
+📊 Size: 373B, Lines: 11
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 9: echo "<p><a href='index.php'>Back to Dashboard</a></p>";
+
+==================================================================
+FILE: test-stats.php (210/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 210/249 files analyzed...
+==================================================================
+FILE: tests/test.php (211/249)
+==================================================================
+📊 Size: 1760B, Lines: 46
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test.php - Basis PHP-Test
+    📄 Line 36: <li><?php echo file_exists('config.php') ? '✅' : '❌'; ?> config.php</li>
+    📄 Line 37: <li><?php echo file_exists('auth.php') ? '✅' : '❌'; ?> auth.php</li>
+    📄 Line 38: <li><?php echo file_exists('login.html') ? '✅' : '❌'; ?> login.html</li>
+    📄 Line 39: <li><?php echo file_exists('reservierungen.html') ? '✅' : '❌'; ?> reservierungen.html</li>
+    📄 Line 44: <p><a href="index.php">→ Zurück zum Dashboard</a></p>
+
+==================================================================
+FILE: tests/test-rooms.html (212/249)
+==================================================================
+📊 Size: 1325B, Lines: 40
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ✅ Line 38: js/http-utils.js (EXISTS)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 13: console.log('Teste getRooms.php...');
+    📄 Line 16: ? await HttpUtils.request('getRooms.php', {}, { retries: 2, timeout: 8000 }).then(r => r.text())
+    📄 Line 17: : await fetch('getRooms.php').then(response => {
+    📄 Line 38: <script src="js/http-utils.js"></script>
+
+==================================================================
+FILE: tests/test-simple-stats.php (213/249)
+==================================================================
+📊 Size: 729B, Lines: 27
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-simple-stats.php - Allereinfachste Statistiken für Test
+
+==================================================================
+FILE: tests/test-stats.php (214/249)
+==================================================================
+📊 Size: 2161B, Lines: 64
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 10:     require_once __DIR__ . '/config-simple.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test-stats.php - Direkter Test der Dashboard-Statistiken
+    📄 Line 10: require_once __DIR__ . '/config-simple.php';
+    📄 Line 11: echo "✅ config-simple.php geladen<br>";
+    📄 Line 63: echo '<p><a href="index.php">← Zurück zum Dashboard</a></p>';
+
+==================================================================
+FILE: test_sync_after_fix.php (215/249)
+==================================================================
+📊 Size: 1123B, Lines: 44
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_sync_fields.php (216/249)
+==================================================================
+📊 Size: 4300B, Lines: 112
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // test_sync_fields.php - Analysiert welche Felder beim Sync verwendet werden
+    📄 Line 4: require 'SyncManager.php';
+    📄 Line 86: // Lese SyncManager.php Datei um zu sehen wie UPDATE-Queries erstellt werden
+    📄 Line 87: $syncManagerContent = file_get_contents('SyncManager.php');
+
+==================================================================
+FILE: test_sync_system.php (217/249)
+==================================================================
+📊 Size: 7718B, Lines: 168
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test_triggers.php (218/249)
+==================================================================
+📊 Size: 3658B, Lines: 81
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 2: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: require_once 'SyncManager.php';
+
+==================================================================
+FILE: test-visual-preview.html (219/249)
+==================================================================
+📊 Size: 7010B, Lines: 237
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: tisch-uebersicht.php (220/249)
+==================================================================
+📊 Size: 87338B, Lines: 2300
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'auth-simple.php';
+    📝 Line 4: require_once 'hp-db-config.php';
+    📝 Line 1927:             const isMultiLine = hasValue && displayValue.includes('\n');
+  🟦 PHP HEADER REDIRECTS:
+    🔄 Line 8:     header('Location: login.html');
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // tisch-uebersicht.php - Tischübersicht basiert auf der HP-Datenbank View
+    📄 Line 3: require_once 'auth-simple.php';
+    📄 Line 4: require_once 'hp-db-config.php';
+    📄 Line 8: header('Location: login.html');
+    📄 Line 1193: <a href="index.php" class="back-button">← Zurück zum Dashboard</a>
+    📄 Line 1199: <a href="index.php" class="back-button">← Zurück zum Dashboard</a>
+    📄 Line 1204: <a href="index.php" class="ribbon-button" title="Zurück zum Dashboard">
+    📄 Line 1785: const response = await fetch('save-arrangement-inline.php', {
+    📄 Line 1797: const result = await response.json();
+    📄 Line 1853: const response = await fetch('get-arrangement-cells-data.php');
+    📄 Line 1854: const result = await response.json();
+    📄 Line 1986: window.location.href = 'index.php';
+    📄 Line 1989: window.location.href = 'index.php';
+    📄 Line 2021: const response = await fetch('get-arrangements.php');
+    📄 Line 2022: const data = await response.json();
+    📄 Line 2045: const response = await fetch(`get-guest-arrangements.php?guest_id=${guestId}`);
+    📄 Line 2046: const data = await response.json();
+    📄 Line 2161: const response = await fetch('save-arrangements.php', {
+    📄 Line 2249: const response = await fetch('sync-database.php', {
+
+📊 Progress: 220/249 files analyzed...
+==================================================================
+FILE: tisch-uebersicht-resid.php (221/249)
+==================================================================
+📊 Size: 64326B, Lines: 1649
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'hp-db-config.php';
+    📝 Line 1586:             const isMultiLine = hasValue && displayValue.includes('\n');
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // tisch-uebersicht-resid.php - Tischübersicht für spezielle Reservierungs-ID
+    📄 Line 3: require_once 'hp-db-config.php';
+    📄 Line 8: die('Fehler: Keine gültige Reservierungs-ID angegeben. Verwendung: tisch-uebersicht-resid.php?resid=123');
+    📄 Line 905: <a href="tisch-uebersicht.php" class="back-button">Zurück zur Tischübersicht</a>
+    📄 Line 912: <a href="tisch-uebersicht.php" class="back-button">Zurück zur Tischübersicht</a>
+    📄 Line 1444: const response = await fetch('save-arrangement-inline.php', {
+    📄 Line 1456: const result = await response.json();
+    📄 Line 1512: const response = await fetch('get-arrangement-cells-data.php');
+    📄 Line 1513: const result = await response.json();
+    📄 Line 1642: window.location.href = 'tisch-uebersicht.php';
+    📄 Line 1644: window.location.href = 'tisch-uebersicht.php';
+
+==================================================================
+FILE: toggleGuideFlag.php (222/249)
+==================================================================
+📊 Size: 1059B, Lines: 37
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // toggleGuideFlag.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: toggleNoShow.php (223/249)
+==================================================================
+📊 Size: 1258B, Lines: 45
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // toggleNoShow.php - Simple NoShow toggle like toggleGuideFlag.php
+    📄 Line 4: require_once 'config.php';
+
+==================================================================
+FILE: toggleStorno.php (224/249)
+==================================================================
+📊 Size: 4826B, Lines: 141
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7: require_once 'config.php';
+    📝 Line 87:                 'requiresConfirmation' => true,
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: require_once 'config.php';
+
+==================================================================
+FILE: transport-api.php (225/249)
+==================================================================
+📊 Size: 3112B, Lines: 91
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 5: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // transport-api.php - API für Transportkosten-Verwaltung
+    📄 Line 5: require 'config.php';
+
+==================================================================
+FILE: transport.html (226/249)
+==================================================================
+📊 Size: 22495B, Lines: 697
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 484: const response = await fetch(`transport-api.php?action=get_arrivals&date=${date}`);
+    📄 Line 485: allGuests = await response.json();
+    📄 Line 510: ${guest.transport > 0 ? '<img src="pic/luggage.svg" class="luggage-icon" alt="Transport">' : ''}
+    📄 Line 667: const response = await fetch('transport-api.php?action=update_transport', {
+    📄 Line 672: const result = await response.json();
+
+==================================================================
+FILE: transport-new.html (227/249)
+==================================================================
+📊 Size: 21617B, Lines: 688
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 484: const response = await fetch(`transport-api.php?action=get_arrivals&date=${date}`);
+    📄 Line 485: allGuests = await response.json();
+    📄 Line 510: ${guest.transport > 0 ? '<img src="pic/luggage.svg" class="luggage-icon" alt="Transport">' : ''}
+    📄 Line 658: const response = await fetch('transport-api.php?action=update_transport', {
+    📄 Line 663: const result = await response.json();
+
+==================================================================
+FILE: updateGastDetail.php (228/249)
+==================================================================
+📊 Size: 2925B, Lines: 95
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 6: require_once 'config.php';
+
+==================================================================
+FILE: update-queue-tables.php (229/249)
+==================================================================
+📊 Size: 3669B, Lines: 81
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require_once 'SyncManager.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require_once 'SyncManager.php';
+    📄 Line 73: echo "<p><a href='sync-debug.php' style='background: green; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>🔍 Zurück zum Debug-Tool</a></p>";
+
+==================================================================
+FILE: updateReservationDetails.php (230/249)
+==================================================================
+📊 Size: 5447B, Lines: 193
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 7: require_once 'config.php';
+    📝 Line 21: // Check required fields
+    📝 Line 29: // Validate required fields
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 7: require_once 'config.php';
+
+📊 Progress: 230/249 files analyzed...
+==================================================================
+FILE: updateReservationNamesArrangement.php (231/249)
+==================================================================
+📊 Size: 1087B, Lines: 36
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // updateReservationNamesArrangement.php
+    📄 Line 4: require 'config.php';
+
+==================================================================
+FILE: updateReservationNamesCheckin.php (232/249)
+==================================================================
+📊 Size: 1502B, Lines: 49
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require 'config.php';
+
+==================================================================
+FILE: updateReservationNamesCheckout.php (233/249)
+==================================================================
+📊 Size: 1499B, Lines: 49
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require 'config.php';
+
+==================================================================
+FILE: updateReservationNamesDiet.php (234/249)
+==================================================================
+📊 Size: 908B, Lines: 31
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 3: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 3: require 'config.php';
+
+==================================================================
+FILE: updateReservationNamesNoShow.php (235/249)
+==================================================================
+📊 Size: 2973B, Lines: 95
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 4: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // updateReservationNamesNoShow.php - Backend für NoShow Status Update
+    📄 Line 4: require_once 'config.php';
+
+==================================================================
+FILE: updateReservationNames.php (236/249)
+==================================================================
+📊 Size: 1450B, Lines: 57
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 5: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // updateReservationNames.php - Update Vorname/Nachname in AV-Res table
+    📄 Line 5: require 'config.php';
+
+==================================================================
+FILE: weekly-stats-api.php (237/249)
+==================================================================
+📊 Size: 3298B, Lines: 104
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 5: require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // weekly-stats-api.php - Extended weekly statistics
+    📄 Line 5: require 'config.php';
+
+==================================================================
+FILE: wetter.php (238/249)
+==================================================================
+📊 Size: 11417B, Lines: 318
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: word-search-test.html (239/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: zimmerplan.css (240/249)
+==================================================================
+📊 Size: 11328B, Lines: 522
+
+🔗 FOUND REFERENCES:
+  🎨 CSS IMPORTS:
+  🎨 URL() RESOURCES:
+  🔍 ALL FILE REFERENCES:
+
+📊 Progress: 240/249 files analyzed...
+==================================================================
+FILE: zimmerplan-daypilot.html (241/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: zimmerplan-daypilot.js (242/249)
+==================================================================
+📊 Size: 0B, Lines: 0
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+  🔍 ALL FILE REFERENCES:
+
+==================================================================
+FILE: zp/config.php (243/249)
+==================================================================
+📊 Size: 1064B, Lines: 35
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 2: // config.php – hier die Zugangsdaten zur MySQL-Datenbank
+    📄 Line 34: $cmd = "php " . __DIR__ . "/syncTrigger.php?action=$action > /dev/null 2>&1 &";
+
+==================================================================
+FILE: zp/getRooms.php (244/249)
+==================================================================
+📊 Size: 1710B, Lines: 59
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 13:     require 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 13: require 'config.php';
+
+==================================================================
+FILE: zp/getZimmerplanData.php (245/249)
+==================================================================
+📊 Size: 13386B, Lines: 364
+
+🔗 FOUND REFERENCES:
+  🟦 PHP INCLUDES:
+    📝 Line 6: require_once 'config.php';
+  🟦 PHP HEADER REDIRECTS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 6: require_once 'config.php';
+    📄 Line 278: $content .= ' <img src="../pic/dog.svg" alt="🐕" style="height: 12px; width: 12px; vertical-align: middle;">';
+
+==================================================================
+FILE: zp/timeline-config.html (246/249)
+==================================================================
+📊 Size: 26711B, Lines: 734
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ❌ Line 700: timeline-config.js (MISSING)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+    ❌ Line 695: timeline-unified.html (MISSING)
+  🔍 ALL FILE REFERENCES:
+    📄 Line 695: <a href="timeline-unified.html" class="btn btn-secondary">🏠 Zurück zur Timeline</a>
+    📄 Line 700: <script src="timeline-config.js"></script>
+
+==================================================================
+FILE: zp/timeline-config.js (247/249)
+==================================================================
+📊 Size: 18139B, Lines: 409
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+    🔄 Line 398:             window.location.href = 'timeline-unified.html';
+  🔍 ALL FILE REFERENCES:
+    📄 Line 398: window.location.href = 'timeline-unified.html';
+
+==================================================================
+FILE: zp/timeline-unified.html (248/249)
+==================================================================
+📊 Size: 11862B, Lines: 292
+
+🔗 FOUND REFERENCES:
+  📄 CSS INCLUDES:
+  📄 JS INCLUDES:
+    ❌ Line 67: timeline-unified.js (MISSING)
+  📄 FORM ACTIONS:
+  📄 HTML LINKS:
+  🔍 ALL FILE REFERENCES:
+    📄 Line 67: <script src="timeline-unified.js"></script>
+    📄 Line 95: const response = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
+    📄 Line 96: const result = await response.json();
+    📄 Line 151: const roomsResponse = await fetch('getRooms.php');
+    📄 Line 152: const roomsResult = await roomsResponse.json();
+    📄 Line 188: // API-Datum-Parser (kompatibel mit getZimmerplanData.php)
+    📄 Line 217: console.error('TimelineUnifiedRenderer ist nicht verfügbar. Prüfe, ob timeline-unified.js korrekt geladen wurde.');
+
+==================================================================
+FILE: zp/timeline-unified.js (249/249)
+==================================================================
+📊 Size: 175326B, Lines: 4342
+
+🔗 FOUND REFERENCES:
+  🟨 PHP API CALLS:
+  🟨 FETCH CALLS:
+  🟨 WINDOW.LOCATION:
+    🔄 Line 1361:             window.location.href = 'timeline-config.html';
+  🔍 ALL FILE REFERENCES:
+    📄 Line 1361: window.location.href = 'timeline-config.html';
+
+==================================================================
+🏁 ANALYSIS COMPLETE
+==================================================================
+Total files analyzed: 249
+Completion time: Sun Aug 10 12:24:39 PM CEST 2025

@@ -1,0 +1,13 @@
+# Crontab für WCI Log-Management
+
+# Log-Rotation täglich um 02:00 Uhr
+0 2 * * * /home/vadmin/lemp/html/wci/rotate-logs.sh >> /home/vadmin/lemp/logs/rotation.log 2>&1
+
+# Archive-Bereinigung: Lösche Archive älter als 365 Tage
+0 3 * * 0 find /home/vadmin/lemp/logs/archive -name "*.gz" -mtime +365 -delete
+
+# Analyse-Aktualisierung jeden Sonntag um 04:00
+0 4 * * 0 cd /home/vadmin/lemp/html/wci && php access-analyzer-pro.php --batch-update
+
+# Status-Report monatlich
+0 5 1 * * /home/vadmin/lemp/html/wci/analyze-wci-usage.sh | mail -s "WCI Monthly Usage Report" admin@example.com
