@@ -137,6 +137,36 @@ if (!AuthManager::checkSession()) {
       background: #7f8c8d;
     }
     
+    /* Multi-button layout */
+    .card-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .card-buttons .card-button {
+      flex: 1;
+      min-width: 120px;
+    }
+    
+    .card-button.hrs-debug {
+      background: #e74c3c;
+      font-weight: bold;
+    }
+    
+    .card-button.hrs-debug:hover {
+      background: #c0392b;
+    }
+    
+    .card-button.system-analysis {
+      background: #9b59b6;
+      font-weight: bold;
+    }
+    
+    .card-button.system-analysis:hover {
+      background: #8e44ad;
+    }
+    
     .quick-actions {
       display: flex;
       gap: 10px;
@@ -390,9 +420,16 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Verbindungstest, System-Status und Wartungstools für die WebCheckin-Anwendung.
         </p>
-        <a href="loading-test.html" class="card-button">Tools öffnen</a>
+        <div class="card-buttons">
+          <a href="loading-test.html" class="card-button">System Tools</a>
+          <a href="hrs_login_debug.php" class="card-button hrs-debug">🔧 HRS Debug</a>
+          <a href="system-analysis.php" class="card-button system-analysis">🔍 System Analyse</a>
+        </div>
       </div>
     </div>
+
+    <!-- Access Analytics Widget -->
+    <?php include 'access-widget.php'; ?>
 
     <!-- Quick Actions -->
     <div class="dashboard-grid">

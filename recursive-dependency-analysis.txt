@@ -1,0 +1,589 @@
+# WCI COMPLETE RECURSIVE DEPENDENCY ANALYSIS
+Generated: Sun Aug 10 09:43:30 AM CEST 2025
+Max Depth: 10
+
+
+==========================================
+🎯 ENTRY POINT: index.php
+==========================================
+📄 Level 0: index.php
+  📊 Size: 19030 bytes, Modified: Wed Aug  6 05:06:45 PM CEST 2025
+  ↳ [REDIRECT] login.html
+  📄 Level 1: login.html
+    📊 Size: 9968 bytes, Modified: Mon Jul 14 01:31:29 PM CEST 2025
+    ↳ [CSS] style.css
+    📄 Level 2: style.css
+      📊 Size: 13867 bytes, Modified: Mon Aug  4 09:27:09 AM CEST 2025
+      📝 No dependencies found
+
+
+==========================================
+🎯 ENTRY POINT: login.html
+==========================================
+🔄 Already analyzed: login.html
+
+
+==========================================
+🎯 ENTRY POINT: reservierungen.html
+==========================================
+📄 Level 0: reservierungen.html
+  📊 Size: 8726 bytes, Modified: Fri Aug  8 03:04:45 PM CEST 2025
+  ↳ [CSS] style.css
+  🔄 Already analyzed: style.css
+  ↳ [CSS] css/navigation.css
+  📄 Level 1: css/navigation.css
+    📊 Size: 9416 bytes, Modified: Sat Jul 19 07:08:29 AM CEST 2025
+    📝 No dependencies found
+  ↳ [CSS] css/navigation-integration.css
+  📄 Level 1: css/navigation-integration.css
+    📊 Size: 2235 bytes, Modified: Sat Jul 19 07:08:29 AM CEST 2025
+    📝 No dependencies found
+  ↳ [JS] js/email-utils.js
+  📄 Level 1: js/email-utils.js
+    📊 Size: 4869 bytes, Modified: Tue Jul 15 07:53:53 AM CEST 2025
+    📝 No dependencies found
+  ↳ [JS] js/http-utils.js
+  📄 Level 1: js/http-utils.js
+    📊 Size: 22496 bytes, Modified: Sat Jul 19 07:08:29 AM CEST 2025
+    📝 No dependencies found
+  ↳ [JS] js/loading-overlay.js
+  📄 Level 1: js/loading-overlay.js
+    📊 Size: 19233 bytes, Modified: Sat Jul 19 07:08:30 AM CEST 2025
+    📝 No dependencies found
+  ↳ [JS] js/sync-utils.js
+  📄 Level 1: js/sync-utils.js
+    📊 Size: 6963 bytes, Modified: Thu Jul 17 02:54:21 PM CEST 2025
+    ↳ [FETCH] syncTrigger.php
+    📄 Level 2: syncTrigger.php
+      📊 Size: 1704 bytes, Modified: Thu Jul 17 02:54:19 PM CEST 2025
+      📝 No dependencies found
+  ↳ [JS] auto-barcode-scanner.js
+  📄 Level 1: auto-barcode-scanner.js
+    📊 Size: 8684 bytes, Modified: Mon Aug  4 09:27:10 AM CEST 2025
+    📝 No dependencies found
+  ↳ [JS] script.js
+  📄 Level 1: script.js
+    📊 Size: 34886 bytes, Modified: Fri Aug  8 03:06:31 PM CEST 2025
+    ↳ [FETCH] getOrigins.php
+    📄 Level 2: getOrigins.php
+      📊 Size: 715 bytes, Modified: Mon Jul 14 01:31:28 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] getArrangements.php
+    📄 Level 2: getArrangements.php
+      📊 Size: 541 bytes, Modified: Mon Jul 14 01:31:27 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] addReservation.php
+    📄 Level 2: addReservation.php
+      📊 Size: 3981 bytes, Modified: Sat Jul 19 02:43:21 PM CEST 2025
+      📝 No dependencies found
+  ↳ [JS] js/navigation.js
+  📄 Level 1: js/navigation.js
+    📊 Size: 18697 bytes, Modified: Sat Aug  9 05:55:02 AM CEST 2025
+    📝 No dependencies found
+
+
+==========================================
+🎯 ENTRY POINT: reservation.html
+==========================================
+📄 Level 0: reservation.html
+  📊 Size: 27202 bytes, Modified: Sun Aug 10 07:03:53 AM CEST 2025
+  ↳ [CSS] style.css
+  🔄 Already analyzed: style.css
+  ↳ [CSS] reservation.css
+  📄 Level 1: reservation.css
+    📊 Size: 32176 bytes, Modified: Sun Aug 10 09:24:13 AM CEST 2025
+    📝 No dependencies found
+  ↳ [CSS] css/navigation.css
+  🔄 Already analyzed: css/navigation.css
+  ↳ [CSS] css/navigation-integration.css
+  🔄 Already analyzed: css/navigation-integration.css
+  ↳ [JS] js/navigation.js
+  🔄 Already analyzed: js/navigation.js
+  ↳ [JS] js/email-utils.js
+  🔄 Already analyzed: js/email-utils.js
+  ↳ [JS] js/http-utils.js
+  🔄 Already analyzed: js/http-utils.js
+  ↳ [JS] js/loading-overlay.js
+  🔄 Already analyzed: js/loading-overlay.js
+  ↳ [JS] auto-barcode-scanner.js
+  🔄 Already analyzed: auto-barcode-scanner.js
+  ↳ [JS] reservation.js
+  📄 Level 1: reservation.js
+    📊 Size: 121617 bytes, Modified: Sun Aug 10 07:03:53 AM CEST 2025
+    ↳ [FETCH] updateReservationNames.php
+    📄 Level 2: updateReservationNames.php
+      📊 Size: 1450 bytes, Modified: Mon Jul 21 06:05:54 AM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] addReservationNames.php
+    📄 Level 2: addReservationNames.php
+      📊 Size: 1150 bytes, Modified: Mon Jul 14 01:31:25 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    📄 Level 2: updateReservationNamesCheckin.php
+      📊 Size: 1502 bytes, Modified: Thu Jul 17 02:54:19 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    📄 Level 2: updateReservationNamesCheckout.php
+      📊 Size: 1499 bytes, Modified: Thu Jul 17 02:54:19 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] toggleGuideFlag.php
+    📄 Level 2: toggleGuideFlag.php
+      📊 Size: 1059 bytes, Modified: Mon Jul 14 01:31:30 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] toggleNoShow.php
+    📄 Level 2: toggleNoShow.php
+      📊 Size: 1258 bytes, Modified: Sat Jul 19 05:31:23 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    🔄 Already analyzed: updateReservationNamesCheckin.php
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    🔄 Already analyzed: updateReservationNamesCheckin.php
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    🔄 Already analyzed: updateReservationNamesCheckout.php
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    🔄 Already analyzed: updateReservationNamesCheckout.php
+    ↳ [FETCH] deleteReservationNames.php
+    📄 Level 2: deleteReservationNames.php
+      📊 Size: 981 bytes, Modified: Mon Jul 14 01:31:27 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] GetCardPrinters.php
+    📄 Level 2: GetCardPrinters.php
+      📊 Size: 534 bytes, Modified: Mon Jul 14 01:31:27 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    🔄 Already analyzed: updateReservationNamesCheckin.php
+    ↳ [FETCH] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [FETCH] updateReservationNamesArrangement.php
+    📄 Level 2: updateReservationNamesArrangement.php
+      📊 Size: 1087 bytes, Modified: Mon Jul 14 01:31:30 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [FETCH] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [FETCH] updateReservationNamesArrangement.php
+    🔄 Already analyzed: updateReservationNamesArrangement.php
+    ↳ [FETCH] getDiets.php
+    📄 Level 2: getDiets.php
+      📊 Size: 418 bytes, Modified: Mon Jul 14 01:31:28 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationNamesDiet.php
+    📄 Level 2: updateReservationNamesDiet.php
+      📊 Size: 908 bytes, Modified: Mon Jul 14 01:31:30 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] addReservationNames.php
+    🔄 Already analyzed: addReservationNames.php
+    ↳ [FETCH] toggleStorno.php
+    📄 Level 2: toggleStorno.php
+      📊 Size: 4826 bytes, Modified: Mon Jul 14 01:31:30 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] deleteReservation.php
+    📄 Level 2: deleteReservation.php
+      📊 Size: 2734 bytes, Modified: Sat Jul 19 02:43:21 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] save-hp-arrangements-table.php
+    📄 Level 2: save-hp-arrangements-table.php
+      📊 Size: 3582 bytes, Modified: Sat Aug  9 06:48:15 AM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] save-hp-arrangements.php
+    📄 Level 2: save-hp-arrangements.php
+      📊 Size: 6338 bytes, Modified: Thu Aug  7 01:43:31 PM CEST 2025
+      📝 No dependencies found
+    ↳ [REDIRECT] reservierungen.html
+    🔄 Already analyzed: reservierungen.html
+
+
+==========================================
+🎯 ENTRY POINT: ReservationDetails.html
+==========================================
+📄 Level 0: ReservationDetails.html
+  📊 Size: 34136 bytes, Modified: Thu Jul 31 06:53:52 AM CEST 2025
+  ↳ [CSS] style.css
+  🔄 Already analyzed: style.css
+  ↳ [CSS] reservation.css
+  🔄 Already analyzed: reservation.css
+  ↳ [CSS] css/navigation.css
+  🔄 Already analyzed: css/navigation.css
+  ↳ [CSS] css/navigation-integration.css
+  🔄 Already analyzed: css/navigation-integration.css
+  ↳ [JS] js/http-utils.js
+  🔄 Already analyzed: js/http-utils.js
+  ↳ [JS] js/loading-overlay.js
+  🔄 Already analyzed: js/loading-overlay.js
+  ↳ [JS] ReservationDetails.js
+  📄 Level 1: ReservationDetails.js
+    📊 Size: 20903 bytes, Modified: Mon Jul 28 08:22:03 PM CEST 2025
+    ↳ [FETCH] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [FETCH] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [FETCH] getOrigins.php
+    🔄 Already analyzed: getOrigins.php
+    ↳ [FETCH] getOrigins.php
+    🔄 Already analyzed: getOrigins.php
+    ↳ [FETCH] getCountries.php
+    📄 Level 2: getCountries.php
+      📊 Size: 450 bytes, Modified: Mon Jul 14 01:31:27 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] getCountries.php
+    🔄 Already analyzed: getCountries.php
+    ↳ [FETCH] updateReservationDetails.php
+    📄 Level 2: updateReservationDetails.php
+      📊 Size: 5447 bytes, Modified: Mon Jul 28 08:22:02 PM CEST 2025
+      📝 No dependencies found
+    ↳ [FETCH] updateReservationDetails.php
+    🔄 Already analyzed: updateReservationDetails.php
+    ↳ [HTTP_UTIL] getArrangements.php
+    🔄 Already analyzed: getArrangements.php
+    ↳ [HTTP_UTIL] getOrigins.php
+    🔄 Already analyzed: getOrigins.php
+    ↳ [HTTP_UTIL] getCountries.php
+    🔄 Already analyzed: getCountries.php
+    ↳ [HTTP_UTIL] updateReservationDetails.php
+    🔄 Already analyzed: updateReservationDetails.php
+    ↳ [REDIRECT] reservierungen.html
+    🔄 Already analyzed: reservierungen.html
+  ↳ [JS] js/navigation.js
+  🔄 Already analyzed: js/navigation.js
+
+
+==========================================
+🎯 ENTRY POINT: statistiken.html
+==========================================
+📄 Level 0: statistiken.html
+  📊 Size: 34392 bytes, Modified: Sun Jul 20 07:02:58 AM CEST 2025
+  ↳ [CSS] style.css
+  🔄 Already analyzed: style.css
+  ↳ [CSS] css/navigation.css
+  🔄 Already analyzed: css/navigation.css
+  ↳ [CSS] css/navigation-integration.css
+  🔄 Already analyzed: css/navigation-integration.css
+  ↳ [JS] js/http-utils.js
+  🔄 Already analyzed: js/http-utils.js
+  ↳ [JS] js/loading-overlay.js
+  🔄 Already analyzed: js/loading-overlay.js
+  ↳ [JS] js/navigation.js
+  🔄 Already analyzed: js/navigation.js
+
+
+==========================================
+🎯 ENTRY POINT: tisch-uebersicht.php
+==========================================
+📄 Level 0: tisch-uebersicht.php
+  📊 Size: 87338 bytes, Modified: Fri Aug  8 07:17:32 AM CEST 2025
+  ↳ [REDIRECT] login.html
+  🔄 Already analyzed: login.html
+
+
+==========================================
+🎯 ENTRY POINT: zp/timeline-unified.html
+==========================================
+📄 Level 0: zp/timeline-unified.html
+  📊 Size: 11862 bytes, Modified: Wed Jul 23 05:07:49 PM CEST 2025
+  📝 No dependencies found
+
+
+==========================================
+🎯 ENTRY POINT: loading-test.html
+==========================================
+📄 Level 0: loading-test.html
+  📊 Size: 7564 bytes, Modified: Mon Jul 14 01:31:28 PM CEST 2025
+  ↳ [JS] js/loading-overlay.js
+  🔄 Already analyzed: js/loading-overlay.js
+
+
+==========================================
+📊 ANALYSIS SUMMARY
+==========================================
+Total files analyzed: 43
+Total dependencies mapped: 35
+
+📄 ALL ANALYZED FILES:
+  ✅ addReservationNames.php (1150 bytes)
+  ✅ addReservation.php (3981 bytes)
+  ✅ auto-barcode-scanner.js (8684 bytes)
+  ✅ css/navigation.css (9416 bytes)
+  ✅ css/navigation-integration.css (2235 bytes)
+  ✅ deleteReservationNames.php (981 bytes)
+  ✅ deleteReservation.php (2734 bytes)
+  ✅ getArrangements.php (541 bytes)
+  ✅ GetCardPrinters.php (534 bytes)
+  ✅ getCountries.php (450 bytes)
+  ✅ getDiets.php (418 bytes)
+  ✅ getOrigins.php (715 bytes)
+  ✅ index.php (19030 bytes)
+  ✅ js/email-utils.js (4869 bytes)
+  ✅ js/http-utils.js (22496 bytes)
+  ✅ js/loading-overlay.js (19233 bytes)
+  ✅ js/navigation.js (18697 bytes)
+  ✅ js/sync-utils.js (6963 bytes)
+  ✅ loading-test.html (7564 bytes)
+  ✅ login.html (9968 bytes)
+  ✅ reservation.css (32176 bytes)
+  ✅ ReservationDetails.html (34136 bytes)
+  ✅ ReservationDetails.js (20903 bytes)
+  ✅ reservation.html (27202 bytes)
+  ✅ reservation.js (121617 bytes)
+  ✅ reservierungen.html (8726 bytes)
+  ✅ save-hp-arrangements.php (6338 bytes)
+  ✅ save-hp-arrangements-table.php (3582 bytes)
+  ✅ script.js (34886 bytes)
+  ✅ statistiken.html (34392 bytes)
+  ✅ style.css (13867 bytes)
+  ✅ syncTrigger.php (1704 bytes)
+  ✅ tisch-uebersicht.php (87338 bytes)
+  ✅ toggleGuideFlag.php (1059 bytes)
+  ✅ toggleNoShow.php (1258 bytes)
+  ✅ toggleStorno.php (4826 bytes)
+  ✅ updateReservationDetails.php (5447 bytes)
+  ✅ updateReservationNamesArrangement.php (1087 bytes)
+  ✅ updateReservationNamesCheckin.php (1502 bytes)
+  ✅ updateReservationNamesCheckout.php (1499 bytes)
+  ✅ updateReservationNamesDiet.php (908 bytes)
+  ✅ updateReservationNames.php (1450 bytes)
+  ✅ zp/timeline-unified.html (11862 bytes)
+
+🔗 DEPENDENCY GRAPH:
+index.php → login.html
+js/sync-utils.js → syncTrigger.php
+login.html → style.css
+ReservationDetails.html → ReservationDetails.js
+ReservationDetails.js → getCountries.php
+ReservationDetails.js → updateReservationDetails.php
+reservation.html → reservation.css
+reservation.html → reservation.js
+reservation.js → addReservationNames.php
+reservation.js → deleteReservationNames.php
+reservation.js → deleteReservation.php
+reservation.js → GetCardPrinters.php
+reservation.js → getDiets.php
+reservation.js → save-hp-arrangements.php
+reservation.js → save-hp-arrangements-table.php
+reservation.js → toggleGuideFlag.php
+reservation.js → toggleNoShow.php
+reservation.js → toggleStorno.php
+reservation.js → updateReservationNamesArrangement.php
+reservation.js → updateReservationNamesCheckin.php
+reservation.js → updateReservationNamesCheckout.php
+reservation.js → updateReservationNamesDiet.php
+reservation.js → updateReservationNames.php
+reservierungen.html → auto-barcode-scanner.js
+reservierungen.html → css/navigation.css
+reservierungen.html → css/navigation-integration.css
+reservierungen.html → js/email-utils.js
+reservierungen.html → js/http-utils.js
+reservierungen.html → js/loading-overlay.js
+reservierungen.html → js/navigation.js
+reservierungen.html → js/sync-utils.js
+reservierungen.html → script.js
+script.js → addReservation.php
+script.js → getArrangements.php
+script.js → getOrigins.php
+
+🔍 ORPHAN DETECTION:
+Files not referenced by any entry point:
+  🏝️  api/imps/get_av_cap_new.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  api/imps/get_av_cap_old.php (18842 bytes) - POTENTIAL ORPHAN
+  🏝️  api/imps/get_av_cap.php (22224 bytes) - POTENTIAL ORPHAN
+  🏝️  api/imps/hrs_getres.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  api/sync_matrix.php (3482 bytes) - POTENTIAL ORPHAN
+  🏝️  authenticate.php (1834 bytes) - POTENTIAL ORPHAN
+  🏝️  authenticate-simple.php (1908 bytes) - POTENTIAL ORPHAN
+  🏝️  auth.php (3957 bytes) - POTENTIAL ORPHAN
+  🏝️  auth-simple.php (1676 bytes) - POTENTIAL ORPHAN
+  🏝️  auth-test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  backups/index_backup.html (9998 bytes) - POTENTIAL ORPHAN
+  🏝️  backups/index_broken.php (22089 bytes) - POTENTIAL ORPHAN
+  🏝️  barcode-scanner.js (8897 bytes) - POTENTIAL ORPHAN
+  🏝️  buildSearchIndex.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  bulk-checkout-test.html (8094 bytes) - POTENTIAL ORPHAN
+  🏝️  canvas-timeline.html (5166 bytes) - POTENTIAL ORPHAN
+  🏝️  checkAuth.php (810 bytes) - POTENTIAL ORPHAN
+  🏝️  checkAuth-simple.php (898 bytes) - POTENTIAL ORPHAN
+  🏝️  check_db_table.php (2809 bytes) - POTENTIAL ORPHAN
+  🏝️  check-hp-db-structure.php (3172 bytes) - POTENTIAL ORPHAN
+  🏝️  check-hp-tables.php (3531 bytes) - POTENTIAL ORPHAN
+  🏝️  check_sync_data.php (2295 bytes) - POTENTIAL ORPHAN
+  🏝️  complete_migration.php (5982 bytes) - POTENTIAL ORPHAN
+  🏝️  config.php (1311 bytes) - POTENTIAL ORPHAN
+  🏝️  config-safe.php (1134 bytes) - POTENTIAL ORPHAN
+  🏝️  config-simple.php (842 bytes) - POTENTIAL ORPHAN
+  🏝️  create_extended_triggers.php (7125 bytes) - POTENTIAL ORPHAN
+  🏝️  create_fallback_triggers.php (2786 bytes) - POTENTIAL ORPHAN
+  🏝️  create-test-arrangement.php (2063 bytes) - POTENTIAL ORPHAN
+  🏝️  css/barcode-scanner.css (0 bytes) - POTENTIAL ORPHAN
+  🏝️  css/navigation-integration-backup.css (6916 bytes) - POTENTIAL ORPHAN
+  🏝️  css/navigation-integration-clean.css (1609 bytes) - POTENTIAL ORPHAN
+  🏝️  dashboard.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  dashboard-stats-test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  data.php (3253 bytes) - POTENTIAL ORPHAN
+  🏝️  db-test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  db-test-quick.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  debug/dashboard-stats-test.php (5138 bytes) - POTENTIAL ORPHAN
+  🏝️  debug-db.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  debug/debug-db.php (2100 bytes) - POTENTIAL ORPHAN
+  🏝️  debug/debug.php (4248 bytes) - POTENTIAL ORPHAN
+  🏝️  debug-hp-arrangements.html (4162 bytes) - POTENTIAL ORPHAN
+  🏝️  debug-hp-db.php (5479 bytes) - POTENTIAL ORPHAN
+  🏝️  debug-hp-tables.php (732 bytes) - POTENTIAL ORPHAN
+  🏝️  debug-indicators.js (0 bytes) - POTENTIAL ORPHAN
+  🏝️  debug.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  debug_remote_triggers.php (4282 bytes) - POTENTIAL ORPHAN
+  🏝️  debug_trigger_definer.php (2188 bytes) - POTENTIAL ORPHAN
+  🏝️  extend_sync_system.php (9019 bytes) - POTENTIAL ORPHAN
+  🏝️  final_sync_test.php (6470 bytes) - POTENTIAL ORPHAN
+  🏝️  fix_trigger_definer.php (3911 bytes) - POTENTIAL ORPHAN
+  🏝️  GastDetail.html (32866 bytes) - POTENTIAL ORPHAN
+  🏝️  get-arrangement-cells-data.php (1739 bytes) - POTENTIAL ORPHAN
+  🏝️  get-arrangements.php (943 bytes) - POTENTIAL ORPHAN
+  🏝️  getBookingUrl.php (724 bytes) - POTENTIAL ORPHAN
+  🏝️  getDashboardStats-debug.php (5772 bytes) - POTENTIAL ORPHAN
+  🏝️  getDashboardStats-noauth.php (3777 bytes) - POTENTIAL ORPHAN
+  🏝️  getDashboardStats.php (4678 bytes) - POTENTIAL ORPHAN
+  🏝️  getDashboardStats-simple.php (3770 bytes) - POTENTIAL ORPHAN
+  🏝️  getDuplicateReservations.php (10158 bytes) - POTENTIAL ORPHAN
+  🏝️  getGastDetail.php (1959 bytes) - POTENTIAL ORPHAN
+  🏝️  get-guest-arrangements.php (1531 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements-header-debug.php (7208 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements-header.php (7321 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements-new.php (5420 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements-old.php (5057 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements.php (6615 bytes) - POTENTIAL ORPHAN
+  🏝️  get-hp-arrangements-table.php (2713 bytes) - POTENTIAL ORPHAN
+  🏝️  getIncompleteReservations.php (3024 bytes) - POTENTIAL ORPHAN
+  🏝️  getReservationDetailsFull.php (2646 bytes) - POTENTIAL ORPHAN
+  🏝️  getReservationDetails.php (3048 bytes) - POTENTIAL ORPHAN
+  🏝️  getReservationNames.php (3763 bytes) - POTENTIAL ORPHAN
+  🏝️  getRooms.php (1710 bytes) - POTENTIAL ORPHAN
+  🏝️  getZimmerplanData.php (12583 bytes) - POTENTIAL ORPHAN
+  🏝️  hp-db-config.php (1200 bytes) - POTENTIAL ORPHAN
+  🏝️  hp-db-test.php (925 bytes) - POTENTIAL ORPHAN
+  🏝️  hrs/hrs-fileget.php (4095 bytes) - POTENTIAL ORPHAN
+  🏝️  hrs/hrs.php (12433 bytes) - POTENTIAL ORPHAN
+  🏝️  hrs/hrs-simple.php (4513 bytes) - POTENTIAL ORPHAN
+  🏝️  hrs_login_debug.php (31636 bytes) - POTENTIAL ORPHAN
+  🏝️  index.html (9646 bytes) - POTENTIAL ORPHAN
+  🏝️  indicator-demo.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  js/auth-protection.js (2016 bytes) - POTENTIAL ORPHAN
+  🏝️  js/barcode-scanner.js (0 bytes) - POTENTIAL ORPHAN
+  🏝️  js/emergency-fix.js (2520 bytes) - POTENTIAL ORPHAN
+  🏝️  libs/jquery.min.js (93638 bytes) - POTENTIAL ORPHAN
+  🏝️  libs/qrcode.js (33782 bytes) - POTENTIAL ORPHAN
+  🏝️  libs/qrcode.min.js (19927 bytes) - POTENTIAL ORPHAN
+  🏝️  login-test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  logout.php (517 bytes) - POTENTIAL ORPHAN
+  🏝️  logout-simple.php (649 bytes) - POTENTIAL ORPHAN
+  🏝️  migrate_fixed.php (6979 bytes) - POTENTIAL ORPHAN
+  🏝️  migrate_remote_to_local.php (7008 bytes) - POTENTIAL ORPHAN
+  🏝️  minimal-test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  navigation-clean.html (6198 bytes) - POTENTIAL ORPHAN
+  🏝️  navigation-debug.html (8428 bytes) - POTENTIAL ORPHAN
+  🏝️  navigation-demo.html (14874 bytes) - POTENTIAL ORPHAN
+  🏝️  performance-test.html (7671 bytes) - POTENTIAL ORPHAN
+  🏝️  ping.php (883 bytes) - POTENTIAL ORPHAN
+  🏝️  printSelected.php (5022 bytes) - POTENTIAL ORPHAN
+  🏝️  reservation-clean.html (5299 bytes) - POTENTIAL ORPHAN
+  🏝️  reservation-debug.html (11758 bytes) - POTENTIAL ORPHAN
+  🏝️  reservation-layout-test.html (9045 bytes) - POTENTIAL ORPHAN
+  🏝️  reservation-quick-fix.html (11117 bytes) - POTENTIAL ORPHAN
+  🏝️  reservierungen-backup.html (8810 bytes) - POTENTIAL ORPHAN
+  🏝️  reservierungen-clean.html (6822 bytes) - POTENTIAL ORPHAN
+  🏝️  reservierungen-test.html (6097 bytes) - POTENTIAL ORPHAN
+  🏝️  save-arrangement-inline.php (6900 bytes) - POTENTIAL ORPHAN
+  🏝️  save-arrangements.php (8310 bytes) - POTENTIAL ORPHAN
+  🏝️  save-reservation-arrangement.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  schema-debug.php (11315 bytes) - POTENTIAL ORPHAN
+  🏝️  score-debug-test.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  searchBarcode.php (3165 bytes) - POTENTIAL ORPHAN
+  🏝️  searchLookup.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  searchReservations.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  simple-barcode-scanner.js (10110 bytes) - POTENTIAL ORPHAN
+  🏝️  simple-hp-test.html (1894 bytes) - POTENTIAL ORPHAN
+  🏝️  simple-test.php (733 bytes) - POTENTIAL ORPHAN
+  🏝️  simple-timeline.html (4030 bytes) - POTENTIAL ORPHAN
+  🏝️  stats-api.php (6024 bytes) - POTENTIAL ORPHAN
+  🏝️  sw-barcode.js (0 bytes) - POTENTIAL ORPHAN
+  🏝️  sync-database.php (11869 bytes) - POTENTIAL ORPHAN
+  🏝️  sync_debug_output.html (11082 bytes) - POTENTIAL ORPHAN
+  🏝️  sync-debug.php (39322 bytes) - POTENTIAL ORPHAN
+  🏝️  sync_debug.php (8666 bytes) - POTENTIAL ORPHAN
+  🏝️  SyncManager.php (33663 bytes) - POTENTIAL ORPHAN
+  🏝️  sync-simple.php (2027 bytes) - POTENTIAL ORPHAN
+  🏝️  sync-test.php (3396 bytes) - POTENTIAL ORPHAN
+  🏝️  test-add-names-modal.html (6854 bytes) - POTENTIAL ORPHAN
+  🏝️  test_age_calculation.php (1792 bytes) - POTENTIAL ORPHAN
+  🏝️  test_av_res_complete.php (15337 bytes) - POTENTIAL ORPHAN
+  🏝️  test_av_resdet_complete.php (6636 bytes) - POTENTIAL ORPHAN
+  🏝️  test_av_resdet_sync.php (3705 bytes) - POTENTIAL ORPHAN
+  🏝️  test_av_res_direct.php (8703 bytes) - POTENTIAL ORPHAN
+  🏝️  test_av_res_simplified.php (14192 bytes) - POTENTIAL ORPHAN
+  🏝️  test_cardname.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  test-config.php (1492 bytes) - POTENTIAL ORPHAN
+  🏝️  test_db_schema.php (689 bytes) - POTENTIAL ORPHAN
+  🏝️  test-debug-api.php (140 bytes) - POTENTIAL ORPHAN
+  🏝️  test_disposition.php (1010 bytes) - POTENTIAL ORPHAN
+  🏝️  test-final-features.html (5545 bytes) - POTENTIAL ORPHAN
+  🏝️  test_final.php (3292 bytes) - POTENTIAL ORPHAN
+  🏝️  test-grouping.php (5197 bytes) - POTENTIAL ORPHAN
+  🏝️  test-header-color.html (4621 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-api-direct.php (603 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-arrangements-display.html (3446 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-arrangements.php (893 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-arrangements-table.html (13554 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-data.php (1597 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-header-direct.php (6946 bytes) - POTENTIAL ORPHAN
+  🏝️  test-hp-structure.php (1663 bytes) - POTENTIAL ORPHAN
+  🏝️  test-js-grouping.html (4444 bytes) - POTENTIAL ORPHAN
+  🏝️  test_migration.php (4244 bytes) - POTENTIAL ORPHAN
+  🏝️  test_multi_table_complete.php (9255 bytes) - POTENTIAL ORPHAN
+  🏝️  test_multi_table_sync.php (1432 bytes) - POTENTIAL ORPHAN
+  🏝️  test-oval-display.html (2811 bytes) - POTENTIAL ORPHAN
+  🏝️  test-parser-extended.php (3549 bytes) - POTENTIAL ORPHAN
+  🏝️  test-parser-final.php (3999 bytes) - POTENTIAL ORPHAN
+  🏝️  test-parser.php (2450 bytes) - POTENTIAL ORPHAN
+  🏝️  test.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  test_post_migration.php (7055 bytes) - POTENTIAL ORPHAN
+  🏝️  test-presence.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  test_remote_triggers.php (2698 bytes) - POTENTIAL ORPHAN
+  🏝️  test_reservation_names.php (1343 bytes) - POTENTIAL ORPHAN
+  🏝️  test-resid-7144.php (146 bytes) - POTENTIAL ORPHAN
+  🏝️  test-rooms.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/auth-test.php (2523 bytes) - POTENTIAL ORPHAN
+  🏝️  test-save-arrangements.php (3579 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/config-simple.php (842 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/db-test.php (1825 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/db-test-quick.php (2537 bytes) - POTENTIAL ORPHAN
+  🏝️  test-search-api.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  test-simple-stats.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/login-test.php (3855 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/minimal-test.php (373 bytes) - POTENTIAL ORPHAN
+  🏝️  test-stats.php (0 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/test.php (1760 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/test-rooms.html (1325 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/test-simple-stats.php (729 bytes) - POTENTIAL ORPHAN
+  🏝️  tests/test-stats.php (2161 bytes) - POTENTIAL ORPHAN
+  🏝️  test_sync_after_fix.php (1123 bytes) - POTENTIAL ORPHAN
+  🏝️  test_sync_fields.php (4300 bytes) - POTENTIAL ORPHAN
+  🏝️  test_sync_system.php (7718 bytes) - POTENTIAL ORPHAN
+  🏝️  test_triggers.php (3658 bytes) - POTENTIAL ORPHAN
+  🏝️  test-visual-preview.html (7010 bytes) - POTENTIAL ORPHAN
+  🏝️  tisch-uebersicht-resid.php (64326 bytes) - POTENTIAL ORPHAN
+  🏝️  transport-api.php (3112 bytes) - POTENTIAL ORPHAN
+  🏝️  transport.html (22495 bytes) - POTENTIAL ORPHAN
+  🏝️  transport-new.html (21617 bytes) - POTENTIAL ORPHAN
+  🏝️  updateGastDetail.php (2925 bytes) - POTENTIAL ORPHAN
+  🏝️  update-queue-tables.php (3669 bytes) - POTENTIAL ORPHAN
+  🏝️  updateReservationNamesNoShow.php (2973 bytes) - POTENTIAL ORPHAN
+  🏝️  weekly-stats-api.php (3298 bytes) - POTENTIAL ORPHAN
+  🏝️  wetter.php (11417 bytes) - POTENTIAL ORPHAN
+  🏝️  word-search-test.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  zimmerplan.css (11328 bytes) - POTENTIAL ORPHAN
+  🏝️  zimmerplan-daypilot.html (0 bytes) - POTENTIAL ORPHAN
+  🏝️  zimmerplan-daypilot.js (0 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/config.php (1064 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/getRooms.php (1710 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/getZimmerplanData.php (13386 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/timeline-config.html (26711 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/timeline-config.js (18139 bytes) - POTENTIAL ORPHAN
+  🏝️  zp/timeline-unified.js (175326 bytes) - POTENTIAL ORPHAN

@@ -1,0 +1,1058 @@
+🔬 WCI FINAL ULTRA-DEEP SYSTEM ANALYSIS
+========================================
+Start: Sun Aug 10 10:57:10 AM CEST 2025
+
+🚀 STARTING ULTRA-DEEP ANALYSIS...
+Entry points: 12
+
+==========================================
+🎯 ENTRY POINT: index.php
+==========================================
+📄 L0: index.php (ENTRY)
+  📊 19030B, 680 lines
+  ↳ [INCLUDE] auth-simple.php
+  📄 L1: auth-simple.php (INCLUDE)
+    📊 1676B, 55 lines
+  ↳ [REDIRECT] login.html
+  📄 L1: login.html (REDIRECT)
+    📊 9968B, 301 lines
+    ↳ [CSS] style.css
+    📄 L2: style.css (CSS)
+      📊 13867B, 746 lines
+
+==========================================
+🎯 ENTRY POINT: login.html
+==========================================
+📄 L0: login.html (ENTRY)
+  📊 9968B, 301 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+
+==========================================
+🎯 ENTRY POINT: reservation.html
+==========================================
+📄 L0: reservation.html (ENTRY)
+  📊 27202B, 705 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] reservation.css
+  📄 L1: reservation.css (CSS)
+    📊 32176B, 1668 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+  ↳ [JS] js/email-utils.js
+  📄 L1: js/email-utils.js (JS)
+    📊 4869B, 133 lines
+    ↳ [API] getBookingUrl.php
+    📄 L2: getBookingUrl.php (API)
+      📊 724B, 34 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [JS] js/loading-overlay.js
+  📄 L1: js/loading-overlay.js (JS)
+    📊 19233B, 651 lines
+  ↳ [JS] auto-barcode-scanner.js
+  📄 L1: auto-barcode-scanner.js (JS)
+    📊 8684B, 244 lines
+    ↳ [API] searchBarcode.php
+    📄 L2: searchBarcode.php (API)
+      📊 3165B, 91 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+  ↳ [JS] reservation.js
+  📄 L1: reservation.js (JS)
+    📊 121617B, 3322 lines
+    ↳ [API] addReservationNames.php
+    📄 L2: addReservationNames.php (API)
+      📊 1150B, 40 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] deleteReservationNames.php
+    📄 L2: deleteReservationNames.php (API)
+      📊 981B, 34 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] deleteReservation.php
+    📄 L2: deleteReservation.php (API)
+      📊 2734B, 90 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getArrangements.php
+    📄 L2: getArrangements.php (API)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] GetCardPrinters.php
+    📄 L2: GetCardPrinters.php (API)
+      📊 534B, 22 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getDiets.php
+    📄 L2: getDiets.php (API)
+      📊 418B, 17 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] get-hp-arrangements.php
+    📄 L2: get-hp-arrangements.php (API)
+      📊 6615B, 197 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [API] get-hp-arrangements-table.php
+    📄 L2: get-hp-arrangements-table.php (API)
+      📊 2713B, 95 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [API] getReservationDetails.php
+    📄 L2: getReservationDetails.php (API)
+      📊 3048B, 107 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getReservationNames.php
+    📄 L2: getReservationNames.php (API)
+      📊 3763B, 131 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] printSelected.php
+    📄 L2: printSelected.php (API)
+      📊 5022B, 141 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+      ↳ [REDIRECT] reservation.html
+      ↳ [REDIRECT] reservation.html
+      ↳ [REDIRECT] reservation.html
+    ↳ [API] save-hp-arrangements.php
+    📄 L2: save-hp-arrangements.php (API)
+      📊 6338B, 172 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [API] save-hp-arrangements-table.php
+    📄 L2: save-hp-arrangements-table.php (API)
+      📊 3582B, 115 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [API] tisch-uebersicht-resid.php
+    📄 L2: tisch-uebersicht-resid.php (API)
+      📊 64326B, 1649 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [API] toggleGuideFlag.php
+    📄 L2: toggleGuideFlag.php (API)
+      📊 1059B, 37 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] toggleNoShow.php
+    📄 L2: toggleNoShow.php (API)
+      📊 1258B, 45 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] toggleStorno.php
+    📄 L2: toggleStorno.php (API)
+      📊 4826B, 141 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationNamesArrangement.php
+    📄 L2: updateReservationNamesArrangement.php (API)
+      📊 1087B, 36 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationNamesCheckin.php
+    📄 L2: updateReservationNamesCheckin.php (API)
+      📊 1502B, 49 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationNamesCheckout.php
+    📄 L2: updateReservationNamesCheckout.php (API)
+      📊 1499B, 49 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationNamesDiet.php
+    📄 L2: updateReservationNamesDiet.php (API)
+      📊 908B, 31 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationNames.php
+    📄 L2: updateReservationNames.php (API)
+      📊 1450B, 57 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNames.php
+    📄 L2: updateReservationNames.php (FETCH)
+      📊 1450B, 57 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] addReservationNames.php
+    📄 L2: addReservationNames.php (FETCH)
+      📊 1150B, 40 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    📄 L2: updateReservationNamesCheckin.php (FETCH)
+      📊 1502B, 49 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    📄 L2: updateReservationNamesCheckout.php (FETCH)
+      📊 1499B, 49 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] toggleGuideFlag.php
+    📄 L2: toggleGuideFlag.php (FETCH)
+      📊 1059B, 37 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] toggleNoShow.php
+    📄 L2: toggleNoShow.php (FETCH)
+      📊 1258B, 45 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    ↳ [FETCH] updateReservationNamesCheckout.php
+    ↳ [FETCH] deleteReservationNames.php
+    📄 L2: deleteReservationNames.php (FETCH)
+      📊 981B, 34 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] GetCardPrinters.php
+    📄 L2: GetCardPrinters.php (FETCH)
+      📊 534B, 22 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesCheckin.php
+    ↳ [FETCH] getArrangements.php
+    📄 L2: getArrangements.php (FETCH)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesArrangement.php
+    📄 L2: updateReservationNamesArrangement.php (FETCH)
+      📊 1087B, 36 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getArrangements.php
+    ↳ [FETCH] getArrangements.php
+    ↳ [FETCH] updateReservationNamesArrangement.php
+    ↳ [FETCH] getDiets.php
+    📄 L2: getDiets.php (FETCH)
+      📊 418B, 17 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationNamesDiet.php
+    📄 L2: updateReservationNamesDiet.php (FETCH)
+      📊 908B, 31 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] addReservationNames.php
+    ↳ [FETCH] toggleStorno.php
+    📄 L2: toggleStorno.php (FETCH)
+      📊 4826B, 141 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] deleteReservation.php
+    📄 L2: deleteReservation.php (FETCH)
+      📊 2734B, 90 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] save-hp-arrangements-table.php
+    📄 L2: save-hp-arrangements-table.php (FETCH)
+      📊 3582B, 115 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+    ↳ [FETCH] save-hp-arrangements.php
+    📄 L2: save-hp-arrangements.php (FETCH)
+      📊 6338B, 172 lines
+      ↳ [INCLUDE] auth-simple.php
+      📄 L3: auth-simple.php (INCLUDE)
+        📊 1676B, 55 lines
+      ↳ [INCLUDE] hp-db-config.php
+      📄 L3: hp-db-config.php (INCLUDE)
+        📊 1200B, 47 lines
+
+==========================================
+🎯 ENTRY POINT: ReservationDetails.html
+==========================================
+📄 L0: ReservationDetails.html (ENTRY)
+  📊 34136B, 934 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] reservation.css
+  📄 L1: reservation.css (CSS)
+    📊 32176B, 1668 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [JS] js/loading-overlay.js
+  📄 L1: js/loading-overlay.js (JS)
+    📊 19233B, 651 lines
+  ↳ [JS] ReservationDetails.js
+  📄 L1: ReservationDetails.js (JS)
+    📊 20903B, 506 lines
+    ↳ [API] getArrangements.php
+    📄 L2: getArrangements.php (API)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getCountries.php
+    📄 L2: getCountries.php (API)
+      📊 450B, 19 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getOrigins.php
+    📄 L2: getOrigins.php (API)
+      📊 715B, 28 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getReservationDetailsFull.php
+    📄 L2: getReservationDetailsFull.php (API)
+      📊 2646B, 90 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] updateReservationDetails.php
+    📄 L2: updateReservationDetails.php (API)
+      📊 5447B, 193 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getArrangements.php
+    📄 L2: getArrangements.php (FETCH)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getArrangements.php
+    ↳ [FETCH] getOrigins.php
+    📄 L2: getOrigins.php (FETCH)
+      📊 715B, 28 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getOrigins.php
+    ↳ [FETCH] getCountries.php
+    📄 L2: getCountries.php (FETCH)
+      📊 450B, 19 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getCountries.php
+    ↳ [FETCH] updateReservationDetails.php
+    📄 L2: updateReservationDetails.php (FETCH)
+      📊 5447B, 193 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] updateReservationDetails.php
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+
+==========================================
+🎯 ENTRY POINT: statistiken.html
+==========================================
+📄 L0: statistiken.html (ENTRY)
+  📊 34392B, 1007 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [JS] js/loading-overlay.js
+  📄 L1: js/loading-overlay.js (JS)
+    📊 19233B, 651 lines
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+
+==========================================
+🎯 ENTRY POINT: tisch-uebersicht.php
+==========================================
+📄 L0: tisch-uebersicht.php (ENTRY)
+  📊 87338B, 2300 lines
+  ↳ [INCLUDE] auth-simple.php
+  📄 L1: auth-simple.php (INCLUDE)
+    📊 1676B, 55 lines
+  ↳ [INCLUDE] hp-db-config.php
+  📄 L1: hp-db-config.php (INCLUDE)
+    📊 1200B, 47 lines
+  ↳ [REDIRECT] login.html
+
+==========================================
+🎯 ENTRY POINT: tisch-uebersicht-resid.php
+==========================================
+📄 L0: tisch-uebersicht-resid.php (ENTRY)
+  📊 64326B, 1649 lines
+  ↳ [INCLUDE] hp-db-config.php
+  📄 L1: hp-db-config.php (INCLUDE)
+    📊 1200B, 47 lines
+
+==========================================
+🎯 ENTRY POINT: reservierungen.html
+==========================================
+📄 L0: reservierungen.html (ENTRY)
+  📊 8726B, 316 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [JS] js/email-utils.js
+  📄 L1: js/email-utils.js (JS)
+    📊 4869B, 133 lines
+    ↳ [API] getBookingUrl.php
+    📄 L2: getBookingUrl.php (API)
+      📊 724B, 34 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [JS] js/loading-overlay.js
+  📄 L1: js/loading-overlay.js (JS)
+    📊 19233B, 651 lines
+  ↳ [JS] js/sync-utils.js
+  📄 L1: js/sync-utils.js (JS)
+    📊 6963B, 222 lines
+    ↳ [API] syncTrigger.php
+    📄 L2: syncTrigger.php (API)
+      📊 1704B, 63 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+      ↳ [INCLUDE] SyncManager.php
+      📄 L3: SyncManager.php (INCLUDE)
+        📊 33663B, 798 lines
+    ↳ [FETCH] syncTrigger.php
+    📄 L2: syncTrigger.php (FETCH)
+      📊 1704B, 63 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+      ↳ [INCLUDE] SyncManager.php
+      📄 L3: SyncManager.php (INCLUDE)
+        📊 33663B, 798 lines
+  ↳ [JS] auto-barcode-scanner.js
+  📄 L1: auto-barcode-scanner.js (JS)
+    📊 8684B, 244 lines
+    ↳ [API] searchBarcode.php
+    📄 L2: searchBarcode.php (API)
+      📊 3165B, 91 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+  ↳ [JS] script.js
+  📄 L1: script.js (JS)
+    📊 34886B, 907 lines
+    ↳ [API] addReservation.php
+    📄 L2: addReservation.php (API)
+      📊 3981B, 110 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] data.php
+    📄 L2: data.php (API)
+      📊 3253B, 108 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getArrangements.php
+    📄 L2: getArrangements.php (API)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getBookingUrl.php
+    📄 L2: getBookingUrl.php (API)
+      📊 724B, 34 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getOrigins.php
+    📄 L2: getOrigins.php (API)
+      📊 715B, 28 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [API] getReservationDetails.php
+    📄 L2: getReservationDetails.php (API)
+      📊 3048B, 107 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getOrigins.php
+    📄 L2: getOrigins.php (FETCH)
+      📊 715B, 28 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] getArrangements.php
+    📄 L2: getArrangements.php (FETCH)
+      📊 541B, 24 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+    ↳ [FETCH] addReservation.php
+    📄 L2: addReservation.php (FETCH)
+      📊 3981B, 110 lines
+      ↳ [INCLUDE] config.php
+      📄 L3: config.php (INCLUDE)
+        📊 1311B, 43 lines
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+
+==========================================
+🎯 ENTRY POINT: GastDetail.html
+==========================================
+📄 L0: GastDetail.html (ENTRY)
+  📊 32866B, 967 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] reservation.css
+  📄 L1: reservation.css (CSS)
+    📊 32176B, 1668 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+
+==========================================
+🎯 ENTRY POINT: zp/timeline-unified.html
+==========================================
+📄 L0: zp/timeline-unified.html (ENTRY)
+  📊 11862B, 292 lines
+
+==========================================
+🎯 ENTRY POINT: transport.html
+==========================================
+📄 L0: transport.html (ENTRY)
+  📊 22495B, 697 lines
+
+==========================================
+🎯 ENTRY POINT: navigation-demo.html
+==========================================
+📄 L0: navigation-demo.html (ENTRY)
+  📊 14874B, 419 lines
+  ↳ [CSS] style.css
+  📄 L1: style.css (CSS)
+    📊 13867B, 746 lines
+  ↳ [CSS] css/navigation.css
+  📄 L1: css/navigation.css (CSS)
+    📊 9416B, 517 lines
+  ↳ [CSS] css/navigation-integration.css
+  📄 L1: css/navigation-integration.css (CSS)
+    📊 2235B, 92 lines
+  ↳ [CSS] css/navigation.css
+  ↳ [CSS] css/navigation-integration.css
+  ↳ [JS] js/navigation.js
+  📄 L1: js/navigation.js (JS)
+    📊 18697B, 595 lines
+    ↳ [API] index.php
+  ↳ [JS] js/emergency-fix.js
+  📄 L1: js/emergency-fix.js (JS)
+    📊 2520B, 71 lines
+  ↳ [JS] js/navigation.js
+  ↳ [JS] js/loading-overlay.js
+  📄 L1: js/loading-overlay.js (JS)
+    📊 19233B, 651 lines
+  ↳ [JS] js/http-utils.js
+  📄 L1: js/http-utils.js (JS)
+    📊 22496B, 656 lines
+    ↳ [API] ping.php
+    📄 L2: ping.php (API)
+      📊 883B, 30 lines
+  ↳ [LINK] index.html
+  📄 L1: index.html (LINK)
+    📊 9646B, 287 lines
+    ↳ [CSS] style.css
+    📄 L2: style.css (CSS)
+      📊 13867B, 746 lines
+    ↳ [CSS] css/navigation.css
+    📄 L2: css/navigation.css (CSS)
+      📊 9416B, 517 lines
+    ↳ [CSS] css/navigation-integration.css
+    📄 L2: css/navigation-integration.css (CSS)
+      📊 2235B, 92 lines
+    ↳ [JS] js/navigation.js
+    📄 L2: js/navigation.js (JS)
+      📊 18697B, 595 lines
+      ↳ [API] index.php
+    ↳ [JS] js/http-utils.js
+    📄 L2: js/http-utils.js (JS)
+      📊 22496B, 656 lines
+      ↳ [API] ping.php
+      📄 L3: ping.php (API)
+        📊 883B, 30 lines
+    ↳ [LINK] reservierungen.html
+    ↳ [LINK] statistiken.html
+  ↳ [LINK] reservierungen.html
+  ↳ [LINK] statistiken.html
+
+🎯 COMPLETE SPECIAL ANALYSIS
+============================
+
+🔍 ReservationDetails.html - COMPLETE BREAKDOWN
+File: 34136B, 934 lines
+  📄 ALL .php references:
+  📄 ALL .js references:
+    ✅ js/http-utils.js (22496B)
+    ✅ js/loading-overlay.js (19233B)
+    ✅ js/navigation.js (18697B)
+    ✅ ReservationDetails.js (20903B)
+  📄 ALL .css references:
+    ✅ css/navigation.css (9416B)
+    ✅ css/navigation-integration.css (2235B)
+    ✅ reservation.css (32176B)
+    ✅ style.css (13867B)
+
+🔍 ReservationDetails.js - COMPLETE API MAPPING
+File: 20903B, 506 lines
+  🔗 ALL API endpoints:
+    ✅ getArrangements.php (541B, 24 lines)
+    ✅ getCountries.php (450B, 19 lines)
+    ✅ getOrigins.php (715B, 28 lines)
+    ✅ getReservationDetailsFull.php (2646B, 90 lines)
+    ✅ updateReservationDetails.php (5447B, 193 lines)
+  📞 Fetch calls:
+54:                    ? await LoadingOverlay.wrapFetch(() => fetch('getArrangements.php').then(response => response.json()), 'Arrangements')
+55:                    : await fetch('getArrangements.php').then(response => response.json());
+78:                    ? await LoadingOverlay.wrapFetch(() => fetch('getOrigins.php').then(response => response.json()), 'Herkunftsdaten')
+79:                    : await fetch('getOrigins.php').then(response => response.json());
+97:                        ? await LoadingOverlay.wrapFetch(() => fetch('getCountries.php').then(response => response.json()), 'Länderdaten')
+  🌐 HttpUtils calls:
+52:                ? await HttpUtils.requestJsonWithLoading('getArrangements.php', {}, { retries: 2, timeout: 8000 }, 'Arrangements werden geladen...')
+76:                ? await HttpUtils.requestJsonWithLoading('getOrigins.php', {}, { retries: 2, timeout: 8000 }, 'Herkunftsdaten werden geladen...')
+95:                    ? await HttpUtils.requestJsonWithLoading('getCountries.php', {}, { retries: 2, timeout: 8000 }, 'Länderdaten werden geladen...')
+119:                ? await HttpUtils.requestJsonWithLoading(`getReservationDetailsFull.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Reservierungsdetails werden geladen...')
+336:                ? await HttpUtils.postJsonWithLoading('updateReservationDetails.php', data, { retries: 2, timeout: 10000 }, 'Reservierungsdetails werden gespeichert...')
+
+🔍 reservation.js - MASSIVE FILE BREAKDOWN
+File: 121617B, 3322 lines
+  🔗 ALL API dependencies (22 total):
+    ✅ addReservationNames.php (1150B, 40 lines)
+    ✅ deleteReservationNames.php (981B, 34 lines)
+    ✅ deleteReservation.php (2734B, 90 lines)
+    ✅ getArrangements.php (541B, 24 lines)
+    ✅ GetCardPrinters.php (534B, 22 lines)
+    ✅ getDiets.php (418B, 17 lines)
+    ✅ get-hp-arrangements.php (6615B, 197 lines)
+    ✅ get-hp-arrangements-table.php (2713B, 95 lines)
+    ✅ getReservationDetails.php (3048B, 107 lines)
+    ✅ getReservationNames.php (3763B, 131 lines)
+    ✅ printSelected.php (5022B, 141 lines)
+    ✅ save-hp-arrangements.php (6338B, 172 lines)
+    ✅ save-hp-arrangements-table.php (3582B, 115 lines)
+    ✅ tisch-uebersicht-resid.php (64326B, 1649 lines)
+    ✅ toggleGuideFlag.php (1059B, 37 lines)
+    ✅ toggleNoShow.php (1258B, 45 lines)
+    ✅ toggleStorno.php (4826B, 141 lines)
+    ✅ updateReservationNamesArrangement.php (1087B, 36 lines)
+    ✅ updateReservationNamesCheckin.php (1502B, 49 lines)
+    ✅ updateReservationNamesCheckout.php (1499B, 49 lines)
+    ✅ updateReservationNamesDiet.php (908B, 31 lines)
+    ✅ updateReservationNames.php (1450B, 57 lines)
+
+🏢 HP ARRANGEMENTS SYSTEM:
+  ✅ get-hp-arrangements.php (6615B)
+  ✅ get-hp-arrangements-header.php (7321B)
+  ✅ get-hp-arrangements-table.php (2713B)
+  ✅ save-hp-arrangements.php (6338B)
+  ✅ save-hp-arrangements-table.php (3582B)
+
+🧭 NAVIGATION SYSTEM:
+  ✅ js/navigation.js (18697B)
+  ✅ css/navigation.css (9416B)
+  ✅ css/navigation-integration.css (2235B)
+
+🏝️ ULTIMATE ORPHAN FILE DETECTION
+==================================
+📊 Total files found: 247
+📊 Active files (analyzed): 12
+  🚨 addReservationNames.php (1150B, 40 lines) - POTENTIALLY ACTIVE PHP
+  🚨 addReservation.php (3981B, 110 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  api/imps/get_av_cap_new.php (EMPTY FILE)
+  🚨 api/imps/get_av_cap_old.php (18842B, 486 lines) - POTENTIALLY ACTIVE PHP
+  🚨 api/imps/get_av_cap.php (22224B, 555 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  api/imps/hrs_getres.php (EMPTY FILE)
+  🚨 api/sync_matrix.php (3482B, 119 lines) - POTENTIALLY ACTIVE PHP
+  🚨 authenticate.php (1834B, 67 lines) - POTENTIALLY ACTIVE PHP
+  🚨 authenticate-simple.php (1908B, 69 lines) - POTENTIALLY ACTIVE PHP
+  🚨 auth.php (3957B, 111 lines) - POTENTIALLY ACTIVE PHP
+  🚨 auth-simple.php (1676B, 55 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  auth-test.php (EMPTY FILE)
+  🚨 auto-barcode-scanner.js (8684B, 244 lines) - POTENTIALLY ACTIVE JS
+  🚨 backups/index_backup.html (9998B, 359 lines) - POTENTIALLY ACTIVE HTML
+  🚨 backups/index_broken.php (22089B, 756 lines) - POTENTIALLY ACTIVE PHP
+  🚨 barcode-scanner.js (8897B, 242 lines) - POTENTIALLY ACTIVE JS
+  🗑️  buildSearchIndex.php (EMPTY FILE)
+  🚨 bulk-checkout-test.html (8094B, 232 lines) - POTENTIALLY ACTIVE HTML
+  🚨 canvas-timeline.html (5166B, 126 lines) - POTENTIALLY ACTIVE HTML
+  🚨 checkAuth.php (810B, 29 lines) - POTENTIALLY ACTIVE PHP
+  🚨 checkAuth-simple.php (898B, 32 lines) - POTENTIALLY ACTIVE PHP
+  🚨 check_db_table.php (2809B, 81 lines) - POTENTIALLY ACTIVE PHP
+  🚨 check-hp-db-structure.php (3172B, 85 lines) - POTENTIALLY ACTIVE PHP
+  🚨 check-hp-tables.php (3531B, 99 lines) - POTENTIALLY ACTIVE PHP
+  🚨 check_sync_data.php (2295B, 60 lines) - POTENTIALLY ACTIVE PHP
+  🚨 complete_migration.php (5982B, 141 lines) - POTENTIALLY ACTIVE PHP
+  🚨 config.php (1311B, 43 lines) - POTENTIALLY ACTIVE PHP
+  🚨 config-safe.php (1134B, 36 lines) - POTENTIALLY ACTIVE PHP
+  🚨 config-simple.php (842B, 32 lines) - POTENTIALLY ACTIVE PHP
+  🚨 create_extended_triggers.php (7125B, 201 lines) - POTENTIALLY ACTIVE PHP
+  🚨 create_fallback_triggers.php (2786B, 83 lines) - POTENTIALLY ACTIVE PHP
+  🚨 create-test-arrangement.php (2063B, 66 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  css/barcode-scanner.css (EMPTY FILE)
+  🏝️  css/navigation.css (9416B, 517 lines) - ORPHAN
+  🏝️  css/navigation-integration-backup.css (6916B, 341 lines) - ORPHAN
+  🏝️  css/navigation-integration-clean.css (1609B, 76 lines) - ORPHAN
+  🏝️  css/navigation-integration.css (2235B, 92 lines) - ORPHAN
+  🗑️  dashboard.html (EMPTY FILE)
+  🗑️  dashboard-stats-test.php (EMPTY FILE)
+  🚨 data.php (3253B, 108 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  db-test.php (EMPTY FILE)
+  🗑️  db-test-quick.php (EMPTY FILE)
+  🚨 debug/dashboard-stats-test.php (5138B, 115 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  debug-db.php (EMPTY FILE)
+  🚨 debug/debug-db.php (2100B, 68 lines) - POTENTIALLY ACTIVE PHP
+  🚨 debug/debug.php (4248B, 118 lines) - POTENTIALLY ACTIVE PHP
+  🚨 debug-hp-arrangements.html (4162B, 118 lines) - POTENTIALLY ACTIVE HTML
+  🚨 debug-hp-db.php (5479B, 138 lines) - POTENTIALLY ACTIVE PHP
+  🚨 debug-hp-tables.php (732B, 30 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  debug-indicators.js (EMPTY FILE)
+  🗑️  debug.php (EMPTY FILE)
+  🚨 debug_remote_triggers.php (4282B, 106 lines) - POTENTIALLY ACTIVE PHP
+  🚨 debug_trigger_definer.php (2188B, 61 lines) - POTENTIALLY ACTIVE PHP
+  🚨 deleteReservationNames.php (981B, 34 lines) - POTENTIALLY ACTIVE PHP
+  🚨 deleteReservation.php (2734B, 90 lines) - POTENTIALLY ACTIVE PHP
+  🚨 extend_sync_system.php (9019B, 209 lines) - POTENTIALLY ACTIVE PHP
+  🚨 final_sync_test.php (6470B, 135 lines) - POTENTIALLY ACTIVE PHP
+  🚨 fix_trigger_definer.php (3911B, 109 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-arrangement-cells-data.php (1739B, 61 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-arrangements.php (943B, 38 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getArrangements.php (541B, 24 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getBookingUrl.php (724B, 34 lines) - POTENTIALLY ACTIVE PHP
+  🚨 GetCardPrinters.php (534B, 22 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getCountries.php (450B, 19 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDashboardStats-debug.php (5772B, 173 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDashboardStats-noauth.php (3777B, 113 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDashboardStats.php (4678B, 133 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDashboardStats-simple.php (3770B, 116 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDiets.php (418B, 17 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getDuplicateReservations.php (10158B, 303 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getGastDetail.php (1959B, 63 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-guest-arrangements.php (1531B, 64 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements-header-debug.php (7208B, 204 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements-header.php (7321B, 211 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements-new.php (5420B, 168 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements-old.php (5057B, 164 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements.php (6615B, 197 lines) - POTENTIALLY ACTIVE PHP
+  🚨 get-hp-arrangements-table.php (2713B, 95 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getIncompleteReservations.php (3024B, 91 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getOrigins.php (715B, 28 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getReservationDetailsFull.php (2646B, 90 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getReservationDetails.php (3048B, 107 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getReservationNames.php (3763B, 131 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getRooms.php (1710B, 59 lines) - POTENTIALLY ACTIVE PHP
+  🚨 getZimmerplanData.php (12583B, 347 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hp-db-config.php (1200B, 47 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hp-db-test.php (925B, 38 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hrs/hrs-fileget.php (4095B, 113 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hrs/hrs.php (12433B, 330 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hrs/hrs-simple.php (4513B, 133 lines) - POTENTIALLY ACTIVE PHP
+  🚨 hrs_login_debug.php (31636B, 742 lines) - POTENTIALLY ACTIVE PHP
+  🚨 index.html (9646B, 287 lines) - POTENTIALLY ACTIVE HTML
+  🗑️  indicator-demo.html (EMPTY FILE)
+  🚨 js/auth-protection.js (2016B, 71 lines) - POTENTIALLY ACTIVE JS
+  🗑️  js/barcode-scanner.js (EMPTY FILE)
+  🚨 js/email-utils.js (4869B, 133 lines) - POTENTIALLY ACTIVE JS
+  🚨 js/emergency-fix.js (2520B, 71 lines) - POTENTIALLY ACTIVE JS
+  🚨 js/http-utils.js (22496B, 656 lines) - POTENTIALLY ACTIVE JS
+  🚨 js/loading-overlay.js (19233B, 651 lines) - POTENTIALLY ACTIVE JS
+  🚨 js/navigation.js (18697B, 595 lines) - POTENTIALLY ACTIVE JS
+  🚨 js/sync-utils.js (6963B, 222 lines) - POTENTIALLY ACTIVE JS
+  🚨 libs/jquery.min.js (93638B, 1 lines) - POTENTIALLY ACTIVE JS
+  🚨 libs/qrcode.js (33782B, 614 lines) - POTENTIALLY ACTIVE JS
+  🚨 libs/qrcode.min.js (19927B, 0 lines) - POTENTIALLY ACTIVE JS
+  🚨 loading-test.html (7564B, 208 lines) - POTENTIALLY ACTIVE HTML
+  🗑️  login-test.php (EMPTY FILE)
+  🚨 logout.php (517B, 22 lines) - POTENTIALLY ACTIVE PHP
+  🚨 logout-simple.php (649B, 26 lines) - POTENTIALLY ACTIVE PHP
+  🚨 migrate_fixed.php (6979B, 166 lines) - POTENTIALLY ACTIVE PHP
+  🚨 migrate_remote_to_local.php (7008B, 163 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  minimal-test.php (EMPTY FILE)
+  🚨 navigation-clean.html (6198B, 176 lines) - POTENTIALLY ACTIVE HTML
+  🚨 navigation-debug.html (8428B, 232 lines) - POTENTIALLY ACTIVE HTML
+  🚨 performance-test.html (7671B, 207 lines) - POTENTIALLY ACTIVE HTML
+  🚨 ping.php (883B, 30 lines) - POTENTIALLY ACTIVE PHP
+  🚨 printSelected.php (5022B, 141 lines) - POTENTIALLY ACTIVE PHP
+  🚨 reservation-clean.html (5299B, 153 lines) - POTENTIALLY ACTIVE HTML
+  ⚠️  reservation.css (32176B, 1668 lines) - LARGE ORPHAN
+  🚨 reservation-debug.html (11758B, 322 lines) - POTENTIALLY ACTIVE HTML
+  🚨 ReservationDetails.js (20903B, 506 lines) - POTENTIALLY ACTIVE JS
+  🚨 reservation.js (121617B, 3322 lines) - POTENTIALLY ACTIVE JS
+  🚨 reservation-layout-test.html (9045B, 240 lines) - POTENTIALLY ACTIVE HTML
+  🚨 reservation-quick-fix.html (11117B, 267 lines) - POTENTIALLY ACTIVE HTML
+  🚨 reservierungen-backup.html (8810B, 257 lines) - POTENTIALLY ACTIVE HTML
+  🚨 reservierungen-clean.html (6822B, 182 lines) - POTENTIALLY ACTIVE HTML
+  🚨 reservierungen-test.html (6097B, 158 lines) - POTENTIALLY ACTIVE HTML
+  🚨 save-arrangement-inline.php (6900B, 214 lines) - POTENTIALLY ACTIVE PHP
+  🚨 save-arrangements.php (8310B, 200 lines) - POTENTIALLY ACTIVE PHP
+  🚨 save-hp-arrangements.php (6338B, 172 lines) - POTENTIALLY ACTIVE PHP
+  🚨 save-hp-arrangements-table.php (3582B, 115 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  save-reservation-arrangement.php (EMPTY FILE)
+  🚨 schema-debug.php (11315B, 244 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  score-debug-test.html (EMPTY FILE)
+  🚨 script.js (34886B, 907 lines) - POTENTIALLY ACTIVE JS
+  🚨 searchBarcode.php (3165B, 91 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  searchLookup.php (EMPTY FILE)
+  🗑️  searchReservations.php (EMPTY FILE)
+  🚨 simple-barcode-scanner.js (10110B, 260 lines) - POTENTIALLY ACTIVE JS
+  🚨 simple-hp-test.html (1894B, 57 lines) - POTENTIALLY ACTIVE HTML
+  🚨 simple-test.php (733B, 32 lines) - POTENTIALLY ACTIVE PHP
+  🚨 simple-timeline.html (4030B, 96 lines) - POTENTIALLY ACTIVE HTML
+  🚨 stats-api.php (6024B, 215 lines) - POTENTIALLY ACTIVE PHP
+  ⚠️  style.css (13867B, 746 lines) - LARGE ORPHAN
+  🗑️  sw-barcode.js (EMPTY FILE)
+  🚨 sync-database.php (11869B, 327 lines) - POTENTIALLY ACTIVE PHP
+  🚨 sync_debug_output.html (11082B, 239 lines) - POTENTIALLY ACTIVE HTML
+  🚨 sync-debug.php (39322B, 720 lines) - POTENTIALLY ACTIVE PHP
+  🚨 sync_debug.php (8666B, 191 lines) - POTENTIALLY ACTIVE PHP
+  🚨 SyncManager.php (33663B, 798 lines) - POTENTIALLY ACTIVE PHP
+  🚨 sync-simple.php (2027B, 71 lines) - POTENTIALLY ACTIVE PHP
+  🚨 sync-test.php (3396B, 112 lines) - POTENTIALLY ACTIVE PHP
+  🚨 syncTrigger.php (1704B, 63 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-add-names-modal.html (6854B, 196 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test_age_calculation.php (1792B, 60 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_av_res_complete.php (15337B, 398 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_av_resdet_complete.php (6636B, 176 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_av_resdet_sync.php (3705B, 99 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_av_res_direct.php (8703B, 212 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_av_res_simplified.php (14192B, 392 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  test_cardname.php (EMPTY FILE)
+  🚨 test-config.php (1492B, 53 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_db_schema.php (689B, 24 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-debug-api.php (140B, 5 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_disposition.php (1010B, 33 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-final-features.html (5545B, 178 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test_final.php (3292B, 75 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-grouping.php (5197B, 165 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-header-color.html (4621B, 107 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test-hp-api-direct.php (603B, 25 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-hp-arrangements-display.html (3446B, 99 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test-hp-arrangements.php (893B, 29 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-hp-arrangements-table.html (13554B, 348 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test-hp-data.php (1597B, 53 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-hp-header-direct.php (6946B, 196 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-hp-structure.php (1663B, 58 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-js-grouping.html (4444B, 130 lines) - POTENTIALLY ACTIVE HTML
+  🚨 test_migration.php (4244B, 102 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_multi_table_complete.php (9255B, 230 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_multi_table_sync.php (1432B, 47 lines) - POTENTIALLY ACTIVE PHP
+  🏝️  test-oval-display.html (2811B, 112 lines) - ORPHAN
+  🚨 test-parser-extended.php (3549B, 122 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-parser-final.php (3999B, 131 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-parser.php (2450B, 95 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  test.php (EMPTY FILE)
+  🚨 test_post_migration.php (7055B, 165 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  test-presence.html (EMPTY FILE)
+  🚨 test_remote_triggers.php (2698B, 73 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_reservation_names.php (1343B, 47 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-resid-7144.php (146B, 5 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  test-rooms.html (EMPTY FILE)
+  🚨 tests/auth-test.php (2523B, 68 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-save-arrangements.php (3579B, 111 lines) - POTENTIALLY ACTIVE PHP
+  🚨 tests/config-simple.php (842B, 32 lines) - POTENTIALLY ACTIVE PHP
+  🚨 tests/db-test.php (1825B, 51 lines) - POTENTIALLY ACTIVE PHP
+  🚨 tests/db-test-quick.php (2537B, 70 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  test-search-api.php (EMPTY FILE)
+  🗑️  test-simple-stats.php (EMPTY FILE)
+  🚨 tests/login-test.php (3855B, 101 lines) - POTENTIALLY ACTIVE PHP
+  🏝️  tests/minimal-test.php (373B, 11 lines) - ORPHAN
+  🗑️  test-stats.php (EMPTY FILE)
+  🚨 tests/test.php (1760B, 46 lines) - POTENTIALLY ACTIVE PHP
+  🚨 tests/test-rooms.html (1325B, 40 lines) - POTENTIALLY ACTIVE HTML
+  🚨 tests/test-simple-stats.php (729B, 27 lines) - POTENTIALLY ACTIVE PHP
+  🚨 tests/test-stats.php (2161B, 64 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_sync_after_fix.php (1123B, 44 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_sync_fields.php (4300B, 112 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_sync_system.php (7718B, 168 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test_triggers.php (3658B, 81 lines) - POTENTIALLY ACTIVE PHP
+  🚨 test-visual-preview.html (7010B, 237 lines) - POTENTIALLY ACTIVE HTML
+  🚨 toggleGuideFlag.php (1059B, 37 lines) - POTENTIALLY ACTIVE PHP
+  🚨 toggleNoShow.php (1258B, 45 lines) - POTENTIALLY ACTIVE PHP
+  🚨 toggleStorno.php (4826B, 141 lines) - POTENTIALLY ACTIVE PHP
+  🚨 transport-api.php (3112B, 91 lines) - POTENTIALLY ACTIVE PHP
+  🚨 transport-new.html (21617B, 688 lines) - POTENTIALLY ACTIVE HTML
+  🚨 updateGastDetail.php (2925B, 95 lines) - POTENTIALLY ACTIVE PHP
+  🚨 update-queue-tables.php (3669B, 81 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationDetails.php (5447B, 193 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNamesArrangement.php (1087B, 36 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNamesCheckin.php (1502B, 49 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNamesCheckout.php (1499B, 49 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNamesDiet.php (908B, 31 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNamesNoShow.php (2973B, 95 lines) - POTENTIALLY ACTIVE PHP
+  🚨 updateReservationNames.php (1450B, 57 lines) - POTENTIALLY ACTIVE PHP
+  🚨 weekly-stats-api.php (3298B, 104 lines) - POTENTIALLY ACTIVE PHP
+  🚨 wetter.php (11417B, 318 lines) - POTENTIALLY ACTIVE PHP
+  🗑️  word-search-test.html (EMPTY FILE)
+  ⚠️  zimmerplan.css (11328B, 522 lines) - LARGE ORPHAN
+  🗑️  zimmerplan-daypilot.html (EMPTY FILE)
+  🗑️  zimmerplan-daypilot.js (EMPTY FILE)
+  🚨 zp/config.php (1064B, 35 lines) - POTENTIALLY ACTIVE PHP
+  🚨 zp/getRooms.php (1710B, 59 lines) - POTENTIALLY ACTIVE PHP
+  🚨 zp/getZimmerplanData.php (13386B, 364 lines) - POTENTIALLY ACTIVE PHP
+  🚨 zp/timeline-config.html (26711B, 734 lines) - POTENTIALLY ACTIVE HTML
+  🚨 zp/timeline-config.js (18139B, 409 lines) - POTENTIALLY ACTIVE JS
+  🚨 zp/timeline-unified.js (175326B, 4342 lines) - POTENTIALLY ACTIVE JS
+
+📊 ORPHAN SUMMARY:
+  Total orphans: 235
+  Potentially active: 195
+  Empty files: 31
+
+==========================================
+🎯 FINAL ULTRA-DEEP SUMMARY
+==========================================
+📊 Analysis completed: Sun Aug 10 10:57:14 AM CEST 2025
+
+📈 STATISTICS:
+  Total files analyzed: 12
+  Active files found: 12
+  Dependencies mapped: 0
+  Orphan files: 235
+
+📄 ACTIVE FILES (by size):
+  tisch-uebersicht.php                        87338B  2300 lines [php]
+  tisch-uebersicht-resid.php                  64326B  1649 lines [php]
+  statistiken.html                            34392B  1007 lines [html]
+  ReservationDetails.html                     34136B   934 lines [html]
+  GastDetail.html                             32866B   967 lines [html]
+  reservation.html                            27202B   705 lines [html]
+  transport.html                              22495B   697 lines [html]
+  index.php                                   19030B   680 lines [php]
+  navigation-demo.html                        14874B   419 lines [html]
+  zp/timeline-unified.html                    11862B   292 lines [html]
+  login.html                                   9968B   301 lines [html]
+  reservierungen.html                          8726B   316 lines [html]
+
+🔗 TOP DEPENDENCY CHAINS:
+
+
+✅ ULTRA-DEEP ANALYSIS COMPLETE!
+🎯 Sun Aug 10 10:57:14 AM CEST 2025

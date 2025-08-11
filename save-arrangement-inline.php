@@ -131,15 +131,7 @@ function parseComplexInput($input) {
 }
 
 try {
-    require_once 'auth-simple.php';
     require_once 'hp-db-config.php';
-
-    // Authentifizierung prüfen
-    if (!AuthManager::checkSession()) {
-        http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Nicht authentifiziert']);
-        exit;
-    }
 
     // Nur POST-Requests akzeptieren
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

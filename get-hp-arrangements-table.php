@@ -11,9 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Include authentication
-require_once 'auth-simple.php';
-
 // Include HP database connection
 require_once 'hp-db-config.php';
 

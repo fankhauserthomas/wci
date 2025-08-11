@@ -1,14 +1,6 @@
 <?php
 // save-hp-arrangements.php - Speichert HP Arrangements für eine Reservierung
-require_once 'auth-simple.php';
 require_once 'hp-db-config.php';
-
-// Authentifizierung prüfen
-if (!AuthManager::checkSession()) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Nicht authentifiziert']);
-    exit;
-}
 
 header('Content-Type: application/json');
 
