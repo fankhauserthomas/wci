@@ -1,5 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+  // Debug-System für reservation.js
+  const DEBUG_MODE = false; // Setze auf true für Debug-Modus
+
+  // Smart Debug Logger
+  const debugLog = function (message, ...args) {
+    if (DEBUG_MODE) {
+      console.log(message, ...args);
+    }
+  };
+
+  const debugWarn = function (message, ...args) {
+    if (DEBUG_MODE) {
+      console.warn(message, ...args);
+    }
+  };
+
+  const debugError = function (message, ...args) {
+    // Errors immer anzeigen
+    console.error(message, ...args);
+  };
+
   // Intelligente Namen-Bereinigungsfunktion
   function cleanNamesText(text) {
     if (!text) return '';
@@ -199,14 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Handle AV Icon based on av_id
       if (data.detail && data.detail.av_id && parseInt(data.detail.av_id) > 0) {
-        console.log('🔍 AV ID gefunden:', data.detail.av_id, '- füge AV Icon hinzu');
+        debugLog('🔍 AV ID gefunden:', data.detail.av_id, '- füge AV Icon hinzu');
         if (typeof addAvIcon === 'function') {
           addAvIcon();
         } else if (typeof window.addAvIcon === 'function') {
           window.addAvIcon();
         }
       } else {
-        console.log('⚪ Keine AV ID oder av_id <= 0 - entferne AV Icon falls vorhanden');
+        debugLog('⚪ Keine AV ID oder av_id <= 0 - entferne AV Icon falls vorhanden');
         if (typeof removeAvIcon === 'function') {
           removeAvIcon();
         } else if (typeof window.removeAvIcon === 'function') {

@@ -314,6 +314,27 @@
   <script src="reservation.js"></script>
 
   <script>
+    // Debug-System für Reservierung
+    const DEBUG_RESERVATION = false; // Setze auf true für Debug-Modus
+
+    // Smart Debug Logger
+    window.debugLog = function (message, ...args) {
+      if (DEBUG_RESERVATION) {
+        console.log(message, ...args);
+      }
+    };
+
+    window.debugWarn = function (message, ...args) {
+      if (DEBUG_RESERVATION) {
+        console.warn(message, ...args);
+      }
+    };
+
+    window.debugError = function (message, ...args) {
+      // Errors immer anzeigen
+      console.error(message, ...args);
+    };
+
     // Swipe-Navigation für Touch-Geräte
     let touchStartX = 0;
     let touchStartY = 0;
@@ -411,7 +432,7 @@
 
         // Swipe nach rechts = zurück zur vorherigen Seite
         if (deltaX > 0) {
-          console.log('Swipe right detected - navigating back');
+          debugLog('Swipe right detected - navigating back');
 
           // NavigationSystem verwenden wenn verfügbar
           if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
@@ -433,7 +454,7 @@
       // Navigation Setup
       if (typeof NavigationSystem !== 'undefined') {
         NavigationSystem.setupNavigation();
-        console.log('✅ Navigation setup completed');
+        debugLog('✅ Navigation setup completed');
       } else {
         console.warn('⚠️ NavigationSystem not found');
       }
@@ -446,7 +467,7 @@
 
       // Prüfe ob reservation.js bereits Daten lädt
       if (window.reservationJsLoading || window.currentReservationData) {
-        console.log('🚫 reservation.js already loading/loaded, skipping HTML initialization');
+        debugLog('🚫 reservation.js already loading/loaded, skipping HTML initialization');
         return;
       }
 
@@ -465,8 +486,8 @@
         window.htmlInitializationActive = false;
       }, 50);
 
-      console.log('✅ Reservation page initialized');
-      console.log('✅ Swipe navigation enabled for touch devices');
+      debugLog('✅ Reservation page initialized');
+      debugLog('✅ Swipe navigation enabled for touch devices');
     });
 
     // Debounce-Variablen für Header-Refresh
@@ -478,7 +499,7 @@
     // Optimierte Event Listener - immer bei Fokus-Wechsel aktualisieren
     window.addEventListener('focus', function () {
       const now = Date.now();
-      console.log('🔄 Page focus detected - force refreshing header data...');
+      debugLog('🔄 Page focus detected - force refreshing header data...');
       // Forciere Header-Update bei Focus (wichtig nach ReservationDetails Änderungen)
       forceHeaderRefresh();
       lastFocusTime = now;
@@ -489,7 +510,7 @@
       if (document.hidden) {
         wasHidden = true;
       } else if (wasHidden) {
-        console.log('👁️ Page visible (after being hidden) - force refreshing header data...');
+        debugLog('👁️ Page visible (after being hidden) - force refreshing header data...');
         // Forciere Header-Update nach Tab-Wechsel
         forceHeaderRefresh();
         wasHidden = false;
@@ -514,7 +535,7 @@
 
     // Force Header Refresh - umgeht alle Koordinations- und Debounce-Mechanismen
     function forceHeaderRefresh() {
-      console.log('🚀 FORCE Header Refresh - bypassing all coordination');
+      debugLog('🚀 FORCE Header Refresh - bypassing all coordination');
 
       // Reset aller Flags
       isHeaderRefreshing = false;
@@ -830,14 +851,20 @@
     // ===== GUIDE ROW PULSING ANIMATION =====
 
     // Guide Row Animation - JavaScript Teil für dynamische Anwendung
+    let isUpdatingGuideRows = false; // Flag to prevent infinite loops
+
     function updateGuideRowAnimation() {
-      console.log('🔄 Updating Guide Row animations...');
+      if (isUpdatingGuideRows) {
+        console.log('🛡️ Skipping updateGuideRowAnimation - already updating to prevent infinite loop');
+        return;
+      }
+
+      isUpdatingGuideRows = true;
+      debugLog('🔄 Updating Guide Row animations...');
 
       // Alle Tabellenzeilen durchgehen
       const tableRows = document.querySelectorAll('#namesTable tbody tr');
-      console.log(`📊 Found ${tableRows.length} table rows`);
-
-      let guidesFound = 0;
+      debugLog(`📊 Found ${tableRows.length} table rows`); let guidesFound = 0;
       tableRows.forEach((row, index) => {
         // BF-Spalte (6. Spalte) analysieren - keine Checkbox, sondern Text/Symbol
         const bfCell = row.querySelector('td:nth-child(6)');
@@ -883,6 +910,7 @@
       });
 
       console.log(`🎯 Total guides with animation: ${guidesFound}`);
+      isUpdatingGuideRows = false; // Reset the flag
     }
 
     // Event Listener für BF-Zellen-Änderungen (keine Checkboxen)
@@ -931,6 +959,27 @@
               setTimeout(updateGuideRowAnimation, 300);
             } else if (mutation.type === 'characterData' ||
               (mutation.type === 'attributes' && mutation.attributeName === 'class')) {
+
+              // Skip if we're currently updating guide rows to prevent infinite loops
+              if (isUpdatingGuideRows) {
+                console.log('🛡️ Skipping mutation observer trigger - guide rows are being updated');
+                return;
+              }
+
+              // Skip if the class change is just adding/removing guide-row class
+              if (mutation.type === 'attributes' && mutation.target.tagName === 'TR') {
+                const oldValue = mutation.oldValue || '';
+                const newValue = mutation.target.className || '';
+                const onlyGuideRowChanged = (
+                  oldValue.replace('guide-row', '').trim() ===
+                  newValue.replace('guide-row', '').trim()
+                );
+                if (onlyGuideRowChanged) {
+                  console.log('🛡️ Skipping guide-row class change to prevent infinite loop');
+                  return;
+                }
+              }
+
               console.log('🔄 Cell content or class changed');
               setTimeout(updateGuideRowAnimation, 150);
             }
@@ -942,7 +991,8 @@
           subtree: true,
           characterData: true,
           attributes: true,
-          attributeFilter: ['class']
+          attributeFilter: ['class'],
+          attributeOldValue: true // Enable to compare old vs new values
         });
 
         console.log('✅ Guide animation observer active (enhanced for non-checkbox BF)');
@@ -951,28 +1001,41 @@
       }
     }
 
-    // Initial setup nach DOM load
-    setTimeout(() => {
-      console.log('🚀 Starting Guide animation setup...');
+    // Optimiertes Setup - wartet auf vollständig geladene Tabelle
+    function initializeGuideAnimation() {
+      console.log('🚀 Initializing Guide animation (optimized)...');
       setupGuideAnimationListeners();
-      updateGuideRowAnimation(); // Initial update
-    }, 1000); // Nach dem Laden der Reservierungsdaten
 
-    // Weitere Updates in Intervallen für asynchrone Datenladung
-    setTimeout(() => {
-      console.log('🔄 Guide animation delayed update 1');
-      updateGuideRowAnimation();
-    }, 2000);
+      // Warte auf Tabelle MIT Daten (nicht nur leere Struktur)
+      const checkForTableData = setInterval(() => {
+        const tableRows = document.querySelectorAll('#namesTable tbody tr');
+        const hasData = tableRows.length > 0 &&
+          tableRows[0].querySelector('td:nth-child(6)'); // BF-Spalte vorhanden
 
-    setTimeout(() => {
-      console.log('🔄 Guide animation delayed update 2');
-      updateGuideRowAnimation();
-    }, 3000);
+        if (hasData) {
+          console.log(`📊 Table ready with ${tableRows.length} rows, starting animation...`);
+          updateGuideRowAnimation();
+          clearInterval(checkForTableData);
+          console.log('✅ Guide animation initialized once with data');
+        } else {
+          console.log('⏳ Waiting for table data...');
+        }
+      }, 300);
 
-    setTimeout(() => {
-      console.log('🔄 Guide animation delayed update 3');
-      updateGuideRowAnimation();
-    }, 5000);
+      // Fallback timeout nach 5 Sekunden
+      setTimeout(() => {
+        clearInterval(checkForTableData);
+        console.log('⚠️ Guide animation timeout - initializing anyway');
+        updateGuideRowAnimation();
+      }, 5000);
+    }
+
+    // Warte nur bis DOM bereit ist
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeGuideAnimation);
+    } else {
+      setTimeout(initializeGuideAnimation, 500);
+    }
 
     // Integration mit bestehender Logik - Hook in Header-Refresh
     const originalPerformForceHeaderRefresh = window.performForceHeaderRefresh;
@@ -1001,6 +1064,25 @@
         window.guideAnimationHooked = true;
         clearInterval(checkForReservationJSIntegration);
         console.log('✅ Guide animation integrated with reservation.js');
+      }
+
+      // Zusätzlich: Hook für loadNames falls verfügbar
+      if (typeof window.loadNames === 'function' && !window.guideAnimationNamesHooked) {
+        const originalLoadNames = window.loadNames;
+        window.loadNames = async function () {
+          const result = await originalLoadNames.call(this);
+
+          // Nach Namen-Ladung Guide-Animationen starten
+          setTimeout(() => {
+            console.log('🎯 Names loaded, updating guide animations...');
+            updateGuideRowAnimation();
+          }, 200);
+
+          return result;
+        };
+
+        window.guideAnimationNamesHooked = true;
+        console.log('✅ Guide animation integrated with loadNames');
       }
     }, 100);
 
@@ -1087,14 +1169,6 @@
 
     console.log('✅ Guide row pulsing animation initialized (Enhanced for BF symbols)');
     console.log('🧪 Test with: testGuideAnimation(), debugGuideRows(), or debugBFCells()');
-
-    // Automatisches Debug nach 3 Sekunden
-    setTimeout(() => {
-      console.log('🔍 Auto-debug after 3 seconds:');
-      if (typeof window.debugBFCells === 'function') {
-        window.debugBFCells();
-      }
-    }, 3000);
   </script>
 </body>
 
