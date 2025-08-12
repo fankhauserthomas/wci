@@ -66,10 +66,26 @@ if (!AuthManager::checkSession()) {
       font-size: 0.9rem;
       cursor: pointer;
       transition: background-color 0.2s ease;
+      margin-left: 10px;
     }
     
     .logout-button:hover {
       background: #c82333;
+    }
+    
+    .reset-button {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    
+    .reset-button:hover {
+      background: #5a6268;
     }
     
     .dashboard-grid {
@@ -86,11 +102,46 @@ if (!AuthManager::checkSession()) {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       border: 1px solid #e9ecef;
+      cursor: grab;
+      position: relative;
     }
     
     .dashboard-card:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .dashboard-card.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+      transform: rotate(3deg);
+      z-index: 1000;
+    }
+    
+    .dashboard-card.drag-over {
+      border: 2px dashed #007bff;
+      background-color: rgba(0, 123, 255, 0.1);
+    }
+    
+    .drag-handle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: grab;
+      color: #bdc3c7;
+      font-size: 18px;
+      padding: 5px;
+      border-radius: 3px;
+      transition: color 0.2s;
+    }
+    
+    .drag-handle:hover {
+      color: #7f8c8d;
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .dashboard-card.dragging .drag-handle {
+      cursor: grabbing;
     }
     
     .card-title {
@@ -165,6 +216,21 @@ if (!AuthManager::checkSession()) {
     
     .card-button.system-analysis:hover {
       background: #8e44ad;
+    }
+    
+    .card-button.cache-clear {
+      background: #f39c12;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .card-button.cache-clear:hover {
+      background: #e67e22;
+    }
+    
+    .card-button.cache-clear:active {
+      background: #d35400;
+      transform: scale(0.98);
     }
     
     .quick-actions {
@@ -383,6 +449,7 @@ if (!AuthManager::checkSession()) {
         <h1 class="header-title">Franz-Senn-Hütte WebCheckin</h1>
       </div>
       <div class="header-right">
+        <button class="reset-button" onclick="resetDashboardOrder()" title="Dashboard-Anordnung zurücksetzen">↻ Reset Layout</button>
         <button class="logout-button" onclick="logout()">Abmelden</button>
       </div>
     </div>
@@ -390,8 +457,9 @@ if (!AuthManager::checkSession()) {
 
   <main class="dashboard">
     <!-- Main Navigation -->
-    <div class="dashboard-grid">
-      <div class="dashboard-card">
+    <div class="dashboard-grid" id="dashboard-container">
+      <div class="dashboard-card" draggable="true" data-card-id="reservierungen">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Reservierungen</h2>
         <p class="card-description">
           Übersicht aller Reservierungen mit An-/Abreise-Filtern, Suche und Check-in/Check-out Verwaltung.
@@ -399,7 +467,8 @@ if (!AuthManager::checkSession()) {
         <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
       </div>
 
-      <div class="dashboard-card">
+      <div class="dashboard-card" draggable="true" data-card-id="statistiken">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Statistiken</h2>
         <p class="card-description">
           Detaillierte Statistiken über Anreisen, Abreisen, Auslastung und Wochenübersicht.
@@ -407,7 +476,8 @@ if (!AuthManager::checkSession()) {
         <a href="statistiken.html" class="card-button">Statistiken anzeigen</a>
       </div>
 
-      <div class="dashboard-card">
+      <div class="dashboard-card" draggable="true" data-card-id="zimmerplan">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Zimmerplan</h2>
         <p class="card-description">
           Zeitliche Darstellung der Reservierungen.
@@ -415,7 +485,8 @@ if (!AuthManager::checkSession()) {
         <a href="zp/timeline-unified.html" class="card-button">Zimmerplan öffnen</a>
       </div>
 
-      <div class="dashboard-card">
+      <div class="dashboard-card" draggable="true" data-card-id="system-tools">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">System-Tools</h2>
         <p class="card-description">
           Verbindungstest, System-Status und Wartungstools für die WebCheckin-Anwendung.
@@ -424,16 +495,23 @@ if (!AuthManager::checkSession()) {
           <a href="loading-test.html" class="card-button">System Tools</a>
           <a href="hrs_login_debug.php" class="card-button hrs-debug">🔧 HRS Debug</a>
           <a href="system-analysis.php" class="card-button system-analysis">🔍 System Analyse</a>
+          <button onclick="clearBrowserCache()" class="card-button cache-clear" title="Browser-Cache, localStorage und sessionStorage leeren">🧹 Cache Leeren</button>
         </div>
       </div>
     </div>
 
     <!-- Access Analytics Widget -->
-    <?php include 'access-widget.php'; ?>
+    <div class="dashboard-grid">
+      <div class="dashboard-card" draggable="true" data-card-id="access-analytics" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="drag-handle" style="color: rgba(255,255,255,0.7);">⋮⋮</div>
+        <?php include 'access-widget.php'; ?>
+      </div>
+    </div>
 
     <!-- Quick Actions -->
     <div class="dashboard-grid">
-      <div class="dashboard-card">
+      <div class="dashboard-card" draggable="true" data-card-id="tisch-uebersicht">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Tischübersicht</h2>
         <p class="card-description">
           Aktuelle Tischbelegung der anwesenden Gäste
@@ -441,7 +519,8 @@ if (!AuthManager::checkSession()) {
         <a href="tisch-uebersicht.php" class="card-button">Tischübersicht anzeigen</a>
       </div>
 
-      <div class="dashboard-card">
+      <div class="dashboard-card" draggable="true" data-card-id="mobile-ansicht">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Mobile Ansicht</h2>
         <p class="card-description">
           Optimierte Ansichten für mobile Geräte und Tablets.
@@ -449,7 +528,8 @@ if (!AuthManager::checkSession()) {
         <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
       </div>
 
-      <div class="dashboard-card sync-matrix-card">
+      <div class="dashboard-card sync-matrix-card" draggable="true" data-card-id="sync-matrix">
+        <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Sync Matrix - Live</h2>
         <p class="card-description">
           Live-Anzeige aller Synchronisations-Vorgänge im Matrix-Style.
@@ -712,6 +792,434 @@ if (!AuthManager::checkSession()) {
           window.syncMatrix.manualSync();
         }
       };
+      
+      // Initialize Dashboard Drag & Drop
+      // Small delay to ensure all widgets are loaded
+      setTimeout(() => {
+        initializeDashboardDragAndDrop();
+      }, 100);
+    });
+    
+    // Dashboard Drag and Drop functionality
+    function initializeDashboardDragAndDrop() {
+      let draggedElement = null;
+      let draggedOver = null;
+      
+      // Load saved order from localStorage
+      loadDashboardOrder();
+      
+      // Add event listeners to all draggable cards
+      const cards = document.querySelectorAll('.dashboard-card[draggable="true"]');
+      
+      cards.forEach(card => {
+        // Drag start
+        card.addEventListener('dragstart', function(e) {
+          draggedElement = this;
+          this.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/html', this.outerHTML);
+        });
+        
+        // Drag end
+        card.addEventListener('dragend', function(e) {
+          this.classList.remove('dragging');
+          
+          // Remove drag-over class from all cards
+          cards.forEach(c => c.classList.remove('drag-over'));
+          
+          // Save new order
+          saveDashboardOrder();
+        });
+        
+        // Drag over
+        card.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          
+          if (this !== draggedElement) {
+            this.classList.add('drag-over');
+            draggedOver = this;
+          }
+        });
+        
+        // Drag enter
+        card.addEventListener('dragenter', function(e) {
+          e.preventDefault();
+        });
+        
+        // Drag leave
+        card.addEventListener('dragleave', function(e) {
+          // Only remove if we're actually leaving this element
+          if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('drag-over');
+          }
+        });
+        
+        // Drop
+        card.addEventListener('drop', function(e) {
+          e.preventDefault();
+          this.classList.remove('drag-over');
+          
+          if (this !== draggedElement && draggedElement) {
+            // Get the containers
+            const draggedContainer = draggedElement.parentNode;
+            const targetContainer = this.parentNode;
+            
+            // If dropping in the same container, reorder
+            if (draggedContainer === targetContainer) {
+              const allCards = Array.from(targetContainer.children);
+              const draggedIndex = allCards.indexOf(draggedElement);
+              const targetIndex = allCards.indexOf(this);
+              
+              if (draggedIndex < targetIndex) {
+                targetContainer.insertBefore(draggedElement, this.nextSibling);
+              } else {
+                targetContainer.insertBefore(draggedElement, this);
+              }
+            } else {
+              // Moving between containers - insert before target
+              targetContainer.insertBefore(draggedElement, this);
+            }
+          }
+        });
+      });
+      
+      // Also add drop listeners to grid containers for empty spaces
+      const grids = document.querySelectorAll('.dashboard-grid');
+      grids.forEach(grid => {
+        grid.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+        
+        grid.addEventListener('drop', function(e) {
+          e.preventDefault();
+          
+          // If dropped on empty space in grid, append to end
+          const rect = this.getBoundingClientRect();
+          const afterElement = getDragAfterElement(this, e.clientY);
+          
+          if (afterElement == null) {
+            this.appendChild(draggedElement);
+          } else {
+            this.insertBefore(draggedElement, afterElement);
+          }
+        });
+      });
+    }
+    
+    // Helper function to determine which element to insert after
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.dashboard-card:not(.dragging)')];
+      
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+    
+    // Save dashboard order to localStorage
+    function saveDashboardOrder() {
+      const allCards = document.querySelectorAll('.dashboard-card[data-card-id]');
+      const order = Array.from(allCards).map((card, index) => ({
+        id: card.dataset.cardId,
+        container: card.parentNode.classList.contains('dashboard-grid') ? 
+          Array.from(document.querySelectorAll('.dashboard-grid')).indexOf(card.parentNode) : 0,
+        position: Array.from(card.parentNode.children).indexOf(card)
+      }));
+      
+      localStorage.setItem('dashboardOrder', JSON.stringify(order));
+      console.log('Dashboard order saved:', order);
+      
+      // Show save confirmation
+      showSaveConfirmation();
+    }
+    
+    // Load dashboard order from localStorage
+    function loadDashboardOrder() {
+      const savedOrder = localStorage.getItem('dashboardOrder');
+      if (!savedOrder) return;
+      
+      try {
+        const order = JSON.parse(savedOrder);
+        const grids = Array.from(document.querySelectorAll('.dashboard-grid'));
+        
+        // Group cards by container
+        const cardsByContainer = {};
+        order.forEach(item => {
+          if (!cardsByContainer[item.container]) {
+            cardsByContainer[item.container] = [];
+          }
+          cardsByContainer[item.container].push(item);
+        });
+        
+        // Sort each container by position and reorder
+        Object.keys(cardsByContainer).forEach(containerIndex => {
+          const grid = grids[parseInt(containerIndex)];
+          if (grid) {
+            const containerCards = cardsByContainer[containerIndex]
+              .sort((a, b) => a.position - b.position);
+            
+            containerCards.forEach(item => {
+              const card = document.querySelector(`[data-card-id="${item.id}"]`);
+              if (card && card.parentNode !== grid) {
+                grid.appendChild(card);
+              }
+            });
+            
+            // Reorder within container
+            containerCards.forEach((item, index) => {
+              const card = document.querySelector(`[data-card-id="${item.id}"]`);
+              if (card) {
+                const currentIndex = Array.from(grid.children).indexOf(card);
+                if (currentIndex !== index) {
+                  if (index === 0) {
+                    grid.insertBefore(card, grid.firstChild);
+                  } else {
+                    const afterCard = grid.children[index - 1];
+                    if (afterCard && afterCard.nextSibling) {
+                      grid.insertBefore(card, afterCard.nextSibling);
+                    } else {
+                      grid.appendChild(card);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        });
+        
+        console.log('Dashboard order loaded:', order);
+      } catch (e) {
+        console.error('Error loading dashboard order:', e);
+        localStorage.removeItem('dashboardOrder');
+      }
+    }
+    
+    // Show save confirmation
+    function showSaveConfirmation() {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        z-index: 1000;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      `;
+      notification.textContent = 'Dashboard-Anordnung gespeichert!';
+      document.body.appendChild(notification);
+      
+      // Fade in
+      setTimeout(() => notification.style.opacity = '1', 10);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(notification), 300);
+      }, 3000);
+    }
+    
+    // Add reset function for dashboard order
+    window.resetDashboardOrder = function() {
+      localStorage.removeItem('dashboardOrder');
+      location.reload();
+    };
+    
+    // Debug function to show current order
+    window.debugDashboardOrder = function() {
+      const allCards = document.querySelectorAll('.dashboard-card[data-card-id]');
+      const grids = document.querySelectorAll('.dashboard-grid');
+      
+      console.log('=== Dashboard Debug ===');
+      console.log('Total grids:', grids.length);
+      console.log('Total cards:', allCards.length);
+      
+      grids.forEach((grid, gridIndex) => {
+        const cards = grid.querySelectorAll('.dashboard-card[data-card-id]');
+        console.log(`Grid ${gridIndex}:`, Array.from(cards).map(c => c.dataset.cardId));
+      });
+      
+      const saved = localStorage.getItem('dashboardOrder');
+      if (saved) {
+        console.log('Saved order:', JSON.parse(saved));
+      } else {
+        console.log('No saved order found');
+      }
+    };
+    
+    // Cache clearing function with multiple methods
+    function clearBrowserCache() {
+      let successCount = 0;
+      let totalMethods = 0;
+      const results = [];
+      
+      // Show loading notification
+      const notification = showNotification('🧹 Cache wird geleert...', 'info', 0);
+      
+      // Method 1: Clear localStorage
+      try {
+        const localStorageSize = localStorage.length;
+        localStorage.clear();
+        results.push(`✅ localStorage: ${localStorageSize} Einträge gelöscht`);
+        successCount++;
+      } catch (e) {
+        results.push(`❌ localStorage: Fehler - ${e.message}`);
+      }
+      totalMethods++;
+      
+      // Method 2: Clear sessionStorage
+      try {
+        const sessionStorageSize = sessionStorage.length;
+        sessionStorage.clear();
+        results.push(`✅ sessionStorage: ${sessionStorageSize} Einträge gelöscht`);
+        successCount++;
+      } catch (e) {
+        results.push(`❌ sessionStorage: Fehler - ${e.message}`);
+      }
+      totalMethods++;
+      
+      // Method 3: Clear IndexedDB (if available)
+      if ('indexedDB' in window) {
+        try {
+          indexedDB.databases().then(databases => {
+            databases.forEach(db => {
+              indexedDB.deleteDatabase(db.name);
+            });
+            results.push(`✅ IndexedDB: ${databases.length} Datenbanken gelöscht`);
+          }).catch(e => {
+            results.push(`❌ IndexedDB: Fehler - ${e.message}`);
+          });
+          successCount++;
+        } catch (e) {
+          results.push(`❌ IndexedDB: Fehler - ${e.message}`);
+        }
+        totalMethods++;
+      }
+      
+      // Method 4: Service Worker Cache (if available)
+      if ('serviceWorker' in navigator && 'caches' in window) {
+        caches.keys().then(cacheNames => {
+          if (cacheNames.length > 0) {
+            const deletePromises = cacheNames.map(cacheName => caches.delete(cacheName));
+            Promise.all(deletePromises).then(() => {
+              results.push(`✅ Service Worker Cache: ${cacheNames.length} Caches gelöscht`);
+              successCount++;
+            }).catch(e => {
+              results.push(`❌ Service Worker Cache: Fehler - ${e.message}`);
+            });
+          } else {
+            results.push(`ℹ️ Service Worker Cache: Keine Caches gefunden`);
+            successCount++;
+          }
+        }).catch(e => {
+          results.push(`❌ Service Worker Cache: Fehler - ${e.message}`);
+        });
+        totalMethods++;
+      }
+      
+      // Method 5: Force reload with cache bypass
+      setTimeout(() => {
+        hideNotification(notification);
+        
+        // Show results
+        const resultText = results.join('\n');
+        console.log('Cache Clear Results:\n' + resultText);
+        
+        // Show success notification with reload option
+        const confirmReload = confirm(
+          `Cache erfolgreich geleert!\n\n` +
+          `Ergebnisse:\n${resultText}\n\n` +
+          `Möchten Sie die Seite neu laden, um alle Änderungen zu übernehmen?\n` +
+          `(Empfohlen für vollständige Cache-Löschung)`
+        );
+        
+        if (confirmReload) {
+          // Force reload with cache bypass (Ctrl+F5 equivalent)
+          window.location.reload(true);
+        } else {
+          showNotification('✅ Cache geleert! Reload empfohlen für vollständige Wirkung.', 'success', 5000);
+        }
+      }, 1000);
+    }
+    
+    // Enhanced notification system for cache clearing
+    function showNotification(message, type = 'info', duration = 3000) {
+      const notification = document.createElement('div');
+      const colors = {
+        info: { bg: '#3498db', text: 'white' },
+        success: { bg: '#27ae60', text: 'white' },
+        error: { bg: '#e74c3c', text: 'white' },
+        warning: { bg: '#f39c12', text: 'white' }
+      };
+      
+      const color = colors[type] || colors.info;
+      
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${color.bg};
+        color: ${color.text};
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 10000;
+        font-size: 14px;
+        opacity: 0;
+        transition: all 0.3s ease;
+        max-width: 350px;
+        word-wrap: break-word;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      `;
+      
+      notification.innerHTML = message;
+      document.body.appendChild(notification);
+      
+      // Fade in
+      requestAnimationFrame(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+      });
+      
+      // Auto-remove if duration is set
+      if (duration > 0) {
+        setTimeout(() => hideNotification(notification), duration);
+      }
+      
+      return notification;
+    }
+    
+    function hideNotification(notification) {
+      if (notification && notification.parentNode) {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            document.body.removeChild(notification);
+          }
+        }, 300);
+      }
+    }
+    
+    // Add keyboard shortcut for cache clearing (Ctrl+Shift+R)
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        clearBrowserCache();
+      }
     });
   </script>
 </body>

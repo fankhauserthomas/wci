@@ -62,22 +62,15 @@ if (file_exists($logFile)) {
 }
 ?>
 
-<div class="access-analytics-widget" style="
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    padding: 20px;
-    color: white;
-    margin: 15px 0;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-" id="accessWidget">
-    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-        <span style="font-size: 1.5em; margin-right: 10px;">📊</span>
-        <h3 style="margin: 0;">Access Analytics</h3>
-        <span id="liveIndicator" style="
-            margin-left: 15px;
-            width: 8px;
-            height: 8px;
-            background: #4caf50;
+<!-- Access Analytics Content (now without wrapper div) -->
+<div style="display: flex; align-items: center; margin-bottom: 15px;">
+    <span style="font-size: 1.5em; margin-right: 10px;">📊</span>
+    <h2 class="card-title" style="margin: 0; color: white;">Access Analytics</h2>
+    <span id="liveIndicator" style="
+        margin-left: 15px;
+        width: 8px;
+        height: 8px;
+        background: #4caf50;
             border-radius: 50%;
             animation: pulse 2s infinite;
         "></span>
@@ -122,7 +115,6 @@ if (file_exists($logFile)) {
         Last Activity: <?= date('H:i:s', strtotime(str_replace(['[', ']'], '', $stats['last_activity']))) ?>
     </div>
     <?php endif; ?>
-</div>
 
 <style>
 @keyframes pulse {
