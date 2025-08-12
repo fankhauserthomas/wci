@@ -18,6 +18,7 @@ $includeColor = isset($_GET['includeColor']) && $_GET['includeColor'] === 'true'
 $sql1 = "
 SELECT
     r.id,
+    r.av_id,
     DATE_FORMAT(r.anreise, '%Y-%m-%dT%H:%i:%s') AS anreise,
     DATE_FORMAT(r.abreise, '%Y-%m-%dT%H:%i:%s') AS abreise,
     r.betten,

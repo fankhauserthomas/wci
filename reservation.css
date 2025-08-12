@@ -25,6 +25,25 @@ body {
   /* allow full width for table */
   display: flex;
   flex-direction: column;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Body ohne Ränder erzwingen */
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* HTML ohne Ränder erzwingen */
+html {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Universeller Reset für kritische Elemente */
+* {
+  box-sizing: border-box;
 }
 
 /* Grüner Info-Header */
@@ -33,13 +52,15 @@ body {
   background: var(--res-header-bg, #2d8f4f);
   /* CSS Variable mit Fallback */
   color: #fff;
-  padding: 0.5rem 1rem;
-  /* Reduziertes vertikales Padding */
+  padding: 5px;
+  /* 5px Padding */
   font-size: 1rem;
   line-height: 1.2;
   /* Kompaktere Zeilenhöhe */
-  margin-bottom: 0.75rem;
-  /* Weniger Abstand nach unten */
+  margin: 0;
+  /* Kein Margin */
+  margin-bottom: 10px;
+  /* 10px Abstand nach unten */
   transition: background-color 0.3s ease;
   /* Smooth color transitions */
 }

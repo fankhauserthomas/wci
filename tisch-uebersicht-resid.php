@@ -893,6 +893,100 @@ $tischData = getTischUebersichtForResid($resid);
         .arrangements-table .arrangement-header {
             width: auto; /* Wird durch table-layout: fixed gleichmäßig verteilt */
         }
+        
+        /* Print Controls */
+        .print-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .print-btn {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+            transition: all 0.3s ease;
+            min-width: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+        }
+        
+        .print-btn.receipt { 
+            background: linear-gradient(45deg, #3498db, #2980b9); 
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        .print-btn.receipt:hover {
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .print-btn.label { 
+            background: linear-gradient(45deg, #f39c12, #d68910); 
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+        .print-btn.label:hover {
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+        }
+        
+        .print-btn.overview { 
+            background: linear-gradient(45deg, #9b59b6, #8e44ad); 
+            box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);
+        }
+        .print-btn.overview:hover {
+            box-shadow: 0 6px 20px rgba(155, 89, 182, 0.4);
+        }
+        
+        /* Android-optimized print styles */
+        @media print {
+            body { font-size: 18px; line-height: 1.6; }
+            .print-controls { display: none !important; }
+            .container { height: auto !important; overflow: visible !important; }
+            .table-container { height: auto !important; overflow: visible !important; }
+            .table { page-break-inside: avoid; }
+            .table thead { display: table-header-group; }
+            .table tbody tr { page-break-inside: avoid; }
+            .back-button { display: none !important; }
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .print-controls {
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                flex-direction: row;
+                justify-content: space-around;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 10px;
+                border-radius: 15px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            
+            .print-btn {
+                min-width: auto;
+                flex: 1;
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1087,6 +1181,19 @@ $tischData = getTischUebersichtForResid($resid);
                 </table>
             </div>
         <?php endif; ?>
+        
+        <!-- Print Controls -->
+        <div class="print-controls">
+            <button onclick="printReceipt(<?php echo $resid; ?>)" class="print-btn receipt">
+                🧾 Rechnung
+            </button>
+            <button onclick="printLabels(<?php echo $resid; ?>)" class="print-btn label">
+                🏷️ Etiketten
+            </button>
+            <button onclick="printOverview(<?php echo $resid; ?>)" class="print-btn overview">
+                📋 Übersicht
+            </button>
+        </div>
     </div>
 
     <script>
@@ -1644,6 +1751,303 @@ $tischData = getTischUebersichtForResid($resid);
                 window.location.href = 'tisch-uebersicht.php';
             }
         });
+        
+        // ===== PRINT FUNCTIONALITY =====
+        
+        // Android-optimierte Print-Funktionen
+        function detectMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+        
+        function printReceipt(resid) {
+            console.log('Drucke Rechnung für Reservierung:', resid);
+            
+            if (detectMobileDevice()) {
+                // Android-optimierter Druck
+                const printData = generatePrintableReceipt(resid);
+                openMobilePrintDialog(printData, 'receipt');
+            } else {
+                // Desktop-Druck
+                const printWindow = window.open(`print-receipt.php?resid=${resid}`, '_blank', 'width=400,height=600');
+                printWindow.onload = function() {
+                    setTimeout(() => {
+                        printWindow.print();
+                    }, 500);
+                };
+            }
+        }
+        
+        function printLabels(resid) {
+            console.log('Drucke Etiketten für Reservierung:', resid);
+            
+            if (detectMobileDevice()) {
+                const printData = generatePrintableLabels(resid);
+                openMobilePrintDialog(printData, 'labels');
+            } else {
+                const printWindow = window.open(`print-labels.php?resid=${resid}`, '_blank', 'width=400,height=300');
+                printWindow.onload = function() {
+                    setTimeout(() => {
+                        printWindow.print();
+                    }, 500);
+                };
+            }
+        }
+        
+        function printOverview(resid) {
+            console.log('Drucke Übersicht für Reservierung:', resid);
+            
+            if (detectMobileDevice()) {
+                // Für mobile Geräte: Aktuelle Seite drucken
+                window.print();
+            } else {
+                const printWindow = window.open(`print-overview.php?resid=${resid}`, '_blank');
+                printWindow.onload = function() {
+                    setTimeout(() => {
+                        printWindow.print();
+                    }, 500);
+                };
+            }
+        }
+        
+        function generatePrintableReceipt(resid) {
+            // Sammle Reservierungsdaten aus der aktuellen Seite
+            const tischData = [];
+            const rows = document.querySelectorAll('.table tbody tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4) {
+                    const tischCell = cells[0];
+                    const anzahlCell = cells[1];
+                    const nameCell = cells[2];
+                    const bemerkungCell = cells[3];
+                    
+                    tischData.push({
+                        tisch: tischCell.textContent.trim(),
+                        anzahl: anzahlCell.textContent.trim(),
+                        name: nameCell.textContent.trim(),
+                        bemerkung: bemerkungCell.textContent.trim()
+                    });
+                }
+            });
+            
+            return {
+                resid: resid,
+                date: new Date().toLocaleDateString('de-DE'),
+                time: new Date().toLocaleTimeString('de-DE'),
+                tischData: tischData
+            };
+        }
+        
+        function generatePrintableLabels(resid) {
+            const tischData = generatePrintableReceipt(resid).tischData;
+            return {
+                resid: resid,
+                labels: tischData.map(data => ({
+                    tisch: data.tisch,
+                    name: data.name,
+                    anzahl: data.anzahl
+                }))
+            };
+        }
+        
+        function openMobilePrintDialog(data, type) {
+            // Erstelle ein temporäres Print-Fenster für mobile Geräte
+            const printContent = generatePrintHTML(data, type);
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            
+            // Android-spezifische Verzögerung für bessere Kompatibilität
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 1000);
+            
+            // Fenster nach Druck schließen
+            setTimeout(() => {
+                printWindow.close();
+            }, 3000);
+        }
+        
+        function generatePrintHTML(data, type) {
+            const baseStyles = `
+                <style>
+                    @page { 
+                        margin: 10mm; 
+                        size: auto;
+                    }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        font-size: 16px; 
+                        line-height: 1.4;
+                        margin: 0;
+                        padding: 20px;
+                        color: #000;
+                        background: #fff;
+                    }
+                    .header { 
+                        text-align: center; 
+                        border-bottom: 2px solid #000; 
+                        padding-bottom: 10px; 
+                        margin-bottom: 20px;
+                    }
+                    .header h1 { 
+                        margin: 0; 
+                        font-size: 24px; 
+                        font-weight: bold;
+                    }
+                    .header h2 { 
+                        margin: 5px 0 0 0; 
+                        font-size: 18px; 
+                        color: #666;
+                    }
+                    .content { 
+                        margin-bottom: 20px; 
+                    }
+                    .table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 15px 0;
+                    }
+                    .table th, .table td { 
+                        border: 1px solid #000; 
+                        padding: 8px; 
+                        text-align: left;
+                    }
+                    .table th { 
+                        background: #f0f0f0; 
+                        font-weight: bold;
+                    }
+                    .label-item {
+                        border: 2px solid #000;
+                        margin: 10px 0;
+                        padding: 15px;
+                        text-align: center;
+                        page-break-inside: avoid;
+                    }
+                    .label-tisch {
+                        font-size: 20px;
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                    }
+                    .label-details {
+                        font-size: 16px;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        text-align: center;
+                        font-size: 12px;
+                        color: #666;
+                        border-top: 1px solid #ccc;
+                        padding-top: 10px;
+                    }
+                </style>
+            `;
+            
+            if (type === 'receipt') {
+                return `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Rechnung - Reservierung ${data.resid}</title>
+                        ${baseStyles}
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>Franz-Senn-Hütte</h1>
+                            <h2>Rechnung - Reservierung #${data.resid}</h2>
+                            <p>${data.date} - ${data.time}</p>
+                        </div>
+                        
+                        <div class="content">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Tisch</th>
+                                        <th>Anz</th>
+                                        <th>Name</th>
+                                        <th>Bemerkung</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.tischData.map(row => `
+                                        <tr>
+                                            <td>${row.tisch}</td>
+                                            <td>${row.anzahl}</td>
+                                            <td>${row.name}</td>
+                                            <td>${row.bemerkung}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Gedruckt am ${new Date().toLocaleString('de-DE')}</p>
+                            <p>Franz-Senn-Hütte - Reservierungssystem</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+            } else if (type === 'labels') {
+                return `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Etiketten - Reservierung ${data.resid}</title>
+                        ${baseStyles}
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>Franz-Senn-Hütte</h1>
+                            <h2>Tisch-Etiketten - Reservierung #${data.resid}</h2>
+                        </div>
+                        
+                        <div class="content">
+                            ${data.labels.map(label => `
+                                <div class="label-item">
+                                    <div class="label-tisch">${label.tisch}</div>
+                                    <div class="label-details">
+                                        <strong>${label.name}</strong><br>
+                                        ${label.anzahl} Personen
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Gedruckt am ${new Date().toLocaleString('de-DE')}</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+            }
+            
+            return '<html><body><h1>Print Error</h1></body></html>';
+        }
+        
+        // Touch-optimized event handling für mobile Geräte
+        if (detectMobileDevice()) {
+            // Verbesserte Touch-Interaktion für Print-Buttons
+            document.addEventListener('DOMContentLoaded', function() {
+                const printButtons = document.querySelectorAll('.print-btn');
+                printButtons.forEach(btn => {
+                    btn.addEventListener('touchstart', function() {
+                        this.style.transform = 'translateY(-1px) scale(0.98)';
+                    });
+                    
+                    btn.addEventListener('touchend', function() {
+                        this.style.transform = 'translateY(-2px) scale(1)';
+                    });
+                });
+            });
+        }
     </script>
 </body>
 </html>

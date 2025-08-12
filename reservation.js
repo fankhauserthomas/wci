@@ -197,6 +197,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const oldInvoiceStatus = currentReservationData?.detail?.invoice;
       currentReservationData = data;
 
+      // Handle AV Icon based on av_id
+      if (data.detail && data.detail.av_id && parseInt(data.detail.av_id) > 0) {
+        console.log('🔍 AV ID gefunden:', data.detail.av_id, '- füge AV Icon hinzu');
+        if (typeof addAvIcon === 'function') {
+          addAvIcon();
+        } else if (typeof window.addAvIcon === 'function') {
+          window.addAvIcon();
+        }
+      } else {
+        console.log('⚪ Keine AV ID oder av_id <= 0 - entferne AV Icon falls vorhanden');
+        if (typeof removeAvIcon === 'function') {
+          removeAvIcon();
+        } else if (typeof window.removeAvIcon === 'function') {
+          window.removeAvIcon();
+        }
+      }
+
       // Check if invoice status changed
       const newInvoiceStatus = data.detail?.invoice;
       if (oldInvoiceStatus !== undefined && oldInvoiceStatus !== newInvoiceStatus) {
