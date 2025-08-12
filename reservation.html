@@ -9,6 +9,89 @@
   <link rel="stylesheet" href="reservation.css">
   <link rel="stylesheet" href="css/navigation.css">
   <link rel="stylesheet" href="css/navigation-integration.css">
+
+  <!-- Guide Row Pulsing Animation -->
+  <style>
+    /* Guide Row Pulsing Animation - hellgold fade alle 2 Sekunden */
+    @keyframes guidePulse {
+      0% {
+        background-color: transparent;
+      }
+
+      50% {
+        background-color: rgba(255, 215, 0, 0.3);
+        /* Hellgold mit Transparenz */
+      }
+
+      100% {
+        background-color: transparent;
+      }
+    }
+
+    /* Guide Row Styling */
+    .guide-row {
+      animation: guidePulse 2s infinite ease-in-out;
+    }
+
+    /* Optional: Verstärkung bei Hover */
+    .guide-row:hover {
+      animation-duration: 1s;
+      /* Schnelleres Pulsieren bei Hover */
+    }
+
+    /* Sicherstellen dass die Animation auch bei ausgewählten Zeilen funktioniert */
+    .guide-row.selected {
+      animation: guidePulseSelected 2s infinite ease-in-out;
+    }
+
+    @keyframes guidePulseSelected {
+      0% {
+        background-color: rgba(74, 144, 226, 0.3);
+        /* Normale Selektion */
+      }
+
+      50% {
+        background-color: rgba(255, 215, 0, 0.5);
+        /* Hellgold + Selektion */
+      }
+
+      100% {
+        background-color: rgba(74, 144, 226, 0.3);
+      }
+    }
+
+    /* Optional: Smooth Transition für bessere visuelle Qualität */
+    .names-list tbody tr {
+      transition: background-color 0.3s ease;
+    }
+
+    /* AV Icon Styling */
+    .av-icon {
+      position: absolute;
+      top: -30px;
+      left: -30px;
+      height: 150px;
+      width: auto;
+      z-index: 1;
+      opacity: 0.15;
+      transition: opacity 0.3s ease;
+    }
+
+    .av-icon:hover {
+      opacity: 0.3;
+    }
+
+    /* Header positioning für AV Icon */
+    .res-header {
+      position: relative;
+    }
+
+    /* Header content über AV Icon */
+    .header-content {
+      position: relative;
+      z-index: 2;
+    }
+  </style>
 </head>
 
 <body>
@@ -699,7 +782,319 @@
       if (headerInfo && data) {
         console.log('📝 Header-Info-Element gefunden - bereit für Updates');
       }
+
+      // AV Icon hinzufügen wenn av_id > 0
+      if (data && data.av_id && parseInt(data.av_id) > 0) {
+        console.log('🔍 AV ID gefunden:', data.av_id, '- füge AV Icon hinzu');
+        addAvIcon();
+      } else {
+        console.log('⚪ Keine AV ID oder av_id <= 0 - entferne AV Icon falls vorhanden');
+        removeAvIcon();
+      }
     }
+
+    // Funktion zum Hinzufügen des AV Icons
+    function addAvIcon() {
+      const headerElement = document.getElementById('resHeader');
+      if (!headerElement) return;
+
+      // Prüfen ob AV Icon bereits vorhanden ist
+      let avIcon = headerElement.querySelector('.av-icon');
+      if (!avIcon) {
+        avIcon = document.createElement('img');
+        avIcon.className = 'av-icon';
+        avIcon.src = 'pic/AV.svg';
+        avIcon.alt = 'AV Reservierung';
+        avIcon.title = 'AV Reservierung';
+        headerElement.appendChild(avIcon);
+        console.log('✅ AV Icon hinzugefügt');
+      }
+    }
+
+    // Funktion zum Entfernen des AV Icons
+    function removeAvIcon() {
+      const headerElement = document.getElementById('resHeader');
+      if (!headerElement) return;
+
+      const avIcon = headerElement.querySelector('.av-icon');
+      if (avIcon) {
+        avIcon.remove();
+        console.log('🗑️ AV Icon entfernt');
+      }
+    }
+
+    // Make functions globally available
+    window.addAvIcon = addAvIcon;
+    window.removeAvIcon = removeAvIcon;
+
+    // ===== GUIDE ROW PULSING ANIMATION =====
+
+    // Guide Row Animation - JavaScript Teil für dynamische Anwendung
+    function updateGuideRowAnimation() {
+      console.log('🔄 Updating Guide Row animations...');
+
+      // Alle Tabellenzeilen durchgehen
+      const tableRows = document.querySelectorAll('#namesTable tbody tr');
+      console.log(`📊 Found ${tableRows.length} table rows`);
+
+      let guidesFound = 0;
+      tableRows.forEach((row, index) => {
+        // BF-Spalte (6. Spalte) analysieren - keine Checkbox, sondern Text/Symbol
+        const bfCell = row.querySelector('td:nth-child(6)');
+
+        if (bfCell) {
+          const bfContent = bfCell.textContent.trim();
+          const bfInnerHTML = bfCell.innerHTML.trim();
+
+          console.log(`Row ${index}: BF cell content:`, bfContent, 'innerHTML:', bfInnerHTML);
+
+          // Prüfe auf verschiedene Guide-Indikatoren:
+          // ✓ Symbol, "true", "1", "ja", oder andere positive Indikatoren
+          const isGuide = (
+            bfContent === '✓' ||
+            bfContent === '✔' ||
+            bfContent === '☑' ||
+            bfContent.toLowerCase() === 'true' ||
+            bfContent === '1' ||
+            bfContent.toLowerCase() === 'ja' ||
+            bfContent.toLowerCase() === 'yes' ||
+            bfInnerHTML.includes('✓') ||
+            bfInnerHTML.includes('✔') ||
+            bfInnerHTML.includes('☑') ||
+            bfCell.classList.contains('guide-active') ||
+            bfCell.classList.contains('bf-active')
+          );
+
+          console.log(`Row ${index}: Is Guide:`, isGuide);
+
+          if (isGuide) {
+            // Guide Flag ist gesetzt - Animation hinzufügen
+            row.classList.add('guide-row');
+            guidesFound++;
+            const nameCell = row.querySelector('td:nth-child(2)');
+            console.log('✨ Guide animation added to row:', nameCell?.textContent?.trim());
+          } else {
+            // Guide Flag nicht gesetzt - Animation entfernen
+            row.classList.remove('guide-row');
+          }
+        } else {
+          console.log(`Row ${index}: No BF cell found`);
+        }
+      });
+
+      console.log(`🎯 Total guides with animation: ${guidesFound}`);
+    }
+
+    // Event Listener für BF-Zellen-Änderungen (keine Checkboxen)
+    function setupGuideAnimationListeners() {
+      console.log('🎯 Setting up Guide animation listeners...');
+
+      // Observer für dynamisch hinzugefügte Zellen
+      const tableBody = document.querySelector('#namesTable tbody');
+      console.log('📊 Table body found:', tableBody);
+
+      if (tableBody) {
+
+        // Event Delegation für BF-Zellen (Spalte 6)
+        tableBody.addEventListener('click', function (event) {
+          const target = event.target;
+          console.log('�️ Click detected:', target);
+
+          // Prüfen ob es eine BF-Zelle ist
+          const bfCell = target.closest('td:nth-child(6)');
+
+          if (bfCell) {
+            console.log('🔄 BF cell clicked:', bfCell);
+
+            // Nach Click kurz warten und Animation aktualisieren
+            setTimeout(updateGuideRowAnimation, 150);
+          }
+        });
+
+        // Zusätzlicher Change-Listener für falls doch Eingabefelder vorhanden sind
+        tableBody.addEventListener('change', function (event) {
+          console.log('🔄 Content changed:', event.target);
+          setTimeout(updateGuideRowAnimation, 100);
+        });
+
+        // Zusätzlicher Input-Listener für Textänderungen
+        tableBody.addEventListener('input', function (event) {
+          console.log('� Input detected:', event.target);
+          setTimeout(updateGuideRowAnimation, 100);
+        });
+
+        // Mutation Observer für neue Zeilen und Inhaltsänderungen
+        const observer = new MutationObserver(function (mutations) {
+          mutations.forEach(function (mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+              console.log('🔄 New table rows detected');
+              setTimeout(updateGuideRowAnimation, 300);
+            } else if (mutation.type === 'characterData' ||
+              (mutation.type === 'attributes' && mutation.attributeName === 'class')) {
+              console.log('🔄 Cell content or class changed');
+              setTimeout(updateGuideRowAnimation, 150);
+            }
+          });
+        });
+
+        observer.observe(tableBody, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+
+        console.log('✅ Guide animation observer active (enhanced for non-checkbox BF)');
+      } else {
+        console.warn('⚠️ Table body not found for guide animation setup');
+      }
+    }
+
+    // Initial setup nach DOM load
+    setTimeout(() => {
+      console.log('🚀 Starting Guide animation setup...');
+      setupGuideAnimationListeners();
+      updateGuideRowAnimation(); // Initial update
+    }, 1000); // Nach dem Laden der Reservierungsdaten
+
+    // Weitere Updates in Intervallen für asynchrone Datenladung
+    setTimeout(() => {
+      console.log('🔄 Guide animation delayed update 1');
+      updateGuideRowAnimation();
+    }, 2000);
+
+    setTimeout(() => {
+      console.log('🔄 Guide animation delayed update 2');
+      updateGuideRowAnimation();
+    }, 3000);
+
+    setTimeout(() => {
+      console.log('🔄 Guide animation delayed update 3');
+      updateGuideRowAnimation();
+    }, 5000);
+
+    // Integration mit bestehender Logik - Hook in Header-Refresh
+    const originalPerformForceHeaderRefresh = window.performForceHeaderRefresh;
+    if (typeof originalPerformForceHeaderRefresh === 'function') {
+      window.performForceHeaderRefresh = async function () {
+        await originalPerformForceHeaderRefresh.call(this);
+
+        // Nach Header-Refresh auch Guide-Animationen aktualisieren
+        setTimeout(updateGuideRowAnimation, 300);
+      };
+    }
+
+    // Hook in reservation.js loadReservationData falls verfügbar
+    const checkForReservationJSIntegration = setInterval(() => {
+      if (typeof window.loadReservationData === 'function' && !window.guideAnimationHooked) {
+        const originalLoadReservationData = window.loadReservationData;
+        window.loadReservationData = async function () {
+          const result = await originalLoadReservationData.call(this);
+
+          // Nach Datenladung Guide-Animationen aktualisieren
+          setTimeout(updateGuideRowAnimation, 500);
+
+          return result;
+        };
+
+        window.guideAnimationHooked = true;
+        clearInterval(checkForReservationJSIntegration);
+        console.log('✅ Guide animation integrated with reservation.js');
+      }
+    }, 100);
+
+    // Timeout nach 5 Sekunden
+    setTimeout(() => {
+      clearInterval(checkForReservationJSIntegration);
+    }, 5000);
+
+    // Export für external access
+    window.updateGuideRowAnimation = updateGuideRowAnimation;
+    window.setupGuideAnimationListeners = setupGuideAnimationListeners;
+
+    // Test-Funktionen für Debug
+    window.testGuideAnimation = function () {
+      console.log('🧪 Testing Guide Animation...');
+      const tableRows = document.querySelectorAll('#namesTable tbody tr');
+      console.log(`Found ${tableRows.length} rows for testing`);
+
+      // Erste Zeile als Test-Guide markieren
+      if (tableRows.length > 0) {
+        const testRow = tableRows[0];
+        testRow.classList.add('guide-row');
+        console.log('✅ Test animation applied to first row');
+
+        // Nach 5 Sekunden wieder entfernen
+        setTimeout(() => {
+          testRow.classList.remove('guide-row');
+          console.log('🔄 Test animation removed');
+        }, 5000);
+      }
+    };
+
+    window.debugGuideRows = function () {
+      console.log('🔍 Debugging Guide Rows (Enhanced for BF symbols)...');
+      const tableRows = document.querySelectorAll('#namesTable tbody tr');
+
+      tableRows.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        console.log(`Row ${index}:`);
+
+        cells.forEach((cell, cellIndex) => {
+          const content = cell.textContent.trim();
+          const innerHTML = cell.innerHTML.trim();
+
+          if (cellIndex === 5) { // BF column (6th column, index 5)
+            console.log(`  BF Cell ${cellIndex + 1}: "${content}" (HTML: "${innerHTML}")`);
+
+            // Check for guide indicators
+            const isGuide = (
+              content === '✓' ||
+              content === '✔' ||
+              content === '☑' ||
+              content.toLowerCase() === 'true' ||
+              content === '1' ||
+              innerHTML.includes('✓') ||
+              innerHTML.includes('✔')
+            );
+
+            console.log(`    → Is Guide: ${isGuide}`);
+          } else if (content !== '') {
+            console.log(`  Cell ${cellIndex + 1}: "${content}"`);
+          }
+        });
+      });
+    };
+
+    // Erweiterte Debug-Funktion für BF-Zellen
+    window.debugBFCells = function () {
+      console.log('🔍 Analyzing BF Cells specifically...');
+      const bfCells = document.querySelectorAll('#namesTable tbody tr td:nth-child(6)');
+
+      bfCells.forEach((cell, index) => {
+        const content = cell.textContent.trim();
+        const innerHTML = cell.innerHTML;
+        const classList = cell.className;
+
+        console.log(`BF Cell ${index}:`);
+        console.log(`  Content: "${content}"`);
+        console.log(`  HTML: ${innerHTML}`);
+        console.log(`  Classes: ${classList}`);
+        console.log(`  ---`);
+      });
+    };
+
+    console.log('✅ Guide row pulsing animation initialized (Enhanced for BF symbols)');
+    console.log('🧪 Test with: testGuideAnimation(), debugGuideRows(), or debugBFCells()');
+
+    // Automatisches Debug nach 3 Sekunden
+    setTimeout(() => {
+      console.log('🔍 Auto-debug after 3 seconds:');
+      if (typeof window.debugBFCells === 'function') {
+        window.debugBFCells();
+      }
+    }, 3000);
   </script>
 </body>
 
