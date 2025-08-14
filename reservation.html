@@ -1169,6 +1169,49 @@
 
     console.log('✅ Guide row pulsing animation initialized (Enhanced for BF symbols)');
     console.log('🧪 Test with: testGuideAnimation(), debugGuideRows(), or debugBFCells()');
+
+    // Namen+ Button Event Handler - Weiterleitung zur neuen Import-Seite
+    document.addEventListener('DOMContentLoaded', function () {
+      const addNamesBtn = document.getElementById('addNamesBtn');
+      if (addNamesBtn) {
+        addNamesBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+
+          // Hole die aktuelle Reservierungs-ID aus der URL oder anderen Quellen
+          const urlParams = new URLSearchParams(window.location.search);
+          const resId = urlParams.get('id') || getReservationId();
+
+          if (resId) {
+            // Weiterleitung zur neuen Namen-Import-Seite
+            window.location.href = `namen-import.php?res_id=${resId}`;
+          } else {
+            console.error('Keine Reservierungs-ID gefunden');
+            alert('Fehler: Keine Reservierungs-ID gefunden');
+          }
+        });
+
+        console.log('✅ Namen+ Button mit neuer Import-Seite verbunden');
+      } else {
+        console.warn('⚠️ Namen+ Button nicht gefunden');
+      }
+    });
+
+    // Hilfsfunktion um Reservierungs-ID zu ermitteln
+    function getReservationId() {
+      // Versuche verschiedene Quellen für die ID
+      const urlParams = new URLSearchParams(window.location.search);
+      let resId = urlParams.get('id');
+
+      if (!resId && window.currentReservationData) {
+        resId = window.currentReservationData.id;
+      }
+
+      if (!resId && window.reservationData) {
+        resId = window.reservationData.id;
+      }
+
+      return resId;
+    }
   </script>
 </body>
 
