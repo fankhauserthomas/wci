@@ -1,40 +1,96 @@
 <?php
-// addReservationNames.php
+// addReservationNames.php - Enhanced with birthdate support
 header('Content-Type: application/json');
 require 'config.php';
 
+// Verwende mysqli statt PDO
+$mysqli = $GLOBALS['mysqli'];
+
 $payload = json_decode(file_get_contents('php://input'), true);
-$id      = $payload['id'] ?? '';
-$entries = $payload['entries'] ?? [];
 
-if (!ctype_digit($id) || !is_array($entries)) {
+// Support both old format (id + entries) and new format (res_id + names)
+$id      = $payload['res_id'] ?? $payload['id'] ?? '';
+$entries = $payload['names'] ?? $payload['entries'] ?? [];
+$format  = $payload['format'] ?? '';
+$source  = $payload['source'] ?? '';
+
+if (!$id || !ctype_digit($id) || !is_array($entries)) {
     http_response_code(400);
-    echo json_encode(['success'=>false, 'error'=>'Ungültige Daten']);
+    echo json_encode([
+        'success'=>false,
+        'error'=>'Ungültige Daten: res_id und names Array erforderlich',
+        'debug' => [
+            'received_id' => $id,
+            'received_entries' => $entries,
+            'format' => $format,
+            'source' => $source
+        ]
+    ]);
     exit;
 }
 
-// Bereite INSERT vor
-$sql = "INSERT INTO `AV-ResNamen`
-        (av_id, vorname, nachname)
-        VALUES (?, ?, ?)";
-$stmt = $mysqli->prepare($sql);
-if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(['success'=>false, 'error'=>'SQL-Fehler: '.$mysqli->error]);
-    exit;
-}
+// Check if gebdat column exists (for compatibility) - gebdat existiert bereits
+$hasGebdatColumn = true;
 
-foreach ($entries as $e) {
-    $vn = trim($e['vorname']);
-    $nn = trim($e['nachname']);
-    if ($vn === '' && $nn === '') continue;
-    $stmt->bind_param('iss', $id, $vn, $nn);
-    if (!$stmt->execute()) {
-        // Bei erstem Fehler abbrechen
-        http_response_code(500);
-        echo json_encode(['success'=>false, 'error'=>'Insert-Fehler: '.$stmt->error]);
-        exit;
+$stmt = $mysqli->prepare("INSERT INTO `AV-ResNamen` (av_id, vorname, nachname, gebdat) VALUES (?, ?, ?, ?)");
+
+$added = 0;
+$birthdates_added = 0;
+
+foreach ($entries as $entry) {
+    // Handle both old format and new format
+    if (isset($entry['vorname']) && isset($entry['nachname'])) {
+        // New format with separate first/last name
+        $firstName = trim($entry['vorname']);
+        $lastName = trim($entry['nachname']);
+        
+        if (empty($firstName) || empty($lastName)) {
+            continue; // Skip entries without both names
+        }
+        
+        $birthdate = $entry['gebdat'] ?? null;
+        
+        try {
+            $stmt->bind_param("isss", $id, $firstName, $lastName, $birthdate);
+            $stmt->execute();
+            if ($birthdate) $birthdates_added++;
+            $added++;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in addReservationNames.php: " . $e->getMessage());
+            continue;
+        }
+    } else {
+        // Old format with single name field - Namen aufteilen
+        $fullName = trim($entry['name'] ?? '');
+        $birthdate = null;
+        
+        if (empty($fullName)) {
+            continue;
+        }
+        
+        // Namen in Vor- und Nachname aufteilen
+        $nameParts = explode(' ', $fullName, 2);
+        $firstName = trim($nameParts[0]);
+        $lastName = isset($nameParts[1]) ? trim($nameParts[1]) : '';
+        
+        try {
+            $stmt->bind_param("isss", $id, $firstName, $lastName, $birthdate);
+            $stmt->execute();
+            $added++;
+        } catch (mysqli_sql_exception $e) {
+            error_log("Database error in addReservationNames.php: " . $e->getMessage());
+            continue;
+        }
     }
 }
 
-echo json_encode(['success'=>true]);
+$stmt->close();
+
+echo json_encode([
+    'success' => true,
+    'added' => $added,
+    'birthdates_added' => $birthdates_added,
+    'format' => $format,
+    'source' => $source
+]);
+?>
