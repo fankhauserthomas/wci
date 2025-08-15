@@ -91,6 +91,31 @@
       position: relative;
       z-index: 2;
     }
+
+    /* Button Styling für + Namen Button */
+    .btn-add-names {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin: 0 4px;
+    }
+
+    .btn-add-names:hover {
+      background: #218838;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-add-names:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 
@@ -113,7 +138,7 @@
         </div>
         <div class="header-buttons">
           <button id="editBtn" class="header-btn">Bearbeiten</button>
-          <button id="addNamesBtn" class="header-btn">Namen+</button>
+          <button id="addNamesBtn" class="header-btn">Namen imp.</button>
           <button id="emailBtn" class="header-btn header-btn-blue">E-Mail</button>
           <button id="stornoBtn" class="header-btn header-btn-orange">Storno</button>
           <button id="deleteReservationBtn" class="header-btn header-btn-danger">Löschen</button>
@@ -125,6 +150,7 @@
     <div id="actionBar" class="action-bar">
       <button id="deleteBtn">Löschen</button>
       <button id="printBtn">Drucken</button>
+      <button id="addNewNamesBtn" class="btn-add-names">+ Namen</button>
       <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
       <button id="dietBtn" class="btn-diet">Diät…</button>
       <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
@@ -1170,7 +1196,7 @@
     console.log('✅ Guide row pulsing animation initialized (Enhanced for BF symbols)');
     console.log('🧪 Test with: testGuideAnimation(), debugGuideRows(), or debugBFCells()');
 
-    // Namen+ Button Event Handler - Weiterleitung zur neuen Import-Seite
+    // Namen imp. Button Event Handler - Weiterleitung zur neuen Import-Seite
     document.addEventListener('DOMContentLoaded', function () {
       const addNamesBtn = document.getElementById('addNamesBtn');
       if (addNamesBtn) {
@@ -1190,9 +1216,40 @@
           }
         });
 
-        console.log('✅ Namen+ Button mit neuer Import-Seite verbunden');
+        console.log('✅ Namen imp. Button mit neuer Import-Seite verbunden');
       } else {
-        console.warn('⚠️ Namen+ Button nicht gefunden');
+        console.warn('⚠️ Namen imp. Button nicht gefunden');
+      }
+
+      // + Namen Button Event Handler - öffnet das bestehende Modal
+      const addNewNamesBtn = document.getElementById('addNewNamesBtn');
+      if (addNewNamesBtn) {
+        addNewNamesBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+
+          // Öffne das bestehende Modal zum Namen hinzufügen
+          const modal = document.getElementById('addNamesModal');
+          if (modal) {
+            modal.classList.remove('hidden');
+
+            // Fokus auf Textarea setzen
+            setTimeout(() => {
+              const textarea = document.getElementById('newNamesTextarea');
+              if (textarea) {
+                textarea.focus();
+                textarea.value = ''; // Leeren für neue Eingabe
+              }
+            }, 100);
+
+            console.log('✅ Namen hinzufügen Modal geöffnet');
+          } else {
+            console.warn('⚠️ Namen hinzufügen Modal nicht gefunden');
+          }
+        });
+
+        console.log('✅ + Namen Button mit Modal verbunden');
+      } else {
+        console.warn('⚠️ + Namen Button nicht gefunden');
       }
     });
 

@@ -2512,7 +2512,41 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetInactivityTimer() {
     clearTimeout(inactivityTimeout);
     inactivityTimeout = setTimeout(() => {
-      history.back();
+      // Intelligente Navigation: Prüfe die History
+      debugLog('⏰ Inaktivitäts-Timer ausgelöst - intelligente Navigation');
+
+      // Prüfe ob wir von einer Import-Seite kommen
+      const referrer = document.referrer;
+      const hasImportReferrer = referrer && referrer.includes('namen-import');
+
+      // Prüfe auch URL-Parameter für Import-Context
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromImport = urlParams.get('from') === 'import';
+
+      // Wenn wir von einer Import-Seite kommen oder Import-Context haben
+      if (hasImportReferrer || fromImport) {
+        debugLog('📤 Von Import-Seite gekommen - direkt zur Reservierungsliste');
+        location.href = 'reservierungen.html';
+      } else {
+        // Sonst normale Browser-History verwenden
+        debugLog('⬅️ Normale Navigation - history.back()');
+
+        // Sicherheitscheck: Wenn history.back() zur Import-Seite führen würde
+        try {
+          // Falls verfügbar, prüfe die History
+          if (window.history.length <= 2) {
+            // Wenig History vorhanden - zur Reservierungsliste
+            debugLog('📋 Wenig History - direkt zur Reservierungsliste');
+            location.href = 'reservierungen.html';
+          } else {
+            history.back();
+          }
+        } catch (e) {
+          // Fallback bei Fehlern
+          debugLog('⚠️ History-Fehler - Fallback zur Reservierungsliste');
+          location.href = 'reservierungen.html';
+        }
+      }
     }, 30_000); // 30 Sekunden
   }
   ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt =>
