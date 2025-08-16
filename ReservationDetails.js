@@ -384,10 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update original data
             originalData = { ...data };
 
-            // Auto-redirect back to previous page after 1.5 seconds
-            setTimeout(() => {
-                goBack();
-            }, 1500);
+            // Erfolgreich gespeichert - kein automatischer Redirect
+            console.log('✅ Reservierung erfolgreich gespeichert');
 
         } catch (error) {
             throw new Error('Fehler beim Speichern: ' + error.message);
