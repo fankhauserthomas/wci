@@ -706,6 +706,12 @@ class NamesBirthdateParser {
             border: 1px solid #f5c6cb;
         }
         
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
         .back-link {
             grid-column: 1 / -1;
             text-align: center;
@@ -750,10 +756,10 @@ class NamesBirthdateParser {
                     <input type="text" id="cleanInput" class="clean-input" 
                            placeholder="Text zum Entfernen eingeben..." 
                            title="Text der aus dem Namen-Feld entfernt werden soll (Enter zum Anwenden)">
-                    <button type="button" id="cleanBtn" class="btn btn-clean">Bereinigen</button>
+                    <button type="button" id="cleanBtn" class="btn btn-clean" title="Entfernt den eingegebenen Text aus allen Namen">Text entfernen</button>
                 </div>
-                <button type="button" id="hardCleanBtn" class="btn btn-secondary" style="width: 100%;">
-                    Standard-Bereinigung (Zeilenumbrüche, etc.)
+                <button type="button" id="hardCleanBtn" class="btn btn-secondary" style="width: 100%;" title="Automatische Bereinigung von Zeilenumbrüchen, Leerzeichen, etc.">
+                    🧹 Standard-Bereinigung (Zeilenumbrüche, etc.)
                 </button>
             </div>
             
@@ -859,12 +865,28 @@ class NamesBirthdateParser {
             }
         });
         
+        // Enter-Taste für cleanInput
+        cleanInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performClean();
+            }
+        });
+        
         function performClean() {
             const cleanString = cleanInput.value.trim();
             if (!cleanString) {
                 showAlert('Bitte geben Sie einen Text zum Bereinigen ein', 'error');
+                // Fokus auf das Eingabefeld setzen
+                cleanInput.focus();
+                cleanInput.style.border = '2px solid #e74c3c';
+                setTimeout(() => {
+                    cleanInput.style.border = '';
+                }, 2000);
                 return;
             }
+            
+            showLoading(true);
             
             const formData = new FormData();
             formData.append('action', 'clean');
@@ -877,16 +899,18 @@ class NamesBirthdateParser {
             })
             .then(response => response.json())
             .then(data => {
+                showLoading(false);
                 if (data.success) {
                     nameText.value = data.text;
                     cleanInput.value = '';
                     cleanInput.focus();
-                    showAlert(`Text "${cleanString}" wurde entfernt`, 'success');
+                    showAlert(`✅ Text "${cleanString}" wurde entfernt`, 'success');
                 } else {
                     showAlert('Fehler beim Bereinigen: ' + (data.error || 'Unbekannter Fehler'), 'error');
                 }
             })
             .catch(error => {
+                showLoading(false);
                 console.error('Clean error:', error);
                 showAlert('Netzwerkfehler beim Bereinigen', 'error');
             });
@@ -895,16 +919,98 @@ class NamesBirthdateParser {
         function performHardClean() {
             let text = nameText.value;
             
-            // Standard-Bereinigungen
+            if (!text.trim()) {
+                showAlert('Keine Namen zum Bereinigen vorhanden', 'error');
+                nameText.focus();
+                return;
+            }
+            
+            const originalText = text;
+            console.log('Original text length:', originalText.length);
+            console.log('Original text:', JSON.stringify(originalText));
+            
+            // 1. Grundlegende Normalisierung
             text = text.replace(/\r\n/g, '\n'); // Windows Zeilenenden
             text = text.replace(/\r/g, '\n');   // Mac Zeilenenden
-            text = text.replace(/\n+/g, '\n');  // Mehrfache Zeilenumbrüche
-            text = text.replace(/[ \t]+/g, ' '); // Mehrfache Leerzeichen/Tabs
-            text = text.replace(/^\s+|\s+$/gm, ''); // Leerzeichen am Anfang/Ende jeder Zeile
+            console.log('Nach Zeilenenden-Normalisierung:', JSON.stringify(text));
+            
+            // 2. Tabstops entfernen
+            text = text.replace(/\t/g, ' ');
+            console.log('Nach Tabstop-Entfernung:', JSON.stringify(text));
+            
+            // 3. Unterstriche entfernen
+            text = text.replace(/_/g, ' ');
+            console.log('Nach Unterstrich-Entfernung:', JSON.stringify(text));
+            
+            // 4. Sonderzeichen entfernen (außer Bindestriche, Kommas, Punkte, Umlaute)
+            text = text.replace(/[^\w\s\-,\.äöüÄÖÜß]/g, ' ');
+            console.log('Nach Sonderzeichen-Entfernung:', JSON.stringify(text));
+            
+            // 5. Störende Wörter entfernen
+            const stoerwoerter = [
+                'Alpenverein', 'Mitglied', 'Leiter', 'Trainer', 'Führer', 'Vegetarier', 
+                'vegetarisch', 'vegan', 'Teilnehmer', 'Veranstaltungsleiter', 
+                'Name', 'Unterschrift', 'inkl'
+            ];
+            const stoerwortPattern = new RegExp('\\b(' + stoerwoerter.join('|') + ')\\b', 'gi');
+            text = text.replace(stoerwortPattern, ' ');
+            console.log('Nach Störwort-Entfernung:', JSON.stringify(text));
+            
+            // 6. Titel entfernen
+            const titel = [
+                'Dr\\.?', 'Prof\\.?', 'Mag\\.?', 'Dipl\\.?-?Ing\\.?', 'Ing\\.?', 
+                'MBA', 'MSc', 'BSc', 'BA', 'MA', 'Dkfm\\.?', 'Dkfr\\.?',
+                'Herr', 'Frau', 'Hr\\.?', 'Fr\\.?'
+            ];
+            const titelPattern = new RegExp('\\b(' + titel.join('|') + ')\\b', 'gi');
+            text = text.replace(titelPattern, ' ');
+            console.log('Nach Titel-Entfernung:', JSON.stringify(text));
+            
+            // 7. Zeilen mit nur Zahlen oder kurzen Texten entfernen (außer potentielle Geburtsdaten)
+            const lines = text.split('\n');
+            const cleanedLines = lines.filter(line => {
+                const trimmed = line.trim();
+                
+                // Leere Zeilen überspringen
+                if (!trimmed) return false;
+                
+                // Zeilen mit nur Zahlen (außer Geburtsdaten im Format dd.mm.yyyy oder ähnlich)
+                if (/^\d+$/.test(trimmed)) return false;
+                
+                // Zeilen mit weniger als 3 Zeichen (wahrscheinlich keine Namen)
+                if (trimmed.length < 3) return false;
+                
+                // Zeilen die nur aus Zahlen und Leerzeichen bestehen
+                if (/^[\d\s]+$/.test(trimmed)) return false;
+                
+                return true;
+            });
+            
+            text = cleanedLines.join('\n');
+            console.log('Nach Zeilen-Filterung:', JSON.stringify(text));
+            
+            // 8. Zahlen am Zeilenanfang entfernen (Nummerierungen)
+            text = text.replace(/^\d+\.?\s*/gm, '');
+            console.log('Nach Nummerierung-Entfernung:', JSON.stringify(text));
+            
+            // 9. Mehrfache Leerzeichen bereinigen
+            text = text.replace(/[ ]{2,}/g, ' ');
+            text = text.replace(/\n{3,}/g, '\n\n');
+            text = text.replace(/^[ ]+|[ ]+$/gm, ''); // Leerzeichen am Anfang/Ende jeder Zeile
+            text = text.replace(/\n[ ]*\n/g, '\n'); // Leere Zeilen entfernen
             text = text.trim();
+            console.log('Nach finaler Bereinigung:', JSON.stringify(text));
             
             nameText.value = text;
-            showAlert('Standard-Bereinigung durchgeführt', 'success');
+            console.log('Final text length:', text.length);
+            
+            if (originalText !== text) {
+                const diff = originalText.length - text.length;
+                showAlert(`🧹 Standard-Bereinigung erfolgreich durchgeführt (${diff} Zeichen entfernt)`, 'success');
+            } else {
+                showAlert('ℹ️ Text war bereits sauber - keine Änderungen nötig', 'info');
+                console.log('Kein Unterschied gefunden zwischen Original und bereinigtem Text');
+            }
         }
         
         function generatePreview() {
@@ -1037,8 +1143,17 @@ class NamesBirthdateParser {
                     showAlert(`✅ Erfolgreich gespeichert: ${data.added} Namen` + 
                              (data.birthdates_added ? `, ${data.birthdates_added} mit Geburtsdatum` : ''), 'success');
                     
-                    // Kein automatischer Redirect - Benutzer kann manuell zurücknavigieren
-                    console.log('✅ Namen erfolgreich importiert - kein automatischer Redirect');
+                    // Nach erfolgreicher Speicherung zur vorherigen Seite zurück
+                    setTimeout(() => {
+                        if (document.referrer && !document.referrer.includes('namen-import.php')) {
+                            window.location.href = document.referrer;
+                        } else {
+                            // Fallback: Zur Reservierung zurück
+                            window.location.href = `reservation.html?res_id=${resId}`;
+                        }
+                    }, 1500); // 1.5 Sekunden warten, damit der Benutzer die Erfolgsmeldung sieht
+                    
+                    console.log('✅ Namen erfolgreich importiert - automatischer Redirect in 1.5s');
                 } else {
                     showAlert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'), 'error');
                 }
@@ -1061,7 +1176,22 @@ class NamesBirthdateParser {
         
         function showAlert(message, type) {
             const alert = document.createElement('div');
-            alert.className = `alert alert-${type === 'error' ? 'error' : 'success'}`;
+            let className = 'alert ';
+            
+            switch(type) {
+                case 'error':
+                    className += 'alert-error';
+                    break;
+                case 'info':
+                    className += 'alert-info';
+                    break;
+                case 'success':
+                default:
+                    className += 'alert-success';
+                    break;
+            }
+            
+            alert.className = className;
             alert.textContent = message;
             
             alertContainer.appendChild(alert);
