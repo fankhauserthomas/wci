@@ -1037,9 +1037,8 @@ class NamesBirthdateParser {
                     showAlert(`✅ Erfolgreich gespeichert: ${data.added} Namen` + 
                              (data.birthdates_added ? `, ${data.birthdates_added} mit Geburtsdatum` : ''), 'success');
                     
-                    setTimeout(() => {
-                        window.location.href = `reservation.html?id=${resId}`;
-                    }, 2000);
+                    // Kein automatischer Redirect - Benutzer kann manuell zurücknavigieren
+                    console.log('✅ Namen erfolgreich importiert - kein automatischer Redirect');
                 } else {
                     showAlert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'), 'error');
                 }
