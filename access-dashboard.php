@@ -189,10 +189,70 @@ if (file_exists($logFile)) {
     $data['recent_activity'] = array_slice(array_reverse($data['recent_activity']), 0, 20);
 }
 
-// Unused Files finden
-$allFiles = glob('*.php') + glob('*.html') + glob('*.js') + glob('*.css');
+// Unused Files finden - Erweiterte Suche
+$allFiles = [];
+
+// Alle PHP, HTML, JS, CSS Dateien im Hauptverzeichnis
+$patterns = ['*.php', '*.html', '*.js', '*.css'];
+foreach ($patterns as $pattern) {
+    $files = glob($pattern);
+    foreach ($files as $file) {
+        $allFiles[] = $file;
+    }
+}
+
+// Alle Dateien in Unterverzeichnissen (api, js, css, etc.)
+$subDirs = ['api', 'js', 'css', 'libs', 'zp', 'hrs'];
+foreach ($subDirs as $dir) {
+    if (is_dir($dir)) {
+        foreach ($patterns as $pattern) {
+            $files = glob($dir . '/' . $pattern);
+            foreach ($files as $file) {
+                $allFiles[] = $file;
+            }
+        }
+    }
+}
+
+// Zusätzlich auch rekursive Suche in allen Ordnern
+$iterator = new RecursiveIteratorIterator(
+    new RecursiveDirectoryIterator('.', RecursiveDirectoryIterator::SKIP_DOTS)
+);
+
+foreach ($iterator as $file) {
+    $extension = strtolower($file->getExtension());
+    if (in_array($extension, ['php', 'html', 'js', 'css'])) {
+        $relativePath = str_replace('./', '', $file->getPathname());
+        if (!in_array($relativePath, $allFiles)) {
+            $allFiles[] = $relativePath;
+        }
+    }
+}
+
+// Eindeutige Liste erstellen und sortieren
+$allFiles = array_unique($allFiles);
+sort($allFiles);
+
 $accessedFiles = array_keys($data['unique_files']);
-$unusedFiles = array_diff($allFiles, $accessedFiles);
+$unusedFiles = [];
+
+// Detaillierte Analyse der ungenutzten Dateien
+foreach ($allFiles as $file) {
+    if (!in_array($file, $accessedFiles)) {
+        $unusedFiles[] = [
+            'name' => $file,
+            'size' => file_exists($file) ? filesize($file) : 0,
+            'modified' => file_exists($file) ? filemtime($file) : 0,
+            'extension' => strtolower(pathinfo($file, PATHINFO_EXTENSION)),
+            'directory' => dirname($file)
+        ];
+    }
+}
+
+// Nach Größe sortieren (größte zuerst)
+usort($unusedFiles, function($a, $b) {
+    return $b['size'] - $a['size'];
+});
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -593,7 +653,7 @@ $unusedFiles = array_diff($allFiles, $accessedFiles);
             </div>
             
             <div class="stat-card">
-                <div class="stat-value color-2"><?= count($data['all_files']) ?></div>
+                <div class="stat-value color-2"><?= count($allFiles) ?></div>
                 <div class="stat-label">All Files</div>
             </div>
             
@@ -625,9 +685,9 @@ $unusedFiles = array_diff($allFiles, $accessedFiles);
                 <div class="stat-label">Total Traffic</div>
             </div>
             
-            <div class="stat-card">
-                <div class="stat-value color-4"><?= count($unusedFiles) ?></div>
-                <div class="stat-label">Unused Files</div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                <div class="stat-value" style="color: #8b0000; font-weight: bold;"><?= count($unusedFiles) ?></div>
+                <div class="stat-label">🚫 Unused Files</div>
             </div>
         </div>
         
@@ -898,6 +958,202 @@ $unusedFiles = array_diff($allFiles, $accessedFiles);
             </div>
         </div>
         
+        <!-- Unused Files Detailed Analysis Card -->
+        <?php if (!empty($unusedFiles)): ?>
+        <div class="chart-card full-width-card" style="margin-top: 20px;">
+            <div class="chart-title">🚫 Ungenutzte Dateien - Vollständige Analyse (<?= count($unusedFiles) ?> Dateien)</div>
+            
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button onclick="hideAllUnusedFiles()" style="
+                    background: #ff9800;
+                    border: none;
+                    border-radius: 6px;
+                    color: white;
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.background='#f57c00'" 
+                   onmouseout="this.style.background='#ff9800'">
+                    🙈 Alle ausblenden
+                </button>
+                
+                <button onclick="showUnusedFileStats()" style="
+                    background: #2196f3;
+                    border: none;
+                    border-radius: 6px;
+                    color: white;
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.background='#1976d2'" 
+                   onmouseout="this.style.background='#2196f3'">
+                    📊 Statistiken
+                </button>
+                
+                <select id="unusedFileFilter" onchange="filterUnusedFiles()" style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    background: white;
+                ">
+                    <option value="all">Alle Dateitypen</option>
+                    <option value="php">Nur PHP</option>
+                    <option value="html">Nur HTML</option>
+                    <option value="js">Nur JavaScript</option>
+                    <option value="css">Nur CSS</option>
+                </select>
+                
+                <span style="color: #666; font-size: 0.9em;">
+                    Gesamtgröße: <?php 
+                        $totalUnusedSize = array_sum(array_column($unusedFiles, 'size'));
+                        echo $totalUnusedSize > 1024*1024 ? 
+                            number_format($totalUnusedSize/(1024*1024), 2).' MB' : 
+                            number_format($totalUnusedSize/1024, 1).' KB';
+                    ?>
+                </span>
+            </div>
+
+            <!-- Statistics Summary -->
+            <div id="unusedStats" style="display: none; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center;">
+                    <?php 
+                    $extensionCounts = [];
+                    $oldFiles = 0;
+                    foreach ($unusedFiles as $file) {
+                        $ext = $file['extension'] ?: 'none';
+                        $extensionCounts[$ext] = ($extensionCounts[$ext] ?? 0) + 1;
+                        if (time() - $file['modified'] > 90*24*60*60) $oldFiles++; // 90 Tage
+                    }
+                    ?>
+                    <div>
+                        <div style="font-size: 1.5em; color: #e74c3c; font-weight: bold;"><?= count($unusedFiles) ?></div>
+                        <div style="font-size: 0.9em; color: #666;">Gesamt</div>
+                    </div>
+                    <?php foreach ($extensionCounts as $ext => $count): ?>
+                    <div>
+                        <div style="font-size: 1.2em; color: #34495e; font-weight: bold;"><?= $count ?></div>
+                        <div style="font-size: 0.9em; color: #666;">.<?= $ext ?></div>
+                    </div>
+                    <?php endforeach; ?>
+                    <div>
+                        <div style="font-size: 1.2em; color: #f39c12; font-weight: bold;"><?= $oldFiles ?></div>
+                        <div style="font-size: 0.9em; color: #666;">&gt;90 Tage alt</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File List -->
+            <div style="max-height: 500px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                    <thead style="background: #f5f5f5; position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">📁 Datei</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">📏 Größe</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">📅 Geändert</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">📂 Ordner</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 1px solid #ddd;">⚙️ Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($unusedFiles as $index => $file): ?>
+                        <tr class="unused-file-row" data-extension="<?= $file['extension'] ?>" 
+                            style="border-bottom: 1px solid #f0f0f0; <?= $index % 2 == 0 ? 'background: #fafafa;' : '' ?>">
+                            <td style="padding: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="
+                                        background: <?= 
+                                            $file['extension'] === 'php' ? '#8e44ad' : 
+                                            ($file['extension'] === 'html' ? '#e67e22' : 
+                                            ($file['extension'] === 'js' ? '#f1c40f' : 
+                                            ($file['extension'] === 'css' ? '#3498db' : '#95a5a6'))) ?>;
+                                        color: white;
+                                        padding: 2px 6px;
+                                        border-radius: 3px;
+                                        font-size: 0.8em;
+                                        font-weight: bold;
+                                    "><?= strtoupper($file['extension']) ?></span>
+                                    <code style="color: #2c3e50;"><?= htmlspecialchars($file['name']) ?></code>
+                                </div>
+                            </td>
+                            <td style="padding: 10px; color: #666;">
+                                <?= $file['size'] > 1024 ? 
+                                    ($file['size'] > 1024*1024 ? 
+                                        number_format($file['size']/(1024*1024), 2).' MB' : 
+                                        number_format($file['size']/1024, 1).' KB') : 
+                                    $file['size'].' B' ?>
+                            </td>
+                            <td style="padding: 10px; color: #666;">
+                                <?php 
+                                $days = floor((time() - $file['modified']) / (24*60*60));
+                                $color = $days > 90 ? '#e74c3c' : ($days > 30 ? '#f39c12' : '#27ae60');
+                                ?>
+                                <span style="color: <?= $color ?>;">
+                                    <?= $days ?> Tage
+                                </span>
+                            </td>
+                            <td style="padding: 10px; color: #666;">
+                                <?= $file['directory'] === '.' ? 'Root' : htmlspecialchars($file['directory']) ?>
+                            </td>
+                            <td style="padding: 10px; text-align: center;">
+                                <div style="display: flex; gap: 5px; justify-content: center;">
+                                    <button onclick="toggleFileVisibility('<?= htmlspecialchars($file['name']) ?>')" 
+                                            title="Aus Statistiken ausblenden" style="
+                                        background: #95a5a6;
+                                        border: none;
+                                        border-radius: 4px;
+                                        color: white;
+                                        padding: 4px 8px;
+                                        cursor: pointer;
+                                        font-size: 0.8em;
+                                    ">👁️</button>
+                                    <button onclick="viewFile('<?= htmlspecialchars($file['name']) ?>')" 
+                                            title="Datei anzeigen" style="
+                                        background: #3498db;
+                                        border: none;
+                                        border-radius: 4px;
+                                        color: white;
+                                        padding: 4px 8px;
+                                        cursor: pointer;
+                                        font-size: 0.8em;
+                                    ">👀</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 6px; font-size: 0.9em;">
+                <strong>💡 Hinweis:</strong> Dies sind Dateien, die in den Access-Logs keine Requests haben. 
+                Sie könnten veraltet sein oder nur intern/administrativ verwendet werden.
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-title">🗂️ File Types Distribution</div>
+                <canvas id="fileTypesChart" width="400" height="200"></canvas>
+            </div>
+            
+            <div class="activity-feed">
+                <div class="chart-title">🔄 Recent Activity</div>
+                <?php foreach (array_slice($data['recent_activity'], 0, 10) as $activity): ?>
+                    <div class="activity-item">
+                        <div class="activity-time"><?= date('H:i:s', strtotime(str_replace(['[', ']'], '', $activity['time']))) ?></div>
+                        <div class="activity-details">
+                            <strong><?= htmlspecialchars($activity['file']) ?></strong>
+                            <span class="status-<?= $activity['status'] ?>">[<?= $activity['status'] ?>]</span>
+                            from <?= $activity['ip'] ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        
         <?php if (!empty($unusedFiles)): ?>
         <div class="unused-files">
             <div class="chart-title">⚠️ Potentially Unused Files (<?= count($unusedFiles) ?>)</div>
@@ -1080,7 +1336,7 @@ $unusedFiles = array_diff($allFiles, $accessedFiles);
         
         // Hide All Unused Files (Bulk Action)
         function hideAllUnusedFiles() {
-            const unusedFiles = <?= json_encode(array_values($unusedFiles)) ?>;
+            const unusedFiles = <?= json_encode(array_column($unusedFiles, 'name')) ?>;
             const currentUrl = new URL(window.location);
             let hiddenFiles = currentUrl.searchParams.get('hidden');
             hiddenFiles = hiddenFiles ? hiddenFiles.split(',') : [];
@@ -1094,6 +1350,36 @@ $unusedFiles = array_diff($allFiles, $accessedFiles);
             
             currentUrl.searchParams.set('hidden', hiddenFiles.join(','));
             window.location.href = currentUrl.toString();
+        }
+        
+        // Show/Hide Unused File Statistics
+        function showUnusedFileStats() {
+            const statsDiv = document.getElementById('unusedStats');
+            if (statsDiv.style.display === 'none' || statsDiv.style.display === '') {
+                statsDiv.style.display = 'block';
+            } else {
+                statsDiv.style.display = 'none';
+            }
+        }
+        
+        // Filter Unused Files by Extension
+        function filterUnusedFiles() {
+            const filter = document.getElementById('unusedFileFilter').value;
+            const rows = document.querySelectorAll('.unused-file-row');
+            
+            rows.forEach(row => {
+                const extension = row.getAttribute('data-extension');
+                if (filter === 'all' || filter === extension) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // View File Content (opens in new tab)
+        function viewFile(filename) {
+            window.open(filename, '_blank');
         }
     </script>
 </body>
