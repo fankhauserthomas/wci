@@ -1251,9 +1251,22 @@
       } else {
         console.warn('⚠️ + Namen Button nicht gefunden');
       }
-    });
 
-    // Hilfsfunktion um Reservierungs-ID zu ermitteln
+      // ========================================
+      // MINIMAL FIX: Nur Namen-Modal bei Browser-Zurück schließen
+      // ========================================
+      // Minimal-invasive Lösung: Nur bei Browser-Navigation das addNamesModal schließen
+      window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+          // Nur das Namen-Modal schließen, andere Funktionen unberührt lassen
+          const addNamesModal = document.getElementById('addNamesModal');
+          if (addNamesModal && !addNamesModal.classList.contains('hidden')) {
+            console.log('🔒 Closing addNamesModal after browser back navigation');
+            addNamesModal.classList.add('hidden');
+          }
+        }
+      });
+    });    // Hilfsfunktion um Reservierungs-ID zu ermitteln
     function getReservationId() {
       // Versuche verschiedene Quellen für die ID
       const urlParams = new URLSearchParams(window.location.search);
