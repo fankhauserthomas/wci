@@ -186,9 +186,17 @@ function generateTischPNG($tischName, $namen, $outputPath) {
 
 // Alle Tische generieren
 try {
-    $pdo = getHPDatabase();
-    $stmt = $pdo->query("SELECT DISTINCT tisch FROM hp_arrangements WHERE tisch IS NOT NULL AND tisch != '' ORDER BY tisch");
-    $tische = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    // HP-Datenbankverbindung über mysqli
+    $hpConn = getHpDbConnection();
+    if (!$hpConn) {
+        throw new Exception("Konnte keine Verbindung zur HP-Datenbank herstellen");
+    }
+    
+    $result = $hpConn->query("SELECT DISTINCT tisch FROM a_hp_data WHERE tisch IS NOT NULL AND tisch != '' ORDER BY tisch");
+    $tische = [];
+    while ($row = $result->fetch_assoc()) {
+        $tische[] = $row['tisch'];
+    }
     
     echo "<h1>🎨 Optimierte PNG-Generierung</h1>";
     echo "<p><strong>Neue Features:</strong></p>";
@@ -203,21 +211,32 @@ try {
     $total_generated = 0;
     
     foreach ($tische as $tisch) {
-        // Namen für diesen Tisch holen
-        $stmt = $pdo->prepare("
+        // Namen für diesen Tisch holen (mysqli)
+        $stmt = $hpConn->prepare("
             SELECT name, anzahl, bemerkung 
-            FROM hp_arrangements 
+            FROM a_hp_data 
             WHERE tisch = ? AND name IS NOT NULL AND name != ''
             ORDER BY name
         ");
-        $stmt->execute([$tisch]);
-        $namen = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->bind_param("s", $tisch);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $namen = [];
+        while ($row = $result->fetch_assoc()) {
+            $namen[] = $row;
+        }
         
         $outputPath = __DIR__ . '/erd/' . $tisch . '.png';
         
         if (generateTischPNG($tisch, $namen, $outputPath)) {
             $file_size = round(filesize($outputPath) / 1024, 1);
-            echo "<p>✅ <strong>$tisch</strong>: " . count($namen) . " Namen, {$file_size}KB</p>";
+            
+            // CRC-Datei generieren
+            $checksum = generateCRCFile($outputPath, $tisch, $namen);
+            $crc_short = substr($checksum, 0, 8); // Kurze Version für Anzeige
+            
+            echo "<p>✅ <strong>$tisch</strong>: " . count($namen) . " Namen, {$file_size}KB, CRC: $crc_short</p>";
             $total_generated++;
         } else {
             echo "<p>❌ <strong>Fehler bei Tisch: $tisch</strong></p>";

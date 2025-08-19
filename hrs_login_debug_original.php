@@ -10,6 +10,7 @@ class HRSLoginDebug {
     private $csrfToken;
     private $cookies = array();
     private $debugOutput = array();
+    private $verbose = true;
     
     // TODO: Hier deine Zugangsdaten eintragen
     private $username = 'office@franzsennhuette.at';  // <-- Hier Username eintragen
@@ -39,34 +40,40 @@ class HRSLoginDebug {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
         $this->debugOutput[] = "[$timestamp] $message";
         
-        // Sofortige Browser-Ausgabe
-        echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #f0f0f0; border-left: 3px solid #007cba;'>";
-        echo htmlspecialchars("[$timestamp] $message");
-        echo "</div>\n";
-        flush();
-        ob_flush();
+        if ($this->verbose) {
+            // Sofortige Browser-Ausgabe
+            echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #f0f0f0; border-left: 3px solid #007cba;'>";
+            echo htmlspecialchars("[$timestamp] $message");
+            echo "</div>\n";
+            flush();
+            ob_flush();
+        }
     }
     
     private function debugError($message) {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
         $this->debugOutput[] = "[$timestamp] ❌ ERROR: $message";
         
-        echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #ffe6e6; border-left: 3px solid #ff0000; color: #cc0000;'>";
-        echo htmlspecialchars("[$timestamp] ❌ ERROR: $message");
-        echo "</div>\n";
-        flush();
-        ob_flush();
+        if ($this->verbose) {
+            echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #ffe6e6; border-left: 3px solid #ff0000; color: #cc0000;'>";
+            echo htmlspecialchars("[$timestamp] ❌ ERROR: $message");
+            echo "</div>\n";
+            flush();
+            ob_flush();
+        }
     }
     
     private function debugSuccess($message) {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
         $this->debugOutput[] = "[$timestamp] ✅ SUCCESS: $message";
         
-        echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #e6ffe6; border-left: 3px solid #00aa00; color: #006600;'>";
-        echo htmlspecialchars("[$timestamp] ✅ SUCCESS: $message");
-        echo "</div>\n";
-        flush();
-        ob_flush();
+        if ($this->verbose) {
+            echo "<div style='font-family: monospace; font-size: 12px; margin: 2px 0; padding: 3px; background: #e6ffe6; border-left: 3px solid #00aa00; color: #006600;'>";
+            echo htmlspecialchars("[$timestamp] ✅ SUCCESS: $message");
+            echo "</div>\n";
+            flush();
+            ob_flush();
+        }
     }
     
     private function makeRequest($url, $method = 'GET', $data = null, $customHeaders = array()) {
@@ -526,11 +533,12 @@ class HRSLoginDebug {
         // DB-Tabellen-Vorschlag generieren
         $this->debug("=== DB-Tabellen-Vorschlag ===");
         
-        echo "<div style='background: #fff3e6; padding: 15px; margin: 15px 0; border: 1px solid #ff8c00; border-radius: 4px;'>";
-        echo "<h4>🏠 Analyse der HutQuota-Datenstruktur</h4>";
-        
-        echo "<h5>📅 Haupt-Tabelle: hut_quota</h5>";
-        echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
+        if ($this->verbose) {
+            echo "<div style='background: #fff3e6; padding: 15px; margin: 15px 0; border: 1px solid #ff8c00; border-radius: 4px;'>";
+            echo "<h4>🏠 Analyse der HutQuota-Datenstruktur</h4>";
+            
+            echo "<h5>📅 Haupt-Tabelle: hut_quota</h5>";
+            echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
 CREATE TABLE hut_quota (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hrs_id INT NOT NULL COMMENT 'Original ID aus HRS System',
@@ -561,8 +569,8 @@ CREATE TABLE hut_quota (
 );
 </pre>";
 
-        echo "<h5>🛏️ Kategorien-Tabelle: hut_quota_categories</h5>";
-        echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
+            echo "<h5>🛏️ Kategorien-Tabelle: hut_quota_categories</h5>";
+            echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
 CREATE TABLE hut_quota_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hut_quota_id INT NOT NULL,
@@ -573,8 +581,8 @@ CREATE TABLE hut_quota_categories (
 );
 </pre>";
 
-        echo "<h5>🌐 Sprach-Tabelle: hut_quota_languages</h5>";
-        echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
+            echo "<h5>🌐 Sprach-Tabelle: hut_quota_languages</h5>";
+            echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
 CREATE TABLE hut_quota_languages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hut_quota_id INT NOT NULL,
@@ -585,24 +593,25 @@ CREATE TABLE hut_quota_languages (
 );
 </pre>";
 
-        echo "<h5>🔄 Import-Empfehlungen</h5>";
-        echo "<ul>";
-        echo "<li>✅ <strong>REPLACE INTO</strong> mit hrs_id als unique key</li>";
-        echo "<li>✅ <strong>Datum-Konvertierung:</strong> 'dd.mm.yyyy' → 'yyyy-mm-dd'</li>";
-        echo "<li>✅ <strong>Transaktionen</strong> für Konsistenz zwischen Haupt- und Detail-Tabellen</li>";
-        echo "<li>✅ <strong>Bulk-Import</strong> für bessere Performance</li>";
-        echo "<li>✅ <strong>Validierung</strong> von Datumsperioden und Kapazitäten</li>";
-        echo "</ul>";
-        
-        echo "<h5>📊 Datentyp-Mapping</h5>";
-        echo "<ul>";
-        echo "<li><strong>CategoryId 1958:</strong> ML (Matratzenlager/DORM)</li>";
-        echo "<li><strong>CategoryId 2293:</strong> MBZ (Mehrbettzimmer/SB)</li>";
-        echo "<li><strong>CategoryId 2381:</strong> 2BZ (Zweierzimmer/DR)</li>";
-        echo "<li><strong>CategoryId 6106:</strong> SK (Sonderkategorie/SC)</li>";
-        echo "</ul>";
-        
-        echo "</div>";
+            echo "<h5>🔄 Import-Empfehlungen</h5>";
+            echo "<ul>";
+            echo "<li>✅ <strong>REPLACE INTO</strong> mit hrs_id als unique key</li>";
+            echo "<li>✅ <strong>Datum-Konvertierung:</strong> 'dd.mm.yyyy' → 'yyyy-mm-dd'</li>";
+            echo "<li>✅ <strong>Transaktionen</strong> für Konsistenz zwischen Haupt- und Detail-Tabellen</li>";
+            echo "<li>✅ <strong>Bulk-Import</strong> für bessere Performance</li>";
+            echo "<li>✅ <strong>Validierung</strong> von Datumsperioden und Kapazitäten</li>";
+            echo "</ul>";
+            
+            echo "<h5>📊 Datentyp-Mapping</h5>";
+            echo "<ul>";
+            echo "<li><strong>CategoryId 1958:</strong> ML (Matratzenlager/DORM)</li>";
+            echo "<li><strong>CategoryId 2293:</strong> MBZ (Mehrbettzimmer/SB)</li>";
+            echo "<li><strong>CategoryId 2381:</strong> 2BZ (Zweierzimmer/DR)</li>";
+            echo "<li><strong>CategoryId 6106:</strong> SK (Sonderkategorie/SC)</li>";
+            echo "</ul>";
+            
+            echo "</div>";
+        }
         
         $this->debug("=== AnalyzeHutQuotaStructure COMPLETE ===");
         return true;
@@ -1206,11 +1215,12 @@ CREATE TABLE hut_quota_languages (
         // DB-Tabellen-Vorschlag generieren
         $this->debug("=== DB-Tabellen-Vorschlag ===");
         
-        echo "<div style='background: #e6f3ff; padding: 15px; margin: 15px 0; border: 1px solid #007cba; border-radius: 4px;'>";
-        echo "<h4>📊 Analyse der DailySummary-Datenstruktur</h4>";
-        
-        echo "<h5>🗓️ Haupt-Tabelle: daily_summary</h5>";
-        echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
+        if ($this->verbose) {
+            echo "<div style='background: #e6f3ff; padding: 15px; margin: 15px 0; border: 1px solid #007cba; border-radius: 4px;'>";
+            echo "<h4>📊 Analyse der DailySummary-Datenstruktur</h4>";
+            
+            echo "<h5>🗓️ Haupt-Tabelle: daily_summary</h5>";
+            echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
 CREATE TABLE daily_summary (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hut_id INT NOT NULL,
@@ -1237,8 +1247,8 @@ CREATE TABLE daily_summary (
 );
 </pre>";
 
-        echo "<h5>🛏️ Detail-Tabelle: daily_summary_categories</h5>";
-        echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
+            echo "<h5>🛏️ Detail-Tabelle: daily_summary_categories</h5>";
+            echo "<pre style='background: #f8f8f8; padding: 10px; border-radius: 4px;'>
 CREATE TABLE daily_summary_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     daily_summary_id INT NOT NULL,
@@ -1252,16 +1262,17 @@ CREATE TABLE daily_summary_categories (
 );
 </pre>";
 
-        echo "<h5>🔄 Import-Funktion</h5>";
-        echo "<p>Die Import-Funktion sollte:</p>";
-        echo "<ul>";
-        echo "<li>✅ Bestehende Daten für den Tag überschreiben (REPLACE INTO)</li>";
-        echo "<li>✅ Alle 4 Kategorien pro Tag importieren</li>";
-        echo "<li>✅ Deutsche Datum-Konvertierung (dd.mm.yyyy → yyyy-mm-dd)</li>";
-        echo "<li>✅ Validierung der Pflichtfelder</li>";
-        echo "</ul>";
-        
-        echo "</div>";
+            echo "<h5>🔄 Import-Funktion</h5>";
+            echo "<p>Die Import-Funktion sollte:</p>";
+            echo "<ul>";
+            echo "<li>✅ Bestehende Daten für den Tag überschreiben (REPLACE INTO)</li>";
+            echo "<li>✅ Alle 4 Kategorien pro Tag importieren</li>";
+            echo "<li>✅ Deutsche Datum-Konvertierung (dd.mm.yyyy → yyyy-mm-dd)</li>";
+            echo "<li>✅ Validierung der Pflichtfelder</li>";
+            echo "</ul>";
+            
+            echo "</div>";
+        }
         
         $this->debug("=== AnalyzeDailySummaryStructure COMPLETE ===");
         return true;
@@ -1749,9 +1760,21 @@ CREATE TABLE daily_summary_categories (
         return null;
     }
     
-    public function testFullWorkflow($dateFrom = '01.08.2024', $dateTo = '01.09.2025', $size = 100) {
+    public function testFullWorkflow($dateFrom = '01.08.2024', $dateTo = '01.09.2025', $size = 100, $verbose = true) {
+        $this->verbose = $verbose;
+        
         $this->debug("🚀 === FULL WORKFLOW TEST START ===");
-        $this->debug("📅 Parameter: dateFrom=$dateFrom, dateTo=$dateTo, size=$size");
+        $this->debug("📅 Parameter: dateFrom=$dateFrom, dateTo=$dateTo, size=$size, verbose=" . ($verbose ? 'true' : 'false'));
+        
+        // Datums-Bereich für DailySummary und HutQuota berechnen
+        $dailySummaryStart = $this->calculateDailySummaryStart($dateFrom, $dateTo);
+        $hutQuotaStart = $this->calculateHutQuotaStart($dateFrom, $dateTo);
+        $daysBetween = $this->calculateDaysBetween($dateFrom, $dateTo);
+        
+        $this->debug("📊 Berechnete Zeiträume:");
+        $this->debug("   📅 DailySummary Start: $dailySummaryStart");
+        $this->debug("   🏠 HutQuota Start: $hutQuotaStart");
+        $this->debug("   📏 Anzahl Tage: $daysBetween");
         
         // 1. Initialize
         if (!$this->initializeAsync()) {
@@ -1779,9 +1802,11 @@ CREATE TABLE daily_summary_categories (
             $reservationData = json_decode($reservationListResult, true);
             if ($reservationData) {
                 $this->debug("📊 Reservierungsliste (JSON decoded):");
-                echo "<div style='background: #f8f8f8; padding: 10px; margin: 10px 0; border: 1px solid #ddd; max-height: 200px; overflow-y: auto;'>";
-                echo "<pre>" . htmlspecialchars(json_encode($reservationData, JSON_PRETTY_PRINT)) . "</pre>";
-                echo "</div>";
+                if ($this->verbose) {
+                    echo "<div style='background: #f8f8f8; padding: 10px; margin: 10px 0; border: 1px solid #ddd; max-height: 200px; overflow-y: auto;'>";
+                    echo "<pre>" . htmlspecialchars(json_encode($reservationData, JSON_PRETTY_PRINT)) . "</pre>";
+                    echo "</div>";
+                }
                 
                 // Anzahl Reservierungen anzeigen
                 if (isset($reservationData['_embedded']['reservationsDataModelDTOList'])) {
@@ -1800,10 +1825,11 @@ CREATE TABLE daily_summary_categories (
             if ($importResult) {
                 $this->debugSuccess("Datenbank-Import abgeschlossen!");
                 $this->debug("📊 Import-Statistik:");
-                $this->debug("   ✅ Erfolgreich: " . $importResult['imported']);
-                $this->debug("   ❌ Fehler: " . $importResult['errors']);
-                $this->debug("   📊 Gesamt: " . $importResult['total']);
-                
+            $this->debug("   ✅ Erfolgreich: " . $importResult['imported']);
+            $this->debug("   ❌ Fehler: " . $importResult['errors']);
+            $this->debug("   📊 Gesamt: " . $importResult['total']);
+            
+            if ($this->verbose) {
                 echo "<div style='background: #e6ffe6; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; border-radius: 4px;'>";
                 echo "<h4>🎉 Import-Ergebnis:</h4>";
                 echo "<ul>";
@@ -1812,24 +1838,24 @@ CREATE TABLE daily_summary_categories (
                 echo "<li><strong>Gesamt verarbeitet:</strong> " . $importResult['total'] . "</li>";
                 echo "</ul>";
                 echo "</div>";
-                
-                // 5. DailySummary Test
+            }                // 5. DailySummary Test - ANGEPASST für Parameter-Zeitraum
                 $this->debug("📅 === DAILY SUMMARY TEST ===");
-                $startDate = date('d.m.Y'); // Heute als Startdatum
-                $this->debug("🔍 Teste DailySummary-Abruf ab $startDate");
+                $this->debug("🔍 Teste DailySummary-Abruf für Zeitraum $dateFrom bis $dateTo");
                 
-                $dailySummaryData = $this->getDailySummarySequence($hutId, $startDate, 5);
+                $dailySummaryData = $this->getDailySummaryForDateRange($hutId, $dateFrom, $dateTo);
                 
                 if ($dailySummaryData && is_array($dailySummaryData)) {
                     $this->debugSuccess("DailySummary-Daten erfolgreich abgerufen!");
                     $this->debug("📊 Gesamtanzahl Tage: " . count($dailySummaryData));
                     
                     // Erste paar Tage zur Anzeige
-                    echo "<div style='background: #f0f8ff; padding: 10px; margin: 10px 0; border: 1px solid #4169e1; border-radius: 4px;'>";
-                    echo "<h4>📅 DailySummary Beispiel-Daten (erste 3 Tage):</h4>";
-                    $sampleDays = array_slice($dailySummaryData, 0, 3);
-                    echo "<pre style='max-height: 300px; overflow-y: auto;'>" . htmlspecialchars(json_encode($sampleDays, JSON_PRETTY_PRINT)) . "</pre>";
-                    echo "</div>";
+                    if ($this->verbose) {
+                        echo "<div style='background: #f0f8ff; padding: 10px; margin: 10px 0; border: 1px solid #4169e1; border-radius: 4px;'>";
+                        echo "<h4>📅 DailySummary Beispiel-Daten (erste 3 Tage):</h4>";
+                        $sampleDays = array_slice($dailySummaryData, 0, 3);
+                        echo "<pre style='max-height: 300px; overflow-y: auto;'>" . htmlspecialchars(json_encode($sampleDays, JSON_PRETTY_PRINT)) . "</pre>";
+                        echo "</div>";
+                    }
                     
                     // Datenstruktur analysieren
                     $this->analyzeDailySummaryStructure($dailySummaryData);
@@ -1845,15 +1871,17 @@ CREATE TABLE daily_summary_categories (
                         $this->debug("   ❌ Fehler: " . $dailyImportResult['errors']);
                         $this->debug("   📊 Gesamt: " . $dailyImportResult['total']);
                         
-                        echo "<div style='background: #e6ffe6; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; border-radius: 4px;'>";
-                        echo "<h4>📅 DailySummary Import-Ergebnis:</h4>";
-                        echo "<ul>";
-                        echo "<li><strong>Erfolgreich importiert:</strong> " . $dailyImportResult['imported'] . " Tage</li>";
-                        echo "<li><strong>Fehler:</strong> " . $dailyImportResult['errors'] . "</li>";
-                        echo "<li><strong>Gesamt verarbeitet:</strong> " . $dailyImportResult['total'] . " Tage</li>";
-                        echo "<li><strong>Kategorien pro Tag:</strong> ~4 (ML, MBZ, 2BZ, SK)</li>";
-                        echo "</ul>";
-                        echo "</div>";
+                        if ($this->verbose) {
+                            echo "<div style='background: #e6ffe6; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; border-radius: 4px;'>";
+                            echo "<h4>📅 DailySummary Import-Ergebnis:</h4>";
+                            echo "<ul>";
+                            echo "<li><strong>Erfolgreich importiert:</strong> " . $dailyImportResult['imported'] . " Tage</li>";
+                            echo "<li><strong>Fehler:</strong> " . $dailyImportResult['errors'] . "</li>";
+                            echo "<li><strong>Gesamt verarbeitet:</strong> " . $dailyImportResult['total'] . " Tage</li>";
+                            echo "<li><strong>Kategorien pro Tag:</strong> ~4 (ML, MBZ, 2BZ, SK)</li>";
+                            echo "</ul>";
+                            echo "</div>";
+                        }
                         
                     } else {
                         $this->debugError("DailySummary-Datenbank-Import fehlgeschlagen");
@@ -1863,23 +1891,24 @@ CREATE TABLE daily_summary_categories (
                     $this->debugError("DailySummary-Daten konnten nicht abgerufen werden");
                 }
                 
-                // 7. HutQuota Test
+                // 7. HutQuota Test - ANGEPASST für Parameter-Zeitraum
                 $this->debug("🏠 === HUT QUOTA TEST ===");
-                $startDate = date('d.m.Y'); // Heute als Startdatum
-                $this->debug("🔍 Teste HutQuota-Abruf ab $startDate für 2 Monate");
+                $this->debug("🔍 Teste HutQuota-Abruf für Zeitraum $dateFrom bis $dateTo");
                 
-                $hutQuotaData = $this->getHutQuotaSequence($hutId, $startDate, 2);
+                $hutQuotaData = $this->getHutQuotaForDateRange($hutId, $dateFrom, $dateTo);
                 
                 if ($hutQuotaData && is_array($hutQuotaData)) {
                     $this->debugSuccess("HutQuota-Daten erfolgreich abgerufen!");
                     $this->debug("📊 Gesamtanzahl Kapazitätsänderungen: " . count($hutQuotaData));
                     
                     // Erste paar Einträge zur Anzeige
-                    echo "<div style='background: #fff3e6; padding: 10px; margin: 10px 0; border: 1px solid #ff8c00; border-radius: 4px;'>";
-                    echo "<h4>🏠 HutQuota Beispiel-Daten (erste 3 Einträge):</h4>";
-                    $sampleQuotas = array_slice($hutQuotaData, 0, 3);
-                    echo "<pre style='max-height: 300px; overflow-y: auto;'>" . htmlspecialchars(json_encode($sampleQuotas, JSON_PRETTY_PRINT)) . "</pre>";
-                    echo "</div>";
+                    if ($this->verbose) {
+                        echo "<div style='background: #fff3e6; padding: 10px; margin: 10px 0; border: 1px solid #ff8c00; border-radius: 4px;'>";
+                        echo "<h4>🏠 HutQuota Beispiel-Daten (erste 3 Einträge):</h4>";
+                        $sampleQuotas = array_slice($hutQuotaData, 0, 3);
+                        echo "<pre style='max-height: 300px; overflow-y: auto;'>" . htmlspecialchars(json_encode($sampleQuotas, JSON_PRETTY_PRINT)) . "</pre>";
+                        echo "</div>";
+                    }
                     
                     // Datenstruktur analysieren
                     $this->analyzeHutQuotaStructure($hutQuotaData);
@@ -1895,16 +1924,18 @@ CREATE TABLE daily_summary_categories (
                         $this->debug("   ❌ Fehler: " . $hutQuotaImportResult['errors']);
                         $this->debug("   📊 Gesamt: " . $hutQuotaImportResult['total']);
                         
-                        echo "<div style='background: #e6ffe6; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; border-radius: 4px;'>";
-                        echo "<h4>🏠 HutQuota Import-Ergebnis:</h4>";
-                        echo "<ul>";
-                        echo "<li><strong>Erfolgreich importiert:</strong> " . $hutQuotaImportResult['imported'] . " Einträge</li>";
-                        echo "<li><strong>Fehler:</strong> " . $hutQuotaImportResult['errors'] . "</li>";
-                        echo "<li><strong>Gesamt verarbeitet:</strong> " . $hutQuotaImportResult['total'] . " Einträge</li>";
-                        echo "<li><strong>Kategorien:</strong> " . (isset($hutQuotaImportResult['categories']) ? $hutQuotaImportResult['categories'] : '0') . "</li>";
-                        echo "<li><strong>Sprachen:</strong> " . (isset($hutQuotaImportResult['languages']) ? $hutQuotaImportResult['languages'] : '0') . "</li>";
-                        echo "</ul>";
-                        echo "</div>";
+                        if ($this->verbose) {
+                            echo "<div style='background: #e6ffe6; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; border-radius: 4px;'>";
+                            echo "<h4>🏠 HutQuota Import-Ergebnis:</h4>";
+                            echo "<ul>";
+                            echo "<li><strong>Erfolgreich importiert:</strong> " . $hutQuotaImportResult['imported'] . " Einträge</li>";
+                            echo "<li><strong>Fehler:</strong> " . $hutQuotaImportResult['errors'] . "</li>";
+                            echo "<li><strong>Gesamt verarbeitet:</strong> " . $hutQuotaImportResult['total'] . " Einträge</li>";
+                            echo "<li><strong>Kategorien:</strong> " . (isset($hutQuotaImportResult['categories']) ? $hutQuotaImportResult['categories'] : '0') . "</li>";
+                            echo "<li><strong>Sprachen:</strong> " . (isset($hutQuotaImportResult['languages']) ? $hutQuotaImportResult['languages'] : '0') . "</li>";
+                            echo "</ul>";
+                            echo "</div>";
+                        }
                         
                     } else {
                         $this->debugError("HutQuota-Datenbank-Import fehlgeschlagen");
@@ -1926,6 +1957,17 @@ CREATE TABLE daily_summary_categories (
         }
     }
     
+    public function getJsonReport($success, $stats = array()) {
+        $report = array(
+            'success' => $success,
+            'timestamp' => date('Y-m-d H:i:s'),
+            'statistics' => $stats,
+            'debug_log' => $this->debugOutput
+        );
+        
+        return json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+    
     public function getCurrentCookies() {
         return $this->cookies;
     }
@@ -1933,9 +1975,165 @@ CREATE TABLE daily_summary_categories (
     public function getCurrentCsrfToken() {
         return $this->csrfToken;
     }
+    
+    // Neue Hilfsfunktionen für Datumsberechnung
+    private function calculateDaysBetween($dateFrom, $dateTo) {
+        $from = DateTime::createFromFormat('d.m.Y', $dateFrom);
+        $to = DateTime::createFromFormat('d.m.Y', $dateTo);
+        
+        if (!$from || !$to) {
+            return 60; // Fallback: 60 Tage
+        }
+        
+        $interval = $from->diff($to);
+        return $interval->days;
+    }
+
+    private function calculateDailySummaryStart($dateFrom, $dateTo) {
+        // DailySummary startet 1 Tag vor dem Anfangsdatum
+        $from = DateTime::createFromFormat('d.m.Y', $dateFrom);
+        if (!$from) {
+            return date('d.m.Y'); // Fallback: heute
+        }
+        
+        $from->modify('-1 day');
+        return $from->format('d.m.Y');
+    }
+
+    private function calculateHutQuotaStart($dateFrom, $dateTo) {
+        // HutQuota startet am Anfangsdatum
+        return $dateFrom;
+    }
+
+    // Neue Funktion für DailySummary mit Datumsbereich
+    public function getDailySummaryForDateRange($hutId, $dateFrom, $dateTo) {
+        $this->debug("=== GetDailySummaryForDateRange START ===");
+        $this->debug("HutId: $hutId, DateFrom: $dateFrom, DateTo: $dateTo");
+        
+        $allData = array();
+        $currentDate = DateTime::createFromFormat('d.m.Y', $dateFrom);
+        $endDate = DateTime::createFromFormat('d.m.Y', $dateTo);
+        
+        if (!$currentDate || !$endDate) {
+            $this->debugError("Ungültige Datumswerte: $dateFrom oder $dateTo");
+            return false;
+        }
+        
+        // Ein Tag zurück für das "datum-1" Requirement
+        $currentDate->modify('-1 day');
+        
+        $sequenceCount = 0;
+        $maxSequences = 20; // Sicherheitsgrenze
+        
+        while ($currentDate <= $endDate && $sequenceCount < $maxSequences) {
+            $dateStr = $currentDate->format('d.m.Y');
+            $this->debug("📅 Sequenz " . ($sequenceCount + 1) . ": Abrufen ab $dateStr");
+            
+            $summaryData = $this->getDailySummaryAsync($hutId, $dateStr);
+            
+            if ($summaryData) {
+                $decoded = json_decode($summaryData, true);
+                if ($decoded && is_array($decoded)) {
+                    $this->debug("✅ Sequenz " . ($sequenceCount + 1) . ": " . count($decoded) . " Tage erhalten");
+                    
+                    // Nur Daten im gewünschten Zeitraum behalten
+                    foreach ($decoded as $dayData) {
+                        if (isset($dayData['day'])) {
+                            $dayDate = DateTime::createFromFormat('d.m.Y', $dayData['day']);
+                            $fromDate = DateTime::createFromFormat('d.m.Y', $dateFrom);
+                            if ($dayDate && $fromDate && $dayDate >= $fromDate && $dayDate <= $endDate) {
+                                $allData[] = $dayData;
+                            }
+                        }
+                    }
+                } else {
+                    $this->debugError("Fehler beim Dekodieren der JSON-Daten für Sequenz " . ($sequenceCount + 1));
+                }
+            } else {
+                $this->debugError("Fehler beim Abrufen der Daten für Sequenz " . ($sequenceCount + 1));
+            }
+            
+            // 10 Tage weiter für die nächste Sequenz
+            $currentDate->modify('+10 days');
+            $sequenceCount++;
+            
+            // Kurze Pause zwischen den Requests
+            sleep(1);
+        }
+        
+        $this->debugSuccess("DailySummary-Bereich abgeschlossen: " . count($allData) . " Tage im Zeitraum");
+        $this->debug("=== GetDailySummaryForDateRange COMPLETE ===");
+        
+        return $allData;
+    }
+
+    // Neue Funktion für HutQuota mit Datumsbereich
+    public function getHutQuotaForDateRange($hutId, $dateFrom, $dateTo) {
+        $this->debug("=== GetHutQuotaForDateRange START ===");
+        $this->debug("HutId: $hutId, DateFrom: $dateFrom, DateTo: $dateTo");
+        
+        $allData = array();
+        $page = 0;
+        $hasMorePages = true;
+        $maxPages = 10; // Sicherheitsgrenze
+        
+        while ($hasMorePages && $page < $maxPages) {
+            $this->debug("📅 Page $page: Abrufen von $dateFrom bis $dateTo");
+            
+            $quotaData = $this->getHutQuotaAsync($hutId, $dateFrom, $dateTo, $page, 20);
+            
+            if ($quotaData) {
+                $decoded = json_decode($quotaData, true);
+                if ($decoded && isset($decoded['_embedded']['bedCapacityChangeResponseDTOList'])) {
+                    $items = $decoded['_embedded']['bedCapacityChangeResponseDTOList'];
+                    $this->debug("✅ Page $page: " . count($items) . " Kapazitätsänderungen erhalten");
+                    $allData = array_merge($allData, $items);
+                    
+                    // Prüfe ob es weitere Seiten gibt
+                    $pageInfo = $decoded['page'] ?? array();
+                    $totalPages = $pageInfo['totalPages'] ?? 1;
+                    $currentPageNum = $pageInfo['number'] ?? 0;
+                    
+                    if ($currentPageNum >= $totalPages - 1) {
+                        $hasMorePages = false;
+                        $this->debug("📄 Letzte Seite erreicht (Page $currentPageNum von $totalPages)");
+                    } else {
+                        $page++;
+                    }
+                } else {
+                    $this->debugError("Fehler beim Dekodieren der JSON-Daten für Page $page");
+                    $hasMorePages = false;
+                }
+            } else {
+                $this->debugError("Fehler beim Abrufen der Daten für Page $page");
+                $hasMorePages = false;
+            }
+            
+            // Kurze Pause zwischen den Requests
+            if ($hasMorePages) {
+                sleep(1);
+            }
+        }
+        
+        $this->debugSuccess("HutQuota-Bereich abgeschlossen: " . count($allData) . " Kapazitätsänderungen gesamt");
+        $this->debug("=== GetHutQuotaForDateRange COMPLETE ===");
+        
+        return $allData;
+    }
 }
 
-// HTML-Ausgabe starten
+// Output Buffering aktivieren für sofortige Ausgabe
+ob_start();
+flush();
+
+// CLI Parameter verarbeiten
+$dateFrom = isset($argv[1]) ? $argv[1] : (isset($_GET['dateFrom']) ? $_GET['dateFrom'] : '01.08.2024');
+$dateTo = isset($argv[2]) ? $argv[2] : (isset($_GET['dateTo']) ? $_GET['dateTo'] : '01.09.2025');
+$size = isset($argv[3]) ? intval($argv[3]) : (isset($_GET['size']) ? intval($_GET['size']) : 100);
+$verbose = isset($argv[4]) ? (strtolower($argv[4]) === 'true') : (isset($_GET['verbose']) ? (strtolower($_GET['verbose']) === 'true') : true);
+
+// HTML-Ausgabe nur wenn verbose=true
+if ($verbose) {
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -1978,56 +2176,74 @@ flush();
 $dateFrom = isset($argv[1]) ? $argv[1] : (isset($_GET['dateFrom']) ? $_GET['dateFrom'] : '01.08.2024');
 $dateTo = isset($argv[2]) ? $argv[2] : (isset($_GET['dateTo']) ? $_GET['dateTo'] : '01.09.2025');
 $size = isset($argv[3]) ? intval($argv[3]) : (isset($_GET['size']) ? intval($_GET['size']) : 100);
-
-// Debug: Parameter anzeigen
-echo "<div style='background: #e6f3ff; padding: 10px; margin: 10px 0; border: 1px solid #007cba; border-radius: 4px;'>";
-echo "<h4>📋 Aktuelle Parameter:</h4>";
-echo "<ul>";
-echo "<li><strong>dateFrom:</strong> " . htmlspecialchars($dateFrom) . "</li>";
-echo "<li><strong>dateTo:</strong> " . htmlspecialchars($dateTo) . "</li>";
-echo "<li><strong>size:</strong> " . htmlspecialchars($size) . "</li>";
-echo "</ul>";
-echo "<p><small>💡 <strong>CLI Usage:</strong> <code>php hrs_login_debug.php [dateFrom] [dateTo] [size]</code><br>";
-echo "💡 <strong>URL Usage:</strong> <code>hrs_login_debug.php?dateFrom=01.08.2024&dateTo=01.09.2025&size=100</code></small></p>";
-echo "</div>";
+$verbose = isset($argv[4]) ? (strtolower($argv[4]) === 'true') : (isset($_GET['verbose']) ? (strtolower($_GET['verbose']) === 'true') : true);
 
 // Test ausführen
 $hrs = new HRSLoginDebug();
-$success = $hrs->testFullWorkflow($dateFrom, $dateTo, $size);
 
-// Finale Ausgabe
-echo "</div>";
+if ($verbose) {
+    // Debug: Parameter anzeigen
+    echo "<div style='background: #e6f3ff; padding: 10px; margin: 10px 0; border: 1px solid #007cba; border-radius: 4px;'>";
+    echo "<h4>📋 Aktuelle Parameter:</h4>";
+    echo "<ul>";
+    echo "<li><strong>dateFrom:</strong> " . htmlspecialchars($dateFrom) . "</li>";
+    echo "<li><strong>dateTo:</strong> " . htmlspecialchars($dateTo) . "</li>";
+    echo "<li><strong>size:</strong> " . htmlspecialchars($size) . "</li>";
+    echo "<li><strong>verbose:</strong> " . ($verbose ? 'true' : 'false') . "</li>";
+    echo "</ul>";
+    echo "<p><small>💡 <strong>CLI Usage:</strong> <code>php hrs_login_debug.php [dateFrom] [dateTo] [size] [verbose]</code><br>";
+    echo "💡 <strong>URL Usage:</strong> <code>hrs_login_debug.php?dateFrom=01.08.2024&dateTo=01.09.2025&size=100&verbose=true</code></small></p>";
+    echo "</div>";
+}
 
-if ($success) {
-    echo '<div class="final-result success">✅ ERFOLG: Vollständiger Workflow erfolgreich abgeschlossen!</div>';
-    
-    echo '<h3>📊 Finale Status-Informationen:</h3>';
-    echo '<ul>';
-    echo '<li><strong>CSRF-Token:</strong> ' . htmlspecialchars(substr($hrs->getCurrentCsrfToken(), 0, 30)) . '...</li>';
-    echo '<li><strong>Cookies:</strong> ' . count($hrs->getCurrentCookies()) . ' gesetzt</li>';
-    
-    $cookies = $hrs->getCurrentCookies();
-    foreach ($cookies as $name => $value) {
-        echo '<li>🍪 <code>' . htmlspecialchars($name) . '</code>: ' . htmlspecialchars(substr($value, 0, 30)) . '...</li>';
+$success = $hrs->testFullWorkflow($dateFrom, $dateTo, $size, $verbose);
+
+if ($verbose) {
+    // Finale Ausgabe
+    echo "</div>";
+
+    if ($success) {
+        echo '<div class="final-result success">✅ ERFOLG: Vollständiger Workflow erfolgreich abgeschlossen!</div>';
+        
+        echo '<h3>📊 Finale Status-Informationen:</h3>';
+        echo '<ul>';
+        echo '<li><strong>CSRF-Token:</strong> ' . htmlspecialchars(substr($hrs->getCurrentCsrfToken(), 0, 30)) . '...</li>';
+        echo '<li><strong>Cookies:</strong> ' . count($hrs->getCurrentCookies()) . ' gesetzt</li>';
+        
+        $cookies = $hrs->getCurrentCookies();
+        foreach ($cookies as $name => $value) {
+            echo '<li>🍪 <code>' . htmlspecialchars($name) . '</code>: ' . htmlspecialchars(substr($value, 0, 30)) . '...</li>';
+        }
+        echo '</ul>';
+        
+    } else {
+        echo '<div class="final-result error">❌ FEHLER: Workflow fehlgeschlagen!</div>';
     }
+    
+    echo '<h3>📝 Nächste Schritte:</h3>';
+    echo '<ul>';
+    echo '    <li>✅ Login-Mechanismus implementiert</li>';
+    echo '    <li>✅ CSRF-Token-Handling</li>';
+    echo '    <li>✅ Cookie-Management</li>';
+    echo '    <li>✅ Quota-API-Aufruf</li>';
+    echo '    <li>🔄 Bei Bedarf weitere API-Endpoints hinzufügen</li>';
     echo '</ul>';
     
+    echo '</div>';
+    echo '</body>';
+    echo '</html>';
 } else {
-    echo '<div class="final-result error">❌ FEHLER: Test fehlgeschlagen - siehe Debug-Ausgabe oben</div>';
+    // JSON-Output für non-verbose Mode
+    $stats = array(
+        'dateFrom' => $dateFrom,
+        'dateTo' => $dateTo,
+        'size' => $size,
+        'verbose' => $verbose
+    );
+    
+    header('Content-Type: application/json');
+    echo $hrs->getJsonReport($success, $stats);
 }
 
 ob_end_flush();
 ?>
-
-<h3>📝 Nächste Schritte:</h3>
-<ul>
-    <li>✅ Login-Mechanismus implementiert</li>
-    <li>✅ CSRF-Token-Handling</li>
-    <li>✅ Cookie-Management</li>
-    <li>✅ Quota-API-Aufruf</li>
-    <li>🔄 Bei Bedarf weitere API-Endpoints hinzufügen</li>
-</ul>
-
-</div>
-</body>
-</html>
