@@ -828,6 +828,18 @@ $tischData = getTischUebersicht();
             border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
         }
         
+        /* Div-Spalte Styling */
+        .div-cell {
+            text-align: center !important;
+            width: 50px !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
+            font-size: 0.8rem;
+            color: #6c757d;
+            padding: 3px 4px;
+            border-right: 2px solid #ced4da;
+        }
+        
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -1182,100 +1194,6 @@ $tischData = getTischUebersicht();
                 font-size: 0.7rem;
             }
         }
-        
-        /* Print Controls */
-        .print-controls {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1000;
-        }
-        
-        .print-btn {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
-            transition: all 0.3s ease;
-            min-width: 160px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .print-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
-        }
-        
-        .print-btn.receipt { 
-            background: linear-gradient(45deg, #3498db, #2980b9); 
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        }
-        .print-btn.receipt:hover {
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
-        }
-        
-        .print-btn.label { 
-            background: linear-gradient(45deg, #f39c12, #d68910); 
-            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
-        }
-        .print-btn.label:hover {
-            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
-        }
-        
-        .print-btn.overview { 
-            background: linear-gradient(45deg, #9b59b6, #8e44ad); 
-            box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);
-        }
-        .print-btn.overview:hover {
-            box-shadow: 0 6px 20px rgba(155, 89, 182, 0.4);
-        }
-        
-        /* Android-optimized print styles */
-        @media print {
-            body { font-size: 18px; line-height: 1.6; }
-            .print-controls { display: none !important; }
-            .container { height: auto !important; overflow: visible !important; }
-            .table-container { height: auto !important; overflow: visible !important; }
-            .table { page-break-inside: avoid; }
-            .table thead { display: table-header-group; }
-            .table tbody tr { page-break-inside: avoid; }
-            .back-button { display: none !important; }
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .print-controls {
-                position: fixed;
-                bottom: 10px;
-                right: 10px;
-                left: 10px;
-                flex-direction: row;
-                justify-content: space-around;
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(10px);
-                padding: 10px;
-                border-radius: 15px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            }
-            
-            .print-btn {
-                min-width: auto;
-                flex: 1;
-                padding: 10px 8px;
-                font-size: 12px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -1326,6 +1244,7 @@ $tischData = getTischUebersicht();
                             if ($arrangementCount > 0): ?>
                                 <th colspan="<?php echo $arrangementCount; ?>">Arrangements</th>
                             <?php endif; ?>
+                            <th rowspan="2">Div</th>
                         </tr>
                         <tr>
                             <?php 
@@ -1451,25 +1370,17 @@ $tischData = getTischUebersicht();
                                     }
                                 }
                                 ?>
+                                
+                                <!-- Div Spalte -->
+                                <td class="div-cell" style="text-align: center; width: 50px; font-size: 0.8rem; color: #6c757d;">
+                                    -
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
         <?php endif; ?>
-        
-        <!-- Print Controls -->
-        <div class="print-controls">
-            <button onclick="printReceipt()" class="print-btn receipt">
-                🧾 Rechnung
-            </button>
-            <button onclick="printLabels()" class="print-btn label">
-                🏷️ Etiketten
-            </button>
-            <button onclick="printOverview()" class="print-btn overview">
-                📋 Übersicht
-            </button>
-        </div>
     </div>
 
     <!-- Arrangement Modal -->
@@ -2401,297 +2312,6 @@ $tischData = getTischUebersicht();
                     syncButton.style.animation = 'none';
                 }
             }
-        }
-        
-        // ===== PRINT FUNCTIONALITY =====
-        
-        // Android-optimierte Print-Funktionen
-        function detectMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-        
-        function printReceipt() {
-            console.log('Drucke Tischübersicht als Rechnung');
-            
-            if (detectMobileDevice()) {
-                // Android-optimierter Druck
-                const printData = generatePrintableReceipt();
-                openMobilePrintDialog(printData, 'receipt');
-            } else {
-                // Desktop-Druck
-                const printWindow = window.open(`print-tisch-receipt.php`, '_blank', 'width=400,height=600');
-                printWindow.onload = function() {
-                    setTimeout(() => {
-                        printWindow.print();
-                    }, 500);
-                };
-            }
-        }
-        
-        function printLabels() {
-            console.log('Drucke Tisch-Etiketten');
-            
-            if (detectMobileDevice()) {
-                const printData = generatePrintableLabels();
-                openMobilePrintDialog(printData, 'labels');
-            } else {
-                const printWindow = window.open(`print-tisch-labels.php`, '_blank', 'width=400,height=300');
-                printWindow.onload = function() {
-                    setTimeout(() => {
-                        printWindow.print();
-                    }, 500);
-                };
-            }
-        }
-        
-        function printOverview() {
-            console.log('Drucke aktuelle Tischübersicht');
-            
-            if (detectMobileDevice()) {
-                // Für mobile Geräte: Aktuelle Seite drucken
-                window.print();
-            } else {
-                // Für Desktop: Auch aktuelle Seite drucken
-                window.print();
-            }
-        }
-        
-        function generatePrintableReceipt() {
-            // Sammle alle Tischdaten aus der aktuellen Seite
-            const tischData = [];
-            const rows = document.querySelectorAll('.table tbody tr');
-            
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 4) {
-                    const tischCell = cells[0];
-                    const anzahlCell = cells[1];
-                    const nameCell = cells[2];
-                    const bemerkungCell = cells[3];
-                    
-                    tischData.push({
-                        tisch: tischCell.textContent.trim(),
-                        anzahl: anzahlCell.textContent.trim(),
-                        name: nameCell.textContent.trim(),
-                        bemerkung: bemerkungCell.textContent.trim()
-                    });
-                }
-            });
-            
-            return {
-                date: new Date().toLocaleDateString('de-DE'),
-                time: new Date().toLocaleTimeString('de-DE'),
-                tischData: tischData
-            };
-        }
-        
-        function generatePrintableLabels() {
-            const tischData = generatePrintableReceipt().tischData;
-            return {
-                labels: tischData.map(data => ({
-                    tisch: data.tisch,
-                    name: data.name,
-                    anzahl: data.anzahl
-                }))
-            };
-        }
-        
-        function openMobilePrintDialog(data, type) {
-            // Erstelle ein temporäres Print-Fenster für mobile Geräte
-            const printContent = generatePrintHTML(data, type);
-            const printWindow = window.open('', '_blank', 'width=400,height=600');
-            
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            
-            // Android-spezifische Verzögerung für bessere Kompatibilität
-            setTimeout(() => {
-                printWindow.focus();
-                printWindow.print();
-            }, 1000);
-            
-            // Fenster nach Druck schließen
-            setTimeout(() => {
-                printWindow.close();
-            }, 3000);
-        }
-        
-        function generatePrintHTML(data, type) {
-            const baseStyles = `
-                <style>
-                    @page { 
-                        margin: 10mm; 
-                        size: auto;
-                    }
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        font-size: 16px; 
-                        line-height: 1.4;
-                        margin: 0;
-                        padding: 20px;
-                        color: #000;
-                        background: #fff;
-                    }
-                    .header { 
-                        text-align: center; 
-                        border-bottom: 2px solid #000; 
-                        padding-bottom: 10px; 
-                        margin-bottom: 20px;
-                    }
-                    .header h1 { 
-                        margin: 0; 
-                        font-size: 24px; 
-                        font-weight: bold;
-                    }
-                    .header h2 { 
-                        margin: 5px 0 0 0; 
-                        font-size: 18px; 
-                        color: #666;
-                    }
-                    .content { 
-                        margin-bottom: 20px; 
-                    }
-                    .table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        margin: 15px 0;
-                    }
-                    .table th, .table td { 
-                        border: 1px solid #000; 
-                        padding: 8px; 
-                        text-align: left;
-                    }
-                    .table th { 
-                        background: #f0f0f0; 
-                        font-weight: bold;
-                    }
-                    .label-item {
-                        border: 2px solid #000;
-                        margin: 10px 0;
-                        padding: 15px;
-                        text-align: center;
-                        page-break-inside: avoid;
-                    }
-                    .label-tisch {
-                        font-size: 20px;
-                        font-weight: bold;
-                        margin-bottom: 10px;
-                    }
-                    .label-details {
-                        font-size: 16px;
-                    }
-                    .footer {
-                        margin-top: 30px;
-                        text-align: center;
-                        font-size: 12px;
-                        color: #666;
-                        border-top: 1px solid #ccc;
-                        padding-top: 10px;
-                    }
-                </style>
-            `;
-            
-            if (type === 'receipt') {
-                return `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Tischübersicht - Rechnung</title>
-                        ${baseStyles}
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h1>Franz-Senn-Hütte</h1>
-                            <h2>Tischübersicht - Rechnung</h2>
-                            <p>${data.date} - ${data.time}</p>
-                        </div>
-                        
-                        <div class="content">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Tisch</th>
-                                        <th>Anz</th>
-                                        <th>Name</th>
-                                        <th>Bemerkung</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${data.tischData.map(row => `
-                                        <tr>
-                                            <td>${row.tisch}</td>
-                                            <td>${row.anzahl}</td>
-                                            <td>${row.name}</td>
-                                            <td>${row.bemerkung}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div class="footer">
-                            <p>Gedruckt am ${new Date().toLocaleString('de-DE')}</p>
-                            <p>Franz-Senn-Hütte - Reservierungssystem</p>
-                        </div>
-                    </body>
-                    </html>
-                `;
-            } else if (type === 'labels') {
-                return `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Tisch-Etiketten</title>
-                        ${baseStyles}
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h1>Franz-Senn-Hütte</h1>
-                            <h2>Tisch-Etiketten</h2>
-                        </div>
-                        
-                        <div class="content">
-                            ${data.labels.map(label => `
-                                <div class="label-item">
-                                    <div class="label-tisch">${label.tisch}</div>
-                                    <div class="label-details">
-                                        <strong>${label.name}</strong><br>
-                                        ${label.anzahl} Personen
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                        
-                        <div class="footer">
-                            <p>Gedruckt am ${new Date().toLocaleString('de-DE')}</p>
-                        </div>
-                    </body>
-                    </html>
-                `;
-            }
-            
-            return '<html><body><h1>Print Error</h1></body></html>';
-        }
-        
-        // Touch-optimized event handling für mobile Geräte
-        if (detectMobileDevice()) {
-            // Verbesserte Touch-Interaktion für Print-Buttons
-            document.addEventListener('DOMContentLoaded', function() {
-                const printButtons = document.querySelectorAll('.print-btn');
-                printButtons.forEach(btn => {
-                    btn.addEventListener('touchstart', function() {
-                        this.style.transform = 'translateY(-1px) scale(0.98)';
-                    });
-                    
-                    btn.addEventListener('touchend', function() {
-                        this.style.transform = 'translateY(-2px) scale(1)';
-                    });
-                });
-            });
         }
     </script>
 </body>
