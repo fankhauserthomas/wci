@@ -6,10 +6,10 @@ class SyncManager {
     
     // Tabellen die synchronisiert werden sollen
     private $syncTables = [
-        'AV-ResNamen',
-        'AV-Res', 
-        'AV_ResDet',
-        'zp_zimmer'
+        'AV-ResNamen',    // Gästedaten/Namen
+        // 'AV-Res',         // Reservierungen (temporär deaktiviert)
+        // 'AV_ResDet',      // Reservierungs-Details (temporär deaktiviert)  
+        // 'zp_zimmer'       // Zimmer-Daten (temporär deaktiviert)
     ];
     
     public function __construct() {
