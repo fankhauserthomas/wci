@@ -1,28 +1,46 @@
 <?php
 /**
- * HRS Reservierungen Import - Saubere CLI Version
+ * HRS Reservierungen Import - CLI & JSON API
  * Basiert auf hrs_login_debug.php - Importiert in AV-Res-webImp
  * 
- * Usage: php hrs_imp_res.php 20.08.2025 31.08.2025
+ * Usage CLI: php hrs_imp_res.php 20.08.2025 31.08.2025
+ * Usage Web: hrs_imp_res.php?from=20.08.2025&to=31.08.2025
  */
 
-// CLI Parameter verarbeiten
-$dateFrom = isset($argv[1]) ? $argv[1] : (isset($_GET['dateFrom']) ? $_GET['dateFrom'] : null);
-$dateTo = isset($argv[2]) ? $argv[2] : (isset($_GET['dateTo']) ? $_GET['dateTo'] : null);
-
-if (!$dateFrom || !$dateTo) {
-    echo "Usage: php hrs_imp_res.php <dateFrom> <dateTo>\n";
-    echo "Example: php hrs_imp_res.php 20.08.2025 31.08.2025\n";
-    exit(1);
+// Parameter verarbeiten (einheitlich: from/to)
+if (isset($_GET['from']) && isset($_GET['to'])) {
+    // Web-Interface: JSON Header setzen
+    header('Content-Type: application/json');
+    $dateFrom = $_GET['from'];
+    $dateTo = $_GET['to'];
+    $isWebInterface = true;
+} else {
+    // CLI Parameter verarbeiten
+    $dateFrom = isset($argv[1]) ? $argv[1] : null;
+    $dateTo = isset($argv[2]) ? $argv[2] : null;
+    $isWebInterface = false;
+    
+    if (!$dateFrom || !$dateTo) {
+        echo "Usage: php hrs_imp_res.php <dateFrom> <dateTo>\n";
+        echo "Example: php hrs_imp_res.php 20.08.2025 31.08.2025\n";
+        exit(1);
+    }
 }
 
 // Datenbankverbindung und HRS Login
-require_once '../config.php';
-require_once 'hrs_login.php';
+require_once(__DIR__ . '/../config.php');
+require_once(__DIR__ . '/hrs_login.php');
+
+// JSON Output Capture für Web-Interface
+if ($isWebInterface) {
+    ob_start();
+}
 
 class HRSReservationImporter {
     private $mysqli;
     private $hrsLogin;
+    private $importDateFrom;
+    private $importDateTo;
     
     public function __construct() {
         $this->mysqli = $GLOBALS['mysqli'];
@@ -77,6 +95,10 @@ class HRSReservationImporter {
     public function importReservations($dateFrom, $dateTo) {
         $this->debug("=== Starting Reservation Import ===");
         $this->debug("Date range: $dateFrom to $dateTo");
+        
+        // Import-Zeitraum speichern für processReservation
+        $this->importDateFrom = $dateFrom;
+        $this->importDateTo = $dateTo;
         
         if (!$this->hrsLogin->login()) {
             $this->debugError("Login failed - cannot import reservations");
@@ -173,21 +195,28 @@ class HRSReservationImporter {
             $gruppe = $header['groupName'] ?? '';
             $vorgang = $header['status'] ?? 'UNKNOWN';
             
-            // Kontakt-Daten aus body.leftList extrahieren (korrekte Struktur!)
+            // Kontakt-Daten und Kommentare aus body.leftList extrahieren
             $handy = '';
+            $bem_av = '';
             $email = $reservation['guestEmail'] ?? '';
             $email_date = date('Y-m-d H:i:s');
             
             if (isset($body['leftList']) && is_array($body['leftList'])) {
                 foreach ($body['leftList'] as $item) {
-                    if (isset($item['label']) && $item['label'] === 'configureReservationListPage.phone') {
-                        $handy = $item['value'] ?? '';
-                        break;
+                    if (isset($item['label'])) {
+                        if ($item['label'] === 'configureReservationListPage.phone') {
+                            $handy = $item['value'] ?? '';
+                        } elseif ($item['label'] === 'configureReservationListPage.comments') {
+                            $bem_av = $item['value'] ?? '';
+                        }
                     }
                 }
             }
             
-            $this->debug("→ Data: $guestName, $anreise-$abreise, L:$lager B:$betten D:$dz S:$sonder, HP:$hp, Email:$email");
+            // Importzeitraum für timestamp (als aktuelles Datetime)
+            $timestamp = date('Y-m-d H:i:s');
+            
+            $this->debug("→ Data: $guestName, $anreise-$abreise, L:$lager B:$betten D:$dz S:$sonder, HP:$hp, Email:$email, Bem:$bem_av");
             
             // DELETE + INSERT Strategie
             // 1. Bestehenden Datensatz löschen
@@ -200,19 +229,19 @@ class HRSReservationImporter {
             // 2. Neuen Datensatz einfügen
             $insertSql = "INSERT INTO `AV-Res-webImp` (
                 av_id, anreise, abreise, lager, betten, dz, sonder, hp, vegi,
-                gruppe, nachname, vorname, handy, email, vorgang, email_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                gruppe, nachname, vorname, handy, email, vorgang, email_date, bem_av, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
             // Debug: Count parameters
             $params = array($av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder, $hp, $vegi,
-                           $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date);
-            $this->debug("→ SQL has 16 placeholders, passing " . count($params) . " parameters");
-            $this->debug("→ Types: issiiiiiisssssss (16 chars)");
+                           $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date, $bem_av, $timestamp);
+            $this->debug("→ SQL has 18 placeholders, passing " . count($params) . " parameters");
+            $this->debug("→ Types: issiiiiiisssssssss (18 chars)");
             
             $insertStmt = $this->mysqli->prepare($insertSql);
-            $insertStmt->bind_param("issiiiiiisssssss", 
+            $insertStmt->bind_param("issiiiiiisssssssss", 
                 $av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder, $hp, $vegi,
-                $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date
+                $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date, $bem_av, $timestamp
             );
             
             if ($insertStmt->execute()) {
@@ -238,15 +267,44 @@ try {
     $success = $importer->importReservations($dateFrom, $dateTo);
     
     if ($success) {
-        echo "\n✅ Import completed successfully!\n";
+        if ($isWebInterface) {
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Reservation import completed successfully',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'log' => $output
+            ]);
+        } else {
+            echo "\n✅ Import completed successfully!\n";
+        }
         exit(0);
     } else {
-        echo "\n❌ Import failed!\n";
+        if ($isWebInterface) {
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'Import failed',
+                'log' => $output
+            ]);
+        } else {
+            echo "\n❌ Import failed!\n";
+        }
         exit(1);
     }
     
 } catch (Exception $e) {
-    echo "\n❌ Fatal error: " . $e->getMessage() . "\n";
+    if ($isWebInterface) {
+        $output = ob_get_clean();
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'log' => $output
+        ]);
+    } else {
+        echo "\n❌ Fatal error: " . $e->getMessage() . "\n";
+    }
     exit(1);
 }
 ?>
