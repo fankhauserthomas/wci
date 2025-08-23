@@ -1,6 +1,6 @@
 <?php
 /**
- * HRS Daily Summary Import - CLI & Web Interface
+ * HRS Daily Summary Import - CLI & JSON API
  * Importiert tägliche Zusammenfassungen von HRS in lokale Datenbank
  * 
  * Importiert in Tabellen:
@@ -11,38 +11,10 @@
  * Usage Web: hrs_imp_daily.php?from=20.08.2025&to=31.08.2025
  */
 
-// Web-Interface handling
+// Parameter verarbeiten (einheitlich: from/to)
 if (isset($_GET['from']) && isset($_GET['to'])) {
-    // Web-Interface: HTML Output
-    echo "<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='UTF-8'>
-    <title>HRS Daily Summary Import</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { text-align: center; color: #333; margin-bottom: 30px; }
-        .success { color: #28a745; font-weight: bold; }
-        .error { color: #dc3545; font-weight: bold; }
-        .info { color: #007bff; }
-        .log { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 500px; overflow-y: auto; }
-        .params { background: #e9ecef; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>🏔️ HRS Daily Summary Import</h1>
-            <p>Franzsennhütte - Tägliche Zusammenfassungen Import</p>
-        </div>
-        <div class='params'>
-            <strong>Import-Parameter:</strong><br>
-            Von: <span class='info'>{$_GET['from']}</span> | 
-            Bis: <span class='info'>{$_GET['to']}</span>
-        </div>
-        <div class='log'>";
-    
+    // Web-Interface: JSON Header setzen
+    header('Content-Type: application/json');
     $dateFrom = $_GET['from'];
     $dateTo = $_GET['to'];
     $isWebInterface = true;
@@ -62,6 +34,11 @@ if (isset($_GET['from']) && isset($_GET['to'])) {
 // Datenbankverbindung und HRS Login
 require_once(__DIR__ . '/../config.php');
 require_once(__DIR__ . '/hrs_login.php');
+
+// JSON Output Capture für Web-Interface
+if ($isWebInterface) {
+    ob_start();
+}
 
 /**
  * HRS Daily Summary Importer Class
@@ -432,8 +409,12 @@ try {
     $hrsLogin = new HRSLogin();
     if (!$hrsLogin->login()) {
         if ($isWebInterface) {
-            echo "<span class='error'>❌ HRS Login failed!</span>\n";
-            echo "</div></div></body></html>";
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'HRS Login failed',
+                'log' => $output
+            ]);
         } else {
             echo "❌ HRS Login failed!\n";
         }
@@ -445,15 +426,25 @@ try {
     
     if ($importer->importDailySummaries($dateFrom, $dateTo)) {
         if ($isWebInterface) {
-            echo "<span class='success'>✅ Daily Summary import completed successfully!</span>\n";
-            echo "</div></div></body></html>";
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Daily Summary import completed successfully',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'log' => $output
+            ]);
         } else {
             echo "\n✅ Daily Summary import completed successfully!\n";
         }
     } else {
         if ($isWebInterface) {
-            echo "<span class='error'>❌ Daily Summary import failed!</span>\n";
-            echo "</div></div></body></html>";
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'Daily Summary import failed',
+                'log' => $output
+            ]);
         } else {
             echo "\n❌ Daily Summary import failed!\n";
         }
@@ -462,8 +453,12 @@ try {
     
 } catch (Exception $e) {
     if ($isWebInterface) {
-        echo "<span class='error'>❌ Exception: " . htmlspecialchars($e->getMessage()) . "</span>\n";
-        echo "</div></div></body></html>";
+        $output = ob_get_clean();
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'log' => $output
+        ]);
     } else {
         echo "❌ Exception: " . $e->getMessage() . "\n";
     }

@@ -1,6 +1,6 @@
 <?php
 /**
- * HRS Kapazitäts-Quota Import - Saubere CLI Version
+ * HRS Kapazitäts-Quota Import - CLI & JSON API
  * Importiert Hütten-Kapazitätsänderungen von HRS in lokale Datenbank
  * 
  * Importiert in Tabellen:
@@ -8,22 +8,38 @@
  * - hut_quota_categories (Betten-Kategorien)
  * - hut_quota_languages (Sprach-Beschreibungen)
  * 
- * Usage: php hrs_imp_quota.php 20.08.2025 31.08.2025
+ * Usage CLI: php hrs_imp_quota.php 20.08.2025 31.08.2025
+ * Usage Web: hrs_imp_quota.php?from=20.08.2025&to=31.08.2025
  */
 
-// CLI Parameter verarbeiten
-$dateFrom = isset($argv[1]) ? $argv[1] : (isset($_GET['dateFrom']) ? $_GET['dateFrom'] : null);
-$dateTo = isset($argv[2]) ? $argv[2] : (isset($_GET['dateTo']) ? $_GET['dateTo'] : null);
-
-if (!$dateFrom || !$dateTo) {
-    echo "Usage: php hrs_imp_quota.php <dateFrom> <dateTo>\n";
-    echo "Example: php hrs_imp_quota.php 20.08.2025 31.08.2025\n";
-    exit(1);
+// Parameter verarbeiten (einheitlich: from/to)
+if (isset($_GET['from']) && isset($_GET['to'])) {
+    // Web-Interface: JSON Header setzen
+    header('Content-Type: application/json');
+    $dateFrom = $_GET['from'];
+    $dateTo = $_GET['to'];
+    $isWebInterface = true;
+} else {
+    // CLI Parameter verarbeiten
+    $dateFrom = isset($argv[1]) ? $argv[1] : null;
+    $dateTo = isset($argv[2]) ? $argv[2] : null;
+    $isWebInterface = false;
+    
+    if (!$dateFrom || !$dateTo) {
+        echo "Usage: php hrs_imp_quota.php <dateFrom> <dateTo>\n";
+        echo "Example: php hrs_imp_quota.php 20.08.2025 31.08.2025\n";
+        exit(1);
+    }
 }
 
 // Datenbankverbindung und HRS Login
-require_once '../config.php';
-require_once 'hrs_login.php';
+require_once(__DIR__ . '/../config.php');
+require_once(__DIR__ . '/hrs_login.php');
+
+// JSON Output Capture für Web-Interface
+if ($isWebInterface) {
+    ob_start();
+}
 
 /**
  * HRS Quota Importer Class
@@ -326,7 +342,16 @@ try {
     // HRS Login durchführen
     $hrsLogin = new HRSLogin();
     if (!$hrsLogin->login()) {
-        echo "❌ HRS Login failed!\n";
+        if ($isWebInterface) {
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'HRS Login failed',
+                'log' => $output
+            ]);
+        } else {
+            echo "❌ HRS Login failed!\n";
+        }
         exit(1);
     }
     
@@ -334,14 +359,43 @@ try {
     $importer = new HRSQuotaImporter($mysqli, $hrsLogin);
     
     if ($importer->importQuotas($dateFrom, $dateTo)) {
-        echo "\n✅ Quota import completed successfully!\n";
+        if ($isWebInterface) {
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Quota import completed successfully',
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'log' => $output
+            ]);
+        } else {
+            echo "\n✅ Quota import completed successfully!\n";
+        }
     } else {
-        echo "\n❌ Quota import failed!\n";
+        if ($isWebInterface) {
+            $output = ob_get_clean();
+            echo json_encode([
+                'success' => false,
+                'error' => 'Quota import failed',
+                'log' => $output
+            ]);
+        } else {
+            echo "\n❌ Quota import failed!\n";
+        }
         exit(1);
     }
     
 } catch (Exception $e) {
-    echo "❌ Exception: " . $e->getMessage() . "\n";
+    if ($isWebInterface) {
+        $output = ob_get_clean();
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'log' => $output
+        ]);
+    } else {
+        echo "❌ Exception: " . $e->getMessage() . "\n";
+    }
     exit(1);
 }
 ?>
