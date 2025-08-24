@@ -476,6 +476,15 @@ if (!AuthManager::checkSession()) {
         <a href="statistiken.html" class="card-button">Statistiken anzeigen</a>
       </div>
 
+      <div class="dashboard-card" draggable="true" data-card-id="belegungsanalyse">
+        <div class="drag-handle">⋮⋮</div>
+        <h2 class="card-title">🏔️ Belegungsanalyse</h2>
+        <p class="card-description">
+          Interaktive Darstellung der täglichen Hausbelegung mit HRS/Lokal-Aufschlüsselung, freien Kapazitäten und Kategorien-Details.
+        </p>
+        <a href="belegung/belegung.php" class="card-button">Belegungsdiagramm öffnen</a>
+      </div>
+
       <div class="dashboard-card" draggable="true" data-card-id="zimmerplan">
         <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Zimmerplan</h2>

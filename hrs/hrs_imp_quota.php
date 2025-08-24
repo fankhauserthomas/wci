@@ -162,8 +162,12 @@ class HRSQuotaImporter {
     private function fetchQuotaData($dateFrom, $dateTo) {
         $this->debug("Fetching quota data for date range $dateFrom to $dateTo");
         
+        // Daten zu HRS API Format konvertieren (DD.MM.YYYY)
+        $hrsDateFrom = $this->convertDateToHRS($dateFrom);
+        $hrsDateTo = $this->convertDateToHRS($dateTo);
+        
         // API-URL für Quota-Daten
-        $url = "/api/v1/manage/hutQuota?hutId={$this->hutId}&page=0&size=100&sortList=BeginDate&sortOrder=DESC&open=true&dateFrom={$dateFrom}&dateTo={$dateTo}";
+        $url = "/api/v1/manage/hutQuota?hutId={$this->hutId}&page=0&size=100&sortList=BeginDate&sortOrder=DESC&open=true&dateFrom={$hrsDateFrom}&dateTo={$hrsDateTo}";
         
         $headers = array(
             'X-XSRF-TOKEN: ' . $this->hrsLogin->getCsrfToken()
@@ -322,11 +326,39 @@ class HRSQuotaImporter {
     }
     
     /**
+     * Datum zu HRS API Format (DD.MM.YYYY) konvertieren
+     */
+    private function convertDateToHRS($date) {
+        if (!$date) return null;
+        
+        // Wenn bereits im HRS Format (DD.MM.YYYY), direkt zurückgeben
+        if (preg_match('/^\d{1,2}\.\d{1,2}\.\d{4}$/', $date)) {
+            return $date;
+        }
+        
+        // Konvertierung von YYYY-MM-DD zu DD.MM.YYYY
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $parts = explode('-', $date);
+            if (count($parts) === 3) {
+                return str_pad($parts[2], 2, '0', STR_PAD_LEFT) . '.' . str_pad($parts[1], 2, '0', STR_PAD_LEFT) . '.' . $parts[0];
+            }
+        }
+        
+        return $date; // Fallback
+    }
+    
+    /**
      * Datum von DD.MM.YYYY zu YYYY-MM-DD konvertieren
      */
     private function convertDateToMySQL($date) {
         if (!$date) return null;
         
+        // Wenn bereits im MySQL Format (YYYY-MM-DD), direkt zurückgeben
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+        
+        // Konvertierung von DD.MM.YYYY zu YYYY-MM-DD
         $parts = explode('.', $date);
         if (count($parts) === 3) {
             return $parts[2] . '-' . str_pad($parts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($parts[0], 2, '0', STR_PAD_LEFT);
