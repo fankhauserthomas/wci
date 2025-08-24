@@ -207,45 +207,16 @@ function getQuotaData($mysqli, $startDate, $endDate) {
 }
 
 /**
- * Prüfe ob ein Datum in einer Quota liegt und gib die beste zurück
+ * Prüfe ob ein Datum in einer Quota liegt
  */
 function getQuotasForDate($quotas, $date) {
-    $matching = [];
+    $result = [];
     foreach ($quotas as $quota) {
         if ($date >= $quota['date_from'] && $date <= $quota['date_to']) {
-            $matching[] = $quota;
+            $result[] = $quota;
         }
     }
-    
-    // Wenn mehrere Quotas gefunden, wähle die beste aus
-    if (count($matching) > 1) {
-        // Priorisierung:
-        // 1. Quota die genau an diesem Tag startet
-        // 2. Quota mit dem neuesten Startdatum
-        // 3. Quota mit der höchsten HRS_ID (meist neuer)
-        usort($matching, function($a, $b) use ($date) {
-            // Priorisiere Quota die genau an diesem Tag startet
-            $aStartsToday = ($a['date_from'] == $date) ? 1 : 0;
-            $bStartsToday = ($b['date_from'] == $date) ? 1 : 0;
-            if ($aStartsToday != $bStartsToday) {
-                return $bStartsToday - $aStartsToday;
-            }
-            
-            // Dann nach Startdatum (neuestes zuerst)
-            $dateCompare = strcmp($b['date_from'], $a['date_from']);
-            if ($dateCompare != 0) {
-                return $dateCompare;
-            }
-            
-            // Zuletzt nach HRS_ID (höchste zuerst)
-            return $b['hrs_id'] - $a['hrs_id'];
-        });
-        
-        // Nur die beste Quota zurückgeben
-        return [$matching[0]];
-    }
-    
-    return $matching;
+    return $result;
 }
 
 $daten = getErweiterteGelegungsDaten($mysqli, $startDate, $endDate);
@@ -404,7 +375,7 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="updateChartWithImport()">🔄 Aktualisieren + HRS Import</button>
+                <button onclick="updateChart()">Aktualisieren</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
@@ -492,11 +463,8 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e5f5e5;">Frei Lager</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fffbe5;">Frei Betten</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #ffe5e5;">Frei DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fff3cd;">Quota Name</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Sonder</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Lager</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Betten</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-DZ</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fff3cd;">Quota Info</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e2e3e5;">Quota Kapazität</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #9966CC;">HRS Sonder</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #7722CC;">Lokal Sonder</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #66CC66;">HRS Lager</th>
@@ -578,58 +546,34 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
                             echo "<td style='padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffe5e5;'>" . $freieKap['dz_frei'] . "</td>";
                             
                             // Quota-Informationen
-                            $quotaName = '';
-                            $quotaSonder = '';
-                            $quotaLager = '';
-                            $quotaBetten = '';
-                            $quotaDZ = '';
+                            $quotaInfo = '';
+                            $quotaCapacity = '';
                             
                             if (!empty($tagesQuotas)) {
                                 foreach ($tagesQuotas as $quota) {
-                                    // Hintergrundfarbe basierend auf Mode
-                                    $modeColor = '';
-                                    $modeStyle = '';
-                                    if ($quota['mode'] == 'SERVICED') {
-                                        $modeColor = '#d4edda'; // Grün
-                                        $modeStyle = 'background: #d4edda; color: #155724;';
-                                    } elseif ($quota['mode'] == 'CLOSED') {
-                                        $modeColor = '#f8d7da'; // Rot  
-                                        $modeStyle = 'background: #f8d7da; color: #721c24;';
-                                    } else {
-                                        $modeColor = '#e2e3e5'; // Grau
-                                        $modeStyle = 'background: #e2e3e5; color: #383d41;';
+                                    $quotaInfo .= '<div style="font-size: 11px; margin-bottom: 2px;">';
+                                    $quotaInfo .= '<strong>' . htmlspecialchars($quota['title']) . '</strong><br>';
+                                    $quotaInfo .= 'ID: ' . $quota['hrs_id'] . ' | ';
+                                    $quotaInfo .= $quota['date_from'] . ' - ' . $quota['date_to'] . '<br>';
+                                    $quotaInfo .= 'Mode: ' . $quota['mode'];
+                                    $quotaInfo .= '</div>';
+                                    
+                                    $quotaCapacity .= '<div style="font-size: 11px; margin-bottom: 2px;">';
+                                    $quotaCapacity .= '<strong>Gesamt: ' . $quota['capacity'] . '</strong><br>';
+                                    if (!empty($quota['categories'])) {
+                                        foreach ($quota['categories'] as $cat) {
+                                            $quotaCapacity .= $cat['category_type'] . ': ' . $cat['total_beds'] . '<br>';
+                                        }
                                     }
-                                    
-                                    $quotaName .= '<div style="font-size: 11px; margin-bottom: 2px; padding: 2px 4px; border-radius: 3px; ' . $modeStyle . '">';
-                                    $quotaName .= '<strong>' . htmlspecialchars($quota['title']) . '</strong><br>';
-                                    $quotaName .= '<small>' . $quota['mode'] . '</small>';
-                                    $quotaName .= '</div>';
-                                    
-                                    // Kategorien extrahieren
-                                    $categories = $quota['categories'];
-                                    $sonder = isset($categories['SK']) ? $categories['SK']['total_beds'] : 0;
-                                    $lager = isset($categories['ML']) ? $categories['ML']['total_beds'] : 0;
-                                    $betten = isset($categories['MBZ']) ? $categories['MBZ']['total_beds'] : 0;
-                                    $dz = isset($categories['2BZ']) ? $categories['2BZ']['total_beds'] : 0;
-                                    
-                                    $quotaSonder .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($sonder > 0 ? $sonder : '-') . '</div>';
-                                    $quotaLager .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($lager > 0 ? $lager : '-') . '</div>';
-                                    $quotaBetten .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($betten > 0 ? $betten : '-') . '</div>';
-                                    $quotaDZ .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($dz > 0 ? $dz : '-') . '</div>';
+                                    $quotaCapacity .= '</div>';
                                 }
                             } else {
-                                $quotaName = '-';
-                                $quotaSonder = '-';
-                                $quotaLager = '-';
-                                $quotaBetten = '-';
-                                $quotaDZ = '-';
+                                $quotaInfo = '-';
+                                $quotaCapacity = '-';
                             }
                             
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #fff3cd; font-size: 11px;'>" . $quotaName . "</td>";
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaSonder . "</td>";
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaLager . "</td>";
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaBetten . "</td>";
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaDZ . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #fff3cd; font-size: 11px;'>" . $quotaInfo . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #e2e3e5; text-align: center; font-size: 11px;'>" . $quotaCapacity . "</td>";
                             
                             // Belegungen
                             echo "<td style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #9966CC;'>" . $hrsData['sonder'] . "</td>";
@@ -898,119 +842,6 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             window.location.href = `?start=${startDate}&end=${endDate}`;
-        }
-        
-        // Chart aktualisieren mit HRS Import
-        function updateChartWithImport() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            
-            if (!startDate || !endDate) {
-                alert('Bitte Start- und Enddatum auswählen.');
-                return;
-            }
-            
-            // Prüfe Zeitraum (max 31 Tage für Stabilität)
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-            
-            if (diffDays > 31) {
-                if (!confirm(`Zeitraum ist ${diffDays} Tage lang. HRS-Import kann bei langen Zeiträumen instabil sein.\n\nTrotzdem fortfahren?`)) {
-                    return;
-                }
-            }
-            
-            // Button deaktivieren und Status anzeigen
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '⏳ Importiere HRS Daten...';
-            btn.style.background = '#666';
-            
-            // Alle drei Importer parallel ausführen
-            const importPromises = [
-                fetch(`../hrs/hrs_imp_daily.php?from=${startDate}&to=${endDate}`)
-                    .then(r => r.text())
-                    .then(text => {
-                        try {
-                            const result = JSON.parse(text);
-                            return { type: 'daily', ...result };
-                        } catch (e) {
-                            console.warn('Daily Import Response:', text);
-                            return { type: 'daily', success: false, error: 'JSON Parse Error', rawResponse: text };
-                        }
-                    }),
-                fetch(`../hrs/hrs_imp_quota.php?from=${startDate}&to=${endDate}`)
-                    .then(r => r.text())
-                    .then(text => {
-                        try {
-                            const result = JSON.parse(text);
-                            return { type: 'quota', ...result };
-                        } catch (e) {
-                            console.warn('Quota Import Response:', text);
-                            return { type: 'quota', success: false, error: 'JSON Parse Error', rawResponse: text };
-                        }
-                    }),
-                fetch(`../hrs/hrs_imp_res.php?from=${startDate}&to=${endDate}`)
-                    .then(r => r.text())
-                    .then(text => {
-                        try {
-                            const result = JSON.parse(text);
-                            return { type: 'res', ...result };
-                        } catch (e) {
-                            console.warn('Reservation Import Response:', text);
-                            return { type: 'res', success: false, error: 'JSON Parse Error', rawResponse: text };
-                        }
-                    })
-            ];
-            
-            Promise.all(importPromises)
-                .then(results => {
-                    let successMessage = '📊 HRS Import Ergebnisse:\n\n';
-                    let hasErrors = false;
-                    
-                    results.forEach(result => {
-                        const emoji = result.type === 'daily' ? '📊' : result.type === 'quota' ? '🏗️' : '🏠';
-                        const name = result.type === 'daily' ? 'Daily Summary' : result.type === 'quota' ? 'Quotas' : 'Reservierungen';
-                        
-                        if (result.success) {
-                            successMessage += `${emoji} ${name}: ✅ ${result.imported || 0} importiert, ${result.updated || 0} aktualisiert\n`;
-                        } else {
-                            hasErrors = true;
-                            const errorMsg = result.error || 'Unbekannter Fehler';
-                            successMessage += `${emoji} ${name}: ❌ ${errorMsg}\n`;
-                            
-                            // Spezielle Behandlung für HRS 500 Fehler
-                            if (errorMsg.includes('HTTP 500') || errorMsg.includes('No quota data received')) {
-                                successMessage += `    → HRS-Server Probleme, versuchen Sie kleineren Zeitraum\n`;
-                            }
-                        }
-                    });
-                    
-                    if (hasErrors) {
-                        successMessage += '\n⚠️ Einige Importer hatten Probleme. Details in der Browser-Konsole.';
-                        successMessage += '\n💡 Tipp: Versuchen Sie einen kleineren Zeitraum (max 31 Tage).';
-                    }
-                    
-                    alert(successMessage);
-                    
-                    // Seite neu laden mit aktualisierten Daten (auch bei teilweisen Fehlern)
-                    window.location.href = `?start=${startDate}&end=${endDate}`;
-                })
-                .catch(error => {
-                    console.error('Import Error:', error);
-                    alert(`❌ HRS Import fehlgeschlagen:\n${error.message}\n\nDie Seite wird trotzdem aktualisiert, falls teilweise Daten importiert wurden.`);
-                    
-                    // Trotzdem versuchen zu aktualisieren
-                    window.location.href = `?start=${startDate}&end=${endDate}`;
-                })
-                .finally(() => {
-                    // Button wieder aktivieren (falls kein reload)
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                    btn.style.background = '#2196F3';
-                });
         }
         
         // Standardbereich zurücksetzen
