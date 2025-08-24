@@ -225,6 +225,21 @@ class HRSQuotaImporter {
         
         $this->debug("→ Data: $title, $dateFrom-$dateTo, Mode:$mode, Capacity:$capacity");
         
+        // Prüfen ob diese HRS_ID bereits existiert (Duplikat-Schutz)
+        $checkQuery = "SELECT id FROM hut_quota WHERE hut_id = ? AND hrs_id = ?";
+        $checkStmt = $this->mysqli->prepare($checkQuery);
+        $checkStmt->bind_param('ii', $this->hutId, $hrsId);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        
+        if ($checkResult->num_rows > 0) {
+            $existingRow = $checkResult->fetch_assoc();
+            $this->debug("Skipping duplicate quota hrs_id: $hrsId (already exists as local_id: {$existingRow['id']})");
+            $checkStmt->close();
+            return true; // Als erfolgreich behandeln, aber überspringen
+        }
+        $checkStmt->close();
+        
         // Haupttabelle: hut_quota
         $insertQuotaQuery = "INSERT INTO hut_quota (
             hrs_id, hut_id, date_from, date_to, title, mode, capacity, 

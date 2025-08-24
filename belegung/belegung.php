@@ -207,16 +207,45 @@ function getQuotaData($mysqli, $startDate, $endDate) {
 }
 
 /**
- * Prüfe ob ein Datum in einer Quota liegt
+ * Prüfe ob ein Datum in einer Quota liegt und gib die beste zurück
  */
 function getQuotasForDate($quotas, $date) {
-    $result = [];
+    $matching = [];
     foreach ($quotas as $quota) {
         if ($date >= $quota['date_from'] && $date <= $quota['date_to']) {
-            $result[] = $quota;
+            $matching[] = $quota;
         }
     }
-    return $result;
+    
+    // Wenn mehrere Quotas gefunden, wähle die beste aus
+    if (count($matching) > 1) {
+        // Priorisierung:
+        // 1. Quota die genau an diesem Tag startet
+        // 2. Quota mit dem neuesten Startdatum
+        // 3. Quota mit der höchsten HRS_ID (meist neuer)
+        usort($matching, function($a, $b) use ($date) {
+            // Priorisiere Quota die genau an diesem Tag startet
+            $aStartsToday = ($a['date_from'] == $date) ? 1 : 0;
+            $bStartsToday = ($b['date_from'] == $date) ? 1 : 0;
+            if ($aStartsToday != $bStartsToday) {
+                return $bStartsToday - $aStartsToday;
+            }
+            
+            // Dann nach Startdatum (neuestes zuerst)
+            $dateCompare = strcmp($b['date_from'], $a['date_from']);
+            if ($dateCompare != 0) {
+                return $dateCompare;
+            }
+            
+            // Zuletzt nach HRS_ID (höchste zuerst)
+            return $b['hrs_id'] - $a['hrs_id'];
+        });
+        
+        // Nur die beste Quota zurückgeben
+        return [$matching[0]];
+    }
+    
+    return $matching;
 }
 
 $daten = getErweiterteGelegungsDaten($mysqli, $startDate, $endDate);
@@ -463,8 +492,11 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e5f5e5;">Frei Lager</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fffbe5;">Frei Betten</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #ffe5e5;">Frei DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fff3cd;">Quota Info</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e2e3e5;">Quota Kapazität</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fff3cd;">Quota Name</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Sonder</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Lager</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Betten</th>
+                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-DZ</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #9966CC;">HRS Sonder</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #7722CC;">Lokal Sonder</th>
                             <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #66CC66;">HRS Lager</th>
@@ -546,34 +578,58 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
                             echo "<td style='padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffe5e5;'>" . $freieKap['dz_frei'] . "</td>";
                             
                             // Quota-Informationen
-                            $quotaInfo = '';
-                            $quotaCapacity = '';
+                            $quotaName = '';
+                            $quotaSonder = '';
+                            $quotaLager = '';
+                            $quotaBetten = '';
+                            $quotaDZ = '';
                             
                             if (!empty($tagesQuotas)) {
                                 foreach ($tagesQuotas as $quota) {
-                                    $quotaInfo .= '<div style="font-size: 11px; margin-bottom: 2px;">';
-                                    $quotaInfo .= '<strong>' . htmlspecialchars($quota['title']) . '</strong><br>';
-                                    $quotaInfo .= 'ID: ' . $quota['hrs_id'] . ' | ';
-                                    $quotaInfo .= $quota['date_from'] . ' - ' . $quota['date_to'] . '<br>';
-                                    $quotaInfo .= 'Mode: ' . $quota['mode'];
-                                    $quotaInfo .= '</div>';
-                                    
-                                    $quotaCapacity .= '<div style="font-size: 11px; margin-bottom: 2px;">';
-                                    $quotaCapacity .= '<strong>Gesamt: ' . $quota['capacity'] . '</strong><br>';
-                                    if (!empty($quota['categories'])) {
-                                        foreach ($quota['categories'] as $cat) {
-                                            $quotaCapacity .= $cat['category_type'] . ': ' . $cat['total_beds'] . '<br>';
-                                        }
+                                    // Hintergrundfarbe basierend auf Mode
+                                    $modeColor = '';
+                                    $modeStyle = '';
+                                    if ($quota['mode'] == 'SERVICED') {
+                                        $modeColor = '#d4edda'; // Grün
+                                        $modeStyle = 'background: #d4edda; color: #155724;';
+                                    } elseif ($quota['mode'] == 'CLOSED') {
+                                        $modeColor = '#f8d7da'; // Rot  
+                                        $modeStyle = 'background: #f8d7da; color: #721c24;';
+                                    } else {
+                                        $modeColor = '#e2e3e5'; // Grau
+                                        $modeStyle = 'background: #e2e3e5; color: #383d41;';
                                     }
-                                    $quotaCapacity .= '</div>';
+                                    
+                                    $quotaName .= '<div style="font-size: 11px; margin-bottom: 2px; padding: 2px 4px; border-radius: 3px; ' . $modeStyle . '">';
+                                    $quotaName .= '<strong>' . htmlspecialchars($quota['title']) . '</strong><br>';
+                                    $quotaName .= '<small>' . $quota['mode'] . '</small>';
+                                    $quotaName .= '</div>';
+                                    
+                                    // Kategorien extrahieren
+                                    $categories = $quota['categories'];
+                                    $sonder = isset($categories['SK']) ? $categories['SK']['total_beds'] : 0;
+                                    $lager = isset($categories['ML']) ? $categories['ML']['total_beds'] : 0;
+                                    $betten = isset($categories['MBZ']) ? $categories['MBZ']['total_beds'] : 0;
+                                    $dz = isset($categories['2BZ']) ? $categories['2BZ']['total_beds'] : 0;
+                                    
+                                    $quotaSonder .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($sonder > 0 ? $sonder : '-') . '</div>';
+                                    $quotaLager .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($lager > 0 ? $lager : '-') . '</div>';
+                                    $quotaBetten .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($betten > 0 ? $betten : '-') . '</div>';
+                                    $quotaDZ .= '<div style="font-size: 11px; margin-bottom: 2px; text-align: center;">' . ($dz > 0 ? $dz : '-') . '</div>';
                                 }
                             } else {
-                                $quotaInfo = '-';
-                                $quotaCapacity = '-';
+                                $quotaName = '-';
+                                $quotaSonder = '-';
+                                $quotaLager = '-';
+                                $quotaBetten = '-';
+                                $quotaDZ = '-';
                             }
                             
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #fff3cd; font-size: 11px;'>" . $quotaInfo . "</td>";
-                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #e2e3e5; text-align: center; font-size: 11px;'>" . $quotaCapacity . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #fff3cd; font-size: 11px;'>" . $quotaName . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaSonder . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaLager . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaBetten . "</td>";
+                            echo "<td style='padding: 8px; border: 1px solid #ddd; background: #f0f8ff; font-size: 11px;'>" . $quotaDZ . "</td>";
                             
                             // Belegungen
                             echo "<td style='padding: 8px; border: 1px solid #ddd; text-align: center; color: #9966CC;'>" . $hrsData['sonder'] . "</td>";
