@@ -138,8 +138,21 @@ class HRSDailySummaryImporter {
      * Datum-Range in 10-Tage-Blöcke aufteilen
      */
     private function splitDateRange($dateFrom, $dateTo) {
+        // Versuche verschiedene Datumsformate zu parsen
         $startDate = DateTime::createFromFormat('d.m.Y', $dateFrom);
+        if (!$startDate) {
+            $startDate = DateTime::createFromFormat('Y-m-d', $dateFrom);
+        }
+        
         $endDate = DateTime::createFromFormat('d.m.Y', $dateTo);
+        if (!$endDate) {
+            $endDate = DateTime::createFromFormat('Y-m-d', $dateTo);
+        }
+        
+        if (!$startDate || !$endDate) {
+            $this->debugError("Invalid date format. Expected d.m.Y or Y-m-d. Got: from=$dateFrom, to=$dateTo");
+            return [];
+        }
         
         $ranges = [];
         $currentStart = clone $startDate;
@@ -380,9 +393,28 @@ class HRSDailySummaryImporter {
      * Prüfen ob Datum im Import-Bereich liegt
      */
     private function isDateInRange($dateString) {
+        // Parse das zu prüfende Datum (üblicherweise DD.MM.YYYY von HRS)
         $date = DateTime::createFromFormat('d.m.Y', $dateString);
+        if (!$date) {
+            $date = DateTime::createFromFormat('Y-m-d', $dateString);
+        }
+        
+        // Parse importDateFrom (kann DD.MM.YYYY oder YYYY-MM-DD sein)
         $fromDate = DateTime::createFromFormat('d.m.Y', $this->importDateFrom);
+        if (!$fromDate) {
+            $fromDate = DateTime::createFromFormat('Y-m-d', $this->importDateFrom);
+        }
+        
+        // Parse importDateTo (kann DD.MM.YYYY oder YYYY-MM-DD sein)
         $toDate = DateTime::createFromFormat('d.m.Y', $this->importDateTo);
+        if (!$toDate) {
+            $toDate = DateTime::createFromFormat('Y-m-d', $this->importDateTo);
+        }
+        
+        if (!$date || !$fromDate || !$toDate) {
+            $this->debugError("Date parsing failed in isDateInRange: dateString=$dateString, from={$this->importDateFrom}, to={$this->importDateTo}");
+            return false;
+        }
         
         return ($date >= $fromDate && $date <= $toDate);
     }
@@ -393,6 +425,12 @@ class HRSDailySummaryImporter {
     private function convertDateToMySQL($date) {
         if (!$date) return null;
         
+        // Wenn bereits im MySQL Format (YYYY-MM-DD), direkt zurückgeben
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+        
+        // Konvertierung von DD.MM.YYYY zu YYYY-MM-DD
         $parts = explode('.', $date);
         if (count($parts) === 3) {
             return $parts[2] . '-' . str_pad($parts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($parts[0], 2, '0', STR_PAD_LEFT);
