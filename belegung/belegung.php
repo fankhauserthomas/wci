@@ -518,22 +518,8 @@ $chartData = strukturiereDatenFuerChart($rohdaten, $startDate, $endDate, $freieK
                             $gesamtBelegt = $hrsData['sonder'] + $hrsData['lager'] + $hrsData['betten'] + $hrsData['dz'] +
                                            $lokalData['sonder'] + $lokalData['lager'] + $lokalData['betten'] + $lokalData['dz'];
                             
-                            // Basis-Zeilenstil
+                            // Normale Zebrastreifen ohne Quota-Färbung
                             $rowStyle = ($i % 2 == 0) ? 'background: #f9f9f9;' : 'background: white;';
-                            
-                            // Quota-spezifische Färbung wenn vorhanden
-                            if (!empty($tagesQuotas)) {
-                                $quotaKey = '';
-                                foreach ($tagesQuotas as $quota) {
-                                    $quotaKey .= $quota['id'] . '_';
-                                }
-                                
-                                if (!isset($quotaColors[$quotaKey])) {
-                                    $quotaColors[$quotaKey] = $alternatingColors[$colorIndex % count($alternatingColors)];
-                                    $colorIndex++;
-                                }
-                                $rowStyle = 'background: ' . $quotaColors[$quotaKey] . ';';
-                            }
                             
                             echo "<tr style='$rowStyle'>";
                             echo "<td style='padding: 8px; border: 1px solid #ddd; font-weight: bold;'>" . $datum->format('d.m.Y') . "</td>";

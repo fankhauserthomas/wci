@@ -18,6 +18,14 @@ if (isset($_GET['from']) && isset($_GET['to'])) {
     $dateFrom = $_GET['from'];
     $dateTo = $_GET['to'];
     $isWebInterface = true;
+    
+    // Konvertiere YYYY-MM-DD Format zu DD.MM.YYYY für interne Verarbeitung
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+        $dateFrom = DateTime::createFromFormat('Y-m-d', $dateFrom)->format('d.m.Y');
+    }
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+        $dateTo = DateTime::createFromFormat('Y-m-d', $dateTo)->format('d.m.Y');
+    }
 } else {
     // CLI Parameter verarbeiten
     $dateFrom = isset($argv[1]) ? $argv[1] : null;

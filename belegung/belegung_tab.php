@@ -166,7 +166,7 @@ function getFreieKapazitaet($mysqli, $datum) {
 function getQuotaData($mysqli, $startDate, $endDate) {
     $quotas = [];
     
-    // Lade alle Quotas die in den Zeitraum fallen
+    // Lade alle Quotas die in den Zeitraum fallen oder ihn überschneiden
     $sql = "SELECT hq.*, hqc.category_id, hqc.total_beds,
                    CASE 
                        WHEN hqc.category_id = 1958 THEN 'ML'
@@ -177,12 +177,11 @@ function getQuotaData($mysqli, $startDate, $endDate) {
                    END as category_type
             FROM hut_quota hq
             LEFT JOIN hut_quota_categories hqc ON hq.id = hqc.hut_quota_id
-            WHERE (hq.date_from <= ? AND hq.date_to >= ?)
-               OR (hq.date_from >= ? AND hq.date_from <= ?)
+            WHERE hq.date_from <= ? AND hq.date_to > ?
             ORDER BY hq.date_from, hq.title, hqc.category_id";
     
     $stmt = $mysqli->prepare($sql);
-    $stmt->bind_param('ssss', $endDate, $startDate, $startDate, $endDate);
+    $stmt->bind_param('ss', $endDate, $startDate);
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -223,6 +222,24 @@ function getQuotasForDate($quotas, $date) {
         if ($date >= $quota['date_from'] && $date < $quota['date_to']) {
             $matching[] = $quota;
         }
+    }
+    
+    // Debug: Wenn es der erste Tag ist, zeige alle verfügbaren Quotas
+    if (isset($_GET['debug']) && $date == $_GET['start']) {
+        echo "<!-- DEBUG für Datum $date:\n";
+        echo "Alle Quotas:\n";
+        foreach ($quotas as $i => $quota) {
+            echo "Quota $i: {$quota['title']} von {$quota['date_from']} bis {$quota['date_to']}\n";
+            echo "  Bedingung: $date >= {$quota['date_from']} && $date < {$quota['date_to']}\n";
+            echo "  Ergebnis: " . (($date >= $quota['date_from'] && $date < $quota['date_to']) ? 'MATCH' : 'NO MATCH') . "\n";
+        }
+        echo "Gefundene Quotas: " . count($matching) . "\n";
+        if (!empty($matching)) {
+            foreach ($matching as $m) {
+                echo "  - {$m['title']} von {$m['date_from']} bis {$m['date_to']}\n";
+            }
+        }
+        echo "-->\n";
     }
     
     // Wenn mehrere Quotas gefunden, wähle die beste aus
@@ -272,6 +289,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Belegungsanalyse - Tabellenansicht</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 1600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -292,8 +310,245 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             cursor: pointer; 
             transition: all 0.3s ease;
         }
-        .export-csv { background: #4CAF50; color: white; }
-        .export-csv:hover { background: #45a049; }
+        .export-excel { background: #4CAF50; color: white; }
+        .btn-import { 
+            padding: 8px 15px; 
+            background: #2196F3; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-import:hover { background: #1976D2; }
+        .btn-import:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .progress-container {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e3e6ea;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .progress-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: #ddd;
+            z-index: 0;
+        }
+        
+        .progress-step.active::after,
+        .progress-step.completed::after {
+            background: #2196F3;
+        }
+        
+        .step-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ddd;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .progress-step.active .step-circle {
+            background: #2196F3;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .progress-step.completed .step-circle {
+            background: #4CAF50;
+        }
+        
+        .progress-step.completed .step-circle::before {
+            content: '✓';
+            font-size: 14px;
+        }
+        
+        .step-label {
+            font-size: 11px;
+            color: #666;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .step-result {
+            font-size: 10px;
+            color: #888;
+            text-align: center;
+            margin-top: 2px;
+            min-height: 12px;
+        }
+        
+        .progress-step.completed .step-result {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .progress-step.active .step-label {
+            color: #2196F3;
+            font-weight: bold;
+        }
+        
+        .progress-step.completed .step-label {
+            color: #4CAF50;
+        }
+        
+        .progress-status {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .table-container {
+            height: 70vh;
+            overflow-y: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+        
+        .sticky-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        .sticky-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #f5f5f5;
+            padding: 12px;
+            border: 1px solid #ddd;
+            font-weight: bold;
+        }
+        
+        .sticky-table tbody td {
+            /* Basis-Styling für alle Zellen - wird von spezifischen Klassen überschrieben */
+        }
+        
+        /* Spezielle Zell-Klassen für verschiedene Datentypen */
+        .cell-base {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        
+        .cell-datum {
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .cell-weekend {
+            color: #cc6600;
+            font-weight: 900;
+        }
+        
+        .cell-frei-gesamt {
+            font-weight: bold;
+            background: #e8f5e8;
+        }
+        
+        .cell-frei-sonder {
+            background: #f3e5f5;
+        }
+        
+        .cell-frei-lager {
+            background: #e5f5e5;
+        }
+        
+        .cell-frei-betten {
+            background: #fffbe5;
+        }
+        
+        .cell-frei-dz {
+            background: #ffe5e5;
+        }
+        
+        .cell-quota-name {
+            background: #fff3cd;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+        
+        .cell-quota-data {
+            background: #f0f8ff;
+            vertical-align: middle;
+        }
+        
+        .cell-hrs-sonder {
+            color: #9966CC;
+        }
+        
+        .cell-lokal-sonder {
+            color: #7722CC;
+        }
+        
+        .cell-hrs-lager {
+            color: #66CC66;
+        }
+        
+        .cell-lokal-lager {
+            color: #228822;
+        }
+        
+        .cell-hrs-betten {
+            color: #CCCC66;
+        }
+        
+        .cell-lokal-betten {
+            color: #CCCC00;
+        }
+        
+        .cell-hrs-dz {
+            color: #FF6666;
+        }
+        
+        .cell-lokal-dz {
+            color: #CC2222;
+        }
+        
+        .cell-gesamt {
+            font-weight: bold;
+        }
+        .export-excel:hover { background: #45a049; }
         .details-panel {
             position: fixed;
             top: 50%;
@@ -373,39 +628,65 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 <label>&nbsp;</label>
                 <button onclick="updateData()">🔄 Aktualisieren</button>
             </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="importHRSData()" class="btn-import" id="importBtn">📥 HRS Import</button>
+            </div>
+        </div>
+        
+        <!-- Progress Indicator -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-steps">
+                <div class="progress-step" id="step1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Reservierungen</div>
+                    <div class="step-result" id="step1Result"></div>
+                </div>
+                <div class="progress-step" id="step2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Daily Summaries</div>
+                    <div class="step-result" id="step2Result"></div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Quotas</div>
+                    <div class="step-result" id="step3Result"></div>
+                </div>
+            </div>
+            <div class="progress-status" id="progressStatus">Vorbereitung...</div>
         </div>
 
         <div class="export-buttons">
-            <button class="export-btn export-csv" onclick="exportToCSV()">📊 CSV Export</button>
+            <button class="export-btn export-excel" onclick="exportToExcel()">� Excel Export</button>
         </div>
         
         <!-- Kontroll-Tabelle -->
         <div style="margin-top: 30px;">
             <h3 style="color: #333; margin-bottom: 15px;">📊 Detailierte Tageswerte</h3>
-            <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <div class="table-container">
+                <table class="sticky-table">
                     <thead>
-                        <tr style="background: #f5f5f5;">
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Datum</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e8f5e8;">Frei Gesamt</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f3e5f5;">Frei Sonder</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #e5f5e5;">Frei Lager</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fffbe5;">Frei Betten</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #ffe5e5;">Frei DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #fff3cd;">Quota Name</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Sonder</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Lager</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-Betten</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; background: #f0f8ff;">Q-DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #9966CC;">HRS Sonder</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #7722CC;">Lokal Sonder</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #66CC66;">HRS Lager</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #228822;">Lokal Lager</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #CCCC66;">HRS Betten</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #CCCC00;">Lokal Betten</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #FF6666;">HRS DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #CC2222;">Lokal DZ</th>
-                            <th style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Gesamt Belegt</th>
+                        <tr>
+                            <th style="background: #f5f5f5;">Datum</th>
+                            <th style="background: #e8f5e8;">Frei Gesamt</th>
+                            <th style="background: #f3e5f5;">Frei Sonder</th>
+                            <th style="background: #e5f5e5;">Frei Lager</th>
+                            <th style="background: #fffbe5;">Frei Betten</th>
+                            <th style="background: #ffe5e5;">Frei DZ</th>
+                            <th style="background: #fff3cd;">Quota Name</th>
+                            <th style="background: #f0f8ff;">Q-Sonder</th>
+                            <th style="background: #f0f8ff;">Q-Lager</th>
+                            <th style="background: #f0f8ff;">Q-Betten</th>
+                            <th style="background: #f0f8ff;">Q-DZ</th>
+                            <th style="color: #9966CC;">HRS Sonder</th>
+                            <th style="color: #7722CC;">Lokal Sonder</th>
+                            <th style="color: #66CC66;">HRS Lager</th>
+                            <th style="color: #228822;">Lokal Lager</th>
+                            <th style="color: #CCCC66;">HRS Betten</th>
+                            <th style="color: #CCCC00;">Lokal Betten</th>
+                            <th style="color: #FF6666;">HRS DZ</th>
+                            <th style="color: #CC2222;">Lokal DZ</th>
+                            <th style="background: #f5f5f5;">Gesamt Belegt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -426,11 +707,6 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             $key = $row['tag'] . '_' . $row['quelle'];
                             $datenIndex[$key] = $row;
                         }
-                        
-                        // Quota-Gruppen für alternierende Farben verfolgen
-                        $quotaColors = [];
-                        $colorIndex = 0;
-                        $alternatingColors = ['#fff8dc', '#f0f8ff', '#f5fffa', '#fffaf0', '#f8f8ff'];
                         
                         // Quota-Spans vorberechnen (für rowspan)
                         $quotaSpans = [];
@@ -485,27 +761,17 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             // Quota-Hintergrundfarbe bestimmen
                             $quotaName = '';
                             $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
-                            $rowBgColor = '';
                             
-                            // Wochenende erkennen (Samstag = 6, Sonntag = 0)
+                            // Wochenende erkennen (für Datum-Formatierung)
                             $dayOfWeek = $datum->format('w');
                             $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 6);
+                            
+                            // Normale Zebrastreifen ohne Quota-Färbung
+                            $rowBgColor = ($i % 2 == 0) ? '#f9f9f9' : 'white';
                             
                             if (!empty($tagesQuotas)) {
                                 $quota = $tagesQuotas[0]; // Erste Quota nehmen
                                 $quotaName = $quota['title'];
-                                
-                                if (!isset($quotaColors[$quotaName])) {
-                                    // Für Wochenenden dunklere Quota-Farben verwenden
-                                    if ($isWeekend) {
-                                        $weekendColors = ['#f0e68c', '#dda0dd', '#98fb98', '#f0e68c', '#d3d3d3'];
-                                        $quotaColors[$quotaName] = $weekendColors[$colorIndex % count($weekendColors)];
-                                    } else {
-                                        $quotaColors[$quotaName] = $alternatingColors[$colorIndex % count($alternatingColors)];
-                                    }
-                                    $colorIndex++;
-                                }
-                                $rowBgColor = $quotaColors[$quotaName];
                                 
                                 // Quota-Zahlen aus Kategorien extrahieren
                                 if (!empty($quota['categories'])) {
@@ -514,34 +780,31 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                                     $quotaBetten = isset($quota['categories']['MBZ']) ? $quota['categories']['MBZ']['total_beds'] : '';
                                     $quotaDz = isset($quota['categories']['2BZ']) ? $quota['categories']['2BZ']['total_beds'] : '';
                                 }
-                            } else if ($isWeekend) {
-                                // Keine Quota aber Wochenende - helle Wochenend-Farbe
-                                $rowBgColor = '#f5f5f5';
                             }
                             
                             echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
                             
                             // Datum mit Wochenend-Kennzeichnung
-                            $datumStyle = 'padding: 8px; border: 1px solid #ddd; font-weight: bold; cursor: pointer;';
+                            $datumClasses = 'cell-base cell-datum';
                             $datumText = $datum->format('D d.m.Y');
                             
                             if ($isWeekend) {
-                                $datumStyle .= ' color: #cc6600; font-weight: 900;'; // Orange und fetter für Wochenende
+                                $datumClasses .= ' cell-weekend';
                                 $datumText = '🏖️ ' . $datumText; // Emoji für Wochenende
                             }
                             
-                            echo '<td style="' . $datumStyle . '">' . $datumText . '</td>';
+                            echo '<td class="' . $datumClasses . '">' . $datumText . '</td>';
                             
                             // Freie Kapazitäten
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; background: #e8f5e8;">' . 
+                            echo '<td class="cell-base cell-frei-gesamt">' . 
                                  $freieKap['gesamt_frei'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f3e5f5;">' . 
+                            echo '<td class="cell-base cell-frei-sonder">' . 
                                  $freieKap['sonder_frei'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #e5f5e5;">' . 
+                            echo '<td class="cell-base cell-frei-lager">' . 
                                  $freieKap['lager_frei'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fffbe5;">' . 
+                            echo '<td class="cell-base cell-frei-betten">' . 
                                  $freieKap['betten_frei'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #ffe5e5;">' . 
+                            echo '<td class="cell-base cell-frei-dz">' . 
                                  $freieKap['dz_frei'] . '</td>';
                                  
                             // Quota-Informationen mit rowspan
@@ -564,25 +827,25 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             if (!$isQuotaContinuation) {
                                 $rowspanAttr = $isFirstQuotaDay ? ' rowspan="' . $quotaSpans[$i] . '"' : '';
                                 
-                                echo '<td' . $rowspanAttr . ' style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #fff3cd; font-size: 12px; vertical-align: middle;">' . 
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-name">' . 
                                      htmlspecialchars($quotaName) . '</td>';
-                                echo '<td' . $rowspanAttr . ' style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f0f8ff; vertical-align: middle;">' . $quotaSonder . '</td>';
-                                echo '<td' . $rowspanAttr . ' style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f0f8ff; vertical-align: middle;">' . $quotaLager . '</td>';
-                                echo '<td' . $rowspanAttr . ' style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f0f8ff; vertical-align: middle;">' . $quotaBetten . '</td>';
-                                echo '<td' . $rowspanAttr . ' style="padding: 8px; border: 1px solid #ddd; text-align: center; background: #f0f8ff; vertical-align: middle;">' . $quotaDz . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaSonder . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaLager . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaBetten . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaDz . '</td>';
                             }
                             
                             // Belegungszahlen
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #9966CC;">' . $hrsData['sonder'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #7722CC;">' . $lokalData['sonder'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #66CC66;">' . $hrsData['lager'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #228822;">' . $lokalData['lager'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #CCCC66;">' . $hrsData['betten'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #CCCC00;">' . $lokalData['betten'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #FF6666;">' . $hrsData['dz'] . '</td>';
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: #CC2222;">' . $lokalData['dz'] . '</td>';
+                            echo '<td class="cell-base cell-hrs-sonder">' . $hrsData['sonder'] . '</td>';
+                            echo '<td class="cell-base cell-lokal-sonder">' . $lokalData['sonder'] . '</td>';
+                            echo '<td class="cell-base cell-hrs-lager">' . $hrsData['lager'] . '</td>';
+                            echo '<td class="cell-base cell-lokal-lager">' . $lokalData['lager'] . '</td>';
+                            echo '<td class="cell-base cell-hrs-betten">' . $hrsData['betten'] . '</td>';
+                            echo '<td class="cell-base cell-lokal-betten">' . $lokalData['betten'] . '</td>';
+                            echo '<td class="cell-base cell-hrs-dz">' . $hrsData['dz'] . '</td>';
+                            echo '<td class="cell-base cell-lokal-dz">' . $lokalData['dz'] . '</td>';
                             
-                            echo '<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' . $gesamtBelegt . '</td>';
+                            echo '<td class="cell-base cell-gesamt">' . $gesamtBelegt . '</td>';
                             echo '</tr>';
                         }
                         ?>
@@ -623,8 +886,146 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             }
         }
         
-        function exportToCSV() {
-            let csv = 'Datum,Frei Gesamt,Frei Sonder,Frei Lager,Frei Betten,Frei DZ,HRS Sonder,Lokal Sonder,HRS Lager,Lokal Lager,HRS Betten,Lokal Betten,HRS DZ,Lokal DZ,Gesamt Belegt\n';
+        async function importHRSData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const importBtn = document.getElementById('importBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressStatus = document.getElementById('progressStatus');
+            
+            if (!startDate || !endDate) {
+                alert('Bitte Start- und Enddatum auswählen!');
+                return;
+            }
+            
+            // UI Setup
+            importBtn.disabled = true;
+            importBtn.textContent = '⏳ Importiere...';
+            progressContainer.style.display = 'block';
+            
+            // Reset progress steps
+            ['step1', 'step2', 'step3'].forEach(id => {
+                const step = document.getElementById(id);
+                step.classList.remove('active', 'completed');
+                document.getElementById(id + 'Result').textContent = '';
+            });
+            
+            try {
+                // Step 1: Reservierungen importieren
+                document.getElementById('step1').classList.add('active');
+                progressStatus.textContent = 'Importiere Reservierungen...';
+                console.log('Starte Reservierungen Import...');
+                
+                const resResponse = await fetch(`/wci/hrs/hrs_imp_res.php?from=${startDate}&to=${endDate}&json=1`);
+                if (!resResponse.ok) {
+                    throw new Error(`Reservierungen API Fehler: ${resResponse.status}`);
+                }
+                const resText = await resResponse.text();
+                console.log('Reservierungen Antwort:', resText);
+                const resData = JSON.parse(resText);
+                console.log('Reservierungen:', resData);
+                
+                document.getElementById('step1').classList.remove('active');
+                document.getElementById('step1').classList.add('completed');
+                document.getElementById('step1Result').textContent = resData.success ? 'Erfolg!' : 'Fehler';
+                
+                // Step 2: Daily Summaries importieren
+                document.getElementById('step2').classList.add('active');
+                progressStatus.textContent = 'Importiere Daily Summaries...';
+                console.log('Starte Daily Summaries Import...');
+                
+                const dailyResponse = await fetch(`/wci/hrs/hrs_imp_daily.php?from=${startDate}&to=${endDate}&json=1`);
+                if (!dailyResponse.ok) {
+                    throw new Error(`Daily Summaries API Fehler: ${dailyResponse.status}`);
+                }
+                const dailyText = await dailyResponse.text();
+                console.log('Daily Summaries Antwort:', dailyText);
+                const dailyData = JSON.parse(dailyText);
+                console.log('Daily Summaries:', dailyData);
+                
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step2').classList.add('completed');
+                document.getElementById('step2Result').textContent = dailyData.success ? 'Erfolg!' : 'Fehler';
+                
+                // Step 3: Quotas importieren
+                document.getElementById('step3').classList.add('active');
+                progressStatus.textContent = 'Importiere Quotas...';
+                console.log('Starte Quotas Import...');
+                
+                const quotaResponse = await fetch(`/wci/hrs/hrs_imp_quota.php?from=${startDate}&to=${endDate}&json=1`);
+                if (!quotaResponse.ok) {
+                    throw new Error(`Quotas API Fehler: ${quotaResponse.status}`);
+                }
+                const quotaText = await quotaResponse.text();
+                console.log('Quotas Antwort:', quotaText);
+                const quotaData = JSON.parse(quotaText);
+                console.log('Quotas:', quotaData);
+                
+                document.getElementById('step3').classList.remove('active');
+                document.getElementById('step3').classList.add('completed');
+                document.getElementById('step3Result').textContent = quotaData.success ? 'Erfolg!' : 'Fehler';
+                progressStatus.textContent = 'Import erfolgreich abgeschlossen! ✅';
+                
+                setTimeout(() => {
+                    alert('✅ HRS Import erfolgreich abgeschlossen!\\n\\n' +
+                          `Reservierungen: ${resData.message || 'OK'}\\n` +
+                          `Daily Summaries: ${dailyData.message || 'OK'}\\n` +
+                          `Quotas: ${quotaData.message || 'OK'}`);
+                    
+                    // Seite neu laden um neue Daten anzuzeigen
+                    updateData();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Import Fehler:', error);
+                progressStatus.textContent = 'Fehler beim Import ❌';
+                alert('❌ Fehler beim HRS Import: ' + error.message);
+            } finally {
+                importBtn.disabled = false;
+                importBtn.textContent = '📥 HRS Import';
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        function exportToExcel() {
+            // Hilfsfunktion zum Parsen deutscher Datumsangaben
+            function parseGermanDate(dateStr) {
+                // Entferne Emojis und Wochentag-Abkürzungen
+                const cleanStr = dateStr.replace(/🏖️\s*/, '').replace(/^\w+\s+/, '');
+                
+                // Parse DD.MM.YYYY Format
+                const parts = cleanStr.split('.');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JavaScript Monate sind 0-basiert
+                    const year = parseInt(parts[2]);
+                    return new Date(year, month, day);
+                }
+                return null;
+            }
+            
+            // Hilfsfunktion für Zahlenwerte
+            function parseNumericValue(value) {
+                if (!value || value.trim() === '' || value.toLowerCase() === 'nan') {
+                    return ''; // Leere Zelle für NaN oder leere Werte
+                }
+                const numValue = parseFloat(value);
+                return isNaN(numValue) ? value : numValue;
+            }
+            
+            // Tabellendaten sammeln
+            const tableData = [];
+            
+            // Header-Zeile
+            const headers = [
+                'Datum', 'Frei Gesamt', 'Frei Sonder', 'Frei Lager', 'Frei Betten', 'Frei DZ',
+                'Quota Name', 'Quota Sonder', 'Quota Lager', 'Quota Betten', 'Quota DZ',
+                'HRS Sonder', 'Lokal Sonder', 'HRS Lager', 'Lokal Lager', 
+                'HRS Betten', 'Lokal Betten', 'HRS DZ', 'Lokal DZ', 'Gesamt Belegt'
+            ];
+            tableData.push(headers);
             
             // Tabellendaten durchgehen
             const table = document.querySelector('table tbody');
@@ -633,23 +1034,113 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length > 0) {
-                    const rowData = Array.from(cells).map(cell => {
-                        // Text aus Zelle holen und Anführungszeichen escapen
-                        return '"' + cell.textContent.trim().replace(/"/g, '""') + '"';
-                    });
-                    csv += rowData.join(',') + '\n';
+                    const rowData = [];
+                    
+                    // Datum - konvertiere zu Excel-kompatiblem Datum
+                    const dateText = cells[0]?.textContent.trim() || '';
+                    const excelDate = parseGermanDate(dateText);
+                    rowData.push(excelDate || dateText);
+                    
+                    // Freie Kapazitäten (5 Spalten)
+                    for (let i = 1; i <= 5; i++) {
+                        const value = cells[i]?.textContent.trim() || '';
+                        rowData.push(parseNumericValue(value));
+                    }
+                    
+                    // Quota-Informationen (5 Spalten)
+                    let quotaStartIndex = 6;
+                    for (let i = quotaStartIndex; i < quotaStartIndex + 5; i++) {
+                        const cellContent = cells[i]?.textContent.trim() || '';
+                        if (i === quotaStartIndex) {
+                            // Quota Name - Text beibehalten
+                            rowData.push(cellContent || '');
+                        } else {
+                            // Quota Zahlen
+                            rowData.push(parseNumericValue(cellContent));
+                        }
+                    }
+                    
+                    // Belegungszahlen (8 Spalten)
+                    let belegungStartIndex = quotaStartIndex + 5;
+                    for (let i = belegungStartIndex; i < belegungStartIndex + 8; i++) {
+                        const value = cells[i]?.textContent.trim() || '';
+                        rowData.push(parseNumericValue(value));
+                    }
+                    
+                    // Gesamt belegt
+                    const gesamtIndex = belegungStartIndex + 8;
+                    const gesamtValue = cells[gesamtIndex]?.textContent.trim() || '';
+                    rowData.push(parseNumericValue(gesamtValue));
+                    
+                    tableData.push(rowData);
                 }
             });
             
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'belegungsanalyse.csv');
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Excel-Arbeitsblatt erstellen
+            const ws = XLSX.utils.aoa_to_sheet(tableData);
+            
+            // Spaltenbreiten setzen
+            const colWidths = [
+                {wch: 12}, // Datum
+                {wch: 10}, // Frei Gesamt
+                {wch: 10}, // Frei Sonder
+                {wch: 10}, // Frei Lager
+                {wch: 10}, // Frei Betten
+                {wch: 10}, // Frei DZ
+                {wch: 15}, // Quota Name
+                {wch: 10}, // Quota Sonder
+                {wch: 10}, // Quota Lager
+                {wch: 10}, // Quota Betten
+                {wch: 10}, // Quota DZ
+                {wch: 10}, // HRS Sonder
+                {wch: 10}, // Lokal Sonder
+                {wch: 10}, // HRS Lager
+                {wch: 10}, // Lokal Lager
+                {wch: 10}, // HRS Betten
+                {wch: 10}, // Lokal Betten
+                {wch: 10}, // HRS DZ
+                {wch: 10}, // Lokal DZ
+                {wch: 12}  // Gesamt Belegt
+            ];
+            ws['!cols'] = colWidths;
+            
+            // Header-Styling
+            const headerStyle = {
+                font: { bold: true },
+                fill: { fgColor: { rgb: "CCCCCC" } },
+                alignment: { horizontal: "center" }
+            };
+            
+            // Header-Zellen stylen
+            for (let i = 0; i < headers.length; i++) {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+                if (!ws[cellRef]) ws[cellRef] = {};
+                ws[cellRef].s = headerStyle;
+            }
+            
+            // Datumsspalte formatieren
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let row = 1; row <= range.e.r; row++) {
+                const cellRef = XLSX.utils.encode_cell({ r: row, c: 0 });
+                if (ws[cellRef] && ws[cellRef].v instanceof Date) {
+                    ws[cellRef].z = 'DD.MM.YYYY'; // Deutsches Datumsformat
+                    ws[cellRef].t = 'd'; // Typ: Datum
+                }
+            }
+            
+            // Arbeitsmappe erstellen
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Belegungsanalyse");
+            
+            // Dateiname mit aktuellem Datum
+            const today = new Date();
+            const dateStr = today.getFullYear() + '-' + 
+                          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(today.getDate()).padStart(2, '0');
+            const filename = `Belegungsanalyse_${dateStr}.xlsx`;
+            
+            // Excel-Datei herunterladen
+            XLSX.writeFile(wb, filename);
         }
         
         function showDayDetails(dayIndex) {
