@@ -166,6 +166,11 @@ function getFreieKapazitaet($mysqli, $datum) {
 function getQuotaData($mysqli, $startDate, $endDate) {
     $quotas = [];
     
+    // Debug-Ausgabe
+    if (isset($_GET['debug'])) {
+        echo "<!-- DEBUG getQuotaData: Suche Quotas von $startDate bis $endDate -->\n";
+    }
+    
     // Lade alle Quotas die in den Zeitraum fallen oder ihn überschneiden
     $sql = "SELECT hq.*, hqc.category_id, hqc.total_beds,
                    CASE 
@@ -210,6 +215,15 @@ function getQuotaData($mysqli, $startDate, $endDate) {
         }
     }
     $stmt->close();
+    
+    // Debug-Ausgabe der gefundenen Quotas
+    if (isset($_GET['debug'])) {
+        echo "<!-- DEBUG: Gefundene Quotas in DB-Abfrage: " . count($quotas) . "\n";
+        foreach ($quotas as $i => $quota) {
+            echo "  Quota $i: {$quota['title']} von {$quota['date_from']} bis {$quota['date_to']}\n";
+        }
+        echo "-->\n";
+    }
     
     return array_values($quotas);
 }
@@ -611,7 +625,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Belegungsanalyse - Tabellenansicht</h1>
+            <h1>📊 Belegungsanalyyse - Tabellenansicht</h1>
             <p>Zeitraum: <?= date('d.m.Y', strtotime($startDate)) ?> bis <?= date('d.m.Y', strtotime($endDate)) ?></p>
         </div>
         
@@ -669,6 +683,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                         <tr>
                             <th style="background: #f5f5f5;">Datum</th>
                             <th style="background: #e8f5e8;">Frei Gesamt</th>
+                            <th style="background: #d4edda;">Frei Quotas</th>
                             <th style="background: #f3e5f5;">Frei Sonder</th>
                             <th style="background: #e5f5e5;">Frei Lager</th>
                             <th style="background: #fffbe5;">Frei Betten</th>
@@ -761,6 +776,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             // Quota-Hintergrundfarbe bestimmen
                             $quotaName = '';
                             $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
+                            $freieQuotas = 0;
                             
                             // Wochenende erkennen (für Datum-Formatierung)
                             $dayOfWeek = $datum->format('w');
@@ -775,11 +791,23 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                                 
                                 // Quota-Zahlen aus Kategorien extrahieren
                                 if (!empty($quota['categories'])) {
-                                    $quotaSonder = isset($quota['categories']['SK']) ? $quota['categories']['SK']['total_beds'] : '';
-                                    $quotaLager = isset($quota['categories']['ML']) ? $quota['categories']['ML']['total_beds'] : '';
-                                    $quotaBetten = isset($quota['categories']['MBZ']) ? $quota['categories']['MBZ']['total_beds'] : '';
-                                    $quotaDz = isset($quota['categories']['2BZ']) ? $quota['categories']['2BZ']['total_beds'] : '';
+                                    $quotaSonder = isset($quota['categories']['SK']) ? $quota['categories']['SK']['total_beds'] : 0;
+                                    $quotaLager = isset($quota['categories']['ML']) ? $quota['categories']['ML']['total_beds'] : 0;
+                                    $quotaBetten = isset($quota['categories']['MBZ']) ? $quota['categories']['MBZ']['total_beds'] : 0;
+                                    $quotaDz = isset($quota['categories']['2BZ']) ? $quota['categories']['2BZ']['total_beds'] : 0;
+                                    
+                                    // Freie Quotas berechnen: max(0, Quota - HRS_belegt) pro Kategorie
+                                    $freieQuotas = max(0, $quotaSonder - $hrsData['sonder']) +
+                                                  max(0, $quotaLager - $hrsData['lager']) +
+                                                  max(0, $quotaBetten - $hrsData['betten']) +
+                                                  max(0, $quotaDz - $hrsData['dz']);
                                 }
+                                
+                                // Für Anzeige: leere Werte als '' darstellen
+                                $quotaSonder = $quotaSonder > 0 ? $quotaSonder : '';
+                                $quotaLager = $quotaLager > 0 ? $quotaLager : '';
+                                $quotaBetten = $quotaBetten > 0 ? $quotaBetten : '';
+                                $quotaDz = $quotaDz > 0 ? $quotaDz : '';
                             }
                             
                             echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
@@ -798,6 +826,14 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             // Freie Kapazitäten
                             echo '<td class="cell-base cell-frei-gesamt">' . 
                                  $freieKap['gesamt_frei'] . '</td>';
+                            
+                            // Frei Quotas mit rotem Hintergrund wenn ungleich Frei Gesamt
+                            $quotasBgColor = '#d4edda'; // Standard grün
+                            if ($freieQuotas != $freieKap['gesamt_frei']) {
+                                $quotasBgColor = '#f8d7da'; // Rot wenn Quotas ≠ Frei Gesamt
+                            }
+                            echo '<td class="cell-base" style="background: ' . $quotasBgColor . '; font-weight: bold;">' . 
+                                 $freieQuotas . '</td>';
                             echo '<td class="cell-base cell-frei-sonder">' . 
                                  $freieKap['sonder_frei'] . '</td>';
                             echo '<td class="cell-base cell-frei-lager">' . 
@@ -1020,7 +1056,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             
             // Header-Zeile
             const headers = [
-                'Datum', 'Frei Gesamt', 'Frei Sonder', 'Frei Lager', 'Frei Betten', 'Frei DZ',
+                'Datum', 'Frei Gesamt', 'Frei Quotas', 'Frei Sonder', 'Frei Lager', 'Frei Betten', 'Frei DZ',
                 'Quota Name', 'Quota Sonder', 'Quota Lager', 'Quota Betten', 'Quota DZ',
                 'HRS Sonder', 'Lokal Sonder', 'HRS Lager', 'Lokal Lager', 
                 'HRS Betten', 'Lokal Betten', 'HRS DZ', 'Lokal DZ', 'Gesamt Belegt'
@@ -1041,14 +1077,14 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                     const excelDate = parseGermanDate(dateText);
                     rowData.push(excelDate || dateText);
                     
-                    // Freie Kapazitäten (5 Spalten)
-                    for (let i = 1; i <= 5; i++) {
+                    // Freie Kapazitäten (6 Spalten - jetzt mit Frei Quotas)
+                    for (let i = 1; i <= 6; i++) {
                         const value = cells[i]?.textContent.trim() || '';
                         rowData.push(parseNumericValue(value));
                     }
                     
                     // Quota-Informationen (5 Spalten)
-                    let quotaStartIndex = 6;
+                    let quotaStartIndex = 7;
                     for (let i = quotaStartIndex; i < quotaStartIndex + 5; i++) {
                         const cellContent = cells[i]?.textContent.trim() || '';
                         if (i === quotaStartIndex) {
@@ -1083,6 +1119,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const colWidths = [
                 {wch: 12}, // Datum
                 {wch: 10}, // Frei Gesamt
+                {wch: 10}, // Frei Quotas
                 {wch: 10}, // Frei Sonder
                 {wch: 10}, // Frei Lager
                 {wch: 10}, // Frei Betten
