@@ -646,6 +646,22 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 <label>&nbsp;</label>
                 <button onclick="importHRSData()" class="btn-import" id="importBtn">📥 HRS Import</button>
             </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="importWebImpData()" class="btn-import" id="webimpBtn">📂 WebImp → Production</button>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="importWebImpData(true)" class="btn-import" id="dryRunBtn" style="background: #FF9800;">🔍 Dry-Run Test</button>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="showBackupPanel()" class="btn-import" style="background: #e74c3c;">🛡️ Backup-Verwaltung</button>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="showAnalysisPanel()" class="btn-import" style="background: #9b59b6;">📊 Import-Analyse</button>
+            </div>
         </div>
         
         <!-- Progress Indicator -->
@@ -909,6 +925,922 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         </div>
     </div>
 
+    <!-- Backup-Interface -->
+    <div id="backupPanel" style="
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; 
+        width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.5); 
+        z-index: 10000;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;"
+    >
+        <div style="
+            background: white; 
+            max-width: 900px; 
+            margin: 20px auto; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;"
+        >
+            <div class="details-header" style="
+                background: #e74c3c; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 8px 8px 0 0; 
+                font-weight: bold; 
+                font-size: 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;"
+            >
+                🛡️ AV-Res Backup-Verwaltung
+                <button class="close-btn" onclick="hideBackupPanel()" style="
+                    background: rgba(255,255,255,0.2); 
+                    border: none; 
+                    color: white; 
+                    padding: 5px 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    font-size: 14px;"
+                >✕ Schließen</button>
+            </div>
+            
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                <!-- Backup erstellen -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">🔒 Neues Backup erstellen</h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        Erstellt eine vollständige Sicherheitskopie der AV-Res Tabelle mit Zeitstempel.
+                    </p>
+                    <button onclick="createBackup()" style="
+                        background: #27ae60; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        margin-right: 10px;"
+                    >📦 Backup jetzt erstellen</button>
+                    <span id="backupStatus" style="color: #666; font-style: italic;"></span>
+                </div>
+                
+                <!-- Backup-Liste -->
+                <div>
+                    <h3 style="color: #2c3e50;">📋 Vorhandene Backups</h3>
+                    <div id="backupList" style="margin-top: 15px;">
+                        <div style="text-align: center; color: #666; padding: 20px;">
+                            Lade Backup-Liste...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import-Analyse Panel -->
+    <div id="analysisPanel" style="
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; 
+        width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.5); 
+        z-index: 10000;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;"
+    >
+        <div style="
+            background: white; 
+            max-width: 1200px; 
+            margin: 20px auto; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;"
+        >
+            <div class="details-header" style="
+                background: #9b59b6; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 8px 8px 0 0; 
+                font-weight: bold; 
+                font-size: 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;"
+            >
+                📊 WebImp Import-Analyse & Validierung
+                <button class="close-btn" onclick="hideAnalysisPanel()" style="
+                    background: rgba(255,255,255,0.2); 
+                    border: none; 
+                    color: white; 
+                    padding: 5px 10px; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    font-size: 14px;"
+                >✕ Schließen</button>
+            </div>
+            
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+                <!-- Backup-Auswahl für Vergleich -->
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">🔍 Backup-Vergleichsanalyse</h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        Analysiert die Unterschiede zwischen Grundzustand, altem Import und neuem Import für den gewählten Datumsbereich.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px;">📍 Grundzustand (Baseline):</label>
+                            <select id="baselineBackup" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Backup auswählen...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px;">🔄 Nach altem Import:</label>
+                            <select id="afterOldBackup" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Backup auswählen...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px;">✨ Nach neuem Import:</label>
+                            <select id="afterNewBackup" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">Backup auswählen...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px;">📅 Von Datum:</label>
+                            <input type="date" id="analysisStartDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="<?= $startDate ?>">
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 5px;">📅 Bis Datum:</label>
+                            <input type="date" id="analysisEndDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" value="<?= $endDate ?>">
+                        </div>
+                    </div>
+                    
+                    <button onclick="runBackupComparison()" style="
+                        background: #3498db; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        margin-right: 10px;"
+                    >🔍 Vergleich durchführen</button>
+                    
+                    <button onclick="debugProblematicRecords()" style="
+                        background: #e74c3c; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        margin-right: 10px;"
+                    >🐛 Problematische Datensätze debuggen</button>
+                    
+                    <button onclick="analyzeSpecificRecords()" style="
+                        background: #f39c12; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        margin-right: 10px;"
+                    >🎯 Monique Georgi analysieren</button>
+                    
+                    <button onclick="loadAnalysisBackups()" style="
+                        background: #95a5a6; 
+                        color: white; 
+                        border: none; 
+                        padding: 10px 20px; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;"
+                    >🔄 Backup-Liste aktualisieren</button>
+                </div>
+                
+                <!-- Analyse-Ergebnisse -->
+                <div id="analysisResults" style="margin-top: 20px;">
+                    <div style="text-align: center; color: #666; padding: 40px;">
+                        👆 Wählen Sie drei Backups aus und führen Sie einen Vergleich durch
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showBackupPanel() {
+            document.getElementById('backupPanel').style.display = 'block';
+            loadBackupList();
+        }
+        
+        function hideBackupPanel() {
+            document.getElementById('backupPanel').style.display = 'none';
+        }
+        
+        function createBackup() {
+            const status = document.getElementById('backupStatus');
+            status.innerHTML = '🔄 Erstelle Backup...';
+            status.style.color = '#f39c12';
+            
+            fetch('../hrs/backup_av_res.php?action=create_backup', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    status.innerHTML = `✅ ${data.message}`;
+                    status.style.color = '#27ae60';
+                    // Liste neu laden
+                    setTimeout(() => {
+                        loadBackupList();
+                        status.innerHTML = '';
+                    }, 2000);
+                } else {
+                    status.innerHTML = `❌ Fehler: ${data.error}`;
+                    status.style.color = '#e74c3c';
+                }
+            })
+            .catch(error => {
+                status.innerHTML = `❌ Netzwerkfehler: ${error.message}`;
+                status.style.color = '#e74c3c';
+            });
+        }
+        
+        function loadBackupList() {
+            const list = document.getElementById('backupList');
+            list.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">🔄 Lade Backup-Liste...</div>';
+            
+            fetch('../hrs/backup_av_res.php?action=list_backups')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.backups.length === 0) {
+                        list.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">📁 Keine Backups vorhanden</div>';
+                        return;
+                    }
+                    
+                    let html = '<table style="width: 100%; border-collapse: collapse;">';
+                    html += '<thead><tr style="background: #f1f2f6;">';
+                    html += '<th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Datum/Zeit</th>';
+                    html += '<th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Typ</th>';
+                    html += '<th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd;">Datensätze</th>';
+                    html += '<th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd;">Aktionen</th>';
+                    html += '</tr></thead><tbody>';
+                    
+                    data.backups.forEach(backup => {
+                        const isPreRestore = backup.table_name.includes('PreRestore');
+                        const isPreImport = backup.table_name.includes('PreImport');
+                        const type = isPreRestore ? '🔄 Vor Restore' : (isPreImport ? '📥 Vor Import' : '💾 Manuell');
+                        
+                        html += '<tr style="border-bottom: 1px solid #eee;">';
+                        html += `<td style="padding: 10px;">${backup.readable_date}</td>`;
+                        html += `<td style="padding: 10px;">${type}</td>`;
+                        html += `<td style="padding: 10px; text-align: center;">${backup.record_count}</td>`;
+                        html += '<td style="padding: 10px; text-align: center;">';
+                        html += `<button onclick="restoreBackup('${backup.table_name}')" style="
+                            background: #3498db; color: white; border: none; padding: 5px 10px; 
+                            border-radius: 3px; cursor: pointer; margin-right: 5px; font-size: 12px;"
+                            title="Backup wiederherstellen">🔄 Restore</button>`;
+                        html += `<button onclick="deleteBackup('${backup.table_name}')" style="
+                            background: #e74c3c; color: white; border: none; padding: 5px 10px; 
+                            border-radius: 3px; cursor: pointer; font-size: 12px;"
+                            title="Backup löschen">🗑️ Löschen</button>`;
+                        html += '</td></tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    list.innerHTML = html;
+                } else {
+                    list.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Fehler: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                list.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Netzwerkfehler: ${error.message}</div>`;
+            });
+        }
+        
+        function restoreBackup(backupName) {
+            if (!confirm(`⚠️ WARNUNG: Möchten Sie wirklich das Backup '${backupName}' wiederherstellen?\n\nDies überschreibt ALLE aktuellen Daten in der AV-Res Tabelle!\n\n(Ein Backup der aktuellen Daten wird automatisch erstellt)`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'restore_backup');
+            formData.append('backup_name', backupName);
+            
+            const list = document.getElementById('backupList');
+            list.innerHTML = '<div style="text-align: center; color: #f39c12; padding: 20px;">🔄 Stelle Backup wieder her...</div>';
+            
+            fetch('../hrs/backup_av_res.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✅ ${data.message}\n\nPre-Restore Backup: ${data.pre_restore_backup}`);
+                    loadBackupList();
+                } else {
+                    alert(`❌ Restore fehlgeschlagen: ${data.error}`);
+                    loadBackupList();
+                }
+            })
+            .catch(error => {
+                alert(`❌ Netzwerkfehler: ${error.message}`);
+                loadBackupList();
+            });
+        }
+        
+        function deleteBackup(backupName) {
+            if (!confirm(`Backup '${backupName}' wirklich löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'delete_backup');
+            formData.append('backup_name', backupName);
+            
+            fetch('../hrs/backup_av_res.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadBackupList();
+                } else {
+                    alert(`❌ Löschen fehlgeschlagen: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                alert(`❌ Netzwerkfehler: ${error.message}`);
+            });
+        }
+        
+        // Panel schließen beim Klick außerhalb
+        document.getElementById('backupPanel').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideBackupPanel();
+            }
+        });
+        
+        // === ANALYSE-PANEL FUNKTIONEN ===
+        
+        function showAnalysisPanel() {
+            document.getElementById('analysisPanel').style.display = 'block';
+            loadAnalysisBackups();
+        }
+        
+        function hideAnalysisPanel() {
+            document.getElementById('analysisPanel').style.display = 'none';
+        }
+        
+        function loadAnalysisBackups() {
+            const selects = ['baselineBackup', 'afterOldBackup', 'afterNewBackup'];
+            
+            fetch('../hrs/backup_analysis.php?action=list_backups_for_analysis')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        selects.forEach(selectId => {
+                            const select = document.getElementById(selectId);
+                            select.innerHTML = '<option value="">Backup auswählen...</option>';
+                            
+                            data.backups.forEach(backup => {
+                                const option = document.createElement('option');
+                                option.value = backup.name;  // Korrigiert: name statt table_name
+                                option.textContent = `${backup.timestamp} (${backup.count} Datensätze)`;  // Korrigiert: timestamp statt readable_date
+                                select.appendChild(option);
+                            });
+                        });
+                    } else {
+                        alert('Fehler beim Laden der Backups: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Netzwerkfehler: ' + error.message);
+                });
+        }
+        
+        function runBackupComparison() {
+            const baseline = document.getElementById('baselineBackup').value;
+            const afterOld = document.getElementById('afterOldBackup').value;
+            const afterNew = document.getElementById('afterNewBackup').value;
+            const startDate = document.getElementById('analysisStartDate').value;
+            const endDate = document.getElementById('analysisEndDate').value;
+            
+            if (!baseline || !afterOld || !afterNew) {
+                alert('Bitte alle drei Backups auswählen!');
+                return;
+            }
+            
+            if (!startDate || !endDate) {
+                alert('Bitte Datumsbereich angeben!');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('analysisResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; color: #f39c12; padding: 40px;">🔄 Analysiere Backup-Unterschiede...</div>';
+            
+            const formData = new FormData();
+            formData.append('action', 'compare_backups');
+            formData.append('baseline', baseline);
+            formData.append('after_old', afterOld);
+            formData.append('after_new', afterNew);
+            formData.append('start_date', startDate);
+            formData.append('end_date', endDate);
+            
+            fetch('../hrs/backup_analysis.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAnalysisResults(data.analysis);
+                } else {
+                    resultsDiv.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Fehler: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Netzwerkfehler: ${error.message}</div>`;
+            });
+        }
+        
+        function debugProblematicRecords() {
+            const resultsDiv = document.getElementById('analysisResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; color: #e74c3c; padding: 40px;">🐛 Suche problematische Datensätze...</div>';
+            
+            const formData = new FormData();
+            formData.append('action', 'debug_problematic_records');
+            
+            fetch('../hrs/backup_analysis.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayDebugResults(data);
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Netzwerkfehler: ${error.message}</div>`;
+            });
+        }
+        
+        function analyzeSpecificRecords() {
+            const resultsDiv = document.getElementById('analysisResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; color: #f39c12; padding: 40px;">🎯 Analysiere spezifische problematische Records...</div>';
+            
+            const formData = new FormData();
+            formData.append('action', 'analyze_specific_records');
+            formData.append('av_ids', '5235447'); // Nur Monique Georgi (AV-ID 0 sind lokale Records und werden ignoriert)
+            
+            fetch('../hrs/backup_analysis.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displaySpecificRecordsAnalysis(data.analysis);
+                } else {
+                    resultsDiv.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Fehler: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Netzwerkfehler: ${error.message}</div>`;
+            });
+        }
+        
+        function displaySpecificRecordsAnalysis(analysis) {
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            let html = `
+                <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; overflow: hidden;">
+                    <div style="background: #f39c12; color: white; padding: 15px; font-weight: bold;">
+                        🎯 Spezifische Records-Analyse: ${analysis.requested_av_ids.join(', ')} (${analysis.timestamp})
+                    </div>
+                    
+                    <!-- Gefundene Records -->
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <h4 style="margin-top: 0;">📋 Gefundene Records (${analysis.records_found.length})</h4>
+                        ${analysis.records_found.length > 0 ? `
+                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead style="background: #f8f9fa; position: sticky; top: 0;">
+                                        <tr>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Tabelle</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">AV-ID</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Name</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Anreise/Abreise</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Belegung</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Bemerkung</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${analysis.records_found.map(record => `
+                                            <tr style="border-bottom: 1px solid #eee; ${record.av_id == 0 ? 'background: #fadbd8;' : ''}">
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${record.table === 'AV-Res' ? '#27ae60' : '#e74c3c'};">${record.table}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${record.av_id}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${record.name}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">
+                                                    📅 ${record.anreise ? record.anreise.substring(0,10) : 'N/A'}<br>
+                                                    📅 ${record.abreise ? record.abreise.substring(0,10) : 'N/A'}
+                                                </td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">
+                                                    ${record.lager || 0}L + ${record.betten || 0}B + ${record.dz || 0}DZ + ${record.sonder || 0}S
+                                                </td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                                    ${record.storno !== undefined ? (record.storno == 1 ? '<span style="color: #e74c3c;">STORNO</span>' : '<span style="color: #27ae60;">AKTIV</span>') : 'N/A'}<br>
+                                                    <small>${record.vorgang || 'N/A'}</small>
+                                                </td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; max-width: 200px; font-size: 11px;">
+                                                    ${record.bem || 'Leer'}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<div style="color: #e74c3c; text-align: center; padding: 20px;">❌ Keine Records mit diesen AV-IDs gefunden</div>'}
+                    </div>
+                    
+                    <!-- Backup-Vergleich -->
+                    ${analysis.backup_comparison.length > 0 ? `
+                        <div style="padding: 15px;">
+                            <h4 style="margin-top: 0;">🔄 Backup-Vergleich (${analysis.backup_comparison.length} Backups)</h4>
+                            ${analysis.backup_comparison.map(backup => `
+                                <div style="margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <h5 style="background: #f8f9fa; margin: 0; padding: 10px; border-radius: 4px 4px 0 0;">${backup.backup_table}</h5>
+                                    <div style="padding: 10px;">
+                                        ${backup.records.map(record => `
+                                            <div style="padding: 5px; border-bottom: 1px solid #eee; font-size: 12px;">
+                                                <strong>AV-ID ${record.av_id}:</strong> ${record.name} | 
+                                                ${record.anreise ? record.anreise.substring(0,10) : 'N/A'} - ${record.abreise ? record.abreise.substring(0,10) : 'N/A'} | 
+                                                ${record.lager || 0}L+${record.betten || 0}B+${record.dz || 0}DZ+${record.sonder || 0}S | 
+                                                ${record.storno == 1 ? 'STORNO' : 'AKTIV'}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function displayDebugResults(data) {
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            // Sicherheitsprüfungen für die Datenstruktur
+            const debug = data || {};
+            const statistics = debug.statistics || {};
+            const problematicRecords = debug.problematic_records || [];
+            const encodingIssues = debug.encoding_issues || [];
+            const fieldLimits = debug.field_limits || {};
+            
+            let html = `
+                <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; overflow: hidden;">
+                    <div style="background: #e74c3c; color: white; padding: 15px; font-weight: bold;">
+                        🐛 Debug-Analyse problematischer Datensätze (${debug.timestamp || 'Unbekannt'})
+                    </div>
+                    
+                    <!-- Statistiken -->
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <h4 style="margin-top: 0;">📊 WebImp-Statistiken</h4>
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                            <div style="text-align: center; padding: 10px; background: #ecf0f1; border-radius: 4px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #2c3e50;">${statistics.total_webimp_records || '0'}</div>
+                                <div style="color: #7f8c8d; font-size: 12px;">Gesamt WebImp</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #fadbd8; border-radius: 4px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #e74c3c;">${statistics.invalid_av_ids || '0'}</div>
+                                <div style="color: #c0392b; font-size: 12px;">Ungültige AV-IDs</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #fdeaa7; border-radius: 4px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #f39c12;">${statistics.long_bemerkungen || '0'}</div>
+                                <div style="color: #d68910; font-size: 12px;">Lange Bemerkungen</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #d5f4e6; border-radius: 4px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #27ae60;">${statistics.confirmed_records || '0'}</div>
+                                <div style="color: #229954; font-size: 12px;">CONFIRMED</div>
+                            </div>
+                            <div style="text-align: center; padding: 10px; background: #f2d7d5; border-radius: 4px;">
+                                <div style="font-size: 18px; font-weight: bold; color: #8b4513;">${statistics.discarded_records || '0'}</div>
+                                <div style="color: #a0522d; font-size: 12px;">DISCARDED</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Problematische Datensätze -->
+                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                        <h4 style="margin-top: 0;">⚠️ Problematische Datensätze (${problematicRecords.length})</h4>
+                        ${problematicRecords.length > 0 ? `
+                            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead style="background: #f8f9fa; position: sticky; top: 0;">
+                                        <tr>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">AV-ID</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Name</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Probleme</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Vorgang</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Bemerkung</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">In AV-Res</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${problematicRecords.map(record => `
+                                            <tr style="border-bottom: 1px solid #eee;">
+                                                <td style="padding: 8px; border: 1px solid #ddd; ${(record.av_id || 0) <= 0 ? 'background: #fadbd8;' : ''}">${record.av_id || 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${record.name || 'Unbekannt'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                                    ${(record.issues || []).map(issue => `<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 4px; display: inline-block; margin-bottom: 2px;">${issue}</span>`).join('')}
+                                                </td>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${record.vorgang || 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; max-width: 300px;">
+                                                    <div style="font-size: 11px; color: #666;">Länge: ${record.bem_length || '0'}</div>
+                                                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${record.bem_preview || ''}">${record.bem_preview || 'Leer'}</div>
+                                                    ${record.bem_hex_sample ? `<div style="font-family: monospace; font-size: 10px; color: #999; margin-top: 2px;">HEX: ${record.bem_hex_sample}</div>` : ''}
+                                                </td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                                                    ${record.exists_in_av_res ? '<span style="color: #27ae60;">✓</span>' : '<span style="color: #e74c3c;">✗</span>'}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<div style="color: #27ae60; text-align: center; padding: 20px;">✓ Keine problematischen Datensätze gefunden</div>'}
+                    </div>
+                    
+                    <!-- Encoding-Probleme -->
+                    ${encodingIssues.length > 0 ? `
+                        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                            <h4 style="margin-top: 0;">🔤 Encoding-Probleme (${encodingIssues.length})</h4>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                ${encodingIssues.map(issue => `
+                                    <div style="padding: 5px; border-bottom: 1px solid #eee;">
+                                        <strong>${issue.name || 'Unbekannt'}</strong> (AV-ID: ${issue.av_id || 'N/A'})<br>
+                                        <small>Zeichen: ${issue.char_length || '0'}, Bytes: ${issue.byte_length || '0'}, Differenz: ${issue.difference || '0'}</small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Feldlimits -->
+                    <div style="padding: 15px;">
+                        <h4 style="margin-top: 0;">📏 Tabellen-Struktur & Limits</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <h5>AV-Res Struktur:</h5>
+                                <div style="font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                                    ${Object.entries(fieldLimits['AV-Res'] || {}).map(([field, info]) => 
+                                        `<div>${field}: ${info.type || 'unknown'} ${info.null === 'YES' ? '(NULL)' : '(NOT NULL)'}</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <h5>AV-Res-webImp Struktur:</h5>
+                                <div style="font-family: monospace; font-size: 11px; background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                                    ${Object.entries(fieldLimits['AV-Res-webImp'] || {}).map(([field, info]) => 
+                                        `<div>${field}: ${info.type || 'unknown'} ${info.null === 'YES' ? '(NULL)' : '(NOT NULL)'}</div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function displayAnalysisResults(data) {
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            // Vereinfachte, robuste Anzeige der Analyseergebnisse
+            try {
+                const analysis = data || {};
+                const dateRange = analysis.date_range || {};
+                const recordCounts = analysis.record_counts || {};
+                const fieldChanges = analysis.field_changes || {};
+                const oldChanges = analysis.changes_old_vs_baseline || { added: [], removed: [], modified: [], unchanged: 0 };
+                const newChanges = analysis.changes_new_vs_baseline || { added: [], removed: [], modified: [], unchanged: 0 };
+                const newVsOld = analysis.changes_new_vs_old || { added: [], removed: [], modified: [], unchanged: 0 };
+                const dailyOccupancy = analysis.daily_occupancy || [];
+                
+                let html = `
+                    <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; overflow: hidden;">
+                        <div style="background: #3498db; color: white; padding: 15px; font-weight: bold;">
+                            📊 Backup-Analyse: ${dateRange.start || 'Unbekannt'} bis ${dateRange.end || 'Unbekannt'}
+                        </div>
+                        
+                        <!-- Datensatz-Übersicht -->
+                        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                            <h4 style="margin-top: 0;">📈 Datensatz-Anzahl</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                                <div style="text-align: center; padding: 10px; background: #ecf0f1; border-radius: 4px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">${recordCounts.baseline || '0'}</div>
+                                    <div style="color: #7f8c8d;">Grundzustand</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: #fdeaa7; border-radius: 4px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #f39c12;">${recordCounts.after_old || '0'}</div>
+                                    <div style="color: #d68910;">Alter Import</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: #d5f4e6; border-radius: 4px;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${recordCounts.after_new || '0'}</div>
+                                    <div style="color: #229954;">Neuer Import</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Änderungen-Übersicht -->
+                        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                            <h4 style="margin-top: 0;">🔄 Änderungen-Übersicht</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h5 style="color: #f39c12;">🔄 Alter Import vs Grundzustand</h5>
+                                    <div>✅ Hinzugefügt: ${oldChanges.added ? oldChanges.added.length : 0}</div>
+                                    <div>📝 Geändert: ${oldChanges.modified ? oldChanges.modified.length : 0}</div>
+                                    <div>⚪ Unverändert: ${oldChanges.unchanged || 0}</div>
+                                </div>
+                                <div>
+                                    <h5 style="color: #27ae60;">✨ Neuer Import vs Grundzustand</h5>
+                                    <div>✅ Hinzugefügt: ${newChanges.added ? newChanges.added.length : 0}</div>
+                                    <div>📝 Geändert: ${newChanges.modified ? newChanges.modified.length : 0}</div>
+                                    <div>⚪ Unverändert: ${newChanges.unchanged || 0}</div>
+                                </div>
+                                <div style="border: 2px solid #9b59b6; border-radius: 6px; padding: 10px;">
+                                    <h5 style="color: #9b59b6;">🎯 Neuer vs Alter Import</h5>
+                                    <div>✅ Hinzugefügt: ${newVsOld.added ? newVsOld.added.length : 0}</div>
+                                    <div>📝 Geändert: ${newVsOld.modified ? newVsOld.modified.length : 0}</div>
+                                    <div>⚪ Unverändert: ${newVsOld.unchanged || 0}</div>
+                                </div>
+                            </div>
+                        </div>
+                `;
+                
+                // Feld-Änderungen falls verfügbar
+                if (fieldChanges && Object.keys(fieldChanges).length > 0) {
+                    html += `
+                        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                            <h4>📋 Feld-Änderungen</h4>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                <thead>
+                                    <tr style="background: #f1f2f6;">
+                                        <th style="padding: 8px; border: 1px solid #ddd;">Feld</th>
+                                        <th style="padding: 8px; border: 1px solid #ddd;">Alter vs Basis</th>
+                                        <th style="padding: 8px; border: 1px solid #ddd;">Neuer vs Basis</th>
+                                        <th style="padding: 8px; border: 1px solid #ddd;">Neu vs Alt</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    const oldVsBaseline = fieldChanges.old_vs_baseline || {};
+                    const newVsBaseline = fieldChanges.new_vs_baseline || {};
+                    const newVsOldFields = fieldChanges.new_vs_old || {};
+                    
+                    const allFields = new Set([
+                        ...Object.keys(oldVsBaseline),
+                        ...Object.keys(newVsBaseline), 
+                        ...Object.keys(newVsOldFields)
+                    ]);
+                    
+                    allFields.forEach(field => {
+                        const oldVal = oldVsBaseline[field] || '0';
+                        const newVal = newVsBaseline[field] || '0';
+                        const diffVal = newVsOldFields[field] || '0';
+                        const diffColor = diffVal !== '0' ? '#e74c3c' : '#27ae60';
+                        
+                        html += `
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${field}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${oldVal}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${newVal}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center; color: ${diffColor}; font-weight: bold;">${diffVal}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `</tbody></table></div>`;
+                }
+                
+                // Detaillierte Änderungen bei Unterschieden
+                if (newVsOld.modified && newVsOld.modified.length > 0) {
+                    html += `
+                        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+                            <h4 style="color: #e74c3c;">⚠️ Inkonsistente Datensätze (${newVsOld.modified.length})</h4>
+                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                    `;
+                    
+                    newVsOld.modified.slice(0, 10).forEach((item, index) => {
+                        const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+                        html += `
+                            <div style="padding: 10px; border-bottom: 1px solid #eee; background: ${bgColor};">
+                                <div style="font-weight: bold; color: #2c3e50; margin-bottom: 5px;">
+                                    👤 ${item.name || 'Unbekannt'} (AV-ID: ${item.av_id || 'Unbekannt'})
+                                </div>
+                        `;
+                        
+                        if (item.changes && Array.isArray(item.changes)) {
+                            item.changes.forEach(change => {
+                                html += `
+                                    <div style="margin-left: 20px; font-size: 12px; margin-bottom: 3px;">
+                                        <strong>${change.field || 'Unbekannt'}</strong>: 
+                                        "${change.from || ''}" → "${change.to || ''}"
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        html += `</div>`;
+                    });
+                    
+                    if (newVsOld.modified.length > 10) {
+                        html += `<div style="padding: 10px; text-align: center; font-style: italic;">... und ${newVsOld.modified.length - 10} weitere</div>`;
+                    }
+                    
+                    html += `</div></div>`;
+                }
+                
+                html += `</div>`;
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error("Fehler beim Anzeigen der Analyseergebnisse:", error);
+                resultsDiv.innerHTML = `
+                    <div style="background: #fff; border: 1px solid #e74c3c; border-radius: 6px; padding: 20px;">
+                        <div style="color: #e74c3c; font-weight: bold; margin-bottom: 10px;">❌ Anzeigefehler</div>
+                        <div>Fehler beim Verarbeiten der Analyseergebnisse: ${error.message}</div>
+                        <details style="margin-top: 10px;">
+                            <summary>Debug-Informationen</summary>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; font-size: 11px;">${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+            }
+        }
+        
+        // Hilfsfunktionen für die Anzeige
+        function getFieldColor(field) {
+            const colors = {
+                'anreise': '#3498db',
+                'abreise': '#e74c3c',
+                'lager': '#f39c12',
+                'betten': '#9b59b6',
+                'dz': '#1abc9c',
+                'sonder': '#e67e22',
+                'storno': '#c0392b',
+                'arr': '#27ae60',
+                'hp': '#8e44ad',
+                'vorgang': '#34495e',
+                'gruppe': '#16a085',
+                'bem_av': '#7f8c8d',
+                'handy': '#2980b9',
+                'email': '#d35400'
+            };
+            return colors[field] || '#95a5a6';
+        }
+        
+        function formatDisplayValue(value) {
+            if (value === null || value === undefined) return '∅';
+            if (value === '') return '(leer)';
+            if (typeof value === 'string' && value.length > 30) {
+                return value.substring(0, 30) + '...';
+            }
+            return value;
+        }
+        
+        // Panel schließen beim Klick außerhalb
+        document.getElementById('analysisPanel').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideAnalysisPanel();
+            }
+        });
+    </script>
+
     <script>
         // Daten für JavaScript verfügbar machen
         const detailData = <?= json_encode($detailDaten) ?>;
@@ -919,6 +1851,89 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             
             if (startDate && endDate) {
                 window.location.href = `?start=${startDate}&end=${endDate}`;
+            }
+        }
+        
+        async function importWebImpData(dryRun = false) {
+            const webimpBtn = document.getElementById('webimpBtn');
+            const dryRunBtn = document.getElementById('dryRunBtn');
+            
+            if (!dryRun && !confirm('Sollen die Daten aus der WebImp-Zwischentabelle in die Production-Tabelle AV-Res importiert werden?\n\nDies überschreibt ggf. vorhandene Reservierungen mit gleicher AV-ID!')) {
+                return;
+            }
+            
+            // UI Setup
+            const targetBtn = dryRun ? dryRunBtn : webimpBtn;
+            targetBtn.disabled = true;
+            targetBtn.textContent = dryRun ? '🔍 Analysiere...' : '⏳ Importiere...';
+            
+            try {
+                console.log(dryRun ? 'Starte WebImp Dry-Run...' : 'Starte WebImp Import...');
+                
+                const url = dryRun ? '/wci/hrs/import_webimp.php?json=1&dry-run=1' : '/wci/hrs/import_webimp.php?json=1';
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Import API Fehler: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                console.log('WebImp Import Antwort:', text);
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Ungültige JSON-Antwort: ' + text);
+                }
+                
+                console.log('WebImp Import Daten:', data);
+                
+                if (data.success) {
+                    if (dryRun) {
+                        // Für Dry-Run: Zeige detaillierte Informationen in Modal
+                        showDryRunResults(data);
+                    } else {
+                        // Für echten Import: Zeige einfache Bestätigung
+                        let message = `✅ WebImp Import erfolgreich!\n\n`;
+                        message += `Verarbeitet: ${data.total}\n`;
+                        message += `Neu eingefügt: ${data.inserted}\n`;
+                        message += `Aktualisiert: ${data.updated}\n`;
+                        message += `Unverändert: ${data.unchanged}\n`;
+                        
+                        // Backup-Info anzeigen
+                        if (data.backup_info) {
+                            message += `\n💾 ${data.backup_info}\n`;
+                        }
+                        
+                        if (!dryRun && data.sourceCleared) {
+                            message += `\n📝 Zwischentabelle wurde geleert`;
+                        }
+                        
+                        if (data.errors && data.errors.length > 0) {
+                            message += `\n\n⚠️ Warnungen (${data.errors.length}):\n`;
+                            data.errors.slice(0, 5).forEach(error => {
+                                message += `- ${error}\n`;
+                            });
+                            if (data.errors.length > 5) {
+                                message += `... und ${data.errors.length - 5} weitere`;
+                            }
+                        }
+                        
+                        alert(message);
+                        updateData();
+                    }
+                } else {
+                    throw new Error(data.message || data.error || 'Unbekannter Fehler');
+                }
+                
+            } catch (error) {
+                console.error('WebImp Import Fehler:', error);
+                alert('❌ Fehler beim WebImp Import: ' + error.message);
+            } finally {
+                webimpBtn.disabled = false;
+                webimpBtn.textContent = '📂 WebImp → Production';
+                dryRunBtn.disabled = false;
+                dryRunBtn.textContent = '🔍 Dry-Run Test';
             }
         }
         
@@ -1240,6 +2255,99 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             }
             
             content.innerHTML = html;
+            document.getElementById('detailsPanel').style.display = 'block';
+        }
+        
+        function showDryRunResults(data) {
+            const content = document.getElementById('detailsContent');
+            
+            let html = `<h3>🔍 WebImp Dry-Run Analyse</h3>`;
+            
+            // Zusammenfassung
+            html += `<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">`;
+            html += `<h4 style="margin-top: 0;">📊 Zusammenfassung</h4>`;
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">`;
+            html += `<div><strong>Verarbeitet:</strong> ${data.total}</div>`;
+            html += `<div><strong>Neu eingefügt:</strong> <span style="color: #28a745;">${data.inserted}</span></div>`;
+            html += `<div><strong>Aktualisiert:</strong> <span style="color: #ffc107;">${data.updated}</span></div>`;
+            html += `<div><strong>Unverändert:</strong> <span style="color: #6c757d;">${data.unchanged}</span></div>`;
+            html += `</div>`;
+            
+            if (data.debug) {
+                html += `<div style="margin-top: 10px; font-size: 12px; color: #666;">`;
+                html += `<strong>Debug:</strong> ${data.debug.indexStatus || 'unbekannt'} | `;
+                html += `Bereits in DB: ${data.debug.existingInTarget || 0}`;
+                html += `</div>`;
+            }
+            html += `</div>`;
+            
+            // Detaillierte Änderungsliste
+            if (data.dryRunDetails && data.dryRunDetails.length > 0) {
+                html += `<h4>📝 Detaillierte Änderungen</h4>`;
+                html += `<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">`;
+                
+                data.dryRunDetails.forEach((item, index) => {
+                    const bgColor = index % 2 === 0 ? '#f9f9f9' : '#ffffff';
+                    
+                    if (item.action === 'UPDATE') {
+                        html += `<div style="background: ${bgColor}; padding: 10px; border-bottom: 1px solid #eee;">`;
+                        html += `<strong style="color: #ffc107;">🔄 UPDATE</strong> `;
+                        html += `<strong>AV-ID ${item.av_id}</strong> (${item.name})<br>`;
+                        html += `<div style="margin-left: 20px; margin-top: 5px;">`;
+                        item.changes.forEach(change => {
+                            html += `<div style="font-family: monospace; font-size: 11px; color: #666;">• ${change}</div>`;
+                        });
+                        html += `</div></div>`;
+                        
+                    } else if (item.action === 'INSERT') {
+                        html += `<div style="background: ${bgColor}; padding: 10px; border-bottom: 1px solid #eee;">`;
+                        html += `<strong style="color: #28a745;">➕ NEU EINFÜGEN</strong> `;
+                        html += `<strong>AV-ID ${item.av_id}</strong> (${item.name})`;
+                        html += `</div>`;
+                        
+                    } else if (item.action === 'UNCHANGED') {
+                        // Zeige nur eine Auswahl der unveränderten Records um das Modal nicht zu überladen
+                        if (index < 20) {
+                            html += `<div style="background: ${bgColor}; padding: 5px 10px; border-bottom: 1px solid #eee;">`;
+                            html += `<span style="color: #6c757d;">✓ UNVERÄNDERT</span> `;
+                            html += `AV-ID ${item.av_id} (${item.name})`;
+                            html += `</div>`;
+                        }
+                    }
+                });
+                
+                // Hinweis wenn zu viele unveränderte Records
+                const unchangedCount = data.dryRunDetails.filter(item => item.action === 'UNCHANGED').length;
+                if (unchangedCount > 20) {
+                    html += `<div style="background: #e9ecef; padding: 10px; text-align: center; font-style: italic;">`;
+                    html += `... und ${unchangedCount - 20} weitere unveränderte Records`;
+                    html += `</div>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            // Fehler und Warnungen
+            if (data.errors && data.errors.length > 0) {
+                html += `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin-top: 20px;">`;
+                html += `<h4 style="margin-top: 0; color: #856404;">⚠️ Warnungen (${data.errors.length})</h4>`;
+                html += `<ul style="margin: 0;">`;
+                data.errors.slice(0, 10).forEach(error => {
+                    html += `<li style="font-size: 12px;">${error}</li>`;
+                });
+                if (data.errors.length > 10) {
+                    html += `<li style="font-style: italic;">... und ${data.errors.length - 10} weitere</li>`;
+                }
+                html += `</ul></div>`;
+            }
+            
+            content.innerHTML = html;
+            
+            // Zeige Panel mit angepasstem Titel
+            document.querySelector('#detailsPanel .details-header').innerHTML = `
+                🔍 WebImp Dry-Run Analyse
+                <button class="close-btn" onclick="hideDetailsPanel()">✕ Schließen</button>
+            `;
             document.getElementById('detailsPanel').style.display = 'block';
         }
         

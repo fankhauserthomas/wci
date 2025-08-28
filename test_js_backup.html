@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test JavaScript Backup Analysis</title>
+</head>
+
+<body>
+    <div id="analysisResults"></div>
+
+    <script>
+        // Test JSON wie es von der API kommt
+        const testData = {
+            "date_range": { "start": "2025-08-28", "end": "2025-08-30" },
+            "backups": {
+                "baseline": "AV_Res_Backup_2025-08-28_02-39-48",
+                "after_old": "AV_Res_Backup_2025-08-28_03-14-35",
+                "after_new": "AV_Res_Backup_2025-08-28_03-13-16"
+            },
+            "record_counts": { "baseline": "51", "after_old": "51", "after_new": "51" },
+            "field_changes": {
+                "old_vs_baseline": { "storno": "3", "lager": "0" },
+                "new_vs_baseline": { "storno": "3", "lager": "0" },
+                "new_vs_old": { "storno": "0", "lager": "0" }
+            },
+            "daily_occupancy": [
+                {
+                    "date": "2025-08-28",
+                    "baseline": { "lager": 26, "betten": 0, "dz": 0, "sonder": 47, "total": 73 },
+                    "after_old": { "lager": 26, "betten": 0, "dz": 0, "sonder": 44, "total": 70 },
+                    "after_new": { "lager": 26, "betten": 0, "dz": 0, "sonder": 44, "total": 70 }
+                }
+            ],
+            "changes_old_vs_baseline": { "added": [], "removed": [], "modified": [], "unchanged": 74 },
+            "changes_new_vs_baseline": { "added": [], "removed": [], "modified": [], "unchanged": 74 },
+            "changes_new_vs_old": { "added": [], "removed": [], "modified": [], "unchanged": 78 }
+        };
+
+        function getFieldColor(field) {
+            const colors = {
+                'anreise': '#3498db',
+                'abreise': '#e74c3c',
+                'lager': '#f39c12',
+                'betten': '#9b59b6',
+                'dz': '#1abc9c',
+                'sonder': '#e67e22',
+                'storno': '#c0392b',
+                'arr': '#27ae60',
+                'hp': '#8e44ad',
+                'vorgang': '#34495e',
+                'gruppe': '#16a085',
+                'bem_av': '#7f8c8d',
+                'handy': '#2980b9',
+                'email': '#d35400'
+            };
+            return colors[field] || '#95a5a6';
+        }
+
+        function formatDisplayValue(value) {
+            if (value === null || value === undefined) return '∅';
+            if (value === '') return '(leer)';
+            if (typeof value === 'string' && value.length > 30) {
+                return value.substring(0, 30) + '...';
+            }
+            return value;
+        }
+
+        function displayAnalysisResults(data) {
+            const resultsDiv = document.getElementById('analysisResults');
+
+            // Sicherheitsprüfungen für die Datenstruktur
+            const analysis = data || {};
+            const dateRange = analysis.date_range || {};
+            const recordCounts = analysis.record_counts || {};
+            const oldChanges = analysis.changes_old_vs_baseline || { added: [], removed: [], modified: [], unchanged: 0 };
+            const newChanges = analysis.changes_new_vs_baseline || { added: [], removed: [], modified: [], unchanged: 0 };
+            const newVsOld = analysis.changes_new_vs_old || { added: [], removed: [], modified: [], unchanged: 0 };
+
+            let html = `
+                <div style="background: #fff; border: 1px solid #ddd; border-radius: 6px; overflow: hidden;">
+                    <div style="background: #3498db; color: white; padding: 15px; font-weight: bold;">
+                        📊 Analyse-Ergebnisse für ${dateRange.start || 'Unbekannt'} bis ${dateRange.end || 'Unbekannt'}
+                    </div>
+                    
+                    <div style="padding: 15px;">
+                        <p>Test erfolgreich! Keine JavaScript-Fehler.</p>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Test ausführen
+        try {
+            displayAnalysisResults(testData);
+            console.log("✅ Test erfolgreich - keine JavaScript-Fehler!");
+        } catch (error) {
+            console.error("❌ JavaScript-Fehler:", error);
+            document.getElementById('analysisResults').innerHTML = `<div style="color: red;">❌ Fehler: ${error.message}</div>`;
+        }
+    </script>
+</body>
+
+</html>

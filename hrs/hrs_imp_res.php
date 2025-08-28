@@ -104,6 +104,10 @@ class HRSReservationImporter {
         $this->debug("=== Starting Reservation Import ===");
         $this->debug("Date range: $dateFrom to $dateTo");
         
+        // AV-Res-webImp vor Import leeren
+        $this->mysqli->query("TRUNCATE TABLE `AV-Res-webImp`");
+        $this->debug("AV-Res-webImp table cleared");
+        
         // Import-Zeitraum speichern für processReservation
         $this->importDateFrom = $dateFrom;
         $this->importDateTo = $dateTo;
@@ -207,7 +211,7 @@ class HRSReservationImporter {
             $handy = '';
             $bem_av = '';
             $email = $reservation['guestEmail'] ?? '';
-            $email_date = date('Y-m-d H:i:s');
+            $email_date = null; // Wird später aus reservationDate gefüllt
             
             if (isset($body['leftList']) && is_array($body['leftList'])) {
                 foreach ($body['leftList'] as $item) {
@@ -216,9 +220,26 @@ class HRSReservationImporter {
                             $handy = $item['value'] ?? '';
                         } elseif ($item['label'] === 'configureReservationListPage.comments') {
                             $bem_av = $item['value'] ?? '';
+                        } elseif ($item['label'] === 'configureReservationListPage.reservationDate') {
+                            // Reservierungsdatum aus HRS-System verwenden
+                            $reservationDateStr = $item['value'] ?? '';
+                            if ($reservationDateStr) {
+                                // Format: "25.08.2025 14:02:47" -> "2025-08-25 14:02:47"
+                                try {
+                                    $email_date = DateTime::createFromFormat('d.m.Y H:i:s', $reservationDateStr)->format('Y-m-d H:i:s');
+                                } catch (Exception $e) {
+                                    $this->debug("Warning: Could not parse reservationDate '$reservationDateStr', using current time");
+                                    $email_date = date('Y-m-d H:i:s');
+                                }
+                            }
                         }
                     }
                 }
+            }
+            
+            // Fallback falls kein reservationDate gefunden wurde
+            if (!$email_date) {
+                $email_date = date('Y-m-d H:i:s');
             }
             
             // Importzeitraum für timestamp (als aktuelles Datetime)
@@ -226,15 +247,7 @@ class HRSReservationImporter {
             
             $this->debug("→ Data: $guestName, $anreise-$abreise, L:$lager B:$betten D:$dz S:$sonder, HP:$hp, Email:$email, Bem:$bem_av");
             
-            // DELETE + INSERT Strategie
-            // 1. Bestehenden Datensatz löschen
-            $deleteSql = "DELETE FROM `AV-Res-webImp` WHERE av_id = ?";
-            $deleteStmt = $this->mysqli->prepare($deleteSql);
-            $deleteStmt->bind_param("i", $av_id);
-            $deleteStmt->execute();
-            $deleteStmt->close();
-            
-            // 2. Neuen Datensatz einfügen
+            // Neuen Datensatz einfügen (TRUNCATE bereits am Anfang erfolgt)
             $insertSql = "INSERT INTO `AV-Res-webImp` (
                 av_id, anreise, abreise, lager, betten, dz, sonder, hp, vegi,
                 gruppe, nachname, vorname, handy, email, vorgang, email_date, bem_av, timestamp
