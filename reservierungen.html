@@ -32,6 +32,109 @@
       /* Weiter reduziert von 10px */
       position: sticky;
       top: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .controls-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .progress-indicator {
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      min-width: 350px;
+    }
+
+    .progress-stats {
+      display: flex;
+      flex-direction: row;
+      gap: 15px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .progress-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .progress-label {
+      font-size: 10px;
+      color: #6c757d;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .progress-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 12px;
+      background: #e9ecef;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #dee2e6;
+      min-width: 80px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+      border-radius: 5px;
+    }
+
+    .progress-fill.guests-checkedin {
+      background: linear-gradient(90deg, #28a745, #20c997);
+    }
+
+    .progress-fill.reservations-processed {
+      background: linear-gradient(90deg, #007bff, #17a2b8);
+    }
+
+    .progress-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: #000000 !important;
+      min-width: 45px;
+      text-align: right;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.95) !important;
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid #666;
+      text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Styling für Datum und Suchfeld */
+    #filterDate,
+    #searchInput {
+      background: #fdf6e3 !important;
+      border: 2px solid #555 !important;
+      border-radius: 4px;
+      padding: 6px 8px;
+    }
+
+    #filterDate:focus,
+    #searchInput:focus {
+      background: #fcf4d9 !important;
+      border-color: #333 !important;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(85, 85, 85, 0.1);
     }
 
     .table-container {
@@ -54,6 +157,7 @@
       top: 0;
       background: #2ecc71;
       z-index: 50;
+      transition: background-color 0.3s ease;
     }
 
     #resTable thead th {
@@ -63,6 +167,94 @@
       border-bottom: 2px solid #27ae60;
       text-align: center;
       font-weight: 600;
+      transition: background-color 0.3s ease, border-bottom-color 0.3s ease;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    #resTable thead th:hover {
+      background: #27ae60;
+    }
+
+    #resTable thead th.sortable::after {
+      content: ' ↕';
+      opacity: 0.5;
+      margin-left: 4px;
+    }
+
+    #resTable thead th.sort-asc::after {
+      content: ' ↑';
+      opacity: 1;
+      color: #fff;
+    }
+
+    #resTable thead th.sort-desc::after {
+      content: ' ↓';
+      opacity: 1;
+      color: #fff;
+    }
+
+    /* Abreise-Modus Styling */
+    .departure-mode #resTable thead {
+      background: #b8860b;
+    }
+
+    .departure-mode #resTable thead th {
+      background: #b8860b;
+      border-bottom-color: #996f09;
+    }
+
+    .departure-mode #resTable thead th:hover {
+      background: #996f09;
+    }
+
+    /* Button-Styling für verschiedene Modi */
+    .toggle-btn {
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Anreise-Modus (Standard - Grün) */
+    .arrival-mode .toggle-btn.arrival,
+    .arrival-mode .toggle-btn.no-storno,
+    .arrival-mode .toggle-btn.all,
+    .arrival-mode .toggle-btn.new-res {
+      background: #27ae60;
+      border-color: #229954;
+    }
+
+    .arrival-mode .toggle-btn.arrival:hover,
+    .arrival-mode .toggle-btn.no-storno:hover,
+    .arrival-mode .toggle-btn.all:hover,
+    .arrival-mode .toggle-btn.new-res:hover {
+      background: #2ecc71;
+      border-color: #27ae60;
+    }
+
+    /* Abreise-Modus - Dunkelgold */
+    .departure-mode .toggle-btn.departure,
+    .departure-mode .toggle-btn.no-storno,
+    .departure-mode .toggle-btn.all,
+    .departure-mode .toggle-btn.new-res {
+      background: #b8860b;
+      border-color: #996f09;
+    }
+
+    .departure-mode .toggle-btn.departure:hover,
+    .departure-mode .toggle-btn.no-storno:hover,
+    .departure-mode .toggle-btn.all:hover,
+    .departure-mode .toggle-btn.new-res:hover {
+      background: #daa520;
+      border-color: #b8860b;
+    }
+
+    /* Progress Bars Farbanpassung */
+    .departure-mode .progress-fill.guests-checkedin {
+      background: linear-gradient(90deg, #b8860b, #daa520);
+    }
+
+    .departure-mode .progress-fill.reservations-processed {
+      background: linear-gradient(90deg, #8b6914, #b8860b);
     }
 
     .table-container {
@@ -147,43 +339,67 @@
 
   <main class="main-content">
     <div class="controls legacy-controls">
-      <!-- Typ-Toggle -->
-      <button id="toggleType" class="toggle-btn arrival">Anreise</button>
+      <div class="controls-left">
+        <!-- Typ-Toggle -->
+        <button id="toggleType" class="toggle-btn arrival">Anreise</button>
 
-      <!-- Datum -->
-      <input type="date" id="filterDate">
+        <!-- Datum -->
+        <input type="date" id="filterDate">
 
-      <!-- Storno-Toggle -->
-      <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
+        <!-- Storno-Toggle -->
+        <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
 
-      <!-- Alle/Offen-Toggle -->
-      <button id="toggleOpen" class="toggle-btn all">Alle</button>
+        <!-- Alle/Offen-Toggle -->
+        <button id="toggleOpen" class="toggle-btn all">Alle</button>
 
-      <!-- Entferne Dashboard-Button (wird durch Navigation ersetzt) -->
+        <!-- Suche -->
+        <div class="search-container">
+          <input type="text" id="searchInput" placeholder="Suche Name…">
+          <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Suche löschen">×</button>
+        </div>
 
-      <!-- Suche -->
-      <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Suche Name…">
-        <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Suche löschen">×</button>
+        <!-- Neue Reservierung Button -->
+        <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
       </div>
 
-      <!-- Neue Reservierung Button -->
-      <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
+      <!-- Progress Indicator rechts -->
+      <div class="progress-indicator">
+        <div class="progress-stats">
+          <div class="progress-item">
+            <div class="progress-label">Gäste eingecheckt</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill guests-checkedin" style="width: 0%"></div>
+              </div>
+              <span class="progress-text" id="guestsProgress">0 / 0</span>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-label">Reservierungen bearbeitet</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill reservations-processed" style="width: 0%"></div>
+              </div>
+              <span class="progress-text" id="reservationsProgress">0 / 0</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="table-container">
       <table id="resTable">
         <thead>
           <tr>
-            <th>Status</th>
-            <th>Anreise</th>
-            <th>Abreise</th>
-            <th>Anzahl</th>
-            <th>Name</th>
-            <th>arr</th>
-            <th>ANam</th>
-            <th>Bem</th>
-            <th>Orig</th>
+            <th class="sortable" data-column="0" data-type="status">Status</th>
+            <th class="sortable" data-column="1" data-type="date">Anreise</th>
+            <th class="sortable" data-column="2" data-type="date">Abreise</th>
+            <th class="sortable" data-column="3" data-type="number">Anzahl</th>
+            <th class="sortable" data-column="4" data-type="text">Name</th>
+            <th class="sortable" data-column="5" data-type="text">arr</th>
+            <th class="sortable" data-column="6" data-type="text">ANam</th>
+            <th class="sortable" data-column="7" data-type="text">Bem</th>
+            <th class="sortable" data-column="8" data-type="text">Orig</th>
           </tr>
         </thead>
         <tbody>
@@ -311,6 +527,437 @@
       // Automatischer Barcode-Scanner läuft im Hintergrund und reagiert auf {..} Pattern
       console.log('✅ Reservierungen-Seite initialisiert');
     });
+
+    // Progress Indicator Functions
+    function updateProgressIndicators() {
+      const tbody = document.querySelector('#resTable tbody');
+      if (!tbody) return;
+
+      const rows = tbody.querySelectorAll('tr');
+      let totalReservations = 0;
+      let processedReservations = 0;
+      let totalGuests = 0;
+      let checkedInGuests = 0;
+
+      // Aktueller Anzeigemodus (Anreise/Abreise)
+      const toggleType = document.getElementById('toggleType');
+      const isArrival = toggleType && toggleType.textContent.includes('Anreise');
+
+      // Farbschema basierend auf Modus umschalten
+      updateColorScheme(isArrival);
+
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 9) return;
+
+        const statusCell = cells[0];
+        const anzahlCell = cells[3];
+
+        // Anzahl Gäste aus der Anzahl-Spalte extrahieren
+        const anzahlText = anzahlCell.textContent.trim();
+        const guestCount = parseInt(anzahlText) || 0;
+
+        totalReservations++;
+        totalGuests += guestCount;
+
+        // Status aus Pie-Chart extrahieren
+        const pieChart = statusCell.querySelector('.pie-chart');
+        let statusPercentage = 0;
+
+        if (pieChart) {
+          // Text aus dem SVG extrahieren (z.B. "75%")
+          const textElement = pieChart.querySelector('text');
+          if (textElement) {
+            const percentText = textElement.textContent.trim();
+            statusPercentage = parseInt(percentText.replace('%', '')) || 0;
+          }
+        }
+
+        // Bei 100% ist die Reservierung vollständig bearbeitet
+        if (statusPercentage === 100) {
+          processedReservations++;
+          checkedInGuests += guestCount;
+        } else if (statusPercentage > 0) {
+          // Teilweise eingecheckt - anteilig zu den Gästen hinzufügen
+          const partialGuests = Math.round((statusPercentage / 100) * guestCount);
+          checkedInGuests += partialGuests;
+        }
+      });
+
+      // Progress Bars aktualisieren
+      updateProgressBar('guestsProgress', checkedInGuests, totalGuests, '.guests-checkedin');
+      updateProgressBar('reservationsProgress', processedReservations, totalReservations, '.reservations-processed');
+
+      // Labels dynamisch anpassen
+      const guestsLabel = document.querySelector('.progress-item:first-child .progress-label');
+      const reservationsLabel = document.querySelector('.progress-item:last-child .progress-label');
+
+      if (guestsLabel) {
+        guestsLabel.textContent = isArrival ? 'Gäste eingecheckt' : 'Gäste ausgecheckt';
+      }
+      if (reservationsLabel) {
+        reservationsLabel.textContent = isArrival ? 'Reservierungen eingecheckt' : 'Reservierungen ausgecheckt';
+      }
+
+      // Debug-Ausgabe
+      console.log('Progress Update:', {
+        totalReservations,
+        processedReservations,
+        totalGuests,
+        checkedInGuests,
+        isArrival
+      });
+    }
+
+    // Farbschema basierend auf Anreise/Abreise-Modus umschalten
+    function updateColorScheme(isArrival) {
+      const body = document.body;
+
+      if (isArrival) {
+        body.classList.remove('departure-mode');
+        body.classList.add('arrival-mode');
+      } else {
+        body.classList.remove('arrival-mode');
+        body.classList.add('departure-mode');
+      }
+    }
+
+    function updateProgressBar(textId, current, total, fillSelector) {
+      const textElement = document.getElementById(textId);
+      const fillElement = document.querySelector(fillSelector);
+
+      if (textElement) {
+        textElement.textContent = `${current} / ${total}`;
+      }
+
+      if (fillElement) {
+        const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+        fillElement.style.width = `${percentage}%`;
+      }
+    }
+
+    // Progress Indicators aktualisieren wenn Tabelle geladen/gefiltert wird
+    function initProgressTracking() {
+      // Observer für Tabellenänderungen
+      const tbody = document.querySelector('#resTable tbody');
+      if (tbody) {
+        const observer = new MutationObserver(() => {
+          // Kurze Verzögerung um sicherzustellen, dass DOM-Updates abgeschlossen sind
+          setTimeout(updateProgressIndicators, 100);
+        });
+
+        observer.observe(tbody, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class']
+        });
+      }
+
+      // Überwachung für loadData-Funktion falls verfügbar
+      if (window.loadData) {
+        const originalLoadData = window.loadData;
+        window.loadData = function () {
+          const result = originalLoadData.apply(this, arguments);
+          setTimeout(updateProgressIndicators, 500);
+          return result;
+        };
+      }
+
+      // Initial update mit längerer Verzögerung
+      setTimeout(updateProgressIndicators, 1000);
+      setTimeout(updateProgressIndicators, 2000);
+
+      // Initial color scheme setzen
+      setTimeout(() => {
+        const toggleType = document.getElementById('toggleType');
+        const isArrival = toggleType && toggleType.textContent.includes('Anreise');
+        updateColorScheme(isArrival);
+      }, 100);
+
+      // Update bei Filter-Änderungen
+      const filterElements = [
+        document.getElementById('toggleType'),
+        document.getElementById('filterDate'),
+        document.getElementById('toggleStorno'),
+        document.getElementById('toggleOpen'),
+        document.getElementById('searchInput')
+      ];
+
+      filterElements.forEach(element => {
+        if (element) {
+          element.addEventListener('change', () => setTimeout(updateProgressIndicators, 200));
+          element.addEventListener('click', () => setTimeout(updateProgressIndicators, 200));
+          element.addEventListener('input', () => setTimeout(updateProgressIndicators, 300));
+        }
+      });
+
+      // Periodische Updates alle 5 Sekunden
+      setInterval(updateProgressIndicators, 5000);
+    }
+
+    // Progress Tracking initialisieren wenn DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initProgressTracking);
+    } else {
+      initProgressTracking();
+    }
+
+    // === TABELLEN-SORTIERUNG ===
+    let currentSortColumn = -1;
+    let currentSortDirection = 'asc';
+
+    function initTableSorting() {
+      const headers = document.querySelectorAll('#resTable thead th.sortable');
+
+      headers.forEach(header => {
+        header.addEventListener('click', function () {
+          const column = parseInt(this.dataset.column);
+          const type = this.dataset.type;
+
+          // Reset other headers
+          headers.forEach(h => {
+            h.classList.remove('sort-asc', 'sort-desc');
+          });
+
+          // Toggle sort direction if same column
+          if (currentSortColumn === column) {
+            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSortDirection = 'asc';
+          }
+
+          currentSortColumn = column;
+
+          // Add sort indicator
+          this.classList.add(currentSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+
+          // Sort table
+          sortTable(column, type, currentSortDirection);
+        });
+      });
+    }
+
+    function sortTable(columnIndex, dataType, direction) {
+      const tbody = document.querySelector('#resTable tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+      rows.sort((a, b) => {
+        const aCell = a.cells[columnIndex];
+        const bCell = b.cells[columnIndex];
+
+        let aValue = getCellValue(aCell, dataType);
+        let bValue = getCellValue(bCell, dataType);
+
+        // Handle null/undefined values
+        if (aValue === null || aValue === undefined) aValue = '';
+        if (bValue === null || bValue === undefined) bValue = '';
+
+        let comparison = 0;
+
+        switch (dataType) {
+          case 'number':
+            comparison = (parseFloat(aValue) || 0) - (parseFloat(bValue) || 0);
+            break;
+          case 'date':
+            const aDate = parseDate(aValue);
+            const bDate = parseDate(bValue);
+
+            // Debug output for date sorting
+            if (columnIndex === 1 || columnIndex === 2) { // Anreise or Abreise columns
+              console.log('Date sorting debug:', {
+                columnIndex,
+                aValue,
+                bValue,
+                aDate: aDate.toISOString(),
+                bDate: bDate.toISOString(),
+                comparison: aDate - bDate
+              });
+            }
+
+            comparison = aDate - bDate;
+            break;
+          case 'status':
+            // Sort by status percentage from pie chart
+            const aPercent = getStatusPercentage(aCell);
+            const bPercent = getStatusPercentage(bCell);
+            comparison = aPercent - bPercent;
+            break;
+          case 'text':
+          default:
+            comparison = aValue.toString().localeCompare(bValue.toString(), 'de', {
+              numeric: true,
+              sensitivity: 'base'
+            });
+            break;
+        }
+
+        return direction === 'asc' ? comparison : -comparison;
+      });
+
+      // Clear tbody and re-append sorted rows
+      tbody.innerHTML = '';
+      rows.forEach(row => tbody.appendChild(row));
+
+      // Update progress indicators after sorting
+      setTimeout(updateProgressIndicators, 100);
+    }
+
+    function getCellValue(cell, dataType) {
+      if (!cell) return '';
+
+      switch (dataType) {
+        case 'status':
+          return getStatusPercentage(cell);
+        case 'date':
+          // For date columns, extract text content and clean it
+          let dateText = cell.textContent.trim();
+          // Remove any extra whitespace or special characters
+          dateText = dateText.replace(/\s+/g, ' ').trim();
+          return dateText;
+        case 'number':
+          return cell.textContent.trim();
+        case 'text':
+        default:
+          return cell.textContent.trim();
+      }
+    }
+
+    function getStatusPercentage(cell) {
+      const pieChart = cell.querySelector('.pie-chart');
+      if (pieChart) {
+        const textElement = pieChart.querySelector('text');
+        if (textElement) {
+          const percentText = textElement.textContent.trim();
+          return parseInt(percentText.replace('%', '')) || 0;
+        }
+      }
+      return 0;
+    }
+
+    function parseDate(dateString) {
+      if (!dateString || dateString.trim() === '') return new Date(0);
+
+      const trimmed = dateString.trim();
+      const currentYear = new Date().getFullYear();
+
+      // Handle DD.MM format (e.g., "29.08") - add current year
+      if (trimmed.match(/^\d{1,2}\.\d{1,2}$/)) {
+        const parts = trimmed.split('.');
+        if (parts.length === 2) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+
+          // Validate the parsed values
+          if (!isNaN(day) && !isNaN(month) &&
+            day >= 1 && day <= 31 &&
+            month >= 0 && month <= 11) {
+            return new Date(currentYear, month, day);
+          }
+        }
+      }
+
+      // Handle DD.MM.YYYY format (e.g., "25.12.2024")
+      if (trimmed.includes('.')) {
+        const parts = trimmed.split('.');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+          const year = parseInt(parts[2], 10);
+
+          // Validate the parsed values
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
+            day >= 1 && day <= 31 &&
+            month >= 0 && month <= 11 &&
+            year >= 1900 && year <= 2100) {
+            return new Date(year, month, day);
+          }
+        }
+      }
+
+      // Handle YYYY-MM-DD format (e.g., "2024-12-25")
+      if (trimmed.includes('-')) {
+        const parts = trimmed.split('-');
+        if (parts.length === 3) {
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+          const day = parseInt(parts[2], 10);
+
+          // Validate the parsed values
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
+            day >= 1 && day <= 31 &&
+            month >= 0 && month <= 11 &&
+            year >= 1900 && year <= 2100) {
+            return new Date(year, month, day);
+          }
+        }
+      }
+
+      // Handle DD/MM/YYYY format (e.g., "25/12/2024")
+      if (trimmed.includes('/')) {
+        const parts = trimmed.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+          const year = parseInt(parts[2], 10);
+
+          // Validate the parsed values
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
+            day >= 1 && day <= 31 &&
+            month >= 0 && month <= 11 &&
+            year >= 1900 && year <= 2100) {
+            return new Date(year, month, day);
+          }
+        }
+      }
+
+      // Handle DD/MM format (e.g., "29/08") - add current year
+      if (trimmed.match(/^\d{1,2}\/\d{1,2}$/)) {
+        const parts = trimmed.split('/');
+        if (parts.length === 2) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+
+          // Validate the parsed values
+          if (!isNaN(day) && !isNaN(month) &&
+            day >= 1 && day <= 31 &&
+            month >= 0 && month <= 11) {
+            return new Date(currentYear, month, day);
+          }
+        }
+      }
+
+      // Try direct Date parsing as fallback
+      const fallbackDate = new Date(trimmed);
+      if (!isNaN(fallbackDate.getTime())) {
+        return fallbackDate;
+      }
+
+      // Return epoch if all parsing fails
+      console.warn('Could not parse date:', dateString);
+      return new Date(0);
+    }
+
+    // Initialize table sorting when DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+      // Wait a bit for the table to be populated
+      setTimeout(initTableSorting, 1000);
+    });
+
+    // Re-initialize sorting when table content changes
+    function reinitializeSorting() {
+      setTimeout(initTableSorting, 100);
+    }
+
+    // Hook into existing table updates if available
+    if (window.loadData) {
+      const originalLoadData = window.loadData;
+      window.loadData = function () {
+        const result = originalLoadData.apply(this, arguments);
+        reinitializeSorting();
+        return result;
+      };
+    }
   </script>
 </body>
 

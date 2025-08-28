@@ -482,7 +482,10 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Interaktive Darstellung der täglichen Hausbelegung mit HRS/Lokal-Aufschlüsselung, freien Kapazitäten und Kategorien-Details.
         </p>
-        <a href="belegung/belegung.php" class="card-button">Belegungsdiagramm öffnen</a>
+        <div class="card-buttons">
+          <a href="belegung/belegung.php" class="card-button">📊 Diagramm</a>
+          <a href="belegung/belegung_tab.php" class="card-button secondary">📋 Tabelle & Analyse</a>
+        </div>
       </div>
 
       <div class="dashboard-card" draggable="true" data-card-id="zimmerplan">

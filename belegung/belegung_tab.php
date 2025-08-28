@@ -308,31 +308,32 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 1600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .header { text-align: center; color: #333; margin-bottom: 30px; }
-        .controls { display: flex; gap: 20px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        .control-group { display: flex; flex-direction: column; gap: 5px; }
-        .control-group label { font-weight: bold; font-size: 14px; }
-        .control-group input, .control-group button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+        .controls { display: flex; gap: 8px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; gap: 3px; }
+        .control-group label { font-weight: bold; font-size: 12px; }
+        .control-group input, .control-group button { padding: 4px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; }
         .control-group button { background: #2196F3; color: white; border: none; cursor: pointer; }
         .control-group button:hover { background: #1976D2; }
         .export-buttons { margin: 20px 0; text-align: center; }
         .export-btn { 
-            padding: 10px 20px; 
-            margin: 0 10px; 
+            padding: 4px 8px; 
+            margin: 0; 
             border: none; 
-            border-radius: 6px; 
-            font-size: 14px; 
+            border-radius: 3px; 
+            font-size: 11px; 
             cursor: pointer; 
             transition: all 0.3s ease;
         }
         .export-excel { background: #4CAF50; color: white; }
         .btn-import { 
-            padding: 8px 15px; 
+            padding: 4px 8px; 
             background: #2196F3; 
             color: white; 
             border: none; 
-            border-radius: 4px; 
+            border-radius: 3px; 
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: 11px;
         }
         .btn-import:hover { background: #1976D2; }
         .btn-import:disabled { background: #ccc; cursor: not-allowed; }
@@ -461,7 +462,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         .sticky-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 10px;
         }
         
         .sticky-table thead th {
@@ -469,9 +470,35 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             top: 0;
             z-index: 10;
             background: #f5f5f5;
-            padding: 12px;
+            padding: 4px 2px;
             border: 1px solid #ddd;
             font-weight: bold;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            height: 80px;
+            width: 30px;
+            font-size: 9px;
+        }
+        
+        .sticky-table thead th.header-datum {
+            writing-mode: horizontal-tb;
+            transform: none;
+            width: 85px;
+            text-align: center;
+            height: auto;
+            padding: 8px 4px;
+            font-size: 10px;
+        }
+        
+        .sticky-table thead th.header-quota-name {
+            writing-mode: horizontal-tb;
+            transform: none;
+            width: 80px;
+            text-align: center;
+            height: auto;
+            padding: 8px 4px;
+            font-size: 10px;
         }
         
         .sticky-table tbody td {
@@ -480,14 +507,18 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         
         /* Spezielle Zell-Klassen für verschiedene Datentypen */
         .cell-base {
-            padding: 8px;
+            padding: 2px 1px;
             border: 1px solid #ddd;
             text-align: center;
+            font-size: 9px;
+            line-height: 1.1;
         }
         
         .cell-datum {
             font-weight: bold;
             cursor: pointer;
+            font-size: 10px;
+            padding: 3px 2px;
         }
         
         .cell-weekend {
@@ -518,8 +549,11 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         
         .cell-quota-name {
             background: #fff3cd;
-            font-size: 12px;
+            font-size: 9px;
             vertical-align: middle;
+            writing-mode: horizontal-tb;
+            width: 80px;
+            padding: 2px 3px;
         }
         
         .cell-quota-data {
@@ -624,11 +658,6 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>📊 Belegungsanalyyse - Tabellenansicht</h1>
-            <p>Zeitraum: <?= date('d.m.Y', strtotime($startDate)) ?> bis <?= date('d.m.Y', strtotime($endDate)) ?></p>
-        </div>
-        
         <div class="controls">
             <div class="control-group">
                 <label for="startDate">Startdatum:</label>
@@ -640,27 +669,31 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="updateData()">🔄 Aktualisieren</button>
+                <button onclick="updateData()">Aktualisieren</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="importHRSData()" class="btn-import" id="importBtn">📥 HRS Import</button>
+                <button onclick="importHRSData()" class="btn-import" id="importBtn">HRS Import</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="importWebImpData()" class="btn-import" id="webimpBtn">📂 WebImp → Production</button>
+                <button onclick="importWebImpData()" class="btn-import" id="webimpBtn">WebImp → Production</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="importWebImpData(true)" class="btn-import" id="dryRunBtn" style="background: #FF9800;">🔍 Dry-Run Test</button>
+                <button onclick="importWebImpData(true)" class="btn-import" id="dryRunBtn" style="background: #FF9800;">Dry-Run Test</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="showBackupPanel()" class="btn-import" style="background: #e74c3c;">🛡️ Backup-Verwaltung</button>
+                <button onclick="showBackupPanel()" class="btn-import" style="background: #e74c3c;">Backup-Verwaltung</button>
             </div>
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button onclick="showAnalysisPanel()" class="btn-import" style="background: #9b59b6;">📊 Import-Analyse</button>
+                <button onclick="showAnalysisPanel()" class="btn-import" style="background: #9b59b6;">Import-Analyse</button>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button class="export-btn export-excel" onclick="exportToExcel()">Excel Export</button>
             </div>
         </div>
         
@@ -686,38 +719,33 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             <div class="progress-status" id="progressStatus">Vorbereitung...</div>
         </div>
 
-        <div class="export-buttons">
-            <button class="export-btn export-excel" onclick="exportToExcel()">� Excel Export</button>
-        </div>
-        
         <!-- Kontroll-Tabelle -->
-        <div style="margin-top: 30px;">
-            <h3 style="color: #333; margin-bottom: 15px;">📊 Detailierte Tageswerte</h3>
+        <div style="margin-top: 15px;">
             <div class="table-container">
                 <table class="sticky-table">
                     <thead>
                         <tr>
-                            <th style="background: #f5f5f5;">Datum</th>
-                            <th style="background: #e8f5e8;">Frei Gesamt</th>
-                            <th style="background: #d4edda;">Frei Quotas</th>
-                            <th style="background: #f3e5f5;">Frei Sonder</th>
-                            <th style="background: #e5f5e5;">Frei Lager</th>
-                            <th style="background: #fffbe5;">Frei Betten</th>
-                            <th style="background: #ffe5e5;">Frei DZ</th>
-                            <th style="background: #fff3cd;">Quota Name</th>
-                            <th style="background: #f0f8ff;">Q-Sonder</th>
-                            <th style="background: #f0f8ff;">Q-Lager</th>
-                            <th style="background: #f0f8ff;">Q-Betten</th>
-                            <th style="background: #f0f8ff;">Q-DZ</th>
-                            <th style="color: #9966CC;">HRS Sonder</th>
-                            <th style="color: #7722CC;">Lokal Sonder</th>
-                            <th style="color: #66CC66;">HRS Lager</th>
-                            <th style="color: #228822;">Lokal Lager</th>
-                            <th style="color: #CCCC66;">HRS Betten</th>
-                            <th style="color: #CCCC00;">Lokal Betten</th>
-                            <th style="color: #FF6666;">HRS DZ</th>
-                            <th style="color: #CC2222;">Lokal DZ</th>
-                            <th style="background: #f5f5f5;">Gesamt Belegt</th>
+                            <th class="header-datum" style="background: #f5f5f5;">Datum</th>
+                            <th style="background: #e8f5e8;">Frei<br>Ges.</th>
+                            <th style="background: #d4edda;">Frei<br>Quot.</th>
+                            <th style="background: #f3e5f5;">Frei<br>Son.</th>
+                            <th style="background: #e5f5e5;">Frei<br>Lag.</th>
+                            <th style="background: #fffbe5;">Frei<br>Bet.</th>
+                            <th style="background: #ffe5e5;">Frei<br>DZ</th>
+                            <th class="header-quota-name" style="background: #fff3cd;">Quota Name</th>
+                            <th style="background: #f0f8ff;">Q-S</th>
+                            <th style="background: #f0f8ff;">Q-L</th>
+                            <th style="background: #f0f8ff;">Q-B</th>
+                            <th style="background: #f0f8ff;">Q-D</th>
+                            <th style="color: #9966CC;">H-S</th>
+                            <th style="color: #7722CC;">L-S</th>
+                            <th style="color: #66CC66;">H-L</th>
+                            <th style="color: #228822;">L-L</th>
+                            <th style="color: #CCCC66;">H-B</th>
+                            <th style="color: #CCCC00;">L-B</th>
+                            <th style="color: #FF6666;">H-D</th>
+                            <th style="color: #CC2222;">L-D</th>
+                            <th style="background: #f5f5f5;">Ges.<br>Bel.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -791,6 +819,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             
                             // Quota-Hintergrundfarbe bestimmen
                             $quotaName = '';
+                            $quotaHrsId = '';
                             $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
                             $freieQuotas = 0;
                             
@@ -804,6 +833,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             if (!empty($tagesQuotas)) {
                                 $quota = $tagesQuotas[0]; // Erste Quota nehmen
                                 $quotaName = $quota['title'];
+                                $quotaHrsId = $quota['hrs_id'];
                                 
                                 // Quota-Zahlen aus Kategorien extrahieren
                                 if (!empty($quota['categories'])) {
@@ -834,14 +864,14 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             
                             if ($isWeekend) {
                                 $datumClasses .= ' cell-weekend';
-                                $datumText = '🏖️ ' . $datumText; // Emoji für Wochenende
+                                // Kein Emoji mehr für Wochenende
                             }
                             
                             echo '<td class="' . $datumClasses . '">' . $datumText . '</td>';
                             
-                            // Freie Kapazitäten
+                            // Freie Kapazitäten - Null-Werte als leer anzeigen
                             echo '<td class="cell-base cell-frei-gesamt">' . 
-                                 $freieKap['gesamt_frei'] . '</td>';
+                                 ($freieKap['gesamt_frei'] > 0 ? $freieKap['gesamt_frei'] : '') . '</td>';
                             
                             // Frei Quotas mit rotem Hintergrund wenn ungleich Frei Gesamt
                             $quotasBgColor = '#d4edda'; // Standard grün
@@ -849,15 +879,15 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                                 $quotasBgColor = '#f8d7da'; // Rot wenn Quotas ≠ Frei Gesamt
                             }
                             echo '<td class="cell-base" style="background: ' . $quotasBgColor . '; font-weight: bold;">' . 
-                                 $freieQuotas . '</td>';
+                                 ($freieQuotas > 0 ? $freieQuotas : '') . '</td>';
                             echo '<td class="cell-base cell-frei-sonder">' . 
-                                 $freieKap['sonder_frei'] . '</td>';
+                                 ($freieKap['sonder_frei'] > 0 ? $freieKap['sonder_frei'] : '') . '</td>';
                             echo '<td class="cell-base cell-frei-lager">' . 
-                                 $freieKap['lager_frei'] . '</td>';
+                                 ($freieKap['lager_frei'] > 0 ? $freieKap['lager_frei'] : '') . '</td>';
                             echo '<td class="cell-base cell-frei-betten">' . 
-                                 $freieKap['betten_frei'] . '</td>';
+                                 ($freieKap['betten_frei'] > 0 ? $freieKap['betten_frei'] : '') . '</td>';
                             echo '<td class="cell-base cell-frei-dz">' . 
-                                 $freieKap['dz_frei'] . '</td>';
+                                 ($freieKap['dz_frei'] > 0 ? $freieKap['dz_frei'] : '') . '</td>';
                                  
                             // Quota-Informationen mit rowspan
                             // Prüfe ob dies der erste Tag einer mehrtägigen Quota ist
@@ -879,7 +909,10 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             if (!$isQuotaContinuation) {
                                 $rowspanAttr = $isFirstQuotaDay ? ' rowspan="' . $quotaSpans[$i] . '"' : '';
                                 
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-name">' . 
+                                // Tooltip für Quota-Name mit HRS-ID
+                                $quotaTitle = $quotaHrsId ? "title=\"Quota ID (HRS): {$quotaHrsId}\"" : '';
+                                
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-name" ' . $quotaTitle . '>' . 
                                      htmlspecialchars($quotaName) . '</td>';
                                 echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaSonder . '</td>';
                                 echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaLager . '</td>';
@@ -887,30 +920,22 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                                 echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaDz . '</td>';
                             }
                             
-                            // Belegungszahlen
-                            echo '<td class="cell-base cell-hrs-sonder">' . $hrsData['sonder'] . '</td>';
-                            echo '<td class="cell-base cell-lokal-sonder">' . $lokalData['sonder'] . '</td>';
-                            echo '<td class="cell-base cell-hrs-lager">' . $hrsData['lager'] . '</td>';
-                            echo '<td class="cell-base cell-lokal-lager">' . $lokalData['lager'] . '</td>';
-                            echo '<td class="cell-base cell-hrs-betten">' . $hrsData['betten'] . '</td>';
-                            echo '<td class="cell-base cell-lokal-betten">' . $lokalData['betten'] . '</td>';
-                            echo '<td class="cell-base cell-hrs-dz">' . $hrsData['dz'] . '</td>';
-                            echo '<td class="cell-base cell-lokal-dz">' . $lokalData['dz'] . '</td>';
+                            // Belegungszahlen - Null-Werte als leer anzeigen
+                            echo '<td class="cell-base cell-hrs-sonder">' . ($hrsData['sonder'] > 0 ? $hrsData['sonder'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-sonder">' . ($lokalData['sonder'] > 0 ? $lokalData['sonder'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-lager">' . ($hrsData['lager'] > 0 ? $hrsData['lager'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-lager">' . ($lokalData['lager'] > 0 ? $lokalData['lager'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-betten">' . ($hrsData['betten'] > 0 ? $hrsData['betten'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-betten">' . ($lokalData['betten'] > 0 ? $lokalData['betten'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-dz">' . ($hrsData['dz'] > 0 ? $hrsData['dz'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-dz">' . ($lokalData['dz'] > 0 ? $lokalData['dz'] : '') . '</td>';
                             
-                            echo '<td class="cell-base cell-gesamt">' . $gesamtBelegt . '</td>';
+                            echo '<td class="cell-base cell-gesamt">' . ($gesamtBelegt > 0 ? $gesamtBelegt : '') . '</td>';
                             echo '</tr>';
                         }
                         ?>
                     </tbody>
                 </table>
-            </div>
-            
-            <!-- Wochenend-Legende -->
-            <div style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 5px; font-size: 12px;">
-                <strong>🗓️ Legende:</strong>
-                <span style="margin-left: 20px;">🏖️ <span style="color: #cc6600; font-weight: bold;">Orange Datum</span> = Wochenende (Sa/So)</span>
-                <span style="margin-left: 20px;">📋 Verbundene Zellen = Mehrtägige Quotas</span>
-                <span style="margin-left: 20px;">🎨 Verschiedene Hintergrundfarben = Unterschiedliche Quota-Perioden</span>
             </div>
         </div>
         
@@ -2044,7 +2069,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             // Hilfsfunktion zum Parsen deutscher Datumsangaben
             function parseGermanDate(dateStr) {
                 // Entferne Emojis und Wochentag-Abkürzungen
-                const cleanStr = dateStr.replace(/🏖️\s*/, '').replace(/^\w+\s+/, '');
+                const cleanStr = dateStr.replace(/^\w+\s+/, '');
                 
                 // Parse DD.MM.YYYY Format
                 const parts = cleanStr.split('.');
