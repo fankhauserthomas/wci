@@ -11,8 +11,21 @@ header('Content-Type: application/json; charset=utf-8');
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
+    case 'create_backup':
+        createBackup();
+        break;
+    case 'list_backups':
+        listBackups();
+        break;
+    case 'restore_backup':
+        restoreBackup();
+        break;
+    case 'delete_backup':
+        deleteBackup();
+        break;
     case 'list_backups_for_analysis':
         listBackupsForAnalysis();
+        break;
         break;
     case 'compare_backups':
         $baseline = $_POST['baseline'] ?? '';
@@ -761,5 +774,210 @@ function analyzeSpecificRecords($av_ids_str) {
     }
     
     echo json_encode(['success' => true, 'analysis' => $analysis]);
+}
+
+// =====================================================
+// BACKUP-MANAGEMENT FUNKTIONEN
+// =====================================================
+
+function createBackup() {
+    global $mysqli;
+    
+    try {
+        $backupName = 'AV_Res_Backup_' . date('Y-m-d_H-i-s');
+        
+        // Backup-Tabelle erstellen
+        $createSql = "CREATE TABLE `$backupName` LIKE `AV-Res`";
+        if (!$mysqli->query($createSql)) {
+            throw new Exception("Fehler beim Erstellen der Backup-Tabelle: " . $mysqli->error);
+        }
+        
+        // Daten kopieren
+        $copySql = "INSERT INTO `$backupName` SELECT * FROM `AV-Res`";
+        if (!$mysqli->query($copySql)) {
+            // Tabelle wieder löschen bei Fehler
+            $mysqli->query("DROP TABLE IF EXISTS `$backupName`");
+            throw new Exception("Fehler beim Kopieren der Daten: " . $mysqli->error);
+        }
+        
+        // Anzahl Datensätze ermitteln
+        $countResult = $mysqli->query("SELECT COUNT(*) as count FROM `$backupName`");
+        $count = $countResult->fetch_assoc()['count'];
+        
+        echo json_encode([
+            'success' => true,
+            'message' => "Backup '$backupName' erfolgreich erstellt",
+            'backup_name' => $backupName,
+            'record_count' => $count
+        ]);
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
+
+function listBackups() {
+    global $mysqli;
+    
+    try {
+        $backups = [];
+        
+        // Suche nach Backup-Tabellen
+        $patterns = ['AV_Res_Backup_%', 'AV_Res_PreImport_%', 'AV_Res_PreRestore_%'];
+        
+        foreach ($patterns as $pattern) {
+            $tablesResult = $mysqli->query("SHOW TABLES LIKE '$pattern'");
+            if ($tablesResult) {
+                while ($row = $tablesResult->fetch_array()) {
+                    $tableName = $row[0];
+                    
+                    // Anzahl Datensätze ermitteln
+                    $countResult = $mysqli->query("SELECT COUNT(*) as count FROM `$tableName`");
+                    $count = $countResult ? $countResult->fetch_assoc()['count'] : 0;
+                    
+                    // Datum aus Tabellenname extrahieren
+                    $readableDate = 'Unbekannt';
+                    if (preg_match('/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/', $tableName, $matches)) {
+                        $readableDate = str_replace('_', ' ', $matches[1]);
+                        $readableDate = str_replace('-', ':', substr($readableDate, 11)) . ' ' . substr($readableDate, 0, 10);
+                    }
+                    
+                    $backups[] = [
+                        'table_name' => $tableName,
+                        'readable_date' => $readableDate,
+                        'record_count' => $count
+                    ];
+                }
+            }
+        }
+        
+        // Nach Datum sortieren (neueste zuerst)
+        usort($backups, function($a, $b) {
+            return strcmp($b['table_name'], $a['table_name']);
+        });
+        
+        echo json_encode([
+            'success' => true,
+            'backups' => $backups
+        ]);
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
+
+function restoreBackup() {
+    global $mysqli;
+    
+    try {
+        $backupName = $_POST['backup_name'] ?? '';
+        if (empty($backupName)) {
+            throw new Exception('Backup-Name ist erforderlich');
+        }
+        
+        // Prüfen ob Backup-Tabelle existiert
+        $checkResult = $mysqli->query("SHOW TABLES LIKE '$backupName'");
+        if ($checkResult->num_rows === 0) {
+            throw new Exception("Backup-Tabelle '$backupName' nicht gefunden");
+        }
+        
+        // Pre-Restore Backup erstellen
+        $preRestoreBackup = 'AV_Res_PreRestore_' . date('Y-m-d_H-i-s');
+        
+        $mysqli->begin_transaction();
+        
+        try {
+            // Pre-Restore Backup erstellen
+            $createSql = "CREATE TABLE `$preRestoreBackup` LIKE `AV-Res`";
+            if (!$mysqli->query($createSql)) {
+                throw new Exception("Fehler beim Erstellen des Pre-Restore Backups: " . $mysqli->error);
+            }
+            
+            $copySql = "INSERT INTO `$preRestoreBackup` SELECT * FROM `AV-Res`";
+            if (!$mysqli->query($copySql)) {
+                throw new Exception("Fehler beim Kopieren der aktuellen Daten: " . $mysqli->error);
+            }
+            
+            // AV-Res Tabelle leeren
+            if (!$mysqli->query("DELETE FROM `AV-Res`")) {
+                throw new Exception("Fehler beim Leeren der AV-Res Tabelle: " . $mysqli->error);
+            }
+            
+            // Daten aus Backup wiederherstellen
+            $restoreSql = "INSERT INTO `AV-Res` SELECT * FROM `$backupName`";
+            if (!$mysqli->query($restoreSql)) {
+                throw new Exception("Fehler beim Wiederherstellen der Backup-Daten: " . $mysqli->error);
+            }
+            
+            $mysqli->commit();
+            
+            // Anzahl wiederhergestellter Datensätze
+            $countResult = $mysqli->query("SELECT COUNT(*) as count FROM `AV-Res`");
+            $count = $countResult->fetch_assoc()['count'];
+            
+            echo json_encode([
+                'success' => true,
+                'message' => "Backup '$backupName' erfolgreich wiederhergestellt ($count Datensätze)",
+                'pre_restore_backup' => $preRestoreBackup,
+                'restored_records' => $count
+            ]);
+            
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            // Pre-Restore Backup löschen bei Fehler
+            $mysqli->query("DROP TABLE IF EXISTS `$preRestoreBackup`");
+            throw $e;
+        }
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
+
+function deleteBackup() {
+    global $mysqli;
+    
+    try {
+        $backupName = $_POST['backup_name'] ?? '';
+        if (empty($backupName)) {
+            throw new Exception('Backup-Name ist erforderlich');
+        }
+        
+        // Sicherheitsprüfung: Nur Backup-Tabellen löschen
+        if (!preg_match('/^(AV_Res_Backup_|AV_Res_PreImport_|AV_Res_PreRestore_)/', $backupName)) {
+            throw new Exception('Nur Backup-Tabellen können gelöscht werden');
+        }
+        
+        // Prüfen ob Tabelle existiert
+        $checkResult = $mysqli->query("SHOW TABLES LIKE '$backupName'");
+        if ($checkResult->num_rows === 0) {
+            throw new Exception("Backup-Tabelle '$backupName' nicht gefunden");
+        }
+        
+        // Tabelle löschen
+        if (!$mysqli->query("DROP TABLE `$backupName`")) {
+            throw new Exception("Fehler beim Löschen der Backup-Tabelle: " . $mysqli->error);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => "Backup '$backupName' erfolgreich gelöscht"
+        ]);
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
 }
 ?>

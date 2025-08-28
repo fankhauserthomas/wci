@@ -1157,7 +1157,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             status.innerHTML = '🔄 Erstelle Backup...';
             status.style.color = '#f39c12';
             
-            fetch('../hrs/backup_av_res.php?action=create_backup', {
+            fetch('../hrs/backup_analysis.php?action=create_backup', {
                 method: 'GET'
             })
             .then(response => response.json())
@@ -1185,7 +1185,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const list = document.getElementById('backupList');
             list.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">🔄 Lade Backup-Liste...</div>';
             
-            fetch('../hrs/backup_av_res.php?action=list_backups')
+            fetch('../hrs/backup_analysis.php?action=list_backups')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -1246,7 +1246,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const list = document.getElementById('backupList');
             list.innerHTML = '<div style="text-align: center; color: #f39c12; padding: 20px;">🔄 Stelle Backup wieder her...</div>';
             
-            fetch('../hrs/backup_av_res.php', {
+            fetch('../hrs/backup_analysis.php', {
                 method: 'POST',
                 body: formData
             })
@@ -1275,7 +1275,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             formData.append('action', 'delete_backup');
             formData.append('backup_name', backupName);
             
-            fetch('../hrs/backup_av_res.php', {
+            fetch('../hrs/backup_analysis.php', {
                 method: 'POST',
                 body: formData
             })
