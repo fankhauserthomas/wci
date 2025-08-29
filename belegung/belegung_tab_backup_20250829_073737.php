@@ -13,6 +13,17 @@ $endDate = $_GET['end'] ?? date('Y-m-d', strtotime($startDate . ' +31 days'));
 // Quota-Optimierung Konfiguration
 $zielauslastung = $_GET['za'] ?? 135; // Zielauslastung (default 135)
 
+// Deutsche Wochentage
+$germanDays = [
+    0 => 'Sonntag',
+    1 => 'Montag', 
+    2 => 'Dienstag',
+    3 => 'Mittwoch',
+    4 => 'Donnerstag',
+    5 => 'Freitag',
+    6 => 'Samstag'
+];
+
 /**
  * Hausbelegung berechnen
  */
@@ -170,9 +181,7 @@ function getQuotaData($mysqli, $startDate, $endDate) {
     $quotas = [];
     
     // Debug-Ausgabe
-    if (isset($_GET['debug'])) {
-        echo "<!-- DEBUG getQuotaData: Suche Quotas von $startDate bis $endDate -->\n";
-    }
+    echo "<!-- DEBUG getQuotaData: Suche Quotas von $startDate bis $endDate -->\n";
     
     // Lade alle Quotas die in den Zeitraum fallen oder ihn überschneiden
     $sql = "SELECT hq.*, hqc.category_id, hqc.total_beds,
@@ -188,12 +197,16 @@ function getQuotaData($mysqli, $startDate, $endDate) {
             WHERE hq.date_from <= ? AND hq.date_to > ?
             ORDER BY hq.date_from, hq.title, hqc.category_id";
     
+    echo "<!-- DEBUG SQL: $sql mit Parametern endDate=$endDate, startDate=$startDate -->\n";
+    
     $stmt = $mysqli->prepare($sql);
     $stmt->bind_param('ss', $endDate, $startDate);
     $stmt->execute();
     $result = $stmt->get_result();
     
+    $rowCount = 0;
     while ($row = $result->fetch_assoc()) {
+        $rowCount++;
         $quotaId = $row['id'];
         if (!isset($quotas[$quotaId])) {
             $quotas[$quotaId] = [
@@ -218,6 +231,11 @@ function getQuotaData($mysqli, $startDate, $endDate) {
         }
     }
     $stmt->close();
+    
+    echo "<!-- DEBUG getQuotaData: Gefunden $rowCount Zeilen, " . count($quotas) . " Quotas -->\n";
+    foreach ($quotas as $id => $quota) {
+        echo "<!-- DEBUG Quota ID $id: {$quota['title']} von {$quota['date_from']} bis {$quota['date_to']} -->\n";
+    }
     
     // Debug-Ausgabe der gefundenen Quotas
     if (isset($_GET['debug'])) {
@@ -296,29 +314,11 @@ $detailDaten = $resultSet['detail'];
 $rohdaten = $resultSet['aggregated'];
 $freieKapazitaeten = $resultSet['freieKapazitaeten'];
 
-// Quota-Daten laden
+// Quota-Daten laden (für HRS-Integration, falls vorhanden)
 $quotaData = getQuotaData($mysqli, $startDate, $endDate);
 
-// Quota-Daten für JavaScript aufbereiten
-$quotaDataJS = [];
-if (isset($quotaData) && is_array($quotaData)) {
-    foreach ($quotaData as $quotaId => $quota) {
-        if (isset($quota['kontingent']) && !empty($quota['kontingent'])) {
-            foreach ($quota['kontingent'] as $k) {
-                $quotaDataJS[] = [
-                    'id' => $quotaId,
-                    'hrs_id' => $k['hrs_id'] ?? '',
-                    'title' => $k['title'] ?? '',
-                    'date_from' => $k['date_from'] ?? '',
-                    'date_to' => $k['date_to'] ?? '',
-                    'quota' => intval($k['quota'] ?? 0),
-                    'booked' => intval($k['booked'] ?? 0),
-                    'available' => intval($k['available'] ?? 0)
-                ];
-            }
-        }
-    }
-}
+// WICHTIG: quotaDataJS wird nach der Tabellenerstellung vorbereitet
+echo "<!-- DEBUG: DB-Quotas gefunden: " . count($quotaData) . " Einträge -->\n";
 
 // === QUOTA-OPTIMIERUNG FUNKTIONEN ===
 
@@ -1070,7 +1070,7 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                 $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
                             }
                             
-                            echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
+                            echo '<tr style="background: ' . $rowBgColor . ';">';
                             
                             // Datum mit Wochenend-Kennzeichnung
                             $datumClasses = 'cell-base cell-datum';
@@ -1081,10 +1081,10 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                 // Kein Emoji mehr für Wochenende
                             }
                             
-                            echo '<td class="' . $datumClasses . ' date-selectable" data-date="' . $tag . '" onclick="selectDate(\'' . $tag . '\')">' . $datumText . '</td>';
+                            echo '<td class="' . $datumClasses . ' date-selectable" data-date="' . $tag . '" onclick="handleDateClick(\'' . $tag . '\', ' . $i . ')">' . $datumText . '</td>';
                             
                             // Freie Kapazitäten - Null-Werte als leer anzeigen
-                            echo '<td class="cell-base cell-frei-gesamt">' . 
+                            echo '<td class="cell-base cell-frei-gesamt" onclick="showDayDetails(' . $i . ')">' . 
                                  ($freieKap['gesamt_frei'] > 0 ? $freieKap['gesamt_frei'] : '') . '</td>';
                             
                             // Frei Quotas mit rotem Hintergrund wenn ungleich Frei Gesamt
@@ -1092,15 +1092,15 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             if ($freieQuotas != $freieKap['gesamt_frei']) {
                                 $quotasBgColor = '#f8d7da'; // Rot wenn Quotas ≠ Frei Gesamt
                             }
-                            echo '<td class="cell-base" style="background: ' . $quotasBgColor . '; font-weight: bold;">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: ' . $quotasBgColor . '; font-weight: bold;">' . 
                                  ($freieQuotas > 0 ? $freieQuotas : '') . '</td>';
-                            echo '<td class="cell-base cell-frei-sonder">' . 
+                            echo '<td class="cell-base cell-frei-sonder" onclick="showDayDetails(' . $i . ')">' . 
                                  ($freieKap['sonder_frei'] > 0 ? $freieKap['sonder_frei'] : '') . '</td>';
-                            echo '<td class="cell-base cell-frei-lager">' . 
+                            echo '<td class="cell-base cell-frei-lager" onclick="showDayDetails(' . $i . ')">' . 
                                  ($freieKap['lager_frei'] > 0 ? $freieKap['lager_frei'] : '') . '</td>';
-                            echo '<td class="cell-base cell-frei-betten">' . 
+                            echo '<td class="cell-base cell-frei-betten" onclick="showDayDetails(' . $i . ')">' . 
                                  ($freieKap['betten_frei'] > 0 ? $freieKap['betten_frei'] : '') . '</td>';
-                            echo '<td class="cell-base cell-frei-dz">' . 
+                            echo '<td class="cell-base cell-frei-dz" onclick="showDayDetails(' . $i . ')">' . 
                                  ($freieKap['dz_frei'] > 0 ? $freieKap['dz_frei'] : '') . '</td>';
                                  
                             // Quota-Informationen mit rowspan
@@ -1126,25 +1126,25 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                 // Tooltip für Quota-Name mit HRS-ID
                                 $quotaTitle = $quotaHrsId ? "title=\"Quota ID (HRS): {$quotaHrsId}\"" : '';
                                 
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-name" ' . $quotaTitle . '>' . 
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-name" onclick="showDayDetails(' . $i . ')" ' . $quotaTitle . '>' . 
                                      htmlspecialchars($quotaName) . '</td>';
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaSonder . '</td>';
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaLager . '</td>';
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaBetten . '</td>';
-                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data">' . $quotaDz . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data" onclick="showDayDetails(' . $i . ')">' . $quotaSonder . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data" onclick="showDayDetails(' . $i . ')">' . $quotaLager . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data" onclick="showDayDetails(' . $i . ')">' . $quotaBetten . '</td>';
+                                echo '<td' . $rowspanAttr . ' class="cell-base cell-quota-data" onclick="showDayDetails(' . $i . ')">' . $quotaDz . '</td>';
                             }
                             
                             // Belegungszahlen - Null-Werte als leer anzeigen
-                            echo '<td class="cell-base cell-hrs-sonder">' . ($hrsData['sonder'] > 0 ? $hrsData['sonder'] : '') . '</td>';
-                            echo '<td class="cell-base cell-lokal-sonder">' . ($lokalData['sonder'] > 0 ? $lokalData['sonder'] : '') . '</td>';
-                            echo '<td class="cell-base cell-hrs-lager">' . ($hrsData['lager'] > 0 ? $hrsData['lager'] : '') . '</td>';
-                            echo '<td class="cell-base cell-lokal-lager">' . ($lokalData['lager'] > 0 ? $lokalData['lager'] : '') . '</td>';
-                            echo '<td class="cell-base cell-hrs-betten">' . ($hrsData['betten'] > 0 ? $hrsData['betten'] : '') . '</td>';
-                            echo '<td class="cell-base cell-lokal-betten">' . ($lokalData['betten'] > 0 ? $lokalData['betten'] : '') . '</td>';
-                            echo '<td class="cell-base cell-hrs-dz">' . ($hrsData['dz'] > 0 ? $hrsData['dz'] : '') . '</td>';
-                            echo '<td class="cell-base cell-lokal-dz">' . ($lokalData['dz'] > 0 ? $lokalData['dz'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-sonder" onclick="showDayDetails(' . $i . ')">' . ($hrsData['sonder'] > 0 ? $hrsData['sonder'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-sonder" onclick="showDayDetails(' . $i . ')">' . ($lokalData['sonder'] > 0 ? $lokalData['sonder'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-lager" onclick="showDayDetails(' . $i . ')">' . ($hrsData['lager'] > 0 ? $hrsData['lager'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-lager" onclick="showDayDetails(' . $i . ')">' . ($lokalData['lager'] > 0 ? $lokalData['lager'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-betten" onclick="showDayDetails(' . $i . ')">' . ($hrsData['betten'] > 0 ? $hrsData['betten'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-betten" onclick="showDayDetails(' . $i . ')">' . ($lokalData['betten'] > 0 ? $lokalData['betten'] : '') . '</td>';
+                            echo '<td class="cell-base cell-hrs-dz" onclick="showDayDetails(' . $i . ')">' . ($hrsData['dz'] > 0 ? $hrsData['dz'] : '') . '</td>';
+                            echo '<td class="cell-base cell-lokal-dz" onclick="showDayDetails(' . $i . ')">' . ($lokalData['dz'] > 0 ? $lokalData['dz'] : '') . '</td>';
                             
-                            echo '<td class="cell-base cell-gesamt">' . ($gesamtBelegt > 0 ? $gesamtBelegt : '') . '</td>';
+                            echo '<td class="cell-base cell-gesamt" onclick="showDayDetails(' . $i . ')">' . ($gesamtBelegt > 0 ? $gesamtBelegt : '') . '</td>';
                             
                             // === QUOTA-OPTIMIERUNG ===
                             // Berechne neue Quotas für Zielauslastung
@@ -1209,13 +1209,13 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             $bettenBgColor = getCellBackgroundColor($quotaBettenNum, $neueQuotaBetten);
                             $dzBgColor = getCellBackgroundColor($quotaDzNum, $neueQuotaDz);
                             
-                            echo '<td class="cell-base" style="background: ' . $sonderBgColor . ';">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: ' . $sonderBgColor . ';">' . 
                                  ($neueQuotaSonder > 0 ? $neueQuotaSonder : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $lagerBgColor . ';">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: ' . $lagerBgColor . ';">' . 
                                  ($neueQuotaLager > 0 ? $neueQuotaLager : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $bettenBgColor . ';">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: ' . $bettenBgColor . ';">' . 
                                  ($neueQuotaBetten > 0 ? $neueQuotaBetten : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $dzBgColor . ';">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: ' . $dzBgColor . ';">' . 
                                  ($neueQuotaDz > 0 ? $neueQuotaDz : '') . '</td>';
                             
                             // Neuer Quota-Name mit rowspan
@@ -1235,14 +1235,14 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             
                             if (!$isGroupContinuation) {
                                 $groupRowspanAttr = isset($neueQuotaSpans[$i]) ? ' rowspan="' . $neueQuotaSpans[$i] . '"' : '';
-                                echo '<td' . $groupRowspanAttr . ' class="cell-base" style="background: #f0f8e6; font-size: 9px; font-weight: bold;">' . 
+                                echo '<td' . $groupRowspanAttr . ' class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: #f0f8e6; font-size: 9px; font-weight: bold;">' . 
                                      htmlspecialchars($groupName) . '</td>';
                             }
                             
                             // Alte und neue Gesamtauslastung
-                            echo '<td class="cell-base" style="background: #fff2cc;">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: #fff2cc;">' . 
                                  ($altGesamtAuslastung > 0 ? $altGesamtAuslastung : '') . '</td>';
-                            echo '<td class="cell-base" style="background: #d5e8d4; font-weight: bold;">' . 
+                            echo '<td class="cell-base" onclick="showDayDetails(' . $i . ')" style="background: #d5e8d4; font-weight: bold;">' . 
                                  ($neueGesamtAuslastung > 0 ? $neueGesamtAuslastung : '') . '</td>';
                             
                             echo '</tr>';
@@ -1482,6 +1482,152 @@ function getCellBackgroundColor($originalValue, $newValue) {
     </div>
 
     <script>
+        // === QUOTA-OPTIMIERUNG FUNKTIONEN ===
+        
+        function toggleQuotaOptimization() {
+            const panel = document.getElementById('quotaOptimizationPanel');
+            const btn = document.getElementById('quotaOptBtn');
+            
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                btn.textContent = 'Quota-Optimierung schließen';
+                btn.style.background = '#dc3545';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Quota-Optimierung';
+                btn.style.background = '#17a2b8';
+            }
+        }
+        
+        function updateData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const za = document.getElementById('zielauslastung') ? document.getElementById('zielauslastung').value : 135;
+            
+            if (startDate && endDate) {
+                const url = new URL(window.location);
+                url.searchParams.set('start', startDate);
+                url.searchParams.set('end', endDate);
+                url.searchParams.set('za', za);
+                window.location.href = url.toString();
+            } else {
+                alert('Bitte geben Sie Start- und Enddatum an.');
+            }
+        }
+        
+        function applyQuotaOptimization() {
+            const za = document.getElementById('zielauslastung').value;
+            if (za) {
+                // Aktualisiere URL mit neuer Zielauslastung
+                const url = new URL(window.location);
+                url.searchParams.set('za', za);
+                window.location.href = url.toString();
+            }
+        }
+        
+        // Date Range Selection Variables
+        let rangeSelectionMode = false;
+        let rangeStart = null;
+        let rangeEnd = null;
+        
+        function toggleDateRangeSelection() {
+            rangeSelectionMode = !rangeSelectionMode;
+            const btn = document.getElementById('dateRangeBtn');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const rangeInfo = document.getElementById('rangeInfo');
+            
+            if (rangeSelectionMode) {
+                btn.textContent = '❌ Abbrechen';
+                btn.style.background = '#dc3545';
+                rangeInfo.style.display = 'block';
+                clearDateSelection();
+                rangeStart = null;
+                rangeEnd = null;
+                analyzeBtn.style.display = 'none';
+            } else {
+                btn.textContent = '📅 Bereich wählen';
+                btn.style.background = '#007bff';
+                rangeInfo.style.display = 'none';
+                clearDateSelection();
+                analyzeBtn.style.display = 'none';
+            }
+        }
+        
+        function clearDateSelection() {
+            document.querySelectorAll('.date-selectable').forEach(cell => {
+                cell.classList.remove('date-range-start', 'date-range-end', 'date-range-middle');
+            });
+        }
+        
+        function highlightDateRange() {
+            if (!rangeStart || !rangeEnd) return;
+            
+            const start = new Date(rangeStart);
+            const end = new Date(rangeEnd);
+            
+            // Tausche Start und Ende falls nötig
+            if (start > end) {
+                [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+                [start, end] = [end, start];
+            }
+            
+            clearDateSelection();
+            
+            // Markiere alle Daten im Bereich
+            const current = new Date(start);
+            while (current <= end) {
+                const dateStr = current.toISOString().split('T')[0];
+                const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                if (cell) {
+                    if (current.getTime() === start.getTime()) {
+                        cell.classList.add('date-range-start');
+                    } else if (current.getTime() === end.getTime()) {
+                        cell.classList.add('date-range-end');
+                    } else {
+                        cell.classList.add('date-range-middle');
+                    }
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            
+            // Zeige Analyse-Button
+            document.getElementById('analyzeBtn').style.display = 'inline-block';
+        }
+        
+        function handleDateClick(dateStr) {
+            if (!rangeSelectionMode) return;
+            
+            if (!rangeStart) {
+                rangeStart = dateStr;
+                const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                if (cell) cell.classList.add('date-range-start');
+            } else if (!rangeEnd) {
+                rangeEnd = dateStr;
+                highlightDateRange();
+            } else {
+                // Reset und neu beginnen
+                clearDateSelection();
+                rangeStart = dateStr;
+                rangeEnd = null;
+                const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                if (cell) cell.classList.add('date-range-start');
+                document.getElementById('analyzeBtn').style.display = 'none';
+            }
+        }
+        
+        function hideDetailsPanel() {
+            document.getElementById('detailsPanel').style.display = 'none';
+        }
+        
+        // Panel schließen beim Klick außerhalb
+        document.getElementById('detailsPanel').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideDetailsPanel();
+            }
+        });
+        
+        // === BACKUP-PANEL FUNKTIONEN ===
+        
         function showBackupPanel() {
             document.getElementById('backupPanel').style.display = 'block';
             loadBackupList();
@@ -2178,20 +2324,178 @@ function getCellBackgroundColor($originalValue, $newValue) {
                 hideAnalysisPanel();
             }
         });
+        
+        // === QUOTA-ANALYSE FUNKTIONEN ===
+        
+        function analyzeQuotaChanges() {
+            if (!rangeStart || !rangeEnd) {
+                alert('Bitte wählen Sie zuerst einen Datumsbereich aus!');
+                return;
+            }
+            
+            const startDate = new Date(rangeStart);
+            const endDate = new Date(rangeEnd);
+            
+            let analysis = {
+                totalDays: 0,
+                changedDays: 0,
+                changes: [],
+                summary: {
+                    sonder: { old: 0, new: 0, diff: 0 },
+                    lager: { old: 0, new: 0, diff: 0 },
+                    betten: { old: 0, new: 0, diff: 0 },
+                    dz: { old: 0, new: 0, diff: 0 }
+                }
+            };
+            
+            // Analysiere jeden Tag im ausgewählten Bereich durch direkte Tabellenauswertung
+            const tableRows = document.querySelectorAll('.sticky-table tbody tr');
+            
+            tableRows.forEach((row, index) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 15) return; // Unvollständige Zeile
+                
+                // Datum aus der ersten Zelle extrahieren
+                const dateCell = cells[0];
+                const dateMatch = dateCell.textContent.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+                if (!dateMatch) return;
+                
+                const [, day, month, year] = dateMatch;
+                const rowDate = new Date(year, month - 1, day);
+                
+                // Prüfe ob Datum im ausgewählten Bereich liegt
+                if (rowDate >= startDate && rowDate <= endDate) {
+                    analysis.totalDays++;
+                    
+                    // Extrahiere Quota-Daten aus der Tabelle
+                    let dayChanges = [];
+                    const quotaCategories = ['sonder', 'lager', 'betten', 'dz'];
+                    
+                    // Finde die Quota-Spalten (nach den freien Kapazitäten)
+                    let oldQuotaStartIndex = -1;
+                    let newQuotaStartIndex = -1;
+                    
+                    // Suche nach Quota-Spalten anhand der CSS-Klassen
+                    cells.forEach((cell, cellIndex) => {
+                        if (cell.classList.contains('cell-quota-data') && oldQuotaStartIndex === -1) {
+                            oldQuotaStartIndex = cellIndex;
+                        }
+                    });
+                    
+                    // Neue Quotas sind etwa 8-10 Spalten nach den alten Quotas
+                    if (oldQuotaStartIndex !== -1) {
+                        newQuotaStartIndex = oldQuotaStartIndex + 9; // Nach Belegungsspalten
+                        
+                        quotaCategories.forEach((kategorie, catIndex) => {
+                            const oldQuotaIndex = oldQuotaStartIndex + catIndex;
+                            const newQuotaIndex = newQuotaStartIndex + catIndex;
+                            
+                            if (oldQuotaIndex < cells.length && newQuotaIndex < cells.length) {
+                                const oldQuotaCell = cells[oldQuotaIndex];
+                                const newQuotaCell = cells[newQuotaIndex];
+                                
+                                const oldQuota = parseInt(oldQuotaCell.textContent.trim()) || 0;
+                                const newQuota = parseInt(newQuotaCell.textContent.trim()) || 0;
+                                const diff = newQuota - oldQuota;
+                                
+                                if (diff !== 0) {
+                                    dayChanges.push({
+                                        kategorie: kategorie,
+                                        old: oldQuota,
+                                        new: newQuota,
+                                        diff: diff
+                                    });
+                                }
+                                
+                                // Zur Gesamtsumme hinzufügen
+                                analysis.summary[kategorie].old += oldQuota;
+                                analysis.summary[kategorie].new += newQuota;
+                                analysis.summary[kategorie].diff += diff;
+                            }
+                        });
+                    }
+                    
+                    if (dayChanges.length > 0) {
+                        analysis.changedDays++;
+                        
+                        // Wochentag bestimmen
+                        const germanDays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+                        const dayName = germanDays[rowDate.getDay()];
+                        
+                        analysis.changes.push({
+                            date: rowDate.toISOString().split('T')[0],
+                            day_name: dayName,
+                            changes: dayChanges
+                        });
+                    }
+                }
+            });
+            
+            displayQuotaAnalysis(analysis);
+        }
+        
+        function displayQuotaAnalysis(analysis) {
+            const content = document.getElementById('detailsContent');
+            
+            let html = `
+                <div style="padding: 20px;">
+                    <h3>🔍 Quota-Analyse für gewählten Bereich</h3>
+                    
+                    <div style="margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                        <h4>📊 Übersicht</h4>
+                        <p><strong>Tage im Bereich:</strong> \${analysis.totalDays}</p>
+                        <p><strong>Tage mit Änderungen:</strong> \${analysis.changedDays}</p>
+                        <p><strong>Bereich:</strong> \${rangeStart} bis \${rangeEnd}</p>
+                    </div>
+                    
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <h4>📈 Zusammenfassung der Änderungen</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #dee2e6;">
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Kategorie</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Alte Summe</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Neue Summe</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Differenz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                \${Object.keys(analysis.summary).map(cat => {
+                                    const sum = analysis.summary[cat];
+                                    const diffColor = sum.diff > 0 ? '#28a745' : sum.diff < 0 ? '#dc3545' : '#6c757d';
+                                    return \`
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">\${cat.toUpperCase()}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">\${sum.old}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">\${sum.new}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center; color: \${diffColor}; font-weight: bold;">
+                                                \${sum.diff > 0 ? '+' : ''}\${sum.diff}
+                                            </td>
+                                        </tr>
+                                    \`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="hideDetailsPanel()" style="
+                            background: #6c757d; color: white; border: none; 
+                            padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                            🔙 Schließen
+                        </button>
+                    </div>
+                </div>
+            \`;
+            
+            content.innerHTML = html;
+            document.getElementById('detailsPanel').style.display = 'block';
+        }
     </script>
 
     <script>
-        // Daten für JavaScript verfügbar machen
-        const detailData = <?= json_encode($detailDaten) ?>;
-        
-        function updateData() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            
-            if (startDate && endDate) {
-                window.location.href = `?start=${startDate}&end=${endDate}`;
-            }
-        }
+        // Daten für JavaScript verfügbar machen  
+        const detailData = <?= json_encode($detailDaten ?? [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         
         async function importWebImpData(dryRun = false) {
             const webimpBtn = document.getElementById('webimpBtn');
@@ -2732,14 +3036,24 @@ function getCellBackgroundColor($originalValue, $newValue) {
             window.location.href = '?' + params.toString();
         }
         
-        // Debugging: Quota-Daten anzeigen
-        console.log('Verfügbare Quota-Daten:', <?= json_encode($quotaDataJS) ?>);
+        // Debugging: Quota-Daten werden direkt aus der Tabelle gelesen
+        console.log('Quota-Analyse aktiviert - Daten werden aus Tabelle extrahiert');
         
         // === DATUMSBEREICH-AUSWAHL ===
         let dateRangeMode = false;
         let selectedDates = [];
         let rangeStart = null;
         let rangeEnd = null;
+        
+        function handleDateClick(dateStr, dayIndex) {
+            if (dateRangeMode) {
+                // Bereichsauswahl-Modus: selectDate aufrufen, Modal verhindern
+                selectDate(dateStr);
+            } else {
+                // Normal-Modus: Modal mit Reservierungen anzeigen
+                showDayDetails(dayIndex);
+            }
+        }
         
         function toggleDateRangeSelection() {
             const btn = document.getElementById('dateRangeBtn');
@@ -2827,101 +3141,113 @@ function getCellBackgroundColor($originalValue, $newValue) {
                 current.setDate(current.getDate() + 1);
             }
         }
-        
-        function analyzeQuotaChanges() {
             if (!rangeStart || !rangeEnd) {
-                alert('Bitte wählen Sie zuerst einen Datumsbereich aus.');
+                alert('Bitte wählen Sie zuerst einen Datumsbereich aus!');
                 return;
             }
             
-            // Analysiere Quotas im gewählten Bereich
-            const quotaData = <?= json_encode($quotaDataJS) ?>;
-            const analysis = analyzeQuotaConflicts(rangeStart, rangeEnd, quotaData);
+            const startDate = new Date(rangeStart);
+            const endDate = new Date(rangeEnd);
             
-            displayQuotaAnalysis(analysis);
-        }
-        
-        function analyzeQuotaConflicts(startDate, endDate, quotaData) {
-            const analysis = {
-                selectedRange: { start: startDate, end: endDate },
-                conflictingQuotas: [],
-                quotasToRemove: [],
-                quotasToAdd: [],
-                gaps: []
+            let analysis = {
+                totalDays: 0,
+                changedDays: 0,
+                changes: [],
+                summary: {
+                    sonder: { old: 0, new: 0, diff: 0 },
+                    lager: { old: 0, new: 0, diff: 0 },
+                    betten: { old: 0, new: 0, diff: 0 },
+                    dz: { old: 0, new: 0, diff: 0 }
+                }
             };
             
-            // Finde Quotas die den Bereich überlappen
-            quotaData.forEach(quota => {
-                const quotaStart = quota.date_from;
-                const quotaEnd = quota.date_to;
+            // Analysiere jeden Tag im ausgewählten Bereich durch direkte Tabellenauswertung
+            const tableRows = document.querySelectorAll('.sticky-table tbody tr');
+            
+            tableRows.forEach((row, index) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 15) return; // Unvollständige Zeile
                 
-                // Prüfe auf Überlappung
-                if (quotaStart < endDate && quotaEnd > startDate) {
-                    analysis.conflictingQuotas.push(quota);
+                // Datum aus der ersten Zelle extrahieren
+                const dateCell = cells[0];
+                const dateMatch = dateCell.textContent.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+                if (!dateMatch) return;
+                
+                const [, day, month, year] = dateMatch;
+                const rowDate = new Date(year, month - 1, day);
+                
+                // Prüfe ob Datum im ausgewählten Bereich liegt
+                if (rowDate >= startDate && rowDate <= endDate) {
+                    analysis.totalDays++;
                     
-                    // Entscheidung: Entfernen oder Kürzen
-                    if (quotaStart < startDate && quotaEnd > endDate) {
-                        // Quota umschließt den Bereich komplett
-                        analysis.quotasToRemove.push({
-                            ...quota,
-                            reason: 'Umschließt gewählten Bereich komplett'
-                        });
-                        
-                        // Neue Quotas vor und nach dem Bereich erstellen
-                        if (quotaStart < startDate) {
-                            analysis.quotasToAdd.push({
-                                ...quota,
-                                date_from: quotaStart,
-                                date_to: startDate,
-                                reason: 'Neues Ende vor gewähltem Bereich'
-                            });
+                    // Extrahiere Quota-Daten aus der Tabelle
+                    // Alte Quotas: Sonder(7), Lager(8), Betten(9), DZ(10) - nach freien Kapazitäten
+                    // Neue Quotas: etwa 8 Spalten später nach allen Belegungsdaten
+                    
+                    let dayChanges = [];
+                    const quotaCategories = ['sonder', 'lager', 'betten', 'dz'];
+                    
+                    // Finde die Quota-Spalten (nach den freien Kapazitäten)
+                    let oldQuotaStartIndex = -1;
+                    let newQuotaStartIndex = -1;
+                    
+                    // Suche nach Quota-Spalten anhand der CSS-Klassen
+                    cells.forEach((cell, cellIndex) => {
+                        if (cell.classList.contains('cell-quota-data') && oldQuotaStartIndex === -1) {
+                            oldQuotaStartIndex = cellIndex;
                         }
+                    });
+                    
+                    // Neue Quotas sind etwa 8-10 Spalten nach den alten Quotas
+                    if (oldQuotaStartIndex !== -1) {
+                        newQuotaStartIndex = oldQuotaStartIndex + 9; // Nach Belegungsspalten
                         
-                        if (quotaEnd > endDate) {
-                            analysis.quotasToAdd.push({
-                                ...quota,
-                                date_from: endDate,
-                                date_to: quotaEnd,
-                                reason: 'Neuer Start nach gewähltem Bereich'
-                            });
-                        }
-                    } else if (quotaStart < startDate && quotaEnd <= endDate) {
-                        // Quota endet im Bereich
-                        analysis.quotasToRemove.push({
-                            ...quota,
-                            reason: 'Endet im gewählten Bereich'
+                        quotaCategories.forEach((kategorie, catIndex) => {
+                            const oldQuotaIndex = oldQuotaStartIndex + catIndex;
+                            const newQuotaIndex = newQuotaStartIndex + catIndex;
+                            
+                            if (oldQuotaIndex < cells.length && newQuotaIndex < cells.length) {
+                                const oldQuotaCell = cells[oldQuotaIndex];
+                                const newQuotaCell = cells[newQuotaIndex];
+                                
+                                const oldQuota = parseInt(oldQuotaCell.textContent.trim()) || 0;
+                                const newQuota = parseInt(newQuotaCell.textContent.trim()) || 0;
+                                const diff = newQuota - oldQuota;
+                                
+                                if (diff !== 0) {
+                                    dayChanges.push({
+                                        kategorie: kategorie,
+                                        old: oldQuota,
+                                        new: newQuota,
+                                        diff: diff
+                                    });
+                                }
+                                
+                                // Zur Gesamtsumme hinzufügen
+                                analysis.summary[kategorie].old += oldQuota;
+                                analysis.summary[kategorie].new += newQuota;
+                                analysis.summary[kategorie].diff += diff;
+                            }
                         });
+                    }
+                    
+                    if (dayChanges.length > 0) {
+                        analysis.changedDays++;
                         
-                        analysis.quotasToAdd.push({
-                            ...quota,
-                            date_from: quotaStart,
-                            date_to: startDate,
-                            reason: 'Gekürzt - endet vor gewähltem Bereich'
-                        });
-                    } else if (quotaStart >= startDate && quotaEnd > endDate) {
-                        // Quota startet im Bereich
-                        analysis.quotasToRemove.push({
-                            ...quota,
-                            reason: 'Startet im gewählten Bereich'
-                        });
+                        // Wochentag bestimmen
+                        const germanDays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+                        const dayName = germanDays[rowDate.getDay()];
                         
-                        analysis.quotasToAdd.push({
-                            ...quota,
-                            date_from: endDate,
-                            date_to: quotaEnd,
-                            reason: 'Gekürzt - startet nach gewähltem Bereich'
-                        });
-                    } else {
-                        // Quota liegt komplett im Bereich
-                        analysis.quotasToRemove.push({
-                            ...quota,
-                            reason: 'Liegt komplett im gewählten Bereich'
+                        analysis.changes.push({
+                            date: rowDate.toISOString().split('T')[0],
+                            day_name: dayName,
+                            changes: dayChanges
                         });
                     }
                 }
             });
             
-            return analysis;
+            displayQuotaAnalysis(analysis);
         }
         
         function displayQuotaAnalysis(analysis) {
@@ -2929,23 +3255,155 @@ function getCellBackgroundColor($originalValue, $newValue) {
             
             let html = `
                 <div style="padding: 20px;">
-                    <h3>🔍 Quota-Analyse für Bereich ${analysis.selectedRange.start} bis ${analysis.selectedRange.end}</h3>
+                    <h3>🔍 Quota-Analyse für gewählten Bereich</h3>
+                    
+                    <div style="margin: 20px 0; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                        <h4>📊 Übersicht</h4>
+                        <p><strong>Tage im Bereich:</strong> ${analysis.totalDays}</p>
+                        <p><strong>Tage mit Änderungen:</strong> ${analysis.changedDays}</p>
+                        <p><strong>Bereich:</strong> ${rangeStart} bis ${rangeEnd}</p>
+                    </div>
+                    
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <h4>📈 Zusammenfassung der Änderungen</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #dee2e6;">
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Kategorie</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Alte Summe</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Neue Summe</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Differenz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Object.keys(analysis.summary).map(cat => {
+                                    const sum = analysis.summary[cat];
+                                    const diffColor = sum.diff > 0 ? '#28a745' : sum.diff < 0 ? '#dc3545' : '#6c757d';
+                                    return `
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">${cat.toUpperCase()}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${sum.old}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${sum.new}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center; color: ${diffColor}; font-weight: bold;">
+                                                ${sum.diff > 0 ? '+' : ''}${sum.diff}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${analysis.changedDays > 0 ? `
+                        <div style="margin: 20px 0;">
+                            <h4>📅 Detailierte Änderungen pro Tag</h4>
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                ${analysis.changes.map(day => `
+                                    <div style="margin: 10px 0; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 5px;">
+                                        <h5 style="margin-top: 0; color: #495057;">
+                                            📅 ${day.date} (${day.day_name})
+                                        </h5>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                            ${day.changes.map(change => {
+                                                const diffColor = change.diff > 0 ? '#28a745' : '#dc3545';
+                                                const diffIcon = change.diff > 0 ? '⬆️' : '⬇️';
+                                                return `
+                                                    <div style="padding: 10px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid ${diffColor};">
+                                                        <div style="font-weight: bold; color: #495057; margin-bottom: 5px;">
+                                                            ${change.kategorie.toUpperCase()}
+                                                        </div>
+                                                        <div style="font-size: 12px; color: #6c757d;">
+                                                            ${change.old} → ${change.new}
+                                                        </div>
+                                                        <div style="font-weight: bold; color: ${diffColor};">
+                                                            ${diffIcon} ${change.diff > 0 ? '+' : ''}${change.diff}
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : `
+                        <div style="margin: 20px 0; padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; color: #155724;">
+                            ✅ <strong>Keine Quota-Änderungen erforderlich</strong><br>
+                            Alle Quotas im gewählten Bereich entsprechen bereits der Zielauslastung.
+                        </div>
+                    `}
+                    
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="hideDetailsPanel()" style="
+                            background: #6c757d; color: white; border: none; 
+                            padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                            🔙 Schließen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            document.getElementById('detailsPanel').style.display = 'block';
+        }
+                                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${change.new}</td>
+                                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: ${change.difference > 0 ? '#28a745' : '#dc3545'};">
+                                                ${change.difference > 0 ? '+' : ''}${change.difference}
+                                            </td>
+                                            <td style="border: 1px solid #ddd; padding: 8px;">${change.reason}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<div style="color: #28a745; text-align: center; padding: 20px;">✅ Keine Quota-Änderungen erforderlich - alle Werte sind optimal!</div>'}
+                    </div>
                     
                     <div style="margin: 20px 0;">
-                        <h4 style="color: #dc3545;">❌ Zu entfernende Quotas (${analysis.quotasToRemove.length})</h4>
-                        ${analysis.quotasToRemove.length > 0 ? `
+                        <h4 style="color: #17a2b8;">📅 Tage im ausgewählten Bereich</h4>
+                        ${(analysis.daysInRange && analysis.daysInRange.length > 0) ? `
                             <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
                                 <thead>
                                     <tr style="background: #f8f9fa;">
-                                        <th style="border: 1px solid #ddd; padding: 8px;">Quota Name</th>
-                                        <th style="border: 1px solid #ddd; padding: 8px;">Von</th>
-                                        <th style="border: 1px solid #ddd; padding: 8px;">Bis</th>
-                                        <th style="border: 1px solid #ddd; padding: 8px;">Grund</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Datum</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Wochentag</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Zielauslastung</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Aktuelle Belegung</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Freie Quotas benötigt</th>
+                                        <th style="border: 1px solid #ddd; padding: 8px;">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${analysis.quotasToRemove.map(quota => `
+                                    ${analysis.daysInRange.map(day => `
                                         <tr>
+                                            <td style="border: 1px solid #ddd; padding: 8px;">${day.date}</td>
+                                            <td style="border: 1px solid #ddd; padding: 8px;">${day.day_name}</td>
+                                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${day.target_occupancy}</td>
+                                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${day.current_occupancy}</td>
+                                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center; color: ${day.free_quota_needed > 0 ? '#dc3545' : '#28a745'};">
+                                                ${day.free_quota_needed}
+                                            </td>
+                                            <td style="border: 1px solid #ddd; padding: 8px;">
+                                                ${day.free_quota_needed > 0 ? '🔴 Unterauslastung' : '🟢 Optimal'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<div style="color: #6c757d; text-align: center; padding: 20px;">ℹ️ Keine Daten für den gewählten Bereich verfügbar</div>'}
+                    </div>
+                    
+                    <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                        <h4>💡 Nächste Schritte</h4>
+                        <p>1. <strong>Für HRS-Updates:</strong> Verwenden Sie die Quota-Änderungen um entsprechende HRS-Quotas anzupassen</p>
+                        <p>2. <strong>Für Monitoring:</strong> Beobachten Sie Tage mit Unterauslastung für mögliche Anpassungen</p>
+                        <p>3. <strong>Für Optimierung:</strong> Nutzen Sie die Quota-Optimierung um automatisch anzupassen</p>
+                    </div>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            document.getElementById('detailsPanel').style.display = 'block';
+        }
                                             <td style="border: 1px solid #ddd; padding: 8px;">${quota.title}</td>
                                             <td style="border: 1px solid #ddd; padding: 8px;">${quota.date_from}</td>
                                             <td style="border: 1px solid #ddd; padding: 8px;">${quota.date_to}</td>
@@ -2958,8 +3416,8 @@ function getCellBackgroundColor($originalValue, $newValue) {
                     </div>
                     
                     <div style="margin: 20px 0;">
-                        <h4 style="color: #28a745;">✅ Hinzuzufügende Quotas (${analysis.quotasToAdd.length})</h4>
-                        ${analysis.quotasToAdd.length > 0 ? `
+                        <h4 style="color: #28a745;">✅ Hinzuzufügende Quotas (${analysis.quotasToAdd ? analysis.quotasToAdd.length : 0})</h4>
+                        ${(analysis.quotasToAdd && analysis.quotasToAdd.length > 0) ? `
                             <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
                                 <thead>
                                     <tr style="background: #f8f9fa;">
@@ -2985,11 +3443,17 @@ function getCellBackgroundColor($originalValue, $newValue) {
                     
                     <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 5px;">
                         <h4>💡 Empfehlung für HRS-Update</h4>
-                        <ol>
-                            <li>Entfernen Sie die ${analysis.quotasToRemove.length} konfliktierenden Quotas</li>
-                            <li>Fügen Sie die ${analysis.quotasToAdd.length} neuen Quotas hinzu</li>
-                            <li>Erstellen Sie die optimierten Quotas für den Bereich ${analysis.selectedRange.start} bis ${analysis.selectedRange.end}</li>
-                        </ol>
+                        ${(analysis.quotasToRemove && analysis.quotasToRemove.length > 0) || (analysis.quotasToAdd && analysis.quotasToAdd.length > 0) ? `
+                            <ol>
+                                <li>Entfernen Sie die ${analysis.quotasToRemove ? analysis.quotasToRemove.length : 0} konfliktierenden Quotas</li>
+                                <li>Fügen Sie die ${analysis.quotasToAdd ? analysis.quotasToAdd.length : 0} neuen Quotas hinzu</li>
+                                <li>Erstellen Sie die optimierten Quotas für den Bereich ${analysis.selectedRange.start} bis ${analysis.selectedRange.end}</li>
+                            </ol>
+                        ` : `
+                            <p style="color: #856404;">✅ <strong>Keine Konflikte gefunden!</strong></p>
+                            <p>Im gewählten Bereich ${analysis.selectedRange.start} bis ${analysis.selectedRange.end} wurden keine konflikierenden Quotas gefunden. Sie können neue Quotas hinzufügen, ohne bestehende zu entfernen.</p>
+                            ${analysis.totalQuotas === 0 ? '<p style="color: #dc3545;"><strong>Hinweis:</strong> Es wurden überhaupt keine Quota-Daten gefunden. Möglicherweise gibt es ein Problem beim Laden der Quotas.</p>' : ''}
+                        `}
                     </div>
                 </div>
             `;
