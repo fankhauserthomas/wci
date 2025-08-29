@@ -1070,7 +1070,7 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                 $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
                             }
                             
-                            echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
+                            echo '<tr style="background: ' . $rowBgColor . ';">';
                             
                             // Datum mit Wochenend-Kennzeichnung
                             $datumClasses = 'cell-base cell-datum';
@@ -2532,69 +2532,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
             
             // Excel-Datei herunterladen
             XLSX.writeFile(wb, filename);
-        }
-        
-        function showDayDetails(dayIndex) {
-            const dayData = detailData[dayIndex];
-            if (!dayData) return;
-            
-            const content = document.getElementById('detailsContent');
-            
-            let html = `<h3>Reservierungen für ${dayData.datum_formatted}</h3>`;
-            html += `<p><strong>Freie Plätze gesamt:</strong> ${dayData.freie_plaetze}</p>`;
-            
-            // HRS Reservierungen
-            if (dayData.hrs && dayData.hrs.length > 0) {
-                html += '<h4 style="color: #0066cc;">HRS Reservierungen (' + dayData.hrs.length + ')</h4>';
-                html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
-                html += '<tr style="background: #f0f8ff;"><th style="border: 1px solid #ddd; padding: 8px;">Name</th><th style="border: 1px solid #ddd; padding: 8px;">Gruppe</th><th style="border: 1px solid #ddd; padding: 8px;">Anreise</th><th style="border: 1px solid #ddd; padding: 8px;">Abreise</th><th style="border: 1px solid #ddd; padding: 8px;">Sonder</th><th style="border: 1px solid #ddd; padding: 8px;">Lager</th><th style="border: 1px solid #ddd; padding: 8px;">Betten</th><th style="border: 1px solid #ddd; padding: 8px;">DZ</th><th style="border: 1px solid #ddd; padding: 8px;">HP</th><th style="border: 1px solid #ddd; padding: 8px;">Vegi</th></tr>';
-                
-                dayData.hrs.forEach(res => {
-                    html += '<tr>';
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.nachname}, ${res.vorname}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.gruppe || ''}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.anreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.abreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.sonder}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.lager}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.betten}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.dz}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.hp}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.vegi}</td>`;
-                    html += '</tr>';
-                });
-                html += '</table></div>';
-            }
-            
-            // Lokale Reservierungen
-            if (dayData.lokal && dayData.lokal.length > 0) {
-                html += '<h4 style="color: #006600;">Lokale Reservierungen (' + dayData.lokal.length + ')</h4>';
-                html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
-                html += '<tr style="background: #f0fff0;"><th style="border: 1px solid #ddd; padding: 8px;">Name</th><th style="border: 1px solid #ddd; padding: 8px;">Gruppe</th><th style="border: 1px solid #ddd; padding: 8px;">Anreise</th><th style="border: 1px solid #ddd; padding: 8px;">Abreise</th><th style="border: 1px solid #ddd; padding: 8px;">Sonder</th><th style="border: 1px solid #ddd; padding: 8px;">Lager</th><th style="border: 1px solid #ddd; padding: 8px;">Betten</th><th style="border: 1px solid #ddd; padding: 8px;">DZ</th><th style="border: 1px solid #ddd; padding: 8px;">HP</th><th style="border: 1px solid #ddd; padding: 8px;">Vegi</th></tr>';
-                
-                dayData.lokal.forEach(res => {
-                    html += '<tr>';
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.nachname}, ${res.vorname}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.gruppe || ''}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.anreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.abreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.sonder}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.lager}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.betten}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.dz}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.hp}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.vegi}</td>`;
-                    html += '</tr>';
-                });
-                html += '</table></div>';
-            }
-            
-            if ((!dayData.hrs || dayData.hrs.length === 0) && (!dayData.lokal || dayData.lokal.length === 0)) {
-                html += '<p style="color: #666; font-style: italic;">Keine Reservierungen für diesen Tag gefunden.</p>';
-            }
-            
-            content.innerHTML = html;
-            document.getElementById('detailsPanel').style.display = 'block';
         }
         
         function showDryRunResults(data) {
