@@ -32,358 +32,8 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Belegungsanalyse - Tabellenansicht</title>
+    <link rel="stylesheet" href="style/belegung_tab.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { text-align: center; color: #333; margin-bottom: 30px; }
-        .controls { display: flex; gap: 8px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; }
-        .control-group { display: flex; flex-direction: column; gap: 3px; }
-        .control-group label { font-weight: bold; font-size: 12px; }
-        .control-group input, .control-group button { padding: 4px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; }
-        .control-group button { background: #2196F3; color: white; border: none; cursor: pointer; }
-        .control-group button:hover { background: #1976D2; }
-        .export-buttons { margin: 20px 0; text-align: center; }
-        .export-btn { 
-            padding: 4px 8px; 
-            margin: 0; 
-            border: none; 
-            border-radius: 3px; 
-            font-size: 11px; 
-            cursor: pointer; 
-            transition: all 0.3s ease;
-        }
-        .export-excel { background: #4CAF50; color: white; }
-        .btn-import { 
-            padding: 4px 8px; 
-            background: #2196F3; 
-            color: white; 
-            border: none; 
-            border-radius: 3px; 
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 11px;
-        }
-        .btn-import:hover { background: #1976D2; }
-        .btn-import:disabled { background: #ccc; cursor: not-allowed; }
-        
-        .progress-container {
-            display: none;
-            margin-top: 10px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 1px solid #e3e6ea;
-        }
-        
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            position: relative;
-        }
-        
-        .progress-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            position: relative;
-        }
-        
-        .progress-step:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            top: 12px;
-            left: 50%;
-            right: -50%;
-            height: 2px;
-            background: #ddd;
-            z-index: 0;
-        }
-        
-        .progress-step.active::after,
-        .progress-step.completed::after {
-            background: #2196F3;
-        }
-        
-        .step-circle {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #ddd;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .progress-step.active .step-circle {
-            background: #2196F3;
-            animation: pulse 1.5s infinite;
-        }
-        
-        .progress-step.completed .step-circle {
-            background: #4CAF50;
-        }
-        
-        .progress-step.completed .step-circle::before {
-            content: '✓';
-            font-size: 14px;
-        }
-        
-        .step-label {
-            font-size: 11px;
-            color: #666;
-            font-weight: 500;
-            text-align: center;
-        }
-        
-        .step-result {
-            font-size: 10px;
-            color: #888;
-            text-align: center;
-            margin-top: 2px;
-            min-height: 12px;
-        }
-        
-        .progress-step.completed .step-result {
-            color: #4CAF50;
-            font-weight: bold;
-        }
-        
-        .progress-step.active .step-label {
-            color: #2196F3;
-            font-weight: bold;
-        }
-        
-        .progress-step.completed .step-label {
-            color: #4CAF50;
-        }
-        
-        .progress-status {
-            text-align: center;
-            font-size: 13px;
-            color: #666;
-            margin-top: 10px;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        
-        .table-container {
-            height: 70vh;
-            overflow-y: auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border: 1px solid #ddd;
-        }
-        
-        .sticky-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 10px;
-        }
-        
-        .sticky-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: #f5f5f5;
-            padding: 4px 2px;
-            border: 1px solid #ddd;
-            font-weight: bold;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            transform: rotate(180deg);
-            height: 80px;
-            width: 30px;
-            font-size: 9px;
-        }
-        
-        .sticky-table thead th.header-datum {
-            writing-mode: horizontal-tb;
-            transform: none;
-            width: 85px;
-            text-align: center;
-            height: auto;
-            padding: 8px 4px;
-            font-size: 10px;
-        }
-        
-        .sticky-table thead th.header-quota-name {
-            writing-mode: horizontal-tb;
-            transform: none;
-            width: 80px;
-            text-align: center;
-            height: auto;
-            padding: 8px 4px;
-            font-size: 10px;
-        }
-        
-        .sticky-table tbody td {
-            /* Basis-Styling für alle Zellen - wird von spezifischen Klassen überschrieben */
-        }
-        
-        /* Spezielle Zell-Klassen für verschiedene Datentypen */
-        .cell-base {
-            padding: 2px 1px;
-            border: 1px solid #ddd;
-            text-align: center;
-            font-size: 9px;
-            line-height: 1.1;
-        }
-        
-        .cell-datum {
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 10px;
-            padding: 3px 2px;
-        }
-        
-        .cell-weekend {
-            color: #cc6600;
-            font-weight: 900;
-        }
-        
-        .cell-frei-gesamt {
-            font-weight: bold;
-            background: #e8f5e8;
-        }
-        
-        .cell-frei-sonder {
-            background: #f3e5f5;
-        }
-        
-        .cell-frei-lager {
-            background: #e5f5e5;
-        }
-        
-        .cell-frei-betten {
-            background: #fffbe5;
-        }
-        
-        .cell-frei-dz {
-            background: #ffe5e5;
-        }
-        
-        .cell-quota-name {
-            background: #fff3cd;
-            font-size: 9px;
-            vertical-align: middle;
-            writing-mode: horizontal-tb;
-            width: 80px;
-            padding: 2px 3px;
-        }
-        
-        .cell-quota-data {
-            background: #f0f8ff;
-            vertical-align: middle;
-        }
-        
-        .cell-hrs-sonder {
-            color: #9966CC;
-        }
-        
-        .cell-lokal-sonder {
-            color: #7722CC;
-        }
-        
-        .cell-hrs-lager {
-            color: #66CC66;
-        }
-        
-        .cell-lokal-lager {
-            color: #228822;
-        }
-        
-        .cell-hrs-betten {
-            color: #CCCC66;
-        }
-        
-        .cell-lokal-betten {
-            color: #CCCC00;
-        }
-        
-        .cell-hrs-dz {
-            color: #FF6666;
-        }
-        
-        .cell-lokal-dz {
-            color: #CC2222;
-        }
-        
-        .cell-gesamt {
-            font-weight: bold;
-        }
-        .export-excel:hover { background: #45a049; }
-        .details-panel {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 1200px;
-            max-height: 80vh;
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            display: none;
-            z-index: 1000;
-            overflow: hidden;
-        }
-        .details-header {
-            background: #f5f5f5;
-            padding: 15px 20px;
-            border-bottom: 1px solid #ddd;
-            font-weight: bold;
-            font-size: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .close-btn {
-            background: #ff4444;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 15px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .close-btn:hover { background: #cc0000; }
-        .details-content {
-            padding: 20px;
-            max-height: calc(80vh - 80px);
-            overflow-y: auto;
-        }
-        .legend {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 3px;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -433,6 +83,31 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         <!-- Quota-Optimierung Konfiguration -->
         <div id="quotaOptimizationPanel" style="display: none; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
             <h4 style="margin: 0 0 10px 0; color: #495057;">⚙️ Quota-Optimierung Konfiguration</h4>
+            
+            <!-- Zeitraumauswahl -->
+            <div style="background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <label for="quotaStartDate" style="font-weight: bold;">Von:</label>
+                        <input type="date" id="quotaStartDate" value="<?= $startDate ?>" style="padding: 4px; margin-left: 5px;">
+                    </div>
+                    <div>
+                        <label for="quotaEndDate" style="font-weight: bold;">Bis:</label>
+                        <input type="date" id="quotaEndDate" value="<?= $endDate ?>" style="padding: 4px; margin-left: 5px;">
+                    </div>
+                    <div>
+                        <button onclick="toggleQuotaDateSelection()" id="dateSelectionBtn" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">📅 In Tabelle auswählen</button>
+                    </div>
+                    <div>
+                        <button onclick="resetQuotaSelection()" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">🗑️ Auswahl löschen</button>
+                    </div>
+                </div>
+                <div id="quotaSelectionHint" style="display: none; font-size: 12px; color: #6c757d; font-style: italic;">
+                    🖱️ Klicken Sie zuerst auf das <strong>Startdatum</strong>, dann auf das <strong>Enddatum</strong> in der Tabelle
+                </div>
+            </div>
+            
+            <!-- Optimierung -->
             <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                 <div>
                     <label for="zielauslastung" style="font-weight: bold;">Zielauslastung (ZA):</label>
@@ -662,18 +337,23 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                                 $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
                             }
                             
-                            echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
+                            echo '<tr style="background: ' . $rowBgColor . ';" onclick="selectDateForQuota(' . $i . ')" data-date="' . $datum->format('Y-m-d') . '" class="table-row">';
                             
-                            // Datum mit Wochenend-Kennzeichnung
+                            // Deutsche Datumstexte
+                            $germanDays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                            $dayOfWeek = $germanDays[$datum->format('w')];
+                            
+                            // Datum mit deutscher Wochenend-Kennzeichnung
                             $datumClasses = 'cell-base cell-datum';
-                            $datumText = $datum->format('D d.m.Y');
+                            $datumText = $dayOfWeek . ' ' . $datum->format('d.m.');
+                            $fullDate = $datum->format('Y-m-d'); // Echtes Datum für Hintergrund
                             
                             if ($isWeekend) {
                                 $datumClasses .= ' cell-weekend';
                                 // Kein Emoji mehr für Wochenende
                             }
                             
-                            echo '<td class="' . $datumClasses . '">' . $datumText . '</td>';
+                            echo '<td class="' . $datumClasses . '" data-full-date="' . $fullDate . '" id="date-cell-' . $i . '">' . $datumText . '</td>';
                             
                             // Freie Kapazitäten - Null-Werte als leer anzeigen
                             echo '<td class="cell-base cell-frei-gesamt">' . 
@@ -842,16 +522,6 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                         ?>
                     </tbody>
                 </table>
-            </div>
-        </div>
-        
-        <div id="detailsPanel" class="details-panel">
-            <div class="details-header">
-                Reservierungsdetails
-                <button class="close-btn" onclick="hideDetailsPanel()">✕ Schließen</button>
-            </div>
-            <div class="details-content" id="detailsContent">
-                <!-- Details werden hier eingefügt -->
             </div>
         </div>
     </div>
@@ -1801,7 +1471,10 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             try {
                 console.log(dryRun ? 'Starte WebImp Dry-Run...' : 'Starte WebImp Import...');
                 
-                const url = dryRun ? '/wci/hrs/import_webimp.php?json=1&dry-run=1' : '/wci/hrs/import_webimp.php?json=1';
+                const protocol = window.location.protocol;
+                const host = window.location.host;
+                const baseUrl = `${protocol}//${host}`;
+                const url = dryRun ? `${baseUrl}/wci/hrs/import_webimp.php?json=1&dry-run=1` : `${baseUrl}/wci/hrs/import_webimp.php?json=1`;
                 const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`Import API Fehler: ${response.status}`);
@@ -1898,7 +1571,10 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 progressStatus.textContent = 'Importiere Reservierungen...';
                 console.log('Starte Reservierungen Import...');
                 
-                const resResponse = await fetch(`/wci/hrs/hrs_imp_res.php?from=${startDate}&to=${endDate}&json=1`);
+                const protocol = window.location.protocol;
+                const host = window.location.host;
+                const baseUrl = `${protocol}//${host}`;
+                const resResponse = await fetch(`${baseUrl}/wci/hrs/hrs_imp_res.php?from=${startDate}&to=${endDate}&json=1`);
                 if (!resResponse.ok) {
                     throw new Error(`Reservierungen API Fehler: ${resResponse.status}`);
                 }
@@ -1916,7 +1592,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 progressStatus.textContent = 'Importiere Daily Summaries...';
                 console.log('Starte Daily Summaries Import...');
                 
-                const dailyResponse = await fetch(`/wci/hrs/hrs_imp_daily.php?from=${startDate}&to=${endDate}&json=1`);
+                const dailyResponse = await fetch(`${baseUrl}/wci/hrs/hrs_imp_daily.php?from=${startDate}&to=${endDate}&json=1`);
                 if (!dailyResponse.ok) {
                     throw new Error(`Daily Summaries API Fehler: ${dailyResponse.status}`);
                 }
@@ -1934,7 +1610,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 progressStatus.textContent = 'Importiere Quotas...';
                 console.log('Starte Quotas Import...');
                 
-                const quotaResponse = await fetch(`/wci/hrs/hrs_imp_quota.php?from=${startDate}&to=${endDate}&json=1`);
+                const quotaResponse = await fetch(`${baseUrl}/wci/hrs/hrs_imp_quota.php?from=${startDate}&to=${endDate}&json=1`);
                 if (!quotaResponse.ok) {
                     throw new Error(`Quotas API Fehler: ${quotaResponse.status}`);
                 }
@@ -2126,69 +1802,6 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             XLSX.writeFile(wb, filename);
         }
         
-        function showDayDetails(dayIndex) {
-            const dayData = detailData[dayIndex];
-            if (!dayData) return;
-            
-            const content = document.getElementById('detailsContent');
-            
-            let html = `<h3>Reservierungen für ${dayData.datum_formatted}</h3>`;
-            html += `<p><strong>Freie Plätze gesamt:</strong> ${dayData.freie_plaetze}</p>`;
-            
-            // HRS Reservierungen
-            if (dayData.hrs && dayData.hrs.length > 0) {
-                html += '<h4 style="color: #0066cc;">HRS Reservierungen (' + dayData.hrs.length + ')</h4>';
-                html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
-                html += '<tr style="background: #f0f8ff;"><th style="border: 1px solid #ddd; padding: 8px;">Name</th><th style="border: 1px solid #ddd; padding: 8px;">Gruppe</th><th style="border: 1px solid #ddd; padding: 8px;">Anreise</th><th style="border: 1px solid #ddd; padding: 8px;">Abreise</th><th style="border: 1px solid #ddd; padding: 8px;">Sonder</th><th style="border: 1px solid #ddd; padding: 8px;">Lager</th><th style="border: 1px solid #ddd; padding: 8px;">Betten</th><th style="border: 1px solid #ddd; padding: 8px;">DZ</th><th style="border: 1px solid #ddd; padding: 8px;">HP</th><th style="border: 1px solid #ddd; padding: 8px;">Vegi</th></tr>';
-                
-                dayData.hrs.forEach(res => {
-                    html += '<tr>';
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.nachname}, ${res.vorname}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.gruppe || ''}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.anreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.abreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.sonder}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.lager}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.betten}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.dz}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.hp}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.vegi}</td>`;
-                    html += '</tr>';
-                });
-                html += '</table></div>';
-            }
-            
-            // Lokale Reservierungen
-            if (dayData.lokal && dayData.lokal.length > 0) {
-                html += '<h4 style="color: #006600;">Lokale Reservierungen (' + dayData.lokal.length + ')</h4>';
-                html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
-                html += '<tr style="background: #f0fff0;"><th style="border: 1px solid #ddd; padding: 8px;">Name</th><th style="border: 1px solid #ddd; padding: 8px;">Gruppe</th><th style="border: 1px solid #ddd; padding: 8px;">Anreise</th><th style="border: 1px solid #ddd; padding: 8px;">Abreise</th><th style="border: 1px solid #ddd; padding: 8px;">Sonder</th><th style="border: 1px solid #ddd; padding: 8px;">Lager</th><th style="border: 1px solid #ddd; padding: 8px;">Betten</th><th style="border: 1px solid #ddd; padding: 8px;">DZ</th><th style="border: 1px solid #ddd; padding: 8px;">HP</th><th style="border: 1px solid #ddd; padding: 8px;">Vegi</th></tr>';
-                
-                dayData.lokal.forEach(res => {
-                    html += '<tr>';
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.nachname}, ${res.vorname}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.gruppe || ''}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.anreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px;">${res.abreise}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.sonder}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.lager}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.betten}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.dz}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.hp}</td>`;
-                    html += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${res.vegi}</td>`;
-                    html += '</tr>';
-                });
-                html += '</table></div>';
-            }
-            
-            if ((!dayData.hrs || dayData.hrs.length === 0) && (!dayData.lokal || dayData.lokal.length === 0)) {
-                html += '<p style="color: #666; font-style: italic;">Keine Reservierungen für diesen Tag gefunden.</p>';
-            }
-            
-            content.innerHTML = html;
-            document.getElementById('detailsPanel').style.display = 'block';
-        }
-        
         function showDryRunResults(data) {
             const content = document.getElementById('detailsContent');
             
@@ -2281,19 +1894,258 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             `;
             document.getElementById('detailsPanel').style.display = 'block';
         }
-        
+
         function hideDetailsPanel() {
             document.getElementById('detailsPanel').style.display = 'none';
         }
+
+        // === QUOTA-OPTIMIERUNG FUNKTIONEN ===        // Quota-Zeitraumauswahl Variablen
+        let quotaSelectionMode = false;
+        let quotaStartSelected = null;
+        let quotaEndSelected = null;
+        let allTableRows = [];
+        let servicedDays = []; // Array der SERVICED Tage
         
-        // Panel schließen beim Klick außerhalb
-        document.getElementById('detailsPanel').addEventListener('click', function(e) {
-            if (e.target === this) {
-                hideDetailsPanel();
+        // Quota-Daten aus PHP für SERVICED-Check
+        const quotaDataForJS = <?= json_encode($quotaData) ?>;
+        
+        // Initialisiere SERVICED-Tage beim Laden
+        function initializeServicedDays() {
+            const allDates = <?= json_encode($alleTage) ?>;
+            servicedDays = [];
+            
+            allDates.forEach((date, index) => {
+                let isServiced = false;
+                
+                // Prüfe ob für diesen Tag SERVICED Quotas existieren
+                for (let quota of quotaDataForJS) {
+                    if (quota.mode === 'SERVICED' && 
+                        date >= quota.date_from && 
+                        date < quota.date_to) {
+                        isServiced = true;
+                        break;
+                    }
+                }
+                
+                servicedDays[index] = isServiced;
+                
+                // Markiere nicht-SERVICED Tage visuell
+                if (!isServiced) {
+                    const dateCell = document.getElementById('date-cell-' + index);
+                    const tableRow = document.querySelectorAll('.table-row')[index];
+                    if (dateCell) dateCell.classList.add('quota-not-serviced');
+                    if (tableRow) tableRow.classList.add('quota-not-serviced');
+                }
+            });
+        }
+        
+        function toggleQuotaDateSelection() {
+            quotaSelectionMode = !quotaSelectionMode;
+            const btn = document.getElementById('dateSelectionBtn');
+            const hint = document.getElementById('quotaSelectionHint');
+            const container = document.querySelector('.container');
+            
+            if (quotaSelectionMode) {
+                btn.textContent = '❌ Auswahl beenden';
+                btn.style.background = '#dc3545';
+                hint.style.display = 'block';
+                container.classList.add('quota-selection-active');
+                
+                // Tabelle und Datumsspalte hervorheben (nur SERVICED Tage)
+                const tableRows = document.querySelectorAll('.table-row');
+                const dateCells = document.querySelectorAll('.cell-datum');
+                
+                tableRows.forEach((row, index) => {
+                    if (servicedDays[index]) {
+                        row.classList.add('quota-selection-hint');
+                    }
+                });
+                
+                dateCells.forEach((cell, index) => {
+                    if (servicedDays[index]) {
+                        cell.classList.add('quota-selection-hint');
+                    }
+                });
+                
+                // Vorherige Auswahl NICHT löschen, nur Selection-Hints entfernen
+                clearSelectionHints();
+            } else {
+                btn.textContent = '📅 In Tabelle auswählen';
+                btn.style.background = '#17a2b8';
+                hint.style.display = 'none';
+                container.classList.remove('quota-selection-active');
+                
+                // Nur Selection-Hints entfernen, aber Auswahl beibehalten
+                clearSelectionHints();
             }
+        }
+        
+        function clearSelectionHints() {
+            // Entfernt nur die gelben Auswahl-Hints, behält aber die eigentliche Auswahl
+            const tableRows = document.querySelectorAll('.table-row');
+            const dateCells = document.querySelectorAll('.cell-datum');
+            
+            tableRows.forEach(row => {
+                row.classList.remove('quota-selection-hint');
+            });
+            
+            dateCells.forEach(cell => {
+                cell.classList.remove('quota-selection-hint');
+            });
+        }
+        
+        function clearQuotaSelection() {
+            // Vollständiges Löschen der Auswahl (nur bei explizitem Reset)
+            quotaStartSelected = null;
+            quotaEndSelected = null;
+            
+            const tableRows = document.querySelectorAll('.table-row');
+            const dateCells = document.querySelectorAll('.cell-datum');
+            
+            tableRows.forEach(row => {
+                row.classList.remove('quota-start-selected', 'quota-end-selected', 'quota-range-selected', 'quota-selection-hint');
+            });
+            
+            dateCells.forEach(cell => {
+                cell.classList.remove('date-start-selected', 'date-end-selected', 'date-range-selected', 'quota-selection-hint');
+            });
+        }
+        
+        function selectDateForQuota(dayIndex) {
+            if (!quotaSelectionMode) return;
+            
+            // Prüfe ob dieser Tag SERVICED ist
+            if (!servicedDays[dayIndex]) {
+                alert('Dieser Tag ist nicht als SERVICED markiert und kann nicht für die Quota-Optimierung ausgewählt werden.');
+                return;
+            }
+            
+            const rows = document.querySelectorAll('.table-row');
+            const dateCells = document.querySelectorAll('.cell-datum');
+            const clickedRow = rows[dayIndex];
+            const clickedDateCell = dateCells[dayIndex];
+            const clickedDate = clickedRow.getAttribute('data-date');
+            
+            if (!quotaStartSelected) {
+                // Ersten Tag auswählen
+                quotaStartSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
+                clickedRow.classList.add('quota-start-selected');
+                clickedRow.classList.remove('quota-selection-hint');
+                clickedDateCell.classList.add('date-start-selected');
+                clickedDateCell.classList.remove('quota-selection-hint');
+                
+                // Datum in Input setzen
+                document.getElementById('quotaStartDate').value = clickedDate;
+                
+                // Hint aktualisieren
+                document.getElementById('quotaSelectionHint').innerHTML = 
+                    `🖱️ Startdatum gewählt: <strong>${formatDate(clickedDate)}</strong>. Klicken Sie nun auf das <strong>Enddatum</strong>.`;
+                    
+            } else if (!quotaEndSelected) {
+                // Zweiten Tag auswählen
+                const startIndex = quotaStartSelected.index;
+                const endIndex = dayIndex;
+                
+                // Prüfe ob der Bereich durchgehend SERVICED ist
+                const minIndex = Math.min(startIndex, endIndex);
+                const maxIndex = Math.max(startIndex, endIndex);
+                
+                for (let i = minIndex; i <= maxIndex; i++) {
+                    if (!servicedDays[i]) {
+                        alert(`Der ausgewählte Zeitraum enthält nicht-SERVICED Tage. Bitte wählen Sie einen durchgehend als SERVICED markierten Zeitraum.`);
+                        return;
+                    }
+                }
+                
+                if (endIndex < startIndex) {
+                    // Wenn Endtag vor Starttag liegt, tauschen
+                    quotaEndSelected = quotaStartSelected;
+                    quotaStartSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
+                    
+                    // Visual update
+                    quotaEndSelected.row.classList.remove('quota-start-selected');
+                    quotaEndSelected.row.classList.add('quota-end-selected');
+                    quotaEndSelected.dateCell.classList.remove('date-start-selected');
+                    quotaEndSelected.dateCell.classList.add('date-end-selected');
+                    
+                    clickedRow.classList.add('quota-start-selected');
+                    clickedDateCell.classList.add('date-start-selected');
+                    
+                    // Inputs aktualisieren
+                    document.getElementById('quotaStartDate').value = clickedDate;
+                    document.getElementById('quotaEndDate').value = quotaEndSelected.date;
+                } else {
+                    quotaEndSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
+                    clickedRow.classList.add('quota-end-selected');
+                    clickedRow.classList.remove('quota-selection-hint');
+                    clickedDateCell.classList.add('date-end-selected');
+                    clickedDateCell.classList.remove('quota-selection-hint');
+                    
+                    // Datum in Input setzen
+                    document.getElementById('quotaEndDate').value = clickedDate;
+                }
+                
+                // Bereich zwischen Start und Ende markieren
+                highlightQuotaRange();
+                
+                // Auswahl automatisch beenden, aber Markierung beibehalten
+                setTimeout(() => {
+                    toggleQuotaDateSelection(); // Beendet nur den Auswahlmodus, behält Markierung
+                }, 500);
+                
+            } else {
+                // Reset wenn bereits beide ausgewählt
+                clearQuotaSelection();
+                selectDateForQuota(dayIndex); // Neue Auswahl starten
+            }
+        }
+        
+        function highlightQuotaRange() {
+            if (!quotaStartSelected || !quotaEndSelected) return;
+            
+            const startIndex = Math.min(quotaStartSelected.index, quotaEndSelected.index);
+            const endIndex = Math.max(quotaStartSelected.index, quotaEndSelected.index);
+            const rows = document.querySelectorAll('.table-row');
+            const dateCells = document.querySelectorAll('.cell-datum');
+            
+            for (let i = startIndex + 1; i < endIndex; i++) {
+                rows[i].classList.add('quota-range-selected');
+                rows[i].classList.remove('quota-selection-hint');
+                dateCells[i].classList.add('date-range-selected');
+                dateCells[i].classList.remove('quota-selection-hint');
+            }
+        }
+        
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+            const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+            
+            return `${days[date.getDay()]} ${date.getDate()}.${months[date.getMonth()]}`;
+        }
+        
+        function resetQuotaSelection() {
+            // Expliziter Reset der Auswahl mit Bestätigung
+            if (quotaStartSelected || quotaEndSelected) {
+                if (confirm('Möchten Sie die aktuelle Zeitraumauswahl wirklich löschen?')) {
+                    clearQuotaSelection();
+                    // Datumsfelder zurücksetzen auf Standard
+                    const allDates = <?= json_encode($alleTage) ?>;
+                    if (allDates.length > 0) {
+                        document.getElementById('quotaStartDate').value = allDates[0];
+                        document.getElementById('quotaEndDate').value = allDates[allDates.length - 1];
+                    }
+                }
+            } else {
+                alert('Keine Auswahl vorhanden.');
+            }
+        }
+        
+        // Initialisiere SERVICED-Tage beim Laden der Seite
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeServicedDays();
         });
         
-        // === QUOTA-OPTIMIERUNG FUNKTIONEN ===
         function toggleQuotaOptimization() {
             const panel = document.getElementById('quotaOptimizationPanel');
             const btn = document.getElementById('quotaOptBtn');
@@ -2310,19 +2162,44 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         }
         
         function applyQuotaOptimization() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+            const quotaStartDate = document.getElementById('quotaStartDate').value;
+            const quotaEndDate = document.getElementById('quotaEndDate').value;
             const za = document.getElementById('zielauslastung').value;
+            
+            // Validierung der Datumsfelder
+            if (!quotaStartDate || !quotaEndDate) {
+                alert('Bitte wählen Sie einen gültigen Zeitraum für die Quota-Optimierung aus.');
+                return;
+            }
+            
+            if (quotaStartDate > quotaEndDate) {
+                alert('Das Startdatum muss vor dem Enddatum liegen.');
+                return;
+            }
             
             // URL mit Parametern erstellen
             const params = new URLSearchParams();
-            if (startDate) params.set('start', startDate);
-            if (endDate) params.set('end', endDate);
+            params.set('start', quotaStartDate);
+            params.set('end', quotaEndDate);
             params.set('za', za);
             
             // Seite neu laden mit neuen Parametern
             window.location.href = '?' + params.toString();
         }
     </script>
+
+    <!-- Detail Panel für Dry-Run Ergebnisse -->
+    <div id="detailsPanel" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; width: 90%; max-width: 800px; max-height: 90%; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); overflow: hidden;">
+            <div class="details-header" style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; font-weight: bold; font-size: 16px;">
+                Details
+                <button class="close-btn" onclick="hideDetailsPanel()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer;">✕ Schließen</button>
+            </div>
+            <div id="detailsContent" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                <!-- Content wird hier eingefügt -->
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
