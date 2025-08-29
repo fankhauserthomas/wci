@@ -12,9 +12,6 @@ $endDate = $_GET['end'] ?? date('Y-m-d', strtotime($startDate . ' +31 days'));
 
 // Quota-Optimierung Konfiguration
 $zielauslastung = $_GET['za'] ?? 135; // Zielauslastung (default 135)
-$rundungsUntergrenze = $_GET['ru'] ?? 5; // Untere Rundungsgrenze (default 5)
-$rundungsObergrenze = $_GET['ro'] ?? 10; // Obere Rundungsgrenze (default 10)
-$intelligentRunden = $_GET['ir'] ?? true; // Intelligente Rundung aktiviert
 
 /**
  * Hausbelegung berechnen
@@ -305,11 +302,11 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
 // === QUOTA-OPTIMIERUNG FUNKTIONEN ===
 
 function generateIntelligentQuotaName($quotas, $startDate, $endDate) {
-    // Zeitraum im Format TTMM
+    // Zeitraum im Format DDMM ohne Punkte
     $start = date('dm', strtotime($startDate));
     $end = date('dm', strtotime($endDate));
     
-    return "Auto von({$start})-bis({$end})";
+    return "Auto {$start}-{$end}";
 }
 
 function groupIdenticalQuotas($alleDaten) {
@@ -783,25 +780,17 @@ function getCellBackgroundColor($originalValue, $newValue) {
                     <input type="number" id="zielauslastung" value="<?= $zielauslastung ?>" style="width: 70px; padding: 4px; margin-left: 5px;">
                 </div>
                 <div>
-                    <label for="rundungsUntergrenze" style="font-weight: bold;">Rundung 5er:</label>
-                    <input type="number" id="rundungsUntergrenze" value="<?= $rundungsUntergrenze ?>" style="width: 50px; padding: 4px; margin-left: 5px;">
-                </div>
-                <div>
-                    <label for="rundungsObergrenze" style="font-weight: bold;">Rundung 10er:</label>
-                    <input type="number" id="rundungsObergrenze" value="<?= $rundungsObergrenze ?>" style="width: 50px; padding: 4px; margin-left: 5px;">
-                </div>
-                <div>
-                    <label style="font-weight: bold;">
-                        <input type="checkbox" id="intelligentRunden" <?= $intelligentRunden ? 'checked' : '' ?> style="margin-right: 5px;">
-                        Intelligente Rundung
-                    </label>
-                </div>
-                <div>
                     <button onclick="applyQuotaOptimization()" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">Anwenden</button>
                 </div>
             </div>
             <div style="margin-top: 10px; font-size: 12px; color: #6c757d;">
                 <strong>Hinweis:</strong> Primär wird die Lager-Quota (ML) angepasst. Bei fehlender Lager-Quota wird auf andere Kategorien verteilt.
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: #495057; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                <strong>📊 Berechnung:</strong><br>
+                <strong>• Formel:</strong> Neue Freie Quotas = Zielauslastung - Gesamtbelegung<br>
+                <strong>• Schutz:</strong> Quotas gehen nie unter 0<br>
+                <strong>• Anpassung:</strong> Direkte Berechnung ohne Rundung
             </div>
         </div>
         
@@ -1093,7 +1082,10 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             // === QUOTA-OPTIMIERUNG ===
                             // Berechne neue Quotas für Zielauslastung
                             $altGesamtAuslastung = $gesamtBelegt + $freieQuotas;
-                            $defizit = $zielauslastung - $altGesamtAuslastung;
+                            
+                            // KORRIGIERTE BERECHNUNG: Zielauslastung - Gesamtbelegung = benötigte freie Quotas
+                            $benoetigteFreieQuotas = $zielauslastung - $gesamtBelegt;
+                            $quotaAnpassung = $benoetigteFreieQuotas - $freieQuotas;
                             
                             // Neue Quotas initialisieren mit aktuellen Werten
                             $neueQuotaSonder = $quotaSonderNum;
@@ -1101,36 +1093,14 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             $neueQuotaBetten = $quotaBettenNum;
                             $neueQuotaDz = $quotaDzNum;
                             
-                            // Quota-Optimierung wenn Defizit != 0 und wir haben Quotas
-                            if ($defizit != 0 && !empty($tagesQuotas)) {
+                            // Quota-Optimierung wenn Anpassung nötig und wir haben Quotas
+                            if ($quotaAnpassung != 0 && !empty($tagesQuotas)) {
                                 // Primäre Strategie: Lager-Quota anpassen
                                 if ($quotaLagerNum > 0) {
-                                    $zielLagerQuota = $quotaLagerNum + $defizit;
+                                    $zielLagerQuota = $quotaLagerNum + $quotaAnpassung;
                                     
-                                    // Mindestquota: mindestens bereits belegte Betten
-                                    $minLagerQuota = $hrsData['lager'] + $lokalData['lager'];
-                                    $zielLagerQuota = max($minLagerQuota, $zielLagerQuota);
-                                    
-                                    // Intelligente Rundung
-                                    if ($intelligentRunden) {
-                                        if ($defizit > 0) {
-                                            // Bei Erhöhung: aufrunden
-                                            if ($zielLagerQuota <= 50) {
-                                                $neueQuotaLager = ceil($zielLagerQuota / $rundungsUntergrenze) * $rundungsUntergrenze;
-                                            } else {
-                                                $neueQuotaLager = ceil($zielLagerQuota / $rundungsObergrenze) * $rundungsObergrenze;
-                                            }
-                                        } else {
-                                            // Bei Reduzierung: abrunden, aber nie unter Mindestquota
-                                            if ($zielLagerQuota <= 50) {
-                                                $neueQuotaLager = max($minLagerQuota, floor($zielLagerQuota / $rundungsUntergrenze) * $rundungsUntergrenze);
-                                            } else {
-                                                $neueQuotaLager = max($minLagerQuota, floor($zielLagerQuota / $rundungsObergrenze) * $rundungsObergrenze);
-                                            }
-                                        }
-                                    } else {
-                                        $neueQuotaLager = $zielLagerQuota;
-                                    }
+                                    // Nur Schutz vor negativen Werten
+                                    $neueQuotaLager = max(0, $zielLagerQuota);
                                 }
                                 // Fallback: Verteilung auf alle verfügbaren Kategorien
                                 else {
@@ -1140,21 +1110,18 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                     if ($quotaDzNum > 0) $verfuegbareKategorien[] = 'dz';
                                     
                                     if (!empty($verfuegbareKategorien)) {
-                                        $anteilProKategorie = $defizit / count($verfuegbareKategorien);
+                                        $anteilProKategorie = $quotaAnpassung / count($verfuegbareKategorien);
                                         
                                         foreach ($verfuegbareKategorien as $kat) {
                                             switch ($kat) {
                                                 case 'sonder':
-                                                    $minQuota = $hrsData['sonder'] + $lokalData['sonder'];
-                                                    $neueQuotaSonder = max($minQuota, $quotaSonderNum + $anteilProKategorie);
+                                                    $neueQuotaSonder = max(0, $quotaSonderNum + $anteilProKategorie);
                                                     break;
                                                 case 'betten':
-                                                    $minQuota = $hrsData['betten'] + $lokalData['betten'];
-                                                    $neueQuotaBetten = max($minQuota, $quotaBettenNum + $anteilProKategorie);
+                                                    $neueQuotaBetten = max(0, $quotaBettenNum + $anteilProKategorie);
                                                     break;
                                                 case 'dz':
-                                                    $minQuota = $hrsData['dz'] + $lokalData['dz'];
-                                                    $neueQuotaDz = max($minQuota, $quotaDzNum + $anteilProKategorie);
+                                                    $neueQuotaDz = max(0, $quotaDzNum + $anteilProKategorie);
                                                     break;
                                             }
                                         }
@@ -2687,18 +2654,12 @@ function getCellBackgroundColor($originalValue, $newValue) {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const za = document.getElementById('zielauslastung').value;
-            const ru = document.getElementById('rundungsUntergrenze').value;
-            const ro = document.getElementById('rundungsObergrenze').value;
-            const ir = document.getElementById('intelligentRunden').checked ? 1 : 0;
             
             // URL mit Parametern erstellen
             const params = new URLSearchParams();
             if (startDate) params.set('start', startDate);
             if (endDate) params.set('end', endDate);
             params.set('za', za);
-            params.set('ru', ru);
-            params.set('ro', ro);
-            params.set('ir', ir);
             
             // Seite neu laden mit neuen Parametern
             window.location.href = '?' + params.toString();
