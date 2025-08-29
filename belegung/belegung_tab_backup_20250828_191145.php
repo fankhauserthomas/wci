@@ -10,12 +10,6 @@ require_once '../config.php';
 $startDate = $_GET['start'] ?? date('Y-m-d');
 $endDate = $_GET['end'] ?? date('Y-m-d', strtotime($startDate . ' +31 days'));
 
-// Quota-Optimierung Konfiguration
-$zielauslastung = $_GET['za'] ?? 135; // Zielauslastung (default 135)
-$rundungsUntergrenze = $_GET['ru'] ?? 5; // Untere Rundungsgrenze (default 5)
-$rundungsObergrenze = $_GET['ro'] ?? 10; // Obere Rundungsgrenze (default 10)
-$intelligentRunden = $_GET['ir'] ?? true; // Intelligente Rundung aktiviert
-
 /**
  * Hausbelegung berechnen
  */
@@ -301,73 +295,6 @@ $freieKapazitaeten = $resultSet['freieKapazitaeten'];
 
 // Quota-Daten laden
 $quotaData = getQuotaData($mysqli, $startDate, $endDate);
-
-// === QUOTA-OPTIMIERUNG FUNKTIONEN ===
-
-function generateIntelligentQuotaName($quotas, $startDate, $endDate) {
-    // Zeitraum im Format TTMM
-    $start = date('dm', strtotime($startDate));
-    $end = date('dm', strtotime($endDate));
-    
-    return "Auto von({$start})-bis({$end})";
-}
-
-function groupIdenticalQuotas($alleDaten) {
-    $groups = [];
-    $currentGroup = null;
-    
-    foreach ($alleDaten as $i => $tagData) {
-        $quotas = $tagData['quotas'];
-        $quotaSignature = '';
-        
-        if (!empty($quotas)) {
-            $quota = $quotas[0];
-            $quotaSignature = implode('-', [
-                $quota['categories']['SK']['total_beds'] ?? 0,
-                $quota['categories']['ML']['total_beds'] ?? 0,
-                $quota['categories']['MBZ']['total_beds'] ?? 0,
-                $quota['categories']['2BZ']['total_beds'] ?? 0
-            ]);
-        }
-        
-        // Neue Gruppe starten wenn Quota sich ändert
-        if ($currentGroup === null || $currentGroup['signature'] !== $quotaSignature) {
-            if ($currentGroup !== null) {
-                $groups[] = $currentGroup;
-            }
-            
-            $currentGroup = [
-                'signature' => $quotaSignature,
-                'start_index' => $i,
-                'end_index' => $i,
-                'days' => 1,
-                'quotas' => $quotas,
-                'generated_name' => ''
-            ];
-        } else {
-            // Erweitere aktuelle Gruppe
-            $currentGroup['end_index'] = $i;
-            $currentGroup['days']++;
-        }
-    }
-    
-    // Letzte Gruppe hinzufügen
-    if ($currentGroup !== null) {
-        $groups[] = $currentGroup;
-    }
-    
-    return $groups;
-}
-
-function getCellBackgroundColor($originalValue, $newValue) {
-    if ($originalValue == $newValue) {
-        return '#f8f9fa'; // Normal grau
-    } elseif ($newValue > $originalValue) {
-        return '#cce5ff'; // Bläulich für Erhöhung
-    } else {
-        return '#ffcccc'; // Rötlich für Reduzierung
-    }
-}
 
 ?>
 <!DOCTYPE html>
@@ -768,41 +695,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                 <label>&nbsp;</label>
                 <button class="export-btn export-excel" onclick="exportToExcel()">Excel Export</button>
             </div>
-            <div class="control-group">
-                <label>&nbsp;</label>
-                <button onclick="toggleQuotaOptimization()" class="btn-import" style="background: #17a2b8;" id="quotaOptBtn">Quota-Optimierung</button>
-            </div>
-        </div>
-        
-        <!-- Quota-Optimierung Konfiguration -->
-        <div id="quotaOptimizationPanel" style="display: none; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
-            <h4 style="margin: 0 0 10px 0; color: #495057;">⚙️ Quota-Optimierung Konfiguration</h4>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                <div>
-                    <label for="zielauslastung" style="font-weight: bold;">Zielauslastung (ZA):</label>
-                    <input type="number" id="zielauslastung" value="<?= $zielauslastung ?>" style="width: 70px; padding: 4px; margin-left: 5px;">
-                </div>
-                <div>
-                    <label for="rundungsUntergrenze" style="font-weight: bold;">Rundung 5er:</label>
-                    <input type="number" id="rundungsUntergrenze" value="<?= $rundungsUntergrenze ?>" style="width: 50px; padding: 4px; margin-left: 5px;">
-                </div>
-                <div>
-                    <label for="rundungsObergrenze" style="font-weight: bold;">Rundung 10er:</label>
-                    <input type="number" id="rundungsObergrenze" value="<?= $rundungsObergrenze ?>" style="width: 50px; padding: 4px; margin-left: 5px;">
-                </div>
-                <div>
-                    <label style="font-weight: bold;">
-                        <input type="checkbox" id="intelligentRunden" <?= $intelligentRunden ? 'checked' : '' ?> style="margin-right: 5px;">
-                        Intelligente Rundung
-                    </label>
-                </div>
-                <div>
-                    <button onclick="applyQuotaOptimization()" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">Anwenden</button>
-                </div>
-            </div>
-            <div style="margin-top: 10px; font-size: 12px; color: #6c757d;">
-                <strong>Hinweis:</strong> Primär wird die Lager-Quota (ML) angepasst. Bei fehlender Lager-Quota wird auf andere Kategorien verteilt.
-            </div>
         </div>
         
         <!-- Progress Indicator -->
@@ -854,13 +746,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             <th style="color: #FF6666;">H-D</th>
                             <th style="color: #CC2222;">L-D</th>
                             <th style="background: #f5f5f5;">Ges.<br>Bel.</th>
-                            <th style="background: #e6f3ff;">NQ-S</th>
-                            <th style="background: #e6f3ff;">NQ-L</th>
-                            <th style="background: #e6f3ff;">NQ-B</th>
-                            <th style="background: #e6f3ff;">NQ-D</th>
-                            <th style="background: #f0f8e6;" class="header-quota-name">Neu Q-Name</th>
-                            <th style="background: #fff2e6;">Alt<br>GA</th>
-                            <th style="background: #e6ffe6;">Neu<br>GA</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -886,40 +771,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                         $quotaSpans = [];
                         $processedQuotas = [];
                         
-                        // === NEUE QUOTA-OPTIMIERUNG: Gruppierung vorbereiten ===
-                        $alleTageData = [];
-                        
-                        // Erst alle Tagesdaten sammeln
-                        foreach ($alleTage as $i => $tag) {
-                            $tagesQuotas = getQuotasForDate($quotaData, $tag);
-                            $alleTageData[] = [
-                                'datum' => $tag,
-                                'quotas' => $tagesQuotas,
-                                'index' => $i
-                            ];
-                        }
-                        
-                        // Identische Quotas gruppieren
-                        $quotaGruppen = groupIdenticalQuotas($alleTageData);
-                        
-                        // Für jede Gruppe einen intelligenten Namen generieren
-                        foreach ($quotaGruppen as &$gruppe) {
-                            if (!empty($gruppe['quotas'])) {
-                                $startDate = $alleTage[$gruppe['start_index']];
-                                $endDate = $alleTage[$gruppe['end_index']];
-                                $gruppe['generated_name'] = generateIntelligentQuotaName($gruppe['quotas'], $startDate, $endDate);
-                            }
-                        }
-                        
-                        // Neue Quota-Spans für rowspan (berücksichtigt Gruppierung)
-                        $neueQuotaSpans = [];
-                        foreach ($quotaGruppen as $gruppe) {
-                            if ($gruppe['days'] > 1) {
-                                $neueQuotaSpans[$gruppe['start_index']] = $gruppe['days'];
-                            }
-                        }
-                        
-                        // Original Quota-Spans (für bestehende Quota-Spalten)
                         foreach ($alleTage as $i => $tag) {
                             $tagesQuotas = getQuotasForDate($quotaData, $tag);
                             if (!empty($tagesQuotas)) {
@@ -972,12 +823,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
                             $freieQuotas = 0;
                             
-                            // Quota-Zahlen initialisieren (numerisch) - immer setzen für Quota-Optimierung
-                            $quotaSonderNum = 0;
-                            $quotaLagerNum = 0;
-                            $quotaBettenNum = 0;
-                            $quotaDzNum = 0;
-                            
                             // Wochenende erkennen (für Datum-Formatierung)
                             $dayOfWeek = $datum->format('w');
                             $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 6);
@@ -990,28 +835,25 @@ function getCellBackgroundColor($originalValue, $newValue) {
                                 $quotaName = $quota['title'];
                                 $quotaHrsId = $quota['hrs_id'];
                                 
-                                // Quota-Zahlen aus Kategorien extrahieren (numerisch)
+                                // Quota-Zahlen aus Kategorien extrahieren
                                 if (!empty($quota['categories'])) {
-                                    $quotaSonderNum = isset($quota['categories']['SK']) ? $quota['categories']['SK']['total_beds'] : 0;
-                                    $quotaLagerNum = isset($quota['categories']['ML']) ? $quota['categories']['ML']['total_beds'] : 0;
-                                    $quotaBettenNum = isset($quota['categories']['MBZ']) ? $quota['categories']['MBZ']['total_beds'] : 0;
-                                    $quotaDzNum = isset($quota['categories']['2BZ']) ? $quota['categories']['2BZ']['total_beds'] : 0;
+                                    $quotaSonder = isset($quota['categories']['SK']) ? $quota['categories']['SK']['total_beds'] : 0;
+                                    $quotaLager = isset($quota['categories']['ML']) ? $quota['categories']['ML']['total_beds'] : 0;
+                                    $quotaBetten = isset($quota['categories']['MBZ']) ? $quota['categories']['MBZ']['total_beds'] : 0;
+                                    $quotaDz = isset($quota['categories']['2BZ']) ? $quota['categories']['2BZ']['total_beds'] : 0;
                                     
                                     // Freie Quotas berechnen: max(0, Quota - HRS_belegt) pro Kategorie
-                                    $freieQuotas = max(0, $quotaSonderNum - $hrsData['sonder']) +
-                                                  max(0, $quotaLagerNum - $hrsData['lager']) +
-                                                  max(0, $quotaBettenNum - $hrsData['betten']) +
-                                                  max(0, $quotaDzNum - $hrsData['dz']);
+                                    $freieQuotas = max(0, $quotaSonder - $hrsData['sonder']) +
+                                                  max(0, $quotaLager - $hrsData['lager']) +
+                                                  max(0, $quotaBetten - $hrsData['betten']) +
+                                                  max(0, $quotaDz - $hrsData['dz']);
                                 }
                                 
                                 // Für Anzeige: leere Werte als '' darstellen
-                                $quotaSonder = $quotaSonderNum > 0 ? $quotaSonderNum : '';
-                                $quotaLager = $quotaLagerNum > 0 ? $quotaLagerNum : '';
-                                $quotaBetten = $quotaBettenNum > 0 ? $quotaBettenNum : '';
-                                $quotaDz = $quotaDzNum > 0 ? $quotaDzNum : '';
-                            } else {
-                                // Keine Quotas vorhanden - Anzeige-Werte als leer setzen
-                                $quotaSonder = $quotaLager = $quotaBetten = $quotaDz = '';
+                                $quotaSonder = $quotaSonder > 0 ? $quotaSonder : '';
+                                $quotaLager = $quotaLager > 0 ? $quotaLager : '';
+                                $quotaBetten = $quotaBetten > 0 ? $quotaBetten : '';
+                                $quotaDz = $quotaDz > 0 ? $quotaDz : '';
                             }
                             
                             echo '<tr style="background: ' . $rowBgColor . ';" onclick="showDayDetails(' . $i . ')">';
@@ -1089,128 +931,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                             echo '<td class="cell-base cell-lokal-dz">' . ($lokalData['dz'] > 0 ? $lokalData['dz'] : '') . '</td>';
                             
                             echo '<td class="cell-base cell-gesamt">' . ($gesamtBelegt > 0 ? $gesamtBelegt : '') . '</td>';
-                            
-                            // === QUOTA-OPTIMIERUNG ===
-                            // Berechne neue Quotas für Zielauslastung
-                            $altGesamtAuslastung = $gesamtBelegt + $freieQuotas;
-                            $defizit = $zielauslastung - $altGesamtAuslastung;
-                            
-                            // Neue Quotas initialisieren mit aktuellen Werten
-                            $neueQuotaSonder = $quotaSonderNum;
-                            $neueQuotaLager = $quotaLagerNum;
-                            $neueQuotaBetten = $quotaBettenNum;
-                            $neueQuotaDz = $quotaDzNum;
-                            
-                            // Quota-Optimierung wenn Defizit != 0 und wir haben Quotas
-                            if ($defizit != 0 && !empty($tagesQuotas)) {
-                                // Primäre Strategie: Lager-Quota anpassen
-                                if ($quotaLagerNum > 0) {
-                                    $zielLagerQuota = $quotaLagerNum + $defizit;
-                                    
-                                    // Mindestquota: mindestens bereits belegte Betten
-                                    $minLagerQuota = $hrsData['lager'] + $lokalData['lager'];
-                                    $zielLagerQuota = max($minLagerQuota, $zielLagerQuota);
-                                    
-                                    // Intelligente Rundung
-                                    if ($intelligentRunden) {
-                                        if ($defizit > 0) {
-                                            // Bei Erhöhung: aufrunden
-                                            if ($zielLagerQuota <= 50) {
-                                                $neueQuotaLager = ceil($zielLagerQuota / $rundungsUntergrenze) * $rundungsUntergrenze;
-                                            } else {
-                                                $neueQuotaLager = ceil($zielLagerQuota / $rundungsObergrenze) * $rundungsObergrenze;
-                                            }
-                                        } else {
-                                            // Bei Reduzierung: abrunden, aber nie unter Mindestquota
-                                            if ($zielLagerQuota <= 50) {
-                                                $neueQuotaLager = max($minLagerQuota, floor($zielLagerQuota / $rundungsUntergrenze) * $rundungsUntergrenze);
-                                            } else {
-                                                $neueQuotaLager = max($minLagerQuota, floor($zielLagerQuota / $rundungsObergrenze) * $rundungsObergrenze);
-                                            }
-                                        }
-                                    } else {
-                                        $neueQuotaLager = $zielLagerQuota;
-                                    }
-                                }
-                                // Fallback: Verteilung auf alle verfügbaren Kategorien
-                                else {
-                                    $verfuegbareKategorien = [];
-                                    if ($quotaSonderNum > 0) $verfuegbareKategorien[] = 'sonder';
-                                    if ($quotaBettenNum > 0) $verfuegbareKategorien[] = 'betten';
-                                    if ($quotaDzNum > 0) $verfuegbareKategorien[] = 'dz';
-                                    
-                                    if (!empty($verfuegbareKategorien)) {
-                                        $anteilProKategorie = $defizit / count($verfuegbareKategorien);
-                                        
-                                        foreach ($verfuegbareKategorien as $kat) {
-                                            switch ($kat) {
-                                                case 'sonder':
-                                                    $minQuota = $hrsData['sonder'] + $lokalData['sonder'];
-                                                    $neueQuotaSonder = max($minQuota, $quotaSonderNum + $anteilProKategorie);
-                                                    break;
-                                                case 'betten':
-                                                    $minQuota = $hrsData['betten'] + $lokalData['betten'];
-                                                    $neueQuotaBetten = max($minQuota, $quotaBettenNum + $anteilProKategorie);
-                                                    break;
-                                                case 'dz':
-                                                    $minQuota = $hrsData['dz'] + $lokalData['dz'];
-                                                    $neueQuotaDz = max($minQuota, $quotaDzNum + $anteilProKategorie);
-                                                    break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Berechne neue Gesamtauslastung
-                            $neueFreieQuotas = max(0, $neueQuotaSonder - $hrsData['sonder']) +
-                                              max(0, $neueQuotaLager - $hrsData['lager']) +
-                                              max(0, $neueQuotaBetten - $hrsData['betten']) +
-                                              max(0, $neueQuotaDz - $hrsData['dz']);
-                            $neueGesamtAuslastung = $gesamtBelegt + $neueFreieQuotas;
-                            
-                            // Neue Quota-Spalten ausgeben mit Farbkodierung
-                            $sonderBgColor = getCellBackgroundColor($quotaSonderNum, $neueQuotaSonder);
-                            $lagerBgColor = getCellBackgroundColor($quotaLagerNum, $neueQuotaLager);
-                            $bettenBgColor = getCellBackgroundColor($quotaBettenNum, $neueQuotaBetten);
-                            $dzBgColor = getCellBackgroundColor($quotaDzNum, $neueQuotaDz);
-                            
-                            echo '<td class="cell-base" style="background: ' . $sonderBgColor . ';">' . 
-                                 ($neueQuotaSonder > 0 ? $neueQuotaSonder : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $lagerBgColor . ';">' . 
-                                 ($neueQuotaLager > 0 ? $neueQuotaLager : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $bettenBgColor . ';">' . 
-                                 ($neueQuotaBetten > 0 ? $neueQuotaBetten : '') . '</td>';
-                            echo '<td class="cell-base" style="background: ' . $dzBgColor . ';">' . 
-                                 ($neueQuotaDz > 0 ? $neueQuotaDz : '') . '</td>';
-                            
-                            // Neuer Quota-Name mit rowspan
-                            $isFirstGroupDay = false;
-                            $isGroupContinuation = false;
-                            $groupName = '';
-                            
-                            // Finde die entsprechende Gruppe für diesen Tag
-                            foreach ($quotaGruppen as $gruppe) {
-                                if ($i >= $gruppe['start_index'] && $i <= $gruppe['end_index']) {
-                                    $groupName = $gruppe['generated_name'];
-                                    $isFirstGroupDay = ($i === $gruppe['start_index']);
-                                    $isGroupContinuation = ($i > $gruppe['start_index']);
-                                    break;
-                                }
-                            }
-                            
-                            if (!$isGroupContinuation) {
-                                $groupRowspanAttr = isset($neueQuotaSpans[$i]) ? ' rowspan="' . $neueQuotaSpans[$i] . '"' : '';
-                                echo '<td' . $groupRowspanAttr . ' class="cell-base" style="background: #f0f8e6; font-size: 9px; font-weight: bold;">' . 
-                                     htmlspecialchars($groupName) . '</td>';
-                            }
-                            
-                            // Alte und neue Gesamtauslastung
-                            echo '<td class="cell-base" style="background: #fff2cc;">' . 
-                                 ($altGesamtAuslastung > 0 ? $altGesamtAuslastung : '') . '</td>';
-                            echo '<td class="cell-base" style="background: #d5e8d4; font-weight: bold;">' . 
-                                 ($neueGesamtAuslastung > 0 ? $neueGesamtAuslastung : '') . '</td>';
-                            
                             echo '</tr>';
                         }
                         ?>
@@ -2666,43 +2386,6 @@ function getCellBackgroundColor($originalValue, $newValue) {
                 hideDetailsPanel();
             }
         });
-        
-        // === QUOTA-OPTIMIERUNG FUNKTIONEN ===
-        function toggleQuotaOptimization() {
-            const panel = document.getElementById('quotaOptimizationPanel');
-            const btn = document.getElementById('quotaOptBtn');
-            
-            if (panel.style.display === 'none' || panel.style.display === '') {
-                panel.style.display = 'block';
-                btn.textContent = 'Panel schließen';
-                btn.style.background = '#dc3545';
-            } else {
-                panel.style.display = 'none';
-                btn.textContent = 'Quota-Optimierung';
-                btn.style.background = '#17a2b8';
-            }
-        }
-        
-        function applyQuotaOptimization() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const za = document.getElementById('zielauslastung').value;
-            const ru = document.getElementById('rundungsUntergrenze').value;
-            const ro = document.getElementById('rundungsObergrenze').value;
-            const ir = document.getElementById('intelligentRunden').checked ? 1 : 0;
-            
-            // URL mit Parametern erstellen
-            const params = new URLSearchParams();
-            if (startDate) params.set('start', startDate);
-            if (endDate) params.set('end', endDate);
-            params.set('za', za);
-            params.set('ru', ru);
-            params.set('ro', ro);
-            params.set('ir', ir);
-            
-            // Seite neu laden mit neuen Parametern
-            window.location.href = '?' + params.toString();
-        }
     </script>
 </body>
 </html>
