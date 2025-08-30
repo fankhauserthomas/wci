@@ -686,9 +686,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Namen-Liste rendern (ausgelagert um Duplikation zu vermeiden)
   function renderNamesList(list) {
-    list.forEach(n => {
+    // Sort names alphabetically by nachname, then by vorname
+    const sortedList = [...list].sort((a, b) => {
+      const nameA = `${a.nachname || ''} ${a.vorname || ''}`.trim().toLowerCase();
+      const nameB = `${b.nachname || ''} ${b.vorname || ''}`.trim().toLowerCase();
+      return nameA.localeCompare(nameB, 'de');
+    });
+
+    sortedList.forEach(n => {
       // Debug: Log die ersten paar Check-in/Check-out Werte
-      if (list.indexOf(n) < 2) {
+      if (sortedList.indexOf(n) < 2) {
         console.log('Debug name entry:', {
           id: n.id,
           name: n.vorname + ' ' + n.nachname,
@@ -806,8 +813,326 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
       }
     });
+
+    // Leere Zeilen hinzufügen um die erwartete Teilnehmeranzahl zu erreichen
+    if (currentReservationData && currentReservationData.detail) {
+      const detail = currentReservationData.detail;
+      const expectedParticipants = (detail.lager || 0) + (detail.sonder || 0) + (detail.betten || 0) + (detail.dz || 0);
+      const currentRows = list.length; // Use original list length, not sorted
+
+      console.log(`Teilnehmer erwartet: ${expectedParticipants} (Lager: ${detail.lager || 0}, Sonder: ${detail.sonder || 0}, Betten: ${detail.betten || 0}, DZ: ${detail.dz || 0}), Aktuell: ${currentRows}`); if (expectedParticipants > currentRows) {
+        const emptyRowsNeeded = expectedParticipants - currentRows;
+        console.log(`Füge ${emptyRowsNeeded} leere Zeilen hinzu`);
+
+        for (let i = 0; i < emptyRowsNeeded; i++) {
+          const tr = document.createElement('tr');
+          tr.classList.add('empty-row');
+
+          tr.innerHTML = `
+            <td><input type="checkbox" class="rowCheckbox" disabled></td>
+            <td class="name-cell" style="color: #ccc; font-style: italic;" title="Klicken zum Hinzufügen">+ Nachname Vorname</td>
+            <td class="detail-cell" style="text-align: center;"><img src="./pic/dots.svg" alt="Details" class="detail-icon" style="opacity: 0.3;"></td>
+            <td></td>
+            <td class="bem-cell"></td>
+            <td class="guide-cell">
+              <span class="guide-icon" style="opacity: 0.3;">○</span>
+            </td>
+            <td class="arr-cell">–</td>
+            <td class="diet-cell">–</td>
+            <td class="noshow-cell" style="text-align: center;">
+              <span class="noshow-indicator noshow-no" style="opacity: 0.3;">✓</span>
+            </td>
+            <td class="checkin-cell">
+              <img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
+            </td>
+            <td class="checkout-cell">
+              <img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
+            </td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+    }
+
     bindCheckboxes();
     updateBulkButtonStates(); // Initialize button states
+  }
+
+  // Inline Name Editing Functions
+  function startInlineNameEdit(row, isExisting = false) {
+    const nameCell = row.querySelector('.name-cell');
+    if (!nameCell) return;
+
+    // Prevent multiple edits on the same row
+    if (row.hasAttribute('data-editing')) return;
+    row.setAttribute('data-editing', 'true');
+
+    // Get current name for existing entries
+    let currentValue = '';
+    if (isExisting) {
+      const nameText = nameCell.textContent.trim();
+      // Parse current name and convert to "Nachname Vorname" format
+      const nameParts = nameText.split(' ').filter(part => part.trim());
+      if (nameParts.length >= 2) {
+        // Assume current format is "Nachname Vorname" already
+        currentValue = nameText;
+      } else if (nameParts.length === 1) {
+        currentValue = nameParts[0]; // Just the nachname
+      }
+    }
+
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-name-input';
+    input.placeholder = 'Nachname Vorname';
+    input.value = currentValue;
+    input.style.cssText = `
+      width: 100%;
+      border: 2px solid #007bff;
+      background: white;
+      padding: 4px 8px;
+      font-size: inherit;
+      font-family: inherit;
+    `;
+
+    // Replace cell content
+    nameCell.innerHTML = '';
+    nameCell.appendChild(input);
+    input.focus();
+    input.select(); // Select all text for easy editing
+
+    // Flag to prevent duplicate saves
+    let saving = false;
+
+    // Handle input events
+    input.addEventListener('keydown', async (e) => {
+      if (saving) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saving = true;
+        if (isExisting) {
+          await updateExistingName(row, input.value.trim());
+        } else {
+          await saveInlineName(row, input.value.trim());
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (isExisting) {
+          restoreExistingName(row);
+        } else {
+          cancelInlineEdit(row);
+        }
+      }
+    });
+
+    input.addEventListener('blur', async () => {
+      if (saving) return;
+
+      if (input.value.trim()) {
+        saving = true;
+        if (isExisting) {
+          await updateExistingName(row, input.value.trim());
+        } else {
+          await saveInlineName(row, input.value.trim());
+        }
+      } else {
+        if (isExisting) {
+          restoreExistingName(row);
+        } else {
+          cancelInlineEdit(row);
+        }
+      }
+    });
+  }
+
+  async function saveInlineName(row, fullName) {
+    if (!fullName) {
+      cancelInlineEdit(row);
+      return;
+    }
+
+    // Parse name (assume "Nachname Vorname" format)
+    const nameParts = fullName.split(' ').filter(part => part.trim());
+    let vorname = '';
+    let nachname = '';
+
+    if (nameParts.length === 1) {
+      // Only one name provided - use as nachname
+      nachname = nameParts[0];
+    } else if (nameParts.length >= 2) {
+      // Multiple parts - first is nachname, rest is vorname
+      nachname = nameParts[0];
+      vorname = nameParts.slice(1).join(' ');
+    } else {
+      // Empty name
+      cancelInlineEdit(row);
+      return;
+    }
+
+    const nameCell = row.querySelector('.name-cell');
+    if (!nameCell) {
+      cancelInlineEdit(row);
+      return;
+    }
+
+    try {
+      // Show loading state
+      nameCell.innerHTML = '<span style="color: #007bff;">💾 Speichert...</span>';
+
+      // Save to database
+      const response = await fetch('addReservationNames.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          res_id: resId,
+          names: [{
+            vorname: vorname,
+            nachname: nachname
+          }]
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('Name successfully added:', fullName);
+        // Show success briefly before reloading
+        nameCell.innerHTML = '<span style="color: #28a745;">✓ Gespeichert</span>';
+
+        // Clean up editing state
+        row.removeAttribute('data-editing');
+
+        setTimeout(async () => {
+          // Reload the names list to refresh the table
+          await loadNames();
+        }, 800);
+      } else {
+        throw new Error(result.error || 'Fehler beim Speichern');
+      }
+    } catch (error) {
+      console.error('Error saving name:', error);
+      // Clean up editing state on error
+      row.removeAttribute('data-editing');
+      alert('Fehler beim Speichern des Namens: ' + error.message);
+      cancelInlineEdit(row);
+    }
+  }
+
+  async function updateExistingName(row, fullName) {
+    if (!fullName) {
+      restoreExistingName(row);
+      return;
+    }
+
+    const id = row.dataset.id;
+    if (!id) {
+      restoreExistingName(row);
+      return;
+    }
+
+    // Parse name (assume "Nachname Vorname" format)
+    const nameParts = fullName.split(' ').filter(part => part.trim());
+    let vorname = '';
+    let nachname = '';
+
+    if (nameParts.length === 1) {
+      // Only one name provided - use as nachname
+      nachname = nameParts[0];
+    } else if (nameParts.length >= 2) {
+      // Multiple parts - first is nachname, rest is vorname
+      nachname = nameParts[0];
+      vorname = nameParts.slice(1).join(' ');
+    } else {
+      // Empty name
+      restoreExistingName(row);
+      return;
+    }
+
+    const nameCell = row.querySelector('.name-cell');
+    if (!nameCell) {
+      restoreExistingName(row);
+      return;
+    }
+
+    try {
+      // Show loading state
+      nameCell.innerHTML = '<span style="color: #007bff;">💾 Aktualisiert...</span>';
+
+      // First get current data to preserve other fields
+      const currentResponse = await fetch(`getGastDetail.php?id=${id}`);
+
+      if (!currentResponse.ok) {
+        throw new Error('Konnte aktuelle Daten nicht laden');
+      }
+
+      const currentData = await currentResponse.json();
+
+      if (currentData.error) {
+        throw new Error('Konnte aktuelle Daten nicht laden: ' + currentData.error);
+      }
+
+      // Update with new names but keep all other data
+      const updateData = {
+        ...currentData,
+        vorname: vorname,
+        nachname: nachname
+      };
+
+      // Update in database
+      const response = await fetch('updateGastDetail.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('Name successfully updated:', fullName);
+        // Show success briefly before reloading
+        nameCell.innerHTML = '<span style="color: #28a745;">✓ Aktualisiert</span>';
+
+        // Clean up editing state
+        row.removeAttribute('data-editing');
+
+        setTimeout(async () => {
+          // Reload the names list to refresh the table
+          await loadNames();
+        }, 800);
+      } else {
+        throw new Error(result.error || 'Fehler beim Aktualisieren');
+      }
+    } catch (error) {
+      console.error('Error updating name:', error);
+      // Clean up editing state on error
+      row.removeAttribute('data-editing');
+      alert('Fehler beim Aktualisieren des Namens: ' + error.message);
+      restoreExistingName(row);
+    }
+  }
+
+  function restoreExistingName(row) {
+    // Remove editing flag
+    row.removeAttribute('data-editing');
+
+    // Reload the table to restore original content
+    loadNames();
+  }
+
+  function cancelInlineEdit(row) {
+    // Remove editing flag
+    row.removeAttribute('data-editing');
+
+    const nameCell = row.querySelector('.name-cell');
+    if (nameCell) {
+      nameCell.innerHTML = '<span style="color: #ccc; font-style: italic;" title="Klicken zum Hinzufügen">+ Nachname Vorname</span>';
+    }
   }
 
   // Automatisch einen Namen für die Reservierung erstellen
@@ -1333,6 +1658,20 @@ document.addEventListener('DOMContentLoaded', () => {
   tbody.addEventListener('click', e => {
     const row = e.target.closest('tr');
     if (!row) return;
+
+    // Handle empty row clicks - enable inline editing
+    if (row.classList.contains('empty-row')) {
+      // Check if we're clicking on a disabled checkbox to prevent action
+      if (e.target.type === 'checkbox' && e.target.disabled) {
+        return;
+      }
+
+      // Start inline editing
+      console.log('Clicked on empty row - starting inline editing');
+      startInlineNameEdit(row);
+      return;
+    }
+
     const id = row.dataset.id;
 
     // Detail-Click auf Herkunft/Detail-Spalte
@@ -1343,11 +1682,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Name-Click - öffne GastDetail
+    // Name-Click - enable inline editing (Ctrl+Click for GastDetail)
     const nameCell = e.target.closest('td.name-cell');
     if (nameCell) {
       const id = row.dataset.id;
-      window.location.href = `GastDetail.html?id=${id}`;
+
+      // If Ctrl+Click, open GastDetail
+      if (e.ctrlKey || e.metaKey) {
+        window.location.href = `GastDetail.html?id=${id}`;
+        return;
+      }
+
+      // Otherwise start inline editing
+      console.log('Clicked on existing name - starting inline editing');
+      startInlineNameEdit(row, true); // true indicates existing name
       return;
     }
 

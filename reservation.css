@@ -1688,3 +1688,50 @@ td.diet-cell {
   padding-top: 5vh;
   /* Abstand vom oberen Rand */
 }
+
+/* ===========================
+   Empty Row Styles
+   =========================== */
+.empty-row {
+  background-color: #f3e8ff !important;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.empty-row td {
+  color: #999;
+}
+
+.empty-row:hover {
+  background-color: #e9d5ff !important;
+}
+
+.empty-row .rowCheckbox {
+  cursor: not-allowed;
+}
+
+.empty-row .name-cell {
+  font-style: italic;
+  color: #bbb !important;
+}
+
+.empty-row:hover .name-cell {
+  color: #666 !important;
+}
+
+/* Inline Name Input */
+.inline-name-input {
+  width: 100% !important;
+  border: 2px solid #007bff !important;
+  background: white !important;
+  padding: 4px 8px !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  border-radius: 3px !important;
+  outline: none !important;
+}
+
+.inline-name-input:focus {
+  border-color: #0056b3 !important;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
+}
