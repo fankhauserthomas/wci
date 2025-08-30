@@ -116,6 +116,9 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 <div>
                     <button onclick="applyQuotaOptimization()" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">Anwenden</button>
                 </div>
+                <div>
+                    <button onclick="showQuotaComparison()" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">📊 Quota Vergleich</button>
+                </div>
             </div>
             <div style="margin-top: 10px; font-size: 12px; color: #6c757d;">
                 <strong>Hinweis:</strong> Primär wird die Lager-Quota (ML) angepasst. Bei fehlender Lager-Quota wird auf andere Kategorien verteilt.
@@ -2185,6 +2188,149 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             
             // Seite neu laden mit neuen Parametern
             window.location.href = '?' + params.toString();
+        }
+
+        async function showQuotaComparison() {
+            const quotaStartDate = document.getElementById('quotaStartDate').value;
+            const quotaEndDate = document.getElementById('quotaEndDate').value;
+            const za = document.getElementById('zielauslastung').value;
+            
+            // Validierung der Datumsfelder
+            if (!quotaStartDate || !quotaEndDate) {
+                alert('Bitte wählen Sie einen gültigen Zeitraum für die Quota-Optimierung aus.');
+                return;
+            }
+            
+            if (quotaStartDate > quotaEndDate) {
+                alert('Das Startdatum muss vor dem Enddatum liegen.');
+                return;
+            }
+            
+            try {
+                // API-Aufruf für Quota-Vergleich
+                const protocol = window.location.protocol;
+                const host = window.location.host;
+                const baseUrl = `${protocol}//${host}`;
+                const response = await fetch(`${baseUrl}/wci/belegung/quota_comparison.php?start=${quotaStartDate}&end=${quotaEndDate}&za=${za}&json=1`);
+                
+                if (!response.ok) {
+                    throw new Error(`API Fehler: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayQuotaComparison(data.comparison, quotaStartDate, quotaEndDate, za);
+                } else {
+                    throw new Error(data.message || 'Fehler beim Laden der Quota-Daten');
+                }
+                
+            } catch (error) {
+                console.error('Quota Vergleich Fehler:', error);
+                alert('❌ Fehler beim Laden des Quota-Vergleichs: ' + error.message);
+            }
+        }
+
+        function displayQuotaComparison(comparisonData, startDate, endDate, za) {
+            const content = document.getElementById('detailsContent');
+            
+            let html = `<h3>📊 Quota Vergleich - Optimierung</h3>`;
+            html += `<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">`;
+            html += `<h4 style="margin-top: 0;">⚙️ Optimierungsparameter</h4>`;
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">`;
+            html += `<div><strong>Zeitraum:</strong> ${startDate} bis ${endDate}</div>`;
+            html += `<div><strong>Zielauslastung:</strong> ${za}%</div>`;
+            html += `<div><strong>Anzahl Tage:</strong> ${comparisonData.length}</div>`;
+            html += `</div></div>`;
+            
+            // Vergleichstabelle
+            html += `<div style="overflow-x: auto;">`;
+            html += `<table style="width: 100%; border-collapse: collapse; font-size: 12px;">`;
+            html += `<thead>`;
+            html += `<tr style="background: #e9ecef;">`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Datum</th>`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">HRS ID</th>`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Alte Quotas</th>`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Neue Quotas</th>`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Änderung</th>`;
+            html += `<th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Belegung</th>`;
+            html += `</tr>`;
+            html += `</thead>`;
+            html += `<tbody>`;
+            
+            comparisonData.forEach((day, index) => {
+                const bgColor = index % 2 === 0 ? '#f9f9f9' : '#ffffff';
+                const isWeekend = new Date(day.datum).getDay() === 0 || new Date(day.datum).getDay() === 6;
+                const dateStyle = isWeekend ? 'color: #cc6600; font-weight: bold;' : '';
+                
+                html += `<tr style="background: ${bgColor};">`;
+                html += `<td style="padding: 6px; border: 1px solid #ddd; ${dateStyle}">${formatDate(day.datum)}</td>`;
+                html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${day.hrs_id || '-'}</td>`;
+                
+                // Alte Quotas
+                html += `<td style="padding: 6px; border: 1px solid #ddd; font-family: monospace;">`;
+                if (day.old_quotas) {
+                    Object.entries(day.old_quotas).forEach(([type, value]) => {
+                        if (value > 0) {
+                            html += `<span style="display: inline-block; margin-right: 8px; padding: 2px 4px; background: #e9ecef; border-radius: 3px;">${type}: ${value}</span>`;
+                        }
+                    });
+                }
+                html += `</td>`;
+                
+                // Neue Quotas
+                html += `<td style="padding: 6px; border: 1px solid #ddd; font-family: monospace;">`;
+                if (day.new_quotas) {
+                    Object.entries(day.new_quotas).forEach(([type, value]) => {
+                        if (value > 0) {
+                            const oldValue = day.old_quotas?.[type] || 0;
+                            const isChanged = value !== oldValue;
+                            const bgClass = isChanged ? (value > oldValue ? '#d4edda' : '#f8d7da') : '#e9ecef';
+                            html += `<span style="display: inline-block; margin-right: 8px; padding: 2px 4px; background: ${bgClass}; border-radius: 3px;">${type}: ${value}</span>`;
+                        }
+                    });
+                }
+                html += `</td>`;
+                
+                // Änderungen
+                html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">`;
+                if (day.changes && day.changes.length > 0) {
+                    day.changes.forEach(change => {
+                        const changeColor = change.startsWith('+') ? '#28a745' : change.startsWith('-') ? '#dc3545' : '#6c757d';
+                        html += `<div style="color: ${changeColor}; font-size: 10px; font-family: monospace;">${change}</div>`;
+                    });
+                } else {
+                    html += `<span style="color: #6c757d;">-</span>`;
+                }
+                html += `</td>`;
+                
+                // Belegung
+                html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">`;
+                if (day.occupancy) {
+                    html += `<div style="font-size: 10px;">Gesamt: ${day.occupancy.total || 0}</div>`;
+                    html += `<div style="font-size: 9px; color: #666;">Ausl: ${day.occupancy.utilization || 0}%</div>`;
+                }
+                html += `</td>`;
+                
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table></div>`;
+            
+            content.innerHTML = html;
+            
+            // Zeige Panel mit angepasstem Titel
+            document.querySelector('#detailsPanel .details-header').innerHTML = `
+                📊 Quota Vergleich - Optimierung
+                <button class="close-btn" onclick="hideDetailsPanel()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer;">✕ Schließen</button>
+            `;
+            document.getElementById('detailsPanel').style.display = 'block';
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+            return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} (${days[date.getDay()]})`;
         }
     </script>
 
