@@ -82,11 +82,11 @@ try {
     $types .= 's';
     
     $updateFields[] = "arr = ?";
-    $params[] = $data['arr'] ? (int)$data['arr'] : null;
+    $params[] = $data['arr'] ? (int)$data['arr'] : 0;
     $types .= 'i';
     
     $updateFields[] = "origin = ?";
-    $params[] = $data['origin'] ? (int)$data['origin'] : null;
+    $params[] = $data['origin'] ? (int)$data['origin'] : 0;
     $types .= 'i';
     
     // Schlafkategorien und hund sind immer editierbar

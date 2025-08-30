@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const highlightName = new URLSearchParams(location.search).get('highlight');
   const source = new URLSearchParams(location.search).get('source');
   let currentReservationData = null; // Global variable to store current reservation data
+  let currentNameBeingCorrected = null; // Global variable to store name being corrected
   const headerDiv = document.getElementById('resHeader');
   const tbody = document.querySelector('#namesTable tbody');
   const selectAll = document.getElementById('selectAll');
@@ -150,6 +151,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameCorrectionSkip = document.getElementById('nameCorrectionSkip');
   const customVorname = document.getElementById('customVorname');
   const customNachname = document.getElementById('customNachname');
+
+  // New name display elements
+  const nameWithSpaces = document.getElementById('nameWithSpaces');
+  const previewVorname = document.getElementById('previewVorname');
+  const previewNachname = document.getElementById('previewNachname');
+  const swapNamesBtn = document.getElementById('swapNamesBtn');
+  const applyPreviewBtn = document.getElementById('applyPreviewBtn');
+  const removeLongSpaces = document.getElementById('removeLongSpaces');
+  const removeSpecialChars = document.getElementById('removeSpecialChars');
+  const removeNumbers = document.getElementById('removeNumbers');
 
   if (!resId) {
     alert('Keine Reservierungs-ID in der URL.');
@@ -198,6 +209,160 @@ document.addEventListener('DOMContentLoaded', () => {
       return '';
     }
   };
+
+  // === NAME PROCESSING HELPER FUNCTIONS ===
+
+  function cleanName(name) {
+    let cleaned = name;
+
+    // Multiple spaces to single space
+    if (removeLongSpaces && removeLongSpaces.checked) {
+      cleaned = cleaned.replace(/\s+/g, ' ');
+    }
+
+    // Remove special characters
+    if (removeSpecialChars && removeSpecialChars.checked) {
+      cleaned = cleaned.replace(/[()_+\/,.:;"'-]/g, ' ');
+    }
+
+    // Remove numbers
+    if (removeNumbers && removeNumbers.checked) {
+      cleaned = cleaned.replace(/[0-9]/g, ' ');
+    }
+
+    // Clean up multiple spaces again and trim
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    return cleaned;
+  }
+
+  function displayNameWithSpaces(name) {
+    if (!name) return '';
+
+    return name
+      .replace(/ /g, '[_]') // Replace spaces with visible indicators
+      .replace(/[()_+\/,.:;"'-]/g, '[X]') // Replace special chars with X
+      .replace(/[0-9]/g, '[#]'); // Replace numbers with #
+  }
+
+  // NEW: Interactive split position functionality
+  function updateSplitVisualization(originalName, splitPosition) {
+    const originalDisplay = document.getElementById('originalNameDisplay');
+    const splitText = document.getElementById('splitPositionText');
+
+    if (!originalName) return;
+
+    // Find all possible split positions (before spaces and at boundaries)
+    const splitPositions = [];
+    splitPositions.push(0); // Start
+    for (let i = 0; i < originalName.length; i++) {
+      if (originalName[i] === ' ' || /[()_+\/,.;:"'-]/.test(originalName[i])) {
+        splitPositions.push(i); // ON the space/special char, not after
+      }
+    }
+    splitPositions.push(originalName.length); // End
+
+    // Remove duplicates and sort
+    const uniquePositions = [...new Set(splitPositions)].sort((a, b) => a - b);
+
+    // Update slider max value
+    const slider = document.getElementById('splitPositionSlider');
+    slider.max = uniquePositions.length - 1;
+
+    // Get actual split position
+    const actualSplitPos = uniquePositions[splitPosition] || 0;
+
+    // Update position text
+    if (splitPosition === 0) {
+      splitText.textContent = 'Am Anfang';
+    } else if (splitPosition >= uniquePositions.length - 1) {
+      splitText.textContent = 'Am Ende';
+    } else {
+      const char = originalName[actualSplitPos];
+      if (char === ' ') {
+        splitText.textContent = `Auf Leerzeichen (Position ${actualSplitPos})`;
+      } else if (/[()_+\/,.;:"'-]/.test(char)) {
+        splitText.textContent = `Auf "${char}" (Position ${actualSplitPos})`;
+      } else {
+        splitText.textContent = `Position ${actualSplitPos}`;
+      }
+    }
+
+    // Create visual representation with color coding
+    let visualHtml = '';
+    for (let i = 0; i < originalName.length; i++) {
+      const char = originalName[i];
+      const isSpaceOrSpecial = char === ' ' || /[()_+\/,.;:"'-]/.test(char);
+      const isSplitPoint = i === actualSplitPos;
+
+      let charClass = '';
+      if (isSplitPoint) {
+        charClass = 'split-point';
+      } else if (i < actualSplitPos) {
+        charClass = 'before-split';
+      } else {
+        charClass = 'after-split';
+      }
+
+      if (isSpaceOrSpecial) {
+        visualHtml += `<span class="${charClass}" style="background-color: ${i < actualSplitPos ? '#e3f2fd' : '#fff3e0'}; color: ${i < actualSplitPos ? '#1976d2' : '#f57900'}; padding: 2px 4px; border-radius: 3px; margin: 0 1px; border: ${isSplitPoint ? '3px solid #f44336' : '1px solid #ddd'}; font-weight: bold;">${char === ' ' ? '␣' : char}</span>`;
+      } else {
+        visualHtml += `<span class="${charClass}" style="background-color: ${i < actualSplitPos ? '#e8f5e8' : '#ffe8e8'}; color: ${i < actualSplitPos ? '#2e7d32' : '#d32f2f'}; padding: 2px 1px; border-radius: 2px; border: ${isSplitPoint ? '3px solid #f44336' : 'none'};">${char}</span>`;
+      }
+    }
+
+    originalDisplay.innerHTML = visualHtml;
+
+    // Update preview
+    updateSplitPreview(originalName, actualSplitPos);
+  }
+
+  function updateSplitPreview(originalName, splitPosition) {
+    const cleanedName = cleanName(originalName);
+
+    let nachname = cleanedName.substring(0, splitPosition).trim();
+    let vorname = cleanedName.substring(splitPosition).trim();
+
+    // Handle empty parts
+    if (!nachname && vorname) {
+      nachname = vorname;
+      vorname = '';
+    }
+
+    document.getElementById('previewNachname').value = nachname;
+    document.getElementById('previewVorname').value = vorname;
+  }
+
+  function splitNamePreview(name) {
+    const cleaned = cleanName(name);
+    const parts = cleaned.split(' ').filter(part => part.trim());
+
+    if (parts.length === 0) {
+      return { vorname: '', nachname: '' };
+    } else if (parts.length === 1) {
+      return { vorname: '', nachname: parts[0] };
+    } else {
+      // First part as Nachname, rest as Vorname (following the existing pattern)
+      return {
+        vorname: parts.slice(1).join(' '),
+        nachname: parts[0]
+      };
+    }
+  }
+
+  function updateNamePreview(originalName) {
+    if (!nameWithSpaces || !previewVorname || !previewNachname) return;
+
+    // Display name with space indicators
+    nameWithSpaces.textContent = displayNameWithSpaces(originalName);
+
+    // Update preview fields
+    const preview = splitNamePreview(originalName);
+    previewVorname.value = preview.vorname;
+    previewNachname.value = preview.nachname;
+  }
+
+  // === END NAME PROCESSING HELPER FUNCTIONS ===
 
   // 1) Load reservation header + Zimmerliste
   const loadReservationData = async () => {
@@ -441,6 +606,9 @@ document.addEventListener('DOMContentLoaded', () => {
       fullNameText = (currentVorname + ' ' + currentNachname).trim();
     }
 
+    // Store for event listeners
+    currentNameBeingCorrected = fullNameText;
+
     // Generate suggestions
     const suggestions = generateNameSuggestions(fullNameText);
 
@@ -460,6 +628,75 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set custom fields with current values
     customVorname.value = currentVorname;
     customNachname.value = currentNachname;
+
+    // Initialize new name preview features
+    if (previewVorname && previewNachname) {
+      // Initialize preview with automatic split
+      const preview = splitNamePreview(fullNameText);
+      previewVorname.value = preview.vorname;
+      previewNachname.value = preview.nachname;
+    }
+
+    // Initialize interactive split position functionality
+    const slider = document.getElementById('splitPositionSlider');
+    if (slider) {
+      // Find all possible split positions
+      const splitPositions = [0]; // Start
+      for (let i = 0; i < fullNameText.length; i++) {
+        if (fullNameText[i] === ' ' || /[()_+\/,.;:"'-]/.test(fullNameText[i])) {
+          splitPositions.push(i); // ON the space/special char
+        }
+      }
+      splitPositions.push(fullNameText.length); // End
+
+      // Remove duplicates and sort
+      const uniquePositions = [...new Set(splitPositions)].sort((a, b) => a - b);
+
+      // Initialize with first space/special char position if available
+      let initialPosition = 0;
+      if (uniquePositions.length > 2) { // More than just start and end
+        initialPosition = 1; // First space/special char
+      }
+
+      slider.value = initialPosition;
+      updateSplitVisualization(fullNameText, initialPosition);
+
+      // Add slider event listener
+      slider.oninput = (e) => {
+        updateSplitVisualization(fullNameText, parseInt(e.target.value));
+      };
+    }
+
+    // Show modal
+    nameCorrectionModal.classList.remove('hidden');
+
+    // Handle apply preview button (new)
+    const applyPreviewBtn = document.getElementById('applyPreviewBtn');
+    if (applyPreviewBtn) {
+      applyPreviewBtn.onclick = async () => {
+        try {
+          const nachname = document.getElementById('previewNachname').value.trim();
+          const vorname = document.getElementById('previewVorname').value.trim();
+
+          console.log('Applying preview values:', { vorname, nachname });
+
+          // Update the reservation
+          if (vorname !== currentVorname || nachname !== currentNachname) {
+            await updateReservationNames(detail.id, vorname, nachname);
+
+            // Reload the reservation data to reflect changes
+            setTimeout(() => {
+              loadReservationData();
+            }, 500);
+          }
+
+          nameCorrectionModal.classList.add('hidden');
+        } catch (error) {
+          console.error('Error applying preview:', error);
+          alert('Fehler beim Aktualisieren der Namen: ' + error.message);
+        }
+      };
+    }
 
     // Show modal
     nameCorrectionModal.classList.remove('hidden');
@@ -3690,5 +3927,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return false;
   };
+
+  // === NEW NAME PREVIEW EVENT LISTENERS ===
+
+  // Event listener for swap names button
+  if (swapNamesBtn) {
+    swapNamesBtn.addEventListener('click', () => {
+      const temp = previewVorname.value;
+      previewVorname.value = previewNachname.value;
+      previewNachname.value = temp;
+    });
+  }
+
+  // Event listeners for cleaning options
+  if (removeLongSpaces) {
+    removeLongSpaces.addEventListener('change', () => {
+      // Update split visualization if slider exists
+      const slider = document.getElementById('splitPositionSlider');
+      const originalDisplay = document.getElementById('originalNameDisplay');
+      if (slider && originalDisplay && currentNameBeingCorrected) {
+        updateSplitVisualization(currentNameBeingCorrected, parseInt(slider.value));
+      }
+    });
+  }
+
+  if (removeSpecialChars) {
+    removeSpecialChars.addEventListener('change', () => {
+      // Update split visualization if slider exists
+      const slider = document.getElementById('splitPositionSlider');
+      const originalDisplay = document.getElementById('originalNameDisplay');
+      if (slider && originalDisplay && currentNameBeingCorrected) {
+        updateSplitVisualization(currentNameBeingCorrected, parseInt(slider.value));
+      }
+    });
+  }
+
+  if (removeNumbers) {
+    removeNumbers.addEventListener('change', () => {
+      // Update split visualization if slider exists
+      const slider = document.getElementById('splitPositionSlider');
+      const originalDisplay = document.getElementById('originalNameDisplay');
+      if (slider && originalDisplay && currentNameBeingCorrected) {
+        updateSplitVisualization(currentNameBeingCorrected, parseInt(slider.value));
+      }
+    });
+  }
+
+  // Event listener for apply preview button
+  if (applyPreviewBtn) {
+    applyPreviewBtn.addEventListener('click', () => {
+      // Set custom fields with preview values
+      if (customVorname && customNachname) {
+        customVorname.value = previewVorname.value;
+        customNachname.value = previewNachname.value;
+
+        // Trigger the existing apply logic
+        const applyBtn = document.getElementById('nameCorrectionApply');
+        if (applyBtn) {
+          applyBtn.click();
+        }
+      }
+    });
+  }
 
 });
