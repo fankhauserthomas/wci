@@ -44,8 +44,8 @@ foreach ($entries as $entry) {
         $firstName = trim($entry['vorname']);
         $lastName = trim($entry['nachname']);
         
-        if (empty($firstName) || empty($lastName)) {
-            continue; // Skip entries without both names
+        if (empty($lastName)) {
+            continue; // Skip entries without at least a last name
         }
         
         $birthdate = $entry['gebdat'] ?? null;
@@ -70,8 +70,15 @@ foreach ($entries as $entry) {
         
         // Namen in Vor- und Nachname aufteilen
         $nameParts = explode(' ', $fullName, 2);
-        $firstName = trim($nameParts[0]);
-        $lastName = isset($nameParts[1]) ? trim($nameParts[1]) : '';
+        if (count($nameParts) === 1) {
+            // Only one name provided - use as lastName
+            $firstName = '';
+            $lastName = trim($nameParts[0]);
+        } else {
+            // Multiple parts - first is firstName, second is lastName
+            $firstName = trim($nameParts[0]);
+            $lastName = trim($nameParts[1]);
+        }
         
         try {
             $stmt->bind_param("isss", $id, $firstName, $lastName, $birthdate);
