@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservierungsliste - Optimiert</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+
+    <!-- Externe Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Lade Daten...</div>
+    </div>
+
+    <!-- Hauptcontainer -->
+    <div class="app-container">
+        <!-- Header mit Filtern -->
+        <header class="app-header">
+            <h1>Reservierungsliste</h1>
+
+            <div class="filter-controls">
+                <!-- Typ Toggle -->
+                <button id="type-toggle" class="toggle-btn" data-type="arrival">
+                    <span class="toggle-text">Anreise</span>
+                </button>
+
+                <!-- Datum Filter -->
+                <input type="date" id="date-filter" class="date-input">
+
+                <!-- Storno Filter -->
+                <button id="storno-toggle" class="toggle-btn" data-filter="no-storno">
+                    <span class="toggle-text">Ohne Storno</span>
+                </button>
+
+                <!-- Status Filter -->
+                <button id="status-toggle" class="toggle-btn" data-filter="all">
+                    <span class="toggle-text">Alle</span>
+                </button>
+
+                <!-- Suche -->
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Suche Name..." class="search-input">
+                    <button id="search-clear" class="search-clear" title="Suche löschen">×</button>
+                </div>
+
+                <!-- Neue Reservierung -->
+                <button id="new-reservation" class="btn-primary">+ Neue Reservierung</button>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div class="progress-indicator">
+                <div class="progress-item">
+                    <label class="progress-label">Gäste eingecheckt</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="guests-progress-fill"></div>
+                        <span class="progress-text" id="guests-progress-text">0 / 0</span>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <label class="progress-label">Reservierungen bearbeitet</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="reservations-progress-fill"></div>
+                        <span class="progress-text" id="reservations-progress-text">0 / 0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hauptinhalt -->
+        <main class="app-main">
+            <!-- Tabellen-Container -->
+            <div class="table-container">
+                <table id="reservations-table" class="reservations-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="status">Status</th>
+                            <th data-sort="arrival">Anreise</th>
+                            <th data-sort="departure">Abreise</th>
+                            <th data-sort="count">Anzahl</th>
+                            <th data-sort="name">Name</th>
+                            <th data-sort="arrangement">Arr</th>
+                            <th data-sort="hp">ANam</th>
+                            <th data-sort="remarks">Bem</th>
+                            <th data-sort="origin">Orig</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservations-tbody">
+                        <!-- Wird dynamisch befüllt -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" data-modal="info-modal">&times;</button>
+            <div id="info-modal-content"></div>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qr-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" data-modal="qr-modal">&times;</button>
+            <div id="qr-container"></div>
+            <div class="modal-actions">
+                <button id="email-guest-btn" class="btn-primary">📧 E-Mail an Gast senden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Neue Reservierung Modal -->
+    <div id="new-reservation-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close" data-modal="new-reservation-modal">&times;</button>
+            <h2>Neue Reservierung</h2>
+            <form id="new-reservation-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="new-nachname">Nachname*</label>
+                        <input type="text" id="new-nachname" name="nachname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-vorname">Vorname</label>
+                        <input type="text" id="new-vorname" name="vorname">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-herkunft">Herkunft</label>
+                        <select id="new-herkunft" name="herkunft">
+                            <option value="">Bitte wählen...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-anreise">Anreise</label>
+                        <input type="date" id="new-anreise" name="anreise">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-abreise">Abreise</label>
+                        <input type="date" id="new-abreise" name="abreise">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-arrangement">Arrangement</label>
+                        <select id="new-arrangement" name="arrangement">
+                            <option value="">Bitte wählen...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-dz">Anzahl DZ</label>
+                        <input type="number" id="new-dz" name="dz" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-betten">Anzahl Betten</label>
+                        <input type="number" id="new-betten" name="betten" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-lager">Anzahl Lager</label>
+                        <input type="number" id="new-lager" name="lager" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-sonder">Anzahl Sonder</label>
+                        <input type="number" id="new-sonder" name="sonder" min="0" value="0">
+                    </div>
+                    <div class="form-group form-group-full">
+                        <label for="new-bemerkung">Bemerkung</label>
+                        <textarea id="new-bemerkung" name="bemerkung" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Speichern</button>
+                    <button type="button" class="btn-secondary" data-modal="new-reservation-modal">Abbrechen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Module -->
+    <script src="js/utils.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/table-manager.js"></script>
+    <script src="js/event-manager.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

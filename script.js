@@ -411,19 +411,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const params = new URLSearchParams({ date, type: getType() });
 
-    const loadPromise = window.HttpUtils
+    // Paralleles Laden von Hauptdaten und HP-Daten für bessere Performance
+    const dataPromise = window.HttpUtils
       ? HttpUtils.requestJsonWithLoading(`data.php?${params}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsliste wird geladen...')
       : window.LoadingOverlay
         ? LoadingOverlay.wrapFetch(() => fetch(`data.php?${params}`).then(res => res.json()), 'Reservierungsliste')
         : fetch(`data.php?${params}`).then(res => res.json());
 
-    loadPromise
-      .then(data => {
-        if (data.error) {
-          alert(data.error);
+    // HP-Daten parallel laden
+    window.hpDataLoading = true; // Flag für andere Scripts
+    const hpDataPromise = fetch(`get-all-hp-data.php?${params}`)
+      .then(res => res.json())
+      .catch(error => {
+        console.warn('HP-Daten konnten nicht geladen werden:', error);
+        return { success: false, data: [] };
+      })
+      .finally(() => {
+        window.hpDataLoading = false; // Flag zurücksetzen
+      });
+
+    // Beide Promises parallel ausführen
+    Promise.all([dataPromise, hpDataPromise])
+      .then(([mainData, hpData]) => {
+        if (mainData.error) {
+          alert(mainData.error);
           return;
         }
-        rawData = data.map(r => ({ ...r, storno: Boolean(r.storno) }));
+
+        // Hauptdaten verarbeiten
+        rawData = mainData.map(r => ({ ...r, storno: Boolean(r.storno) }));
+
+        // HP-Daten global speichern für sofortige Verwendung
+        if (hpData.success && window.realHpData) {
+          window.realHpData.clear();
+          hpData.data.forEach(item => {
+            window.realHpData.set(item.res_id, {
+              hpArrangements: item.hp_arrangements,
+              checkedInCount: item.checked_in_count,
+              totalNames: item.total_names,
+              name: item.name
+            });
+          });
+          console.log('✅ HP-Daten parallel geladen:', window.realHpData.size, 'Reservierungen');
+        }
+
         renderTable();
       })
       .catch((error) => {

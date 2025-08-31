@@ -1,0 +1,393 @@
+/* ==============================================
+   KOMPONENTEN CSS - TABELLEN & MODALS
+   ============================================== */
+
+/* Reservierungen Tabelle */
+.reservations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.reservations-table thead {
+    background-color: var(--bg-tertiary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.reservations-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color var(--transition-fast);
+}
+
+.reservations-table th:hover {
+    background-color: var(--bg-secondary);
+}
+
+.reservations-table th[data-sort]::after {
+    content: '';
+    position: absolute;
+    right: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid var(--text-light);
+    opacity: 0.5;
+}
+
+.reservations-table th[data-sort].sorted-asc::after {
+    border-bottom: 4px solid var(--primary-color);
+    border-top: none;
+    opacity: 1;
+}
+
+.reservations-table th[data-sort].sorted-desc::after {
+    border-top: 4px solid var(--primary-color);
+    border-bottom: none;
+    opacity: 1;
+}
+
+.reservations-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color var(--transition-fast);
+}
+
+.reservations-table tbody tr:hover {
+    background-color: var(--bg-secondary);
+}
+
+.reservations-table tbody tr.highlighted {
+    background-color: rgba(37, 99, 235, 0.1);
+}
+
+.reservations-table td {
+    padding: var(--spacing-md);
+    vertical-align: top;
+}
+
+/* Status Indikatoren */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    white-space: nowrap;
+}
+
+.status-indicator.checked-in {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.status-indicator.pending {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+}
+
+.status-indicator.cancelled {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error-color);
+}
+
+.status-indicator::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+/* HP Arrangement Markierungen */
+.hp-marker {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: var(--spacing-xs);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.hp-marker.balanced {
+    background-color: #10b981;
+    /* Grün - ausgeglichen */
+}
+
+.hp-marker.more-arrangements {
+    background-color: #ef4444;
+    /* Rot - mehr Arrangements */
+}
+
+.hp-marker.more-checkins {
+    background-color: #8b5cf6;
+    /* Lila - mehr Check-ins */
+}
+
+.hp-marker.no-data {
+    background-color: #64748b;
+    /* Grau - keine Daten */
+}
+
+/* Aktionsfähige Zellen */
+.clickable-cell {
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    border-radius: var(--border-radius-sm);
+}
+
+.clickable-cell:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+}
+
+.clickable-name {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.clickable-name:hover {
+    text-decoration: underline;
+}
+
+/* Arrangement Badges */
+.arrangement-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.arrangement-badge.hp {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--info-color);
+}
+
+.arrangement-badge.fp {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+/* Modals */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: var(--z-modal);
+    padding: var(--spacing-md);
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.modal:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    padding: var(--spacing-xl);
+    transform: scale(0.95);
+    transition: transform var(--transition-normal);
+}
+
+.modal:not(.hidden) .modal-content {
+    transform: scale(1);
+}
+
+.modal-close {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    background: none;
+    border: none;
+    font-size: var(--font-size-xl);
+    color: var(--text-light);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.modal h2 {
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-primary);
+    font-size: var(--font-size-xl);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+/* QR Code Modal */
+#qr-container {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+}
+
+#qr-container canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Formular Styles */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group-full {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    background-color: var(--bg-primary);
+    transition: border-color var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-light);
+}
+
+.empty-state-title {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.empty-state-description {
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}
+
+/* Responsive Tabelle */
+@media (max-width: 768px) {
+    .reservations-table {
+        font-size: var(--font-size-xs);
+    }
+
+    .reservations-table th,
+    .reservations-table td {
+        padding: var(--spacing-sm);
+    }
+
+    .modal-content {
+        margin: var(--spacing-sm);
+        padding: var(--spacing-lg);
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print Styles */
+@media print {
+
+    .app-header,
+    .modal,
+    .loading-overlay {
+        display: none !important;
+    }
+
+    .app-main {
+        padding: 0;
+    }
+
+    .table-container {
+        box-shadow: none;
+        border: 1px solid var(--border-color);
+    }
+
+    .reservations-table th,
+    .reservations-table td {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+    }
+}

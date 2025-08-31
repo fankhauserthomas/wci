@@ -7,15 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservierungsliste - WebCheckin</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/navigation-integration.css">
   <style>
     /* Reservierungen-spezifische Styles */
     .main-content {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 85px);
-      /* Mehr Platz für Navigation + Margins */
+      height: 100vh;
+      /* Volle Höhe ohne Navigation */
       min-height: 500px;
       overflow: hidden;
       padding: 0 !important;
@@ -36,6 +34,25 @@
       font-weight: 600 !important;
     }
 
+    /* Neue Markierungsklassen */
+    .name-cell.hp-status-balanced {
+      background-color: rgba(40, 167, 69, 0.25) !important;
+      border-left: 4px solid #28a745 !important;
+      font-weight: 600 !important;
+    }
+
+    .name-cell.hp-status-more-arrangements {
+      background-color: rgba(220, 53, 69, 0.25) !important;
+      border-left: 4px solid #dc3545 !important;
+      font-weight: 600 !important;
+    }
+
+    .name-cell.hp-status-more-checkins {
+      background-color: rgba(156, 39, 176, 0.25) !important;
+      border-left: 4px solid #9c27b0 !important;
+      font-weight: 600 !important;
+    }
+
     /* Hover-Effekte für HP-Warnungen */
     .name-cell.hp-warning-red:hover {
       background-color: rgba(220, 53, 69, 0.35) !important;
@@ -43,6 +60,19 @@
 
     .name-cell.hp-warning-orange:hover {
       background-color: rgba(255, 193, 7, 0.35) !important;
+    }
+
+    /* Hover-Effekte für neue Markierungsklassen */
+    .name-cell.hp-status-balanced:hover {
+      background-color: rgba(40, 167, 69, 0.35) !important;
+    }
+
+    .name-cell.hp-status-more-arrangements:hover {
+      background-color: rgba(220, 53, 69, 0.35) !important;
+    }
+
+    .name-cell.hp-status-more-checkins:hover {
+      background-color: rgba(156, 39, 176, 0.35) !important;
     }
 
     .controls.legacy-controls {
@@ -190,8 +220,6 @@
       text-align: center;
       font-weight: 600;
       transition: background-color 0.3s ease, border-bottom-color 0.3s ease;
-      cursor: pointer;
-      user-select: none;
       position: relative;
     }
 
@@ -199,23 +227,7 @@
       background: #27ae60;
     }
 
-    #resTable thead th.sortable::after {
-      content: ' ↕';
-      opacity: 0.5;
-      margin-left: 4px;
-    }
 
-    #resTable thead th.sort-asc::after {
-      content: ' ↑';
-      opacity: 1;
-      color: #fff;
-    }
-
-    #resTable thead th.sort-desc::after {
-      content: ' ↓';
-      opacity: 1;
-      color: #fff;
-    }
 
     /* Abreise-Modus Styling */
     .departure-mode #resTable thead {
@@ -357,8 +369,6 @@
 </head>
 
 <body>
-  <!-- Navigation wird durch JavaScript eingefügt -->
-
   <main class="main-content">
     <div class="controls legacy-controls">
       <div class="controls-left">
@@ -413,15 +423,15 @@
       <table id="resTable">
         <thead>
           <tr>
-            <th class="sortable" data-column="0" data-type="status">Status</th>
-            <th class="sortable" data-column="1" data-type="date">Anreise</th>
-            <th class="sortable" data-column="2" data-type="date">Abreise</th>
-            <th class="sortable" data-column="3" data-type="number">Anzahl</th>
-            <th class="sortable" data-column="4" data-type="text">Name</th>
-            <th class="sortable" data-column="5" data-type="text">arr</th>
-            <th class="sortable" data-column="6" data-type="text">ANam</th>
-            <th class="sortable" data-column="7" data-type="text">Bem</th>
-            <th class="sortable" data-column="8" data-type="text">Orig</th>
+            <th>Status</th>
+            <th>Anreise</th>
+            <th>Abreise</th>
+            <th>Anzahl</th>
+            <th>Name</th>
+            <th>arr</th>
+            <th>ANam</th>
+            <th>Bem</th>
+            <th>Orig</th>
           </tr>
         </thead>
         <tbody>
@@ -461,20 +471,62 @@
 
   <!-- Barcode Scanner Modal entfernt - automatische Erkennung mit {..} -->
 
-  <!-- QRCode.js (CDN) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Scripts optimiert für Performance -->
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
-  <script src="js/sync-utils.js"></script>
-  <script src="auto-barcode-scanner.js"></script>
+  <!-- QRCode.js erst bei Bedarf laden -->
+  <script>
+    // QR-Code Script nur laden wenn QR-Modal geöffnet wird
+    let qrCodeScriptLoaded = false;
+    function loadQRCodeScript() {
+      if (qrCodeScriptLoaded) return Promise.resolve();
+
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.onload = () => {
+          qrCodeScriptLoaded = true;
+          console.log('[PERF] QRCode.js bei Bedarf geladen');
+          resolve();
+        };
+        document.head.appendChild(script);
+      });
+    }
+  </script>
+  <!-- Sync-Utils verzögert laden für bessere Performance -->
+  <script>
+    // Sync-Utils nach 3 Sekunden laden um Page-Load zu beschleunigen
+    setTimeout(() => {
+      const syncScript = document.createElement('script');
+      syncScript.src = 'js/sync-utils.js';
+      syncScript.onload = () => console.log('[PERF] Sync-Utils verzögert geladen');
+      document.head.appendChild(syncScript);
+    }, 3000);
+  </script>
+  <!-- Auto-Barcode-Scanner verzögert laden -->
+  <script>
+    setTimeout(() => {
+      const barcodeScript = document.createElement('script');
+      barcodeScript.src = 'auto-barcode-scanner.js';
+      barcodeScript.onload = () => console.log('[PERF] Auto-Barcode-Scanner verzögert geladen');
+      document.head.appendChild(barcodeScript);
+    }, 1500);
+  </script>
   <script src="script.js"></script>
 
   <!-- BACKUP: Name-Click-Handler falls script.js versagt -->
   <script>
-    // Simple backup solution for name clicking
+    // Simple backup solution for name clicking (Performance-optimiert)
     function addNameClickHandlers() {
       const nameCells = document.querySelectorAll('.name-cell');
+
+      // Skip wenn keine Zellen vorhanden (Performance)
+      if (nameCells.length === 0) {
+        console.log('🔗 Backup: No name cells found, skipping handler setup');
+        return;
+      }
+
       console.log('🔗 Backup: Adding click handlers to', nameCells.length, 'name cells');
 
       nameCells.forEach(cell => {
@@ -568,24 +620,126 @@
     </div>
   </div>
 
-  <!-- Navigation System -->
-  <script src="js/navigation.js"></script>
-
   <script>
-    // Connection Status für diese Seite initialisieren
-    document.addEventListener('DOMContentLoaded', function () {
-      const indicator = document.getElementById('connection-indicator');
-      if (indicator && window.connectionMonitor) {
-        // Initial update
-        if (window.updateConnectionStatus) {
-          window.updateConnectionStatus();
-        }
+    // Automatischer Barcode-Scanner läuft im Hintergrund und reagiert auf {..} Pattern
+
+    // Global variable to store real HP data (auch für script.js verfügbar)
+    window.realHpData = new Map();
+
+    // Variable für HP-Update-Kontrolle
+    let lastHpUpdate = 0;
+    const HP_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 Minuten in Millisekunden
+
+    // Globale HP-Update-Kontrolle - verhindert zu häufige Aufrufe
+    let isHpUpdateRunning = false;
+    let lastHpUpdateTime = 0;
+    const MIN_HP_UPDATE_INTERVAL = 5000; // Mindestens 5 Sekunden zwischen HP-Updates
+
+    // Debounce-Funktion hinzufügen
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Throttled HP-Update - verhindert übermäßige API-Aufrufe
+    async function throttledHpUpdate() {
+      const now = Date.now();
+
+      // Wenn bereits ein Update läuft oder zu früh, ignorieren
+      if (isHpUpdateRunning || (now - lastHpUpdateTime < MIN_HP_UPDATE_INTERVAL)) {
+        console.log('⏳ HP-Update übersprungen (zu früh oder läuft bereits)');
+        return;
       }
 
-      // Automatischer Barcode-Scanner läuft im Hintergrund und reagiert auf {..} Pattern
-    });
+      isHpUpdateRunning = true;
+      lastHpUpdateTime = now;
+
+      try {
+        console.log('🔄 HP-Update wird ausgeführt');
+        await setAllHpWarnings();
+      } finally {
+        isHpUpdateRunning = false;
+      }
+    }
+
+    // Function to load real HP arrangement data (verwendet Cache wenn möglich)
+    async function loadRealHpData() {
+      try {
+        const date = document.getElementById('filterDate')?.value || new Date().toISOString().split('T')[0];
+        const type = document.getElementById('toggleType')?.textContent.includes('Anreise') ? 'arrival' : 'departure';
+
+        // Warte kurz auf mögliche parallele Ladung von script.js
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Prüfe ob bereits geladene Daten vorhanden sind (von script.js)
+        if (window.realHpData && window.realHpData.size > 0) {
+          console.log('✅ HP-Daten aus Cache verwendet:', window.realHpData.size, 'Reservierungen');
+          return true;
+        }
+
+        // Prüfe ob gerade ein Ladevorgang von script.js läuft
+        if (window.hpDataLoading) {
+          console.log('⏳ Warte auf parallelen HP-Daten Load...');
+          // Warte bis zu 2 Sekunden auf den parallelen Load
+          for (let i = 0; i < 20; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (window.realHpData && window.realHpData.size > 0) {
+              console.log('✅ HP-Daten von parallelem Load erhalten:', window.realHpData.size, 'Reservierungen');
+              return true;
+            }
+          }
+        }
+
+        console.log('🔄 HP-Daten werden separat geladen...');
+        const response = await fetch(`get-all-hp-data.php?date=${date}&type=${type}`);
+        const data = await response.json();
+
+        if (data.success) {
+          // Clear existing data
+          window.realHpData.clear();
+
+          // Store new data indexed by res_id
+          data.data.forEach(item => {
+            window.realHpData.set(item.res_id, {
+              hpArrangements: item.hp_arrangements,
+              checkedInCount: item.checked_in_count,
+              totalNames: item.total_names,
+              name: item.name
+            });
+          });
+
+          console.log('✅ HP-Daten separat geladen:', window.realHpData.size, 'Reservierungen');
+          return true;
+        } else {
+          console.error('❌ Failed to load HP data:', data.error);
+          return false;
+        }
+      } catch (error) {
+        console.error('❌ Error loading HP data:', error);
+        return false;
+      }
+    }
 
     // Statische HP-Arrangements Hintergrund-Funktion (ressourcenschonend)
+    function getStatusPercentage(cell) {
+      const pieChart = cell.querySelector('.pie-chart');
+      if (pieChart) {
+        const textElement = pieChart.querySelector('text');
+        if (textElement) {
+          const percentText = textElement.textContent.trim();
+          return parseInt(percentText.replace('%', '')) || 0;
+        }
+      }
+      return 0;
+    }
+
     function setHpWarningForRow(row) {
       const cells = row.querySelectorAll('td');
       if (cells.length < 9) {
@@ -598,82 +752,108 @@
         return;
       }
 
-      const anzahlCell = cells[3]; // Anzahl-Spalte
-      const statusCell = cells[0]; // Status-Spalte
       const nameCell = row.querySelector('.name-cell');
-
       if (!nameCell) {
         return;
       }
 
-      // Anzahl Gäste ermitteln
-      const anzahlText = anzahlCell.textContent.trim();
-      const expectedGuests = parseInt(anzahlText) || 0;
+      // Versuche echte HP-Daten zu verwenden
+      let hpArrangements = 0;
+      let checkedInNames = 0;
+      let useRealData = false;
 
-      if (expectedGuests === 0) {
-        // Keine Gäste = keine Warnung
-        nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
-        return;
-      }
-
-      // Status-Prozent ermitteln
-      const statusPercentage = getStatusPercentage(statusCell);
-
-      // Bei 100% Status keine Warnung
-      if (statusPercentage >= 100) {
-        nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
-        return;
-      }
-
-      // SIMULIERTE HP-ARRANGEMENTS basierend auf Check-in Status
-      // Niedrige Check-in % = viele HP-Arrangements = Check-in vergessen
-      let simulatedArrangements = 0;
-
-      if (statusPercentage === 0) {
-        // Noch gar kein Check-in = keine HP-Arrangements simulieren
-        // Grund: Noch nichts vergessen, da Check-in noch nicht begonnen
-        simulatedArrangements = 0;
-      } else if (statusPercentage < 50) {
-        // Weniger als 50% eingecheckt = simuliere HP-Arrangements für alle Gäste
-        simulatedArrangements = expectedGuests;
-      } else if (statusPercentage < 100) {
-        // 50-99% eingecheckt = simuliere HP-Arrangements für verbleibende Gäste
-        const notCheckedIn = Math.ceil(expectedGuests * (1 - statusPercentage / 100));
-        simulatedArrangements = Math.max(1, notCheckedIn);
+      if (window.realHpData.has(resId)) {
+        const realData = window.realHpData.get(resId);
+        hpArrangements = realData.hpArrangements;
+        checkedInNames = realData.checkedInCount;
+        useRealData = true;
       } else {
-        // 100% eingecheckt = keine HP-Arrangements
-        simulatedArrangements = 0;
-      }
+        // Fallback: Alte Logik verwenden
+        const anzahlCell = cells[3]; // Anzahl-Spalte (Gesamtgäste)
+        const statusCell = cells[0]; // Status-Spalte (Check-in Prozent)
+        const anamCell = cells[6]; // ANam-Spalte (HP-Arrangements)
 
-      // Verhältnis berechnen
-      const arrangementRatio = expectedGuests > 0 ? (simulatedArrangements / expectedGuests) : 0;
+        // Anzahl Gäste ermitteln
+        const anzahlText = anzahlCell.textContent.trim();
+        const totalGuests = parseInt(anzahlText) || 0;
 
-      // Entferne alte Klassen
-      nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
+        // HP-Arrangements aus ANam-Spalte ermitteln - NICHT prozentual!
+        const anamText = anamCell.textContent.trim();
 
-      // Nur Warnungen zeigen wenn tatsächlich HP-Arrangements vorhanden sind
-      if (simulatedArrangements > 0) {
-        if (arrangementRatio >= 1.0) {
-          // 100%+ HP-Arrangements = Rot (Check-in vergessen!)
-          nameCell.classList.add('hp-warning-red');
-          nameCell.title = `⚠️ Check-in vergessen? ${simulatedArrangements} HP-Arrangements für ${expectedGuests} Gäste`;
-        } else if (arrangementRatio >= 0.5) {
-          // 50-99% HP-Arrangements = Orange (Teilweise Check-in?)
-          nameCell.classList.add('hp-warning-orange');
-          nameCell.title = `⚠️ Teilweise Check-in? ${simulatedArrangements} HP-Arrangements für ${expectedGuests} Gäste`;
+        // Text-basierte HP-Arrangements interpretieren - Anzahl der tatsächlichen Arrangements
+        if (anamText.includes('HP')) {
+          hpArrangements = totalGuests;
+        } else if (anamText.includes('BHI')) {
+          hpArrangements = totalGuests;
+        } else if (anamText.includes('ALA')) {
+          hpArrangements = totalGuests;
+        } else if (anamText === 'n/a' || anamText === '') {
+          hpArrangements = 0;
+        } else {
+          hpArrangements = parseInt(anamText) || 0;
         }
+
+        // Status-Prozent ermitteln (wieviele Namen sind eingecheckt)
+        const statusPercentage = getStatusPercentage(statusCell);
+        checkedInNames = Math.round((statusPercentage / 100) * totalGuests);
+      }
+
+      // WICHTIG: Namen von Debug-Informationen bereinigen, aber HTML-Logos beibehalten
+      const originalHtml = nameCell.innerHTML;
+      // Entferne nur Debug-Info in eckigen Klammern, aber behalte HTML-Tags
+      const cleanHtml = originalHtml.replace(/\s*\[[^\]]+\]/g, '');
+      nameCell.innerHTML = cleanHtml;
+
+      // Debug-Ausgabe für die ersten Zeilen
+      if (resId <= 5) {
+        console.log(`Debug Row ${resId}:`, {
+          name: nameCell.textContent.trim(),
+          hpArrangements,
+          checkedInNames,
+          useRealData
+        });
+      }
+
+      // Entferne alle alten Klassen
+      nameCell.classList.remove('hp-warning-red', 'hp-warning-orange', 'hp-status-balanced', 'hp-status-more-arrangements', 'hp-status-more-checkins');
+
+      // Neue Regeln anwenden:
+      if (checkedInNames === 0 && hpArrangements === 0) {
+        // Regel: Wenn noch keine Namen eingecheckt und keine Arrangements angegeben -> keine Sonderfarbe
+        nameCell.title = '';
+        return;
+      }
+
+      // Tooltip mit echten oder berechneten Daten
+      const dataSource = useRealData ? ' (DB)' : ' (berechnet)';
+
+      if (hpArrangements === checkedInNames && hpArrangements > 0) {
+        // Regel: Anzahl HP-Arrangements entspricht Anzahl eingecheckter Namen (beide > 0) -> hellgrüner Hintergrund
+        nameCell.classList.add('hp-status-balanced');
+        nameCell.title = `✓ Ausgeglichen${dataSource}: ${checkedInNames} eingecheckte Namen = ${hpArrangements} HP-Arrangements`;
+      } else if (hpArrangements > checkedInNames) {
+        // Regel: Mehr Arrangements als Check-ins -> rot
+        nameCell.classList.add('hp-status-more-arrangements');
+        nameCell.title = `⚠️ Mehr HP-Arrangements${dataSource}: ${hpArrangements} Arrangements > ${checkedInNames} eingecheckte Namen`;
+      } else if (checkedInNames > hpArrangements) {
+        // Regel: Mehr Check-ins als Arrangements -> lila
+        nameCell.classList.add('hp-status-more-checkins');
+        nameCell.title = `⚠️ Mehr eingecheckte Namen${dataSource}: ${checkedInNames} eingecheckte Namen > ${hpArrangements} HP-Arrangements`;
       } else {
-        // Keine HP-Arrangements = keine Warnung, Title löschen
+        // Fallback: Title löschen wenn keine besonderen Bedingungen erfüllt
         nameCell.title = '';
       }
     }
 
     // Alle Zeilen auf einmal prüfen (wird nach Tabellenerstellung aufgerufen)
-    function setAllHpWarnings() {
+    async function setAllHpWarnings() {
       const tbody = document.querySelector('#resTable tbody');
       if (!tbody) {
         return;
       }
+
+      // Erst HP-Daten laden
+      await loadRealHpData();
 
       const rows = tbody.querySelectorAll('tr');
 
@@ -771,6 +951,9 @@
       // Das verursachte die doppelten Checks - HP-Checks werden jetzt nur durch spezifische Events ausgelöst
     }
 
+    // Debounced HP-Update-Funktion (früh definiert)
+    const debouncedHpUpdate = debounce(() => throttledHpUpdate(), 2000); // 2 Sekunden Debounce
+
     // Farbschema basierend auf Anreise/Abreise-Modus umschalten
     function updateColorScheme(isArrival) {
       const body = document.body;
@@ -800,21 +983,25 @@
 
     // Progress Indicators aktualisieren wenn Tabelle geladen/gefiltert wird
     function initProgressTracking() {
-      // Observer für Tabellenänderungen
+      // Observer für Tabellenänderungen (weniger sensitiv)
       const tbody = document.querySelector('#resTable tbody');
       if (tbody) {
+        let observerTimeout;
         const observer = new MutationObserver(() => {
-          // Kurze Verzögerung um sicherzustellen, dass DOM-Updates abgeschlossen sind
-          setTimeout(updateProgressIndicators, 100);
-          // HP-Warnungen nach Tabellenänderungen setzen (statisch, ressourcenschonend)
-          setTimeout(setAllHpWarnings, 150);
+          // Debounce auch den Observer selbst
+          clearTimeout(observerTimeout);
+          observerTimeout = setTimeout(() => {
+            console.log('🔄 Tabelle geändert - Progress Update');
+            updateProgressIndicators();
+            // HP-Warnungen nach Tabellenänderungen setzen (debounced)
+            debouncedHpUpdate();
+          }, 500); // Längere Verzögerung für Observer
         });
 
         observer.observe(tbody, {
           childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['class']
+          subtree: false, // Nur direkte Kinder überwachen, nicht alle Nachkommen
+          attributes: false, // Keine Attribut-Änderungen überwachen
         });
       }
 
@@ -824,16 +1011,22 @@
         window.loadData = function () {
           const result = originalLoadData.apply(this, arguments);
           setTimeout(updateProgressIndicators, 500);
-          // HP-Warnungen nach loadData setzen
-          setTimeout(setAllHpWarnings, 800);
+          // HP-Warnungen nach loadData setzen (debounced)
+          debouncedHpUpdate();
           return result;
         };
       }
 
-      // Einmaliger initialer Update
+      // Einmaliger initialer Update (Performance-optimiert)
       setTimeout(() => {
         updateProgressIndicators();
-        setAllHpWarnings();
+        // HP-Update nur wenn Tabelle bereits Daten hat
+        const tbody = document.querySelector('#resTable tbody');
+        if (tbody && tbody.children.length > 0) {
+          debouncedHpUpdate();
+        } else {
+          console.log('⏩ HP-Update übersprungen - keine Daten in Tabelle');
+        }
       }, 1000);
 
       // Initial color scheme setzen
@@ -857,19 +1050,19 @@
           // Standard change event
           element.addEventListener('change', () => {
             setTimeout(updateProgressIndicators, 200);
-            setTimeout(setAllHpWarnings, 300);
+            debouncedHpUpdate();
           });
 
           // Click event für Buttons
           element.addEventListener('click', () => {
             setTimeout(updateProgressIndicators, 200);
-            setTimeout(setAllHpWarnings, 300);
+            debouncedHpUpdate();
           });
 
           // Input event für sofortige Reaktion (besonders wichtig für Date-Picker)
           element.addEventListener('input', () => {
             setTimeout(updateProgressIndicators, 300);
-            setTimeout(setAllHpWarnings, 400);
+            debouncedHpUpdate();
           });
 
           // Spezielle Behandlung für das Datumsfeld
@@ -877,289 +1070,36 @@
             // Zusätzliche Events für bessere Date-Picker Unterstützung
             element.addEventListener('blur', () => {
               setTimeout(updateProgressIndicators, 200);
-              setTimeout(setAllHpWarnings, 300);
+              debouncedHpUpdate();
             });
 
             // Focus-out Event als Fallback
             element.addEventListener('focusout', () => {
               setTimeout(updateProgressIndicators, 200);
-              setTimeout(setAllHpWarnings, 300);
+              debouncedHpUpdate();
             });
           }
         }
       });
 
-      // Reduzierte periodische Updates (nur Progress, HP-Warnungen bleiben statisch)
+      // Reduzierte periodische Updates (nur Progress, HP-Warnungen kontrolliert)
       setInterval(() => {
         updateProgressIndicators();
+
         // HP-Warnungen nur alle 5 Minuten neu setzen
-        if (Date.now() % 300000 < 60000) { // Alle 5 Minuten
-          setAllHpWarnings();
+        const now = Date.now();
+        if (now - lastHpUpdate >= HP_UPDATE_INTERVAL) {
+          console.log('🔄 HP-Daten werden aktualisiert (alle 5 Min)');
+          throttledHpUpdate(); // Verwende throttled Version (ohne await in setInterval)
+          lastHpUpdate = now;
         }
       }, 60000); // Alle 60 Sekunden
     }
-
     // Progress Tracking initialisieren wenn DOM ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initProgressTracking);
     } else {
       initProgressTracking();
-    }
-
-    // === TABELLEN-SORTIERUNG ===
-    let currentSortColumn = -1;
-    let currentSortDirection = 'asc';
-
-    function initTableSorting() {
-      const headers = document.querySelectorAll('#resTable thead th.sortable');
-
-      headers.forEach(header => {
-        header.addEventListener('click', function () {
-          const column = parseInt(this.dataset.column);
-          const type = this.dataset.type;
-
-          // Reset other headers
-          headers.forEach(h => {
-            h.classList.remove('sort-asc', 'sort-desc');
-          });
-
-          // Toggle sort direction if same column
-          if (currentSortColumn === column) {
-            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-          } else {
-            currentSortDirection = 'asc';
-          }
-
-          currentSortColumn = column;
-
-          // Add sort indicator
-          this.classList.add(currentSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-
-          // Sort table
-          sortTable(column, type, currentSortDirection);
-        });
-      });
-    }
-
-    function sortTable(columnIndex, dataType, direction) {
-      const tbody = document.querySelector('#resTable tbody');
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-
-      rows.sort((a, b) => {
-        const aCell = a.cells[columnIndex];
-        const bCell = b.cells[columnIndex];
-
-        let aValue = getCellValue(aCell, dataType);
-        let bValue = getCellValue(bCell, dataType);
-
-        // Handle null/undefined values
-        if (aValue === null || aValue === undefined) aValue = '';
-        if (bValue === null || bValue === undefined) bValue = '';
-
-        let comparison = 0;
-
-        switch (dataType) {
-          case 'number':
-            comparison = (parseFloat(aValue) || 0) - (parseFloat(bValue) || 0);
-            break;
-          case 'date':
-            const aDate = parseDate(aValue);
-            const bDate = parseDate(bValue);
-
-            // Debug output for date sorting
-            if (columnIndex === 1 || columnIndex === 2) { // Anreise or Abreise columns
-              console.log('Date sorting debug:', {
-                columnIndex,
-                aValue,
-                bValue,
-                aDate: aDate.toISOString(),
-                bDate: bDate.toISOString(),
-                comparison: aDate - bDate
-              });
-            }
-
-            comparison = aDate - bDate;
-            break;
-          case 'status':
-            // Sort by status percentage from pie chart
-            const aPercent = getStatusPercentage(aCell);
-            const bPercent = getStatusPercentage(bCell);
-            comparison = aPercent - bPercent;
-            break;
-          case 'text':
-          default:
-            comparison = aValue.toString().localeCompare(bValue.toString(), 'de', {
-              numeric: true,
-              sensitivity: 'base'
-            });
-            break;
-        }
-
-        return direction === 'asc' ? comparison : -comparison;
-      });
-
-      // Clear tbody and re-append sorted rows
-      tbody.innerHTML = '';
-      rows.forEach(row => tbody.appendChild(row));
-
-      // Update progress indicators after sorting
-      setTimeout(updateProgressIndicators, 100);
-    }
-
-    function getCellValue(cell, dataType) {
-      if (!cell) return '';
-
-      switch (dataType) {
-        case 'status':
-          return getStatusPercentage(cell);
-        case 'date':
-          // For date columns, extract text content and clean it
-          let dateText = cell.textContent.trim();
-          // Remove any extra whitespace or special characters
-          dateText = dateText.replace(/\s+/g, ' ').trim();
-          return dateText;
-        case 'number':
-          return cell.textContent.trim();
-        case 'text':
-        default:
-          return cell.textContent.trim();
-      }
-    }
-
-    function getStatusPercentage(cell) {
-      const pieChart = cell.querySelector('.pie-chart');
-      if (pieChart) {
-        const textElement = pieChart.querySelector('text');
-        if (textElement) {
-          const percentText = textElement.textContent.trim();
-          return parseInt(percentText.replace('%', '')) || 0;
-        }
-      }
-      return 0;
-    }
-
-    function parseDate(dateString) {
-      if (!dateString || dateString.trim() === '') return new Date(0);
-
-      const trimmed = dateString.trim();
-      const currentYear = new Date().getFullYear();
-
-      // Handle DD.MM format (e.g., "29.08") - add current year
-      if (trimmed.match(/^\d{1,2}\.\d{1,2}$/)) {
-        const parts = trimmed.split('.');
-        if (parts.length === 2) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-
-          // Validate the parsed values
-          if (!isNaN(day) && !isNaN(month) &&
-            day >= 1 && day <= 31 &&
-            month >= 0 && month <= 11) {
-            return new Date(currentYear, month, day);
-          }
-        }
-      }
-
-      // Handle DD.MM.YYYY format (e.g., "25.12.2024")
-      if (trimmed.includes('.')) {
-        const parts = trimmed.split('.');
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-          const year = parseInt(parts[2], 10);
-
-          // Validate the parsed values
-          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
-            day >= 1 && day <= 31 &&
-            month >= 0 && month <= 11 &&
-            year >= 1900 && year <= 2100) {
-            return new Date(year, month, day);
-          }
-        }
-      }
-
-      // Handle YYYY-MM-DD format (e.g., "2024-12-25")
-      if (trimmed.includes('-')) {
-        const parts = trimmed.split('-');
-        if (parts.length === 3) {
-          const year = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-          const day = parseInt(parts[2], 10);
-
-          // Validate the parsed values
-          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
-            day >= 1 && day <= 31 &&
-            month >= 0 && month <= 11 &&
-            year >= 1900 && year <= 2100) {
-            return new Date(year, month, day);
-          }
-        }
-      }
-
-      // Handle DD/MM/YYYY format (e.g., "25/12/2024")
-      if (trimmed.includes('/')) {
-        const parts = trimmed.split('/');
-        if (parts.length === 3) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-          const year = parseInt(parts[2], 10);
-
-          // Validate the parsed values
-          if (!isNaN(day) && !isNaN(month) && !isNaN(year) &&
-            day >= 1 && day <= 31 &&
-            month >= 0 && month <= 11 &&
-            year >= 1900 && year <= 2100) {
-            return new Date(year, month, day);
-          }
-        }
-      }
-
-      // Handle DD/MM format (e.g., "29/08") - add current year
-      if (trimmed.match(/^\d{1,2}\/\d{1,2}$/)) {
-        const parts = trimmed.split('/');
-        if (parts.length === 2) {
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-
-          // Validate the parsed values
-          if (!isNaN(day) && !isNaN(month) &&
-            day >= 1 && day <= 31 &&
-            month >= 0 && month <= 11) {
-            return new Date(currentYear, month, day);
-          }
-        }
-      }
-
-      // Try direct Date parsing as fallback
-      const fallbackDate = new Date(trimmed);
-      if (!isNaN(fallbackDate.getTime())) {
-        return fallbackDate;
-      }
-
-      // Return epoch if all parsing fails
-      console.warn('Could not parse date:', dateString);
-      return new Date(0);
-    }
-
-    // Initialize table sorting when DOM is ready
-    document.addEventListener('DOMContentLoaded', function () {
-      // Wait a bit for the table to be populated
-      setTimeout(initTableSorting, 1000);
-    });
-
-    // Re-initialize sorting when table content changes
-    function reinitializeSorting() {
-      setTimeout(initTableSorting, 100);
-    }
-
-    // Hook into existing table updates if available
-    if (window.loadData) {
-      const originalLoadData = window.loadData;
-      window.loadData = function () {
-        const result = originalLoadData.apply(this, arguments);
-        reinitializeSorting();
-        return result;
-      };
     }
   </script>
 </body>

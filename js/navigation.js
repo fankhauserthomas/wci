@@ -559,8 +559,9 @@ class NavigationSystem {
           console.log('[NAV] Click handler added to connection indicator');
         }
 
-        // HttpUtils initialisieren falls verfügbar
-        if (window.HttpUtils) {
+        // HttpUtils initialisieren falls verfügbar (nur einmal)
+        if (window.HttpUtils && !window.navConnectionInitialized) {
+          window.navConnectionInitialized = true;
           console.log('[NAV] Initializing connection indicator in navigation (attempt ' + (index + 1) + ')');
           window.HttpUtils.createPermanentStatusIndicator();
 
@@ -572,6 +573,8 @@ class NavigationSystem {
               // Silent fail - indicator will show offline state
             });
           }
+        } else if (window.navConnectionInitialized) {
+          console.log('[NAV] Connection indicator already initialized, skipping attempt ' + (index + 1));
         }
       }, delay);
     });

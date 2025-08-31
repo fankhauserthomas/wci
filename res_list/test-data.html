@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test - Daten Laden</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .debug {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 Datentest für Reservierungssystem</h1>
+
+    <div class="debug">
+        <h3>Debug-Informationen:</h3>
+        <div id="debug-info">Initialisierung...</div>
+    </div>
+
+    <div id="data-container">
+        <div class="loading">⏳ Lade Daten...</div>
+    </div>
+
+    <script>
+        async function testDataLoading() {
+            const debugInfo = document.getElementById('debug-info');
+            const dataContainer = document.getElementById('data-container');
+
+            try {
+                debugInfo.innerHTML = '<span class="loading">Lade Daten von API...</span>';
+
+                // API aufrufen
+                const response = await fetch('api/test-simple.php?date=2025-08-31');
+                const data = await response.json();
+
+                console.log('API Response:', data);
+
+                if (data.success) {
+                    debugInfo.innerHTML = `
+                        <span class="success">✅ API erfolgreich!</span><br>
+                        Datum: ${data.date}<br>
+                        Anzahl Datensätze: ${data.count}<br>
+                        API Status: ${data.success}
+                    `;
+
+                    // Tabelle erstellen
+                    if (data.data && data.data.length > 0) {
+                        let tableHTML = `
+                            <h3>📊 Geladene Reservierungen (${data.data.length}):</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Anreise</th>
+                                        <th>Abreise</th>
+                                        <th>Gäste</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        data.data.forEach(reservation => {
+                            const name = `${reservation.vorname || ''} ${reservation.nachname || ''}`.trim() || 'Unbekannt';
+                            const anreise = new Date(reservation.anreise).toLocaleDateString('de-DE');
+                            const abreise = new Date(reservation.abreise).toLocaleDateString('de-DE');
+
+                            tableHTML += `
+                                <tr>
+                                    <td>${reservation.id}</td>
+                                    <td><strong>${name}</strong></td>
+                                    <td>${anreise}</td>
+                                    <td>${abreise}</td>
+                                    <td>${reservation.anzahl}</td>
+                                </tr>
+                            `;
+                        });
+
+                        tableHTML += `
+                                </tbody>
+                            </table>
+                        `;
+
+                        dataContainer.innerHTML = tableHTML;
+                    } else {
+                        dataContainer.innerHTML = '<div class="error">❌ Keine Daten erhalten</div>';
+                    }
+
+                } else {
+                    debugInfo.innerHTML = `<span class="error">❌ API Fehler: ${data.error || 'Unbekannter Fehler'}</span>`;
+                    dataContainer.innerHTML = '<div class="error">❌ Laden fehlgeschlagen</div>';
+                }
+
+            } catch (error) {
+                console.error('Fehler:', error);
+                debugInfo.innerHTML = `<span class="error">❌ Netzwerk/JS Fehler: ${error.message}</span>`;
+                dataContainer.innerHTML = '<div class="error">❌ Verbindungsfehler</div>';
+            }
+        }
+
+        // Test starten
+        testDataLoading();
+    </script>
+</body>
+
+</html>

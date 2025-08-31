@@ -468,9 +468,18 @@ class HttpUtils {
   }
 
   /**
-   * Initialisiert globale HTTP-Verbesserungen
+   * Initialisiert globale HTTP-Verbesserungen (nur einmal)
    */
   static init() {
+    // Verhindere mehrfache Initialisierung
+    if (window.httpUtilsInitialized) {
+      console.log('[HTTP] HttpUtils already initialized, skipping');
+      return window.connectionMonitor;
+    }
+
+    window.httpUtilsInitialized = true;
+    console.log('[HTTP] Initializing HttpUtils...');
+
     // Connection Monitor starten
     const monitor = this.createConnectionMonitor();
 
@@ -504,11 +513,11 @@ class HttpUtils {
     // Globale Update-Funktion verfügbar machen
     window.updateConnectionStatus = updateAllIndicators;
 
-    // Verbindungstest alle 30 Sekunden mit Update
-    setInterval(updateAllIndicators, 30000);
+    // Verbindungstest alle 60 Sekunden statt 30 Sekunden (reduziert ping.php Calls)
+    setInterval(updateAllIndicators, 60000);
 
-    // Initial connection test nach 1 Sekunde
-    setTimeout(updateAllIndicators, 1000);
+    // Initial connection test nach 2 Sekunden verzögert (reduziert Load-Zeit Impact)
+    setTimeout(updateAllIndicators, 2000);
 
     console.log('[HTTP] HttpUtils initialized with permanent status indicator');
 

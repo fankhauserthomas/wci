@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservierungen - Live Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .controls input,
+        .controls button {
+            padding: 8px 12px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .controls button {
+            background: #007cba;
+            color: white;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #005a87;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.checked-in {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: red;
+        }
+
+        .name-link {
+            color: #007cba;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .name-link:hover {
+            text-decoration: underline;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007cba;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Reservierungsliste - Live System</h1>
+            <div class="controls">
+                <input type="date" id="date-input" value="2025-08-31">
+                <button onclick="loadData()">🔄 Daten laden</button>
+                <button onclick="showDebug()">🔍 Debug</button>
+                <span id="status">Bereit</span>
+            </div>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-box">
+                <div class="stat-number" id="total-count">0</div>
+                <div class="stat-label">Reservierungen</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="guest-count">0</div>
+                <div class="stat-label">Gäste</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="avg-guests">0</div>
+                <div class="stat-label">⌀ Gäste/Res.</div>
+            </div>
+        </div>
+
+        <div id="table-container">
+            <div class="loading">⏳ Bereit zum Laden...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = [];
+
+        async function loadData() {
+            const dateInput = document.getElementById('date-input');
+            const status = document.getElementById('status');
+            const container = document.getElementById('table-container');
+            const statsDiv = document.getElementById('stats');
+
+            const date = dateInput.value;
+
+            status.textContent = '⏳ Lade Daten...';
+            status.style.color = '#666';
+            container.innerHTML = '<div class="loading">⏳ Lade Reservierungen...</div>';
+
+            try {
+                const response = await fetch(`api/test-simple.php?date=${date}`);
+                const data = await response.json();
+
+                console.log('📡 API Response:', data);
+
+                if (data.success && data.data) {
+                    currentData = data.data;
+
+                    status.textContent = `✅ ${data.count} Reservierungen geladen`;
+                    status.style.color = 'green';
+
+                    renderTable(data.data);
+                    updateStats(data.data);
+                    statsDiv.style.display = 'flex';
+
+                } else {
+                    throw new Error(data.error || 'Unbekannter Fehler');
+                }
+
+            } catch (error) {
+                console.error('❌ Fehler:', error);
+                status.textContent = `❌ Fehler: ${error.message}`;
+                status.style.color = 'red';
+                container.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                statsDiv.style.display = 'none';
+            }
+        }
+
+        function renderTable(reservations) {
+            const container = document.getElementById('table-container');
+
+            if (reservations.length === 0) {
+                container.innerHTML = '<div class="loading">📋 Keine Reservierungen für das gewählte Datum gefunden.</div>';
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Anreise</th>
+                            <th>Abreise</th>
+                            <th>Gäste</th>
+                            <th>Name</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            reservations.forEach(res => {
+                const name = `${res.vorname || ''} ${res.nachname || ''}`.trim() || 'Unbekannt';
+                const anreise = formatDate(res.anreise);
+                const abreise = formatDate(res.abreise);
+                const status = getStatusBadge(res);
+
+                html += `
+                    <tr>
+                        <td>${status}</td>
+                        <td><strong>${anreise}</strong></td>
+                        <td>${abreise}</td>
+                        <td style="text-align: center;">${res.anzahl || 0}</td>
+                        <td>
+                            <a href="#" class="name-link" onclick="showDetails(${res.id})">
+                                ${escapeHtml(name)}
+                            </a>
+                        </td>
+                        <td style="color: #666; font-size: 12px;">#${res.id}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function updateStats(reservations) {
+            const totalCount = reservations.length;
+            const guestCount = reservations.reduce((sum, res) => sum + (res.anzahl || 0), 0);
+            const avgGuests = totalCount > 0 ? (guestCount / totalCount).toFixed(1) : 0;
+
+            document.getElementById('total-count').textContent = totalCount;
+            document.getElementById('guest-count').textContent = guestCount;
+            document.getElementById('avg-guests').textContent = avgGuests;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        function getStatusBadge(reservation) {
+            // Einfache Status-Logik
+            if (reservation.storno) {
+                return '<span class="status cancelled">Storniert</span>';
+            }
+            if (reservation.status === 'checked-in') {
+                return '<span class="status checked-in">Eingecheckt</span>';
+            }
+            return '<span class="status pending">Ausstehend</span>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showDetails(id) {
+            const reservation = currentData.find(r => r.id == id);
+            if (reservation) {
+                const name = `${reservation.vorname || ''} ${reservation.nachname || ''}`.trim();
+                alert(`Reservierung Details:\\n\\nID: ${reservation.id}\\nName: ${name}\\nAnreise: ${formatDate(reservation.anreise)}\\nAbreise: ${formatDate(reservation.abreise)}\\nGäste: ${reservation.anzahl || 0}`);
+            }
+        }
+
+        function showDebug() {
+            console.group('🔍 Debug Info');
+            console.log('Current Data:', currentData);
+            console.log('API Endpoint:', 'api/test-simple.php');
+            console.log('Date:', document.getElementById('date-input').value);
+            console.groupEnd();
+
+            alert(`Debug Info:\\n\\nGeladene Reservierungen: ${currentData.length}\\nAPI Status: Funktionsfähig\\nDatum: ${document.getElementById('date-input').value}\\n\\nDetails in der Browser-Konsole (F12)`);
+        }
+
+        // Auto-Load beim Start
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Live System gestartet');
+            loadData();
+        });
+    </script>
+</body>
+
+</html>
