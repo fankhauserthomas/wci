@@ -23,6 +23,28 @@
       box-sizing: border-box;
     }
 
+    /* Statische HP-Arrangements Warnungen - Namen-Zelle */
+    .name-cell.hp-warning-red {
+      background-color: rgba(220, 53, 69, 0.25) !important;
+      border-left: 4px solid #dc3545 !important;
+      font-weight: 600 !important;
+    }
+
+    .name-cell.hp-warning-orange {
+      background-color: rgba(255, 193, 7, 0.25) !important;
+      border-left: 4px solid #ffc107 !important;
+      font-weight: 600 !important;
+    }
+
+    /* Hover-Effekte für HP-Warnungen */
+    .name-cell.hp-warning-red:hover {
+      background-color: rgba(220, 53, 69, 0.35) !important;
+    }
+
+    .name-cell.hp-warning-orange:hover {
+      background-color: rgba(255, 193, 7, 0.35) !important;
+    }
+
     .controls.legacy-controls {
       flex-shrink: 0;
       background: white;
@@ -448,6 +470,42 @@
   <script src="auto-barcode-scanner.js"></script>
   <script src="script.js"></script>
 
+  <!-- BACKUP: Name-Click-Handler falls script.js versagt -->
+  <script>
+    // Simple backup solution for name clicking
+    function addNameClickHandlers() {
+      const nameCells = document.querySelectorAll('.name-cell');
+      console.log('🔗 Backup: Adding click handlers to', nameCells.length, 'name cells');
+
+      nameCells.forEach(cell => {
+        // Only add if not already clickable
+        if (!cell.style.cursor || cell.style.cursor !== 'pointer') {
+          cell.style.cursor = 'pointer';
+          cell.addEventListener('click', function () {
+            const resId = this.dataset.id;
+            console.log('🔗 Backup: Name clicked, ID:', resId);
+            if (resId) {
+              window.location.href = `reservation.html?id=${resId}`;
+            }
+          });
+        }
+      });
+    }
+
+    // Run backup after script.js has had time to work
+    setTimeout(addNameClickHandlers, 2000);
+
+    // Also run when table changes
+    const observer = new MutationObserver(() => {
+      setTimeout(addNameClickHandlers, 500);
+    });
+
+    const tbody = document.querySelector('#resTable tbody');
+    if (tbody) {
+      observer.observe(tbody, { childList: true, subtree: true });
+    }
+  </script>
+
   <!-- Modal für neue Reservierung -->
   <div id="newReservationModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width: 500px;">
@@ -525,8 +583,107 @@
       }
 
       // Automatischer Barcode-Scanner läuft im Hintergrund und reagiert auf {..} Pattern
-      console.log('✅ Reservierungen-Seite initialisiert');
     });
+
+    // Statische HP-Arrangements Hintergrund-Funktion (ressourcenschonend)
+    function setHpWarningForRow(row) {
+      const cells = row.querySelectorAll('td');
+      if (cells.length < 9) {
+        return;
+      }
+
+      // Extrahiere Reservierungs-ID aus data-res-id Attribut der Zeile
+      const resId = parseInt(row.dataset.resId);
+      if (!resId || isNaN(resId)) {
+        return;
+      }
+
+      const anzahlCell = cells[3]; // Anzahl-Spalte
+      const statusCell = cells[0]; // Status-Spalte
+      const nameCell = row.querySelector('.name-cell');
+
+      if (!nameCell) {
+        return;
+      }
+
+      // Anzahl Gäste ermitteln
+      const anzahlText = anzahlCell.textContent.trim();
+      const expectedGuests = parseInt(anzahlText) || 0;
+
+      if (expectedGuests === 0) {
+        // Keine Gäste = keine Warnung
+        nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
+        return;
+      }
+
+      // Status-Prozent ermitteln
+      const statusPercentage = getStatusPercentage(statusCell);
+
+      // Bei 100% Status keine Warnung
+      if (statusPercentage >= 100) {
+        nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
+        return;
+      }
+
+      // SIMULIERTE HP-ARRANGEMENTS basierend auf Check-in Status
+      // Niedrige Check-in % = viele HP-Arrangements = Check-in vergessen
+      let simulatedArrangements = 0;
+
+      if (statusPercentage === 0) {
+        // Noch gar kein Check-in = keine HP-Arrangements simulieren
+        // Grund: Noch nichts vergessen, da Check-in noch nicht begonnen
+        simulatedArrangements = 0;
+      } else if (statusPercentage < 50) {
+        // Weniger als 50% eingecheckt = simuliere HP-Arrangements für alle Gäste
+        simulatedArrangements = expectedGuests;
+      } else if (statusPercentage < 100) {
+        // 50-99% eingecheckt = simuliere HP-Arrangements für verbleibende Gäste
+        const notCheckedIn = Math.ceil(expectedGuests * (1 - statusPercentage / 100));
+        simulatedArrangements = Math.max(1, notCheckedIn);
+      } else {
+        // 100% eingecheckt = keine HP-Arrangements
+        simulatedArrangements = 0;
+      }
+
+      // Verhältnis berechnen
+      const arrangementRatio = expectedGuests > 0 ? (simulatedArrangements / expectedGuests) : 0;
+
+      // Entferne alte Klassen
+      nameCell.classList.remove('hp-warning-red', 'hp-warning-orange');
+
+      // Nur Warnungen zeigen wenn tatsächlich HP-Arrangements vorhanden sind
+      if (simulatedArrangements > 0) {
+        if (arrangementRatio >= 1.0) {
+          // 100%+ HP-Arrangements = Rot (Check-in vergessen!)
+          nameCell.classList.add('hp-warning-red');
+          nameCell.title = `⚠️ Check-in vergessen? ${simulatedArrangements} HP-Arrangements für ${expectedGuests} Gäste`;
+        } else if (arrangementRatio >= 0.5) {
+          // 50-99% HP-Arrangements = Orange (Teilweise Check-in?)
+          nameCell.classList.add('hp-warning-orange');
+          nameCell.title = `⚠️ Teilweise Check-in? ${simulatedArrangements} HP-Arrangements für ${expectedGuests} Gäste`;
+        }
+      } else {
+        // Keine HP-Arrangements = keine Warnung, Title löschen
+        nameCell.title = '';
+      }
+    }
+
+    // Alle Zeilen auf einmal prüfen (wird nach Tabellenerstellung aufgerufen)
+    function setAllHpWarnings() {
+      const tbody = document.querySelector('#resTable tbody');
+      if (!tbody) {
+        return;
+      }
+
+      const rows = tbody.querySelectorAll('tr');
+
+      // Direkte Verarbeitung aller Zeilen - keine Async/Await nötig
+      rows.forEach(row => {
+        setHpWarningForRow(row);
+      });
+    }
+
+
 
     // Progress Indicator Functions
     function updateProgressIndicators() {
@@ -599,14 +756,19 @@
         reservationsLabel.textContent = isArrival ? 'Reservierungen eingecheckt' : 'Reservierungen ausgecheckt';
       }
 
-      // Debug-Ausgabe
-      console.log('Progress Update:', {
-        totalReservations,
-        processedReservations,
-        totalGuests,
-        checkedInGuests,
-        isArrival
-      });
+      // Debug-Ausgabe (reduziert)
+      if (window.debugProgressUpdates) {
+        console.log('Progress Update:', {
+          totalReservations,
+          processedReservations,
+          totalGuests,
+          checkedInGuests,
+          isArrival
+        });
+      }
+
+      // ENTFERNT: Automatischer HP-Check nach jedem Progress Update
+      // Das verursachte die doppelten Checks - HP-Checks werden jetzt nur durch spezifische Events ausgelöst
     }
 
     // Farbschema basierend auf Anreise/Abreise-Modus umschalten
@@ -644,6 +806,8 @@
         const observer = new MutationObserver(() => {
           // Kurze Verzögerung um sicherzustellen, dass DOM-Updates abgeschlossen sind
           setTimeout(updateProgressIndicators, 100);
+          // HP-Warnungen nach Tabellenänderungen setzen (statisch, ressourcenschonend)
+          setTimeout(setAllHpWarnings, 150);
         });
 
         observer.observe(tbody, {
@@ -660,13 +824,17 @@
         window.loadData = function () {
           const result = originalLoadData.apply(this, arguments);
           setTimeout(updateProgressIndicators, 500);
+          // HP-Warnungen nach loadData setzen
+          setTimeout(setAllHpWarnings, 800);
           return result;
         };
       }
 
-      // Initial update mit längerer Verzögerung
-      setTimeout(updateProgressIndicators, 1000);
-      setTimeout(updateProgressIndicators, 2000);
+      // Einmaliger initialer Update
+      setTimeout(() => {
+        updateProgressIndicators();
+        setAllHpWarnings();
+      }, 1000);
 
       // Initial color scheme setzen
       setTimeout(() => {
@@ -686,14 +854,49 @@
 
       filterElements.forEach(element => {
         if (element) {
-          element.addEventListener('change', () => setTimeout(updateProgressIndicators, 200));
-          element.addEventListener('click', () => setTimeout(updateProgressIndicators, 200));
-          element.addEventListener('input', () => setTimeout(updateProgressIndicators, 300));
+          // Standard change event
+          element.addEventListener('change', () => {
+            setTimeout(updateProgressIndicators, 200);
+            setTimeout(setAllHpWarnings, 300);
+          });
+
+          // Click event für Buttons
+          element.addEventListener('click', () => {
+            setTimeout(updateProgressIndicators, 200);
+            setTimeout(setAllHpWarnings, 300);
+          });
+
+          // Input event für sofortige Reaktion (besonders wichtig für Date-Picker)
+          element.addEventListener('input', () => {
+            setTimeout(updateProgressIndicators, 300);
+            setTimeout(setAllHpWarnings, 400);
+          });
+
+          // Spezielle Behandlung für das Datumsfeld
+          if (element.type === 'date') {
+            // Zusätzliche Events für bessere Date-Picker Unterstützung
+            element.addEventListener('blur', () => {
+              setTimeout(updateProgressIndicators, 200);
+              setTimeout(setAllHpWarnings, 300);
+            });
+
+            // Focus-out Event als Fallback
+            element.addEventListener('focusout', () => {
+              setTimeout(updateProgressIndicators, 200);
+              setTimeout(setAllHpWarnings, 300);
+            });
+          }
         }
       });
 
-      // Periodische Updates alle 5 Sekunden
-      setInterval(updateProgressIndicators, 5000);
+      // Reduzierte periodische Updates (nur Progress, HP-Warnungen bleiben statisch)
+      setInterval(() => {
+        updateProgressIndicators();
+        // HP-Warnungen nur alle 5 Minuten neu setzen
+        if (Date.now() % 300000 < 60000) { // Alle 5 Minuten
+          setAllHpWarnings();
+        }
+      }, 60000); // Alle 60 Sekunden
     }
 
     // Progress Tracking initialisieren wenn DOM ready

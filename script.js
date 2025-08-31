@@ -532,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tr = document.createElement('tr');
       tr.dataset.storno = r.storno;
       tr.dataset.avId = r.av_id;
+      tr.dataset.resId = r.id;  // Füge Reservierungs-ID hinzu für HP-Checks
       if (backgroundColor) {
         tr.style.backgroundColor = backgroundColor;
       }
