@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Direct Sort Groups</title>
+</head>
+
+<body>
+    <h1>Test Sortiergruppen direkt</h1>
+    <div id="results"></div>
+
+    <script>
+        // Teste die API und zeige Ergebnisse
+        async function testSortGroups() {
+            try {
+                console.log('🔄 Lade HP-Daten...');
+                const response = await fetch('get-all-hp-data.php?date=2025-08-30&type=arrival');
+                const data = await response.json();
+
+                console.log('📊 API Response:', data);
+
+                if (data.success) {
+                    const results = document.getElementById('results');
+                    results.innerHTML = '<h2>API Ergebnisse:</h2>';
+
+                    // Zähle Sortiergruppen
+                    const groups = {};
+                    data.data.forEach(item => {
+                        const group = item.sort_group || 'NONE';
+                        groups[group] = (groups[group] || 0) + 1;
+                    });
+
+                    Object.entries(groups).forEach(([group, count]) => {
+                        results.innerHTML += `<p><strong>Gruppe ${group}:</strong> ${count} Reservierungen</p>`;
+                    });
+
+                    // Zeige erste 5 Einträge
+                    results.innerHTML += '<h3>Erste 5 Einträge:</h3>';
+                    data.data.slice(0, 5).forEach(item => {
+                        results.innerHTML += `<p>ID: ${item.res_id}, Name: ${item.name}, Gruppe: ${item.sort_group}, Beschreibung: ${item.sort_description}</p>`;
+                    });
+
+                    console.log('✅ Test erfolgreich');
+                } else {
+                    results.innerHTML = '<p style="color: red;">API Error: ' + data.error + '</p>';
+                }
+            } catch (error) {
+                console.error('❌ Test Fehler:', error);
+                document.getElementById('results').innerHTML = '<p style="color: red;">Fehler: ' + error.message + '</p>';
+            }
+        }
+
+        // Starte Test automatisch
+        testSortGroups();
+    </script>
+</body>
+
+</html>

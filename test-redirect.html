@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Reservierungen Test - 30. August</title>
+    <script>
+        // Lade die Hauptseite mit dem richtigen Datum
+        window.onload = function () {
+            // Setze das Datum auf 30. August
+            const dateField = document.createElement('input');
+            dateField.type = 'date';
+            dateField.value = '2025-08-30';
+
+            // Weiterleitung zur Hauptseite mit Parametern
+            const url = 'reservierungen.html#date=2025-08-30';
+            window.location.href = url;
+        };
+    </script>
+</head>
+
+<body>
+    <p>Weiterleitung zur Reservierungsseite mit dem 30. August...</p>
+</body>
+
+</html>

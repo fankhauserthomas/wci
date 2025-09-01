@@ -449,13 +449,21 @@ document.addEventListener('DOMContentLoaded', () => {
               hpArrangements: item.hp_arrangements,
               checkedInCount: item.checked_in_count,
               totalNames: item.total_names,
-              name: item.name
+              name: item.name,
+              sortGroup: item.sort_group,
+              sortDescription: item.sort_description
             });
           });
           console.log('✅ HP-Daten parallel geladen:', window.realHpData.size, 'Reservierungen');
+          console.log('📊 Sortiergruppen verfügbar:', hpData.data.some(item => item.sort_group));
         }
 
         renderTable();
+
+        // Sortiergruppen DIREKT hier anwenden, da alle Daten verfügbar sind
+        setTimeout(() => {
+          applySortGroupsDirectly(hpData.success ? hpData.data : []);
+        }, 100);
       })
       .catch((error) => {
         console.error('Fehler beim Laden der Daten:', error);
@@ -503,6 +511,36 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!view.length) {
       tbody.innerHTML = '<tr><td colspan="9">Keine Einträge gefunden.</td></tr>';
       return;
+    }
+
+    // Sortierung: Primär nach Sortiergruppen (A → B → C → D), sekundär nach Namen
+    view.sort((a, b) => {
+      // Hole Sortiergruppen-Daten aus window.realHpData
+      const dataA = window.realHpData ? window.realHpData.get(a.id) : null;
+      const dataB = window.realHpData ? window.realHpData.get(b.id) : null;
+
+      const sortGroupA = dataA?.sortGroup || 'Z'; // Z als Fallback für Einträge ohne Sortiergruppe
+      const sortGroupB = dataB?.sortGroup || 'Z';
+
+      // Primäre Sortierung: Sortiergruppen A → B → C → D → Z
+      if (sortGroupA !== sortGroupB) {
+        return sortGroupA.localeCompare(sortGroupB);
+      }
+
+      // Sekundäre Sortierung: Nach Namen (Nachname, dann Vorname)
+      const nameA = `${a.nachname} ${a.vorname}`.toLowerCase();
+      const nameB = `${b.nachname} ${b.vorname}`.toLowerCase();
+
+      return nameA.localeCompare(nameB);
+    });
+
+    // Debug: Zeige Sortierung der ersten Einträge
+    if (view.length > 0) {
+      const sortInfo = view.slice(0, 5).map(r => {
+        const data = window.realHpData ? window.realHpData.get(r.id) : null;
+        return `${data?.sortGroup || 'Z'}: ${r.nachname} ${r.vorname}`;
+      }).join(', ');
+      console.log('📋 Erste 5 Einträge nach Sortierung:', sortInfo);
     }
 
     view.forEach(r => {
@@ -913,6 +951,58 @@ document.addEventListener('DOMContentLoaded', () => {
       loadData();
     }
   });
+
+  // === Sortiergruppen-Funktionalität ===
+  // Direkte Anwendung der Sortiergruppen basierend auf API-Daten
+  function applySortGroupsDirectly(hpDataArray) {
+    console.log('🎨 applySortGroupsDirectly wird ausgeführt mit', hpDataArray.length, 'Datensätzen');
+
+    if (!hpDataArray || hpDataArray.length === 0) {
+      console.log('⚠️ Keine HP-Daten für Sortiergruppen verfügbar');
+      return;
+    }
+
+    // Erstelle Map für schnellen Zugriff
+    const dataMap = new Map();
+    hpDataArray.forEach(item => {
+      dataMap.set(item.res_id, item);
+    });
+
+    console.log('📊 Sortiergruppen-Map erstellt mit', dataMap.size, 'Einträgen');
+
+    // Finde alle Tabellenzeilen
+    const rows = document.querySelectorAll('#resTable tbody tr');
+    console.log('🔍 Gefundene Tabellenzeilen:', rows.length);
+
+    let appliedCount = 0;
+    rows.forEach(row => {
+      const resId = parseInt(row.dataset.resId);
+      const nameCell = row.querySelector('.name-cell');
+
+      if (!nameCell || !resId) {
+        return;
+      }
+
+      const data = dataMap.get(resId);
+      if (data && data.sort_group) {
+        // Entferne alte Klassen
+        nameCell.classList.remove('sort-group-a', 'sort-group-b', 'sort-group-c', 'sort-group-d');
+
+        // Füge neue Klasse hinzu
+        const sortGroup = data.sort_group.toLowerCase();
+        const className = `sort-group-${sortGroup}`;
+        nameCell.classList.add(className);
+
+        // Setze Tooltip
+        nameCell.title = data.sort_description || `Sortiergruppe ${data.sort_group}`;
+
+        appliedCount++;
+        console.log(`✅ Sortiergruppe ${data.sort_group} angewendet auf "${data.name}" (ID: ${resId}) - CSS: ${className}`);
+      }
+    });
+
+    console.log(`🎨 Sortiergruppen-Einfärbung abgeschlossen: ${appliedCount} von ${rows.length} Zeilen eingefärbt`);
+  }
 
   // === Universelle Verbindungsstatus-Funktionen ===
   // Stelle sicher, dass updateNavigationStatus global verfügbar ist, auch wenn keine Navigation vorhanden

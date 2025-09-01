@@ -21,58 +21,42 @@
       box-sizing: border-box;
     }
 
-    /* Statische HP-Arrangements Warnungen - Namen-Zelle */
-    .name-cell.hp-warning-red {
+    /* Sortiergruppen-Einfärbung für Namen-Zellen */
+    .name-cell.sort-group-a {
       background-color: rgba(220, 53, 69, 0.25) !important;
       border-left: 4px solid #dc3545 !important;
       font-weight: 600 !important;
     }
 
-    .name-cell.hp-warning-orange {
+    .name-cell.sort-group-b {
       background-color: rgba(255, 193, 7, 0.25) !important;
       border-left: 4px solid #ffc107 !important;
       font-weight: 600 !important;
     }
 
-    /* Neue Markierungsklassen */
-    .name-cell.hp-status-balanced {
-      background-color: rgba(40, 167, 69, 0.25) !important;
-      border-left: 4px solid #28a745 !important;
+    /* Gruppe C: keine Einfärbung - Standard-Styling */
+
+    .name-cell.sort-group-d {
+      background-color: rgba(0, 123, 255, 0.25) !important;
+      border-left: 4px solid #007bff !important;
       font-weight: 600 !important;
     }
 
-    .name-cell.hp-status-more-arrangements {
-      background-color: rgba(220, 53, 69, 0.25) !important;
-      border-left: 4px solid #dc3545 !important;
-      font-weight: 600 !important;
-    }
-
-    .name-cell.hp-status-more-checkins {
-      background-color: rgba(156, 39, 176, 0.25) !important;
-      border-left: 4px solid #9c27b0 !important;
-      font-weight: 600 !important;
-    }
-
-    /* Hover-Effekte für HP-Warnungen */
-    .name-cell.hp-warning-red:hover {
+    /* Hover-Effekte für Sortiergruppen */
+    .name-cell.sort-group-a:hover {
       background-color: rgba(220, 53, 69, 0.35) !important;
     }
 
-    .name-cell.hp-warning-orange:hover {
+    .name-cell.sort-group-b:hover {
       background-color: rgba(255, 193, 7, 0.35) !important;
     }
 
-    /* Hover-Effekte für neue Markierungsklassen */
-    .name-cell.hp-status-balanced:hover {
-      background-color: rgba(40, 167, 69, 0.35) !important;
+    .name-cell.sort-group-c:hover {
+      background-color: #f8f9fa !important;
     }
 
-    .name-cell.hp-status-more-arrangements:hover {
-      background-color: rgba(220, 53, 69, 0.35) !important;
-    }
-
-    .name-cell.hp-status-more-checkins:hover {
-      background-color: rgba(156, 39, 176, 0.35) !important;
+    .name-cell.sort-group-d:hover {
+      background-color: rgba(0, 123, 255, 0.35) !important;
     }
 
     .controls.legacy-controls {
@@ -544,12 +528,12 @@
       });
     }
 
-    // Run backup after script.js has had time to work
-    setTimeout(addNameClickHandlers, 2000);
+    // Run backup after script.js has had time to work - OPTIMIERT
+    setTimeout(addNameClickHandlers, 500); // Reduziert von 2000ms auf 500ms
 
-    // Also run when table changes
+    // Also run when table changes - OPTIMIERT
     const observer = new MutationObserver(() => {
-      setTimeout(addNameClickHandlers, 500);
+      setTimeout(addNameClickHandlers, 100); // Reduziert von 500ms auf 100ms
     });
 
     const tbody = document.querySelector('#resTable tbody');
@@ -630,10 +614,10 @@
     let lastHpUpdate = 0;
     const HP_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 Minuten in Millisekunden
 
-    // Globale HP-Update-Kontrolle - verhindert zu häufige Aufrufe
+    // Globale HP-Update-Kontrolle - verhindert zu häufige Aufrufe - OPTIMIERT
     let isHpUpdateRunning = false;
     let lastHpUpdateTime = 0;
-    const MIN_HP_UPDATE_INTERVAL = 5000; // Mindestens 5 Sekunden zwischen HP-Updates
+    const MIN_HP_UPDATE_INTERVAL = 1000; // Reduziert von 5000ms auf 1000ms für schnellere Updates
 
     // Debounce-Funktion hinzufügen
     function debounce(func, wait) {
@@ -648,13 +632,13 @@
       };
     }
 
-    // Throttled HP-Update - verhindert übermäßige API-Aufrufe
-    async function throttledHpUpdate() {
+    // Throttled Sort Group Update - verhindert übermäßige API-Aufrufe
+    async function throttledSortGroupUpdate() {
       const now = Date.now();
 
       // Wenn bereits ein Update läuft oder zu früh, ignorieren
       if (isHpUpdateRunning || (now - lastHpUpdateTime < MIN_HP_UPDATE_INTERVAL)) {
-        console.log('⏳ HP-Update übersprungen (zu früh oder läuft bereits)');
+        console.log('⏳ Sortiergruppen-Update übersprungen (zu früh oder läuft bereits)');
         return;
       }
 
@@ -662,8 +646,8 @@
       lastHpUpdateTime = now;
 
       try {
-        console.log('🔄 HP-Update wird ausgeführt');
-        await setAllHpWarnings();
+        console.log('🔄 Sortiergruppen-Update wird ausgeführt');
+        await setAllSortGroups();
       } finally {
         isHpUpdateRunning = false;
       }
@@ -675,8 +659,10 @@
         const date = document.getElementById('filterDate')?.value || new Date().toISOString().split('T')[0];
         const type = document.getElementById('toggleType')?.textContent.includes('Anreise') ? 'arrival' : 'departure';
 
-        // Warte kurz auf mögliche parallele Ladung von script.js
-        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('🔄 loadRealHpData gestartet:', { date, type });
+
+        // Warte kurz auf mögliche parallele Ladung von script.js - OPTIMIERT
+        await new Promise(resolve => setTimeout(resolve, 50)); // Reduziert von 100ms auf 50ms
 
         // Prüfe ob bereits geladene Daten vorhanden sind (von script.js)
         if (window.realHpData && window.realHpData.size > 0) {
@@ -687,8 +673,8 @@
         // Prüfe ob gerade ein Ladevorgang von script.js läuft
         if (window.hpDataLoading) {
           console.log('⏳ Warte auf parallelen HP-Daten Load...');
-          // Warte bis zu 2 Sekunden auf den parallelen Load
-          for (let i = 0; i < 20; i++) {
+          // Warte bis zu 1 Sekunde auf den parallelen Load - OPTIMIERT
+          for (let i = 0; i < 10; i++) { // Reduziert von 20 auf 10 Iterationen
             await new Promise(resolve => setTimeout(resolve, 100));
             if (window.realHpData && window.realHpData.size > 0) {
               console.log('✅ HP-Daten von parallelem Load erhalten:', window.realHpData.size, 'Reservierungen');
@@ -698,8 +684,13 @@
         }
 
         console.log('🔄 HP-Daten werden separat geladen...');
-        const response = await fetch(`get-all-hp-data.php?date=${date}&type=${type}`);
+        const url = `get-all-hp-data.php?date=${date}&type=${type}`;
+        console.log('📡 API-Aufruf:', url);
+
+        const response = await fetch(url);
         const data = await response.json();
+
+        console.log('📡 API-Antwort:', { success: data.success, dataLength: data.data?.length });
 
         if (data.success) {
           // Clear existing data
@@ -711,11 +702,14 @@
               hpArrangements: item.hp_arrangements,
               checkedInCount: item.checked_in_count,
               totalNames: item.total_names,
-              name: item.name
+              name: item.name,
+              sortGroup: item.sort_group,
+              sortDescription: item.sort_description
             });
           });
 
           console.log('✅ HP-Daten separat geladen:', window.realHpData.size, 'Reservierungen');
+          console.log('📊 Beispiel-Daten:', Array.from(window.realHpData.entries()).slice(0, 3));
           return true;
         } else {
           console.error('❌ Failed to load HP data:', data.error);
@@ -740,7 +734,7 @@
       return 0;
     }
 
-    function setHpWarningForRow(row) {
+    function setSortGroupForRow(row) {
       const cells = row.querySelectorAll('td');
       if (cells.length < 9) {
         return;
@@ -749,118 +743,142 @@
       // Extrahiere Reservierungs-ID aus data-res-id Attribut der Zeile
       const resId = parseInt(row.dataset.resId);
       if (!resId || isNaN(resId)) {
+        console.log('❌ Keine gültige resId gefunden für Zeile:', row);
         return;
       }
 
       const nameCell = row.querySelector('.name-cell');
       if (!nameCell) {
+        console.log('❌ Keine name-cell gefunden für resId:', resId);
         return;
       }
 
-      // Versuche echte HP-Daten zu verwenden
-      let hpArrangements = 0;
-      let checkedInNames = 0;
-      let useRealData = false;
+      // Entferne alle alten Sortiergruppen-Klassen
+      nameCell.classList.remove('sort-group-a', 'sort-group-b', 'sort-group-c', 'sort-group-d');
 
-      if (window.realHpData.has(resId)) {
+      // Debug: Prüfe ob realHpData verfügbar ist
+      console.log('🔍 Debug setSortGroupForRow:', {
+        resId,
+        hasRealHpData: !!window.realHpData,
+        realHpDataSize: window.realHpData ? window.realHpData.size : 0,
+        hasThisResId: window.realHpData ? window.realHpData.has(resId) : false
+      });
+
+      // Versuche Sortiergruppen-Daten aus realHpData zu verwenden
+      if (window.realHpData && window.realHpData.has(resId)) {
         const realData = window.realHpData.get(resId);
-        hpArrangements = realData.hpArrangements;
-        checkedInNames = realData.checkedInCount;
-        useRealData = true;
-      } else {
-        // Fallback: Alte Logik verwenden
-        const anzahlCell = cells[3]; // Anzahl-Spalte (Gesamtgäste)
-        const statusCell = cells[0]; // Status-Spalte (Check-in Prozent)
-        const anamCell = cells[6]; // ANam-Spalte (HP-Arrangements)
 
-        // Anzahl Gäste ermitteln
-        const anzahlText = anzahlCell.textContent.trim();
-        const totalGuests = parseInt(anzahlText) || 0;
+        console.log('📊 Sortiergruppen-Daten für resId', resId, ':', realData);
 
-        // HP-Arrangements aus ANam-Spalte ermitteln - NICHT prozentual!
-        const anamText = anamCell.textContent.trim();
+        if (realData.sortGroup) {
+          const sortGroup = realData.sortGroup.toLowerCase();
+          const className = `sort-group-${sortGroup}`;
+          nameCell.classList.add(className);
 
-        // Text-basierte HP-Arrangements interpretieren - Anzahl der tatsächlichen Arrangements
-        if (anamText.includes('HP')) {
-          hpArrangements = totalGuests;
-        } else if (anamText.includes('BHI')) {
-          hpArrangements = totalGuests;
-        } else if (anamText.includes('ALA')) {
-          hpArrangements = totalGuests;
-        } else if (anamText === 'n/a' || anamText === '') {
-          hpArrangements = 0;
+          // Tooltip mit Sortiergruppen-Information
+          nameCell.title = realData.sortDescription || `Sortiergruppe ${realData.sortGroup}`;
+
+          console.log(`✅ Sortiergruppe ${realData.sortGroup} angewendet für ${nameCell.textContent.trim()} (resId: ${resId}) - CSS-Klasse: ${className}`);
         } else {
-          hpArrangements = parseInt(anamText) || 0;
+          console.log('⚠️ Keine sortGroup in realData für resId:', resId, realData);
         }
-
-        // Status-Prozent ermitteln (wieviele Namen sind eingecheckt)
-        const statusPercentage = getStatusPercentage(statusCell);
-        checkedInNames = Math.round((statusPercentage / 100) * totalGuests);
-      }
-
-      // WICHTIG: Namen von Debug-Informationen bereinigen, aber HTML-Logos beibehalten
-      const originalHtml = nameCell.innerHTML;
-      // Entferne nur Debug-Info in eckigen Klammern, aber behalte HTML-Tags
-      const cleanHtml = originalHtml.replace(/\s*\[[^\]]+\]/g, '');
-      nameCell.innerHTML = cleanHtml;
-
-      // Debug-Ausgabe für die ersten Zeilen
-      if (resId <= 5) {
-        console.log(`Debug Row ${resId}:`, {
-          name: nameCell.textContent.trim(),
-          hpArrangements,
-          checkedInNames,
-          useRealData
-        });
-      }
-
-      // Entferne alle alten Klassen
-      nameCell.classList.remove('hp-warning-red', 'hp-warning-orange', 'hp-status-balanced', 'hp-status-more-arrangements', 'hp-status-more-checkins');
-
-      // Neue Regeln anwenden:
-      if (checkedInNames === 0 && hpArrangements === 0) {
-        // Regel: Wenn noch keine Namen eingecheckt und keine Arrangements angegeben -> keine Sonderfarbe
-        nameCell.title = '';
-        return;
-      }
-
-      // Tooltip mit echten oder berechneten Daten
-      const dataSource = useRealData ? ' (DB)' : ' (berechnet)';
-
-      if (hpArrangements === checkedInNames && hpArrangements > 0) {
-        // Regel: Anzahl HP-Arrangements entspricht Anzahl eingecheckter Namen (beide > 0) -> hellgrüner Hintergrund
-        nameCell.classList.add('hp-status-balanced');
-        nameCell.title = `✓ Ausgeglichen${dataSource}: ${checkedInNames} eingecheckte Namen = ${hpArrangements} HP-Arrangements`;
-      } else if (hpArrangements > checkedInNames) {
-        // Regel: Mehr Arrangements als Check-ins -> rot
-        nameCell.classList.add('hp-status-more-arrangements');
-        nameCell.title = `⚠️ Mehr HP-Arrangements${dataSource}: ${hpArrangements} Arrangements > ${checkedInNames} eingecheckte Namen`;
-      } else if (checkedInNames > hpArrangements) {
-        // Regel: Mehr Check-ins als Arrangements -> lila
-        nameCell.classList.add('hp-status-more-checkins');
-        nameCell.title = `⚠️ Mehr eingecheckte Namen${dataSource}: ${checkedInNames} eingecheckte Namen > ${hpArrangements} HP-Arrangements`;
       } else {
-        // Fallback: Title löschen wenn keine besonderen Bedingungen erfüllt
-        nameCell.title = '';
+        console.log('⚠️ Keine HP-Daten für resId:', resId);
       }
     }
 
     // Alle Zeilen auf einmal prüfen (wird nach Tabellenerstellung aufgerufen)
-    async function setAllHpWarnings() {
+    async function setAllSortGroups() {
       const tbody = document.querySelector('#resTable tbody');
       if (!tbody) {
+        console.log('⚠️ setAllSortGroups: Tbody nicht gefunden');
         return;
       }
 
-      // Erst HP-Daten laden
+      // Erst HP-Daten laden (enthalten jetzt auch Sortiergruppen)
       await loadRealHpData();
 
       const rows = tbody.querySelectorAll('tr');
+      console.log(`🎨 Sortiergruppen werden auf ${rows.length} Zeilen angewendet`);
 
       // Direkte Verarbeitung aller Zeilen - keine Async/Await nötig
       rows.forEach(row => {
-        setHpWarningForRow(row);
+        setSortGroupForRow(row);
       });
+
+      console.log('✅ Sortiergruppen-Einfärbung abgeschlossen');
+    }
+
+    // Globale Verfügbarkeit für script.js
+    window.setAllSortGroups = setAllSortGroups;
+
+    // Debug-Funktion für Konsole
+    window.debugSortGroups = function () {
+      console.log('🔍 Debug Sortiergruppen:');
+      console.log('realHpData Größe:', window.realHpData ? window.realHpData.size : 'nicht verfügbar');
+
+      if (window.realHpData && window.realHpData.size > 0) {
+        const groups = {};
+        window.realHpData.forEach((data, resId) => {
+          if (data.sortGroup) {
+            groups[data.sortGroup] = (groups[data.sortGroup] || 0) + 1;
+          }
+        });
+        console.log('Verfügbare Sortiergruppen:', groups);
+
+        // Teste erste 3 Zeilen
+        const rows = document.querySelectorAll('#resTable tbody tr');
+        console.log('Gefundene Tabellenzeilen:', rows.length);
+
+        for (let i = 0; i < Math.min(3, rows.length); i++) {
+          const row = rows[i];
+          const resId = parseInt(row.dataset.resId);
+          const nameCell = row.querySelector('.name-cell');
+          const data = window.realHpData.get(resId);
+
+          console.log(`Zeile ${i + 1}:`, {
+            resId,
+            name: nameCell ? nameCell.textContent.trim() : 'nicht gefunden',
+            sortGroup: data ? data.sortGroup : 'keine Daten',
+            cssClasses: nameCell ? Array.from(nameCell.classList) : 'keine Zelle'
+          });
+        }
+      }
+    };
+
+    // Test-Funktion für manuelle Sortiergruppen-Anwendung
+    window.testSortGroups = function () {
+      console.log('🧪 Manueller Test der Sortiergruppen...');
+      setAllSortGroups();
+    };
+
+    // URL-Parameter für automatisches Datum setzen
+    function checkUrlParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dateParam = urlParams.get('date');
+
+      if (dateParam) {
+        const dateField = document.getElementById('filterDate');
+        if (dateField) {
+          dateField.value = dateParam;
+          console.log(`📅 Datum aus URL gesetzt: ${dateParam}`);
+
+          // Automatisch laden
+          setTimeout(() => {
+            if (window.loadData) {
+              console.log('🔄 Automatischer Daten-Load wegen URL-Parameter');
+              window.loadData();
+            }
+          }, 500);
+        }
+      }
+    }
+
+    // URL-Parameter beim Laden prüfen
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkUrlParams);
+    } else {
+      checkUrlParams();
     }
 
 
@@ -951,8 +969,8 @@
       // Das verursachte die doppelten Checks - HP-Checks werden jetzt nur durch spezifische Events ausgelöst
     }
 
-    // Debounced HP-Update-Funktion (früh definiert)
-    const debouncedHpUpdate = debounce(() => throttledHpUpdate(), 2000); // 2 Sekunden Debounce
+    // Debounced Sort Group Update-Funktion (früh definiert) - OPTIMIERT für schnellere Darstellung
+    const debouncedSortGroupUpdate = debounce(() => throttledSortGroupUpdate(), 300); // Reduziert von 2000ms auf 300ms
 
     // Farbschema basierend auf Anreise/Abreise-Modus umschalten
     function updateColorScheme(isArrival) {
@@ -988,14 +1006,14 @@
       if (tbody) {
         let observerTimeout;
         const observer = new MutationObserver(() => {
-          // Debounce auch den Observer selbst
+          // Debounce auch den Observer selbst - OPTIMIERT für schnellere Reaktion
           clearTimeout(observerTimeout);
           observerTimeout = setTimeout(() => {
             console.log('🔄 Tabelle geändert - Progress Update');
             updateProgressIndicators();
-            // HP-Warnungen nach Tabellenänderungen setzen (debounced)
-            debouncedHpUpdate();
-          }, 500); // Längere Verzögerung für Observer
+            // Sortiergruppen nach Tabellenänderungen setzen (debounced)
+            debouncedSortGroupUpdate();
+          }, 150); // Reduziert von 500ms auf 150ms
         });
 
         observer.observe(tbody, {
@@ -1010,24 +1028,24 @@
         const originalLoadData = window.loadData;
         window.loadData = function () {
           const result = originalLoadData.apply(this, arguments);
-          setTimeout(updateProgressIndicators, 500);
-          // HP-Warnungen nach loadData setzen (debounced)
-          debouncedHpUpdate();
+          setTimeout(updateProgressIndicators, 100); // Reduziert von 500ms auf 100ms
+          // Sortiergruppen nach loadData setzen (debounced)
+          debouncedSortGroupUpdate();
           return result;
         };
       }
 
-      // Einmaliger initialer Update (Performance-optimiert)
+      // Einmaliger initialer Update (Performance-optimiert) - SCHNELLER
       setTimeout(() => {
         updateProgressIndicators();
-        // HP-Update nur wenn Tabelle bereits Daten hat
+        // Sortiergruppen-Update nur wenn Tabelle bereits Daten hat
         const tbody = document.querySelector('#resTable tbody');
         if (tbody && tbody.children.length > 0) {
-          debouncedHpUpdate();
+          debouncedSortGroupUpdate();
         } else {
-          console.log('⏩ HP-Update übersprungen - keine Daten in Tabelle');
+          console.log('⏩ Sortiergruppen-Update übersprungen - keine Daten in Tabelle');
         }
-      }, 1000);
+      }, 200); // Reduziert von 1000ms auf 200ms
 
       // Initial color scheme setzen
       setTimeout(() => {
@@ -1047,36 +1065,36 @@
 
       filterElements.forEach(element => {
         if (element) {
-          // Standard change event
+          // Standard change event - OPTIMIERT für schnellere Reaktion
           element.addEventListener('change', () => {
-            setTimeout(updateProgressIndicators, 200);
-            debouncedHpUpdate();
+            setTimeout(updateProgressIndicators, 50); // Reduziert von 200ms auf 50ms
+            debouncedSortGroupUpdate();
           });
 
-          // Click event für Buttons
+          // Click event für Buttons - OPTIMIERT
           element.addEventListener('click', () => {
-            setTimeout(updateProgressIndicators, 200);
-            debouncedHpUpdate();
+            setTimeout(updateProgressIndicators, 50); // Reduziert von 200ms auf 50ms
+            debouncedSortGroupUpdate();
           });
 
-          // Input event für sofortige Reaktion (besonders wichtig für Date-Picker)
+          // Input event für sofortige Reaktion (besonders wichtig für Date-Picker) - OPTIMIERT
           element.addEventListener('input', () => {
-            setTimeout(updateProgressIndicators, 300);
-            debouncedHpUpdate();
+            setTimeout(updateProgressIndicators, 100); // Reduziert von 300ms auf 100ms
+            debouncedSortGroupUpdate();
           });
 
           // Spezielle Behandlung für das Datumsfeld
           if (element.type === 'date') {
-            // Zusätzliche Events für bessere Date-Picker Unterstützung
+            // Zusätzliche Events für bessere Date-Picker Unterstützung - OPTIMIERT
             element.addEventListener('blur', () => {
-              setTimeout(updateProgressIndicators, 200);
-              debouncedHpUpdate();
+              setTimeout(updateProgressIndicators, 50); // Reduziert von 200ms auf 50ms
+              debouncedSortGroupUpdate();
             });
 
-            // Focus-out Event als Fallback
+            // Focus-out Event als Fallback - OPTIMIERT
             element.addEventListener('focusout', () => {
-              setTimeout(updateProgressIndicators, 200);
-              debouncedHpUpdate();
+              setTimeout(updateProgressIndicators, 50); // Reduziert von 200ms auf 50ms
+              debouncedSortGroupUpdate();
             });
           }
         }
@@ -1086,11 +1104,11 @@
       setInterval(() => {
         updateProgressIndicators();
 
-        // HP-Warnungen nur alle 5 Minuten neu setzen
+        // Sortiergruppen nur alle 5 Minuten neu setzen
         const now = Date.now();
         if (now - lastHpUpdate >= HP_UPDATE_INTERVAL) {
-          console.log('🔄 HP-Daten werden aktualisiert (alle 5 Min)');
-          throttledHpUpdate(); // Verwende throttled Version (ohne await in setInterval)
+          console.log('🔄 Sortiergruppen-Daten werden aktualisiert (alle 5 Min)');
+          throttledSortGroupUpdate(); // Verwende throttled Version (ohne await in setInterval)
           lastHpUpdate = now;
         }
       }, 60000); // Alle 60 Sekunden
@@ -1101,6 +1119,42 @@
     } else {
       initProgressTracking();
     }
+
+    // Debug-Hilfsfunktion für manuelles Testen
+    window.testSortGroups = async function (testDate = '2025-08-30') {
+      console.log('🧪 Manueller Test der Sortiergruppen für Datum:', testDate);
+
+      // Setze Datum
+      const dateInput = document.getElementById('filterDate');
+      if (dateInput) {
+        dateInput.value = testDate;
+      }
+
+      // Lade Daten neu
+      if (window.loadData) {
+        await window.loadData();
+      }
+
+      // Force reload der HP-Daten
+      window.realHpData.clear();
+      await loadRealHpData();
+
+      // Force apply der Sortiergruppen
+      await setAllSortGroups();
+
+      console.log('🧪 Test abgeschlossen. Prüfe die Tabelle!');
+    };
+
+    // Automatisch für 30. August testen wenn Seite geladen wird
+    window.addEventListener('load', () => {
+      setTimeout(async () => {
+        console.log('🔄 Auto-Test: Setze Datum auf 30. August für Sortiergruppen-Test');
+        const dateInput = document.getElementById('filterDate');
+        if (dateInput && dateInput.value !== '2025-08-30') {
+          await window.testSortGroups('2025-08-30');
+        }
+      }, 2000); // Warte 2 Sekunden bis alles geladen ist
+    });
   </script>
 </body>
 

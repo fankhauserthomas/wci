@@ -4,6 +4,23 @@
 require_once 'config.php';
 require_once 'hp-db-config.php';
 
+// Hilfsfunktion für Sortiergruppen-Beschreibungen
+function getSortGroupDescription($group, $hpArrangements, $totalNames, $checkedInCount, $reservedPersons = 0) {
+    switch ($group) {
+        case 'A':
+            return "Diskrepanz: HP-Arrangements ($hpArrangements) ≠ Total Names ($totalNames), Check-ins vorhanden ($checkedInCount)";
+        case 'B':
+            return "HP-Arrangements vorhanden ($hpArrangements), aber keine Check-ins";
+        case 'C':
+            return "Keine HP-Arrangements und keine Check-ins";
+        case 'D':
+            return "Ausgeglichen: HP-Arrangements ($hpArrangements) = Reserved Persons ($reservedPersons)";
+        case 'X':
+        default:
+            return "Nicht klassifiziert: HP=$hpArrangements, Names=$totalNames, Check-ins=$checkedInCount, Reserved=$reservedPersons";
+    }
+}
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -45,14 +62,19 @@ try {
         error_log('HP-Datenbank nicht verfügbar - verwende Fallback-Werte');
     }
     
-    // Reservierungen aus Hauptdatenbank abrufen
+    // Reservierungen aus Hauptdatenbank abrufen - ERWEITERT um Belegungsfelder
     $dateColumn = ($type === 'arrival') ? 'anreise' : 'abreise';
     $query = "
         SELECT 
             id,
             av_id,
             nachname,
-            vorname
+            vorname,
+            sonder,
+            betten,
+            lager,
+            dz,
+            (COALESCE(sonder, 0) + COALESCE(betten, 0) + COALESCE(lager, 0) + COALESCE(dz, 0)) AS total_reserved_persons
         FROM `AV-Res` 
         WHERE DATE($dateColumn) = ?
         ORDER BY nachname, vorname
@@ -81,9 +103,10 @@ try {
             $hpQuery = "
                 SELECT 
                     r.iid,
-                    SUM(d.anz) AS sumarr
+                    SUM(hd.anz) AS sumarr
                 FROM res r
-                LEFT JOIN resdet d ON d.resid = r.iid
+                LEFT JOIN hp_data d ON d.resid = r.iid
+                LEFT JOIN hpdet hd ON hd.hp_id = d.id
                 WHERE r.iid IN ($placeholders)
                 GROUP BY r.iid
             ";
@@ -127,21 +150,70 @@ try {
         }
     }
     
-    // 3. Ergebnisse zusammenbauen
+    // 3. Ergebnisse zusammenbauen - ERWEITERT um reservierte Personen und Sortiergruppen
     $result = [];
     foreach ($reservations as $res) {
         $resId = $res['id'];
         $avId = $res['av_id'];
         
+        $hpArrangements = $hpData[$resId] ?? 0;
+        $checkedInCount = $checkedInData[$resId] ?? 0;
+        $totalNames = $totalNamesData[$resId] ?? 0;
+        $reservedPersons = (int)($res['total_reserved_persons'] ?? 0);
+        
+        // Sortiergruppen bestimmen
+        $sortGroup = '';
+        $sortPriority = 0;
+        
+        if (($hpArrangements != $reservedPersons) && ($checkedInCount > 0)) {
+            // Gruppe A: HP-Arrangements ≠ Total Names UND Check-ins vorhanden
+            $sortGroup = 'A';
+            $sortPriority = 1;
+        } elseif (($hpArrangements > 0) && ($checkedInCount == 0)) {
+            // Gruppe B: HP-Arrangements vorhanden ABER keine Check-ins
+            $sortGroup = 'B';
+            $sortPriority = 2;
+        } elseif (($hpArrangements == 0) && ($checkedInCount == 0)) {
+            // Gruppe C: Keine HP-Arrangements UND keine Check-ins
+            $sortGroup = 'C';
+            $sortPriority = 3;
+        } elseif ($hpArrangements == $reservedPersons) {
+            // Gruppe D: HP-Arrangements = Reserved Persons (ausgeglichen)
+            $sortGroup = 'D';
+            $sortPriority = 4;
+        } else {
+            // Fallback für nicht klassifizierte Fälle
+            $sortGroup = 'X';
+            $sortPriority = 5;
+        }
+        
         $result[] = [
             'res_id' => $resId,
             'av_id' => $avId,
             'name' => $res['nachname'] . ' ' . $res['vorname'],
-            'hp_arrangements' => $hpData[$resId] ?? 0, // HP-DB nutzt r.iid = AV-Res.id
-            'checked_in_count' => $checkedInData[$resId] ?? 0,
-            'total_names' => $totalNamesData[$resId] ?? 0
+            'hp_arrangements' => $hpArrangements,
+            'checked_in_count' => $checkedInCount,
+            'total_names' => $totalNames,
+            'reserved_persons' => $reservedPersons, // Sonder+Betten+Lager+DZ
+            'breakdown' => [
+                'sonder' => (int)($res['sonder'] ?? 0),
+                'betten' => (int)($res['betten'] ?? 0),
+                'lager' => (int)($res['lager'] ?? 0),
+                'dz' => (int)($res['dz'] ?? 0)
+            ],
+            'sort_group' => $sortGroup,
+            'sort_priority' => $sortPriority,
+            'sort_description' => getSortGroupDescription($sortGroup, $hpArrangements, $totalNames, $checkedInCount, $reservedPersons)
         ];
     }
+    
+    // Optional: Ergebnisse nach Sortiergruppe sortieren
+    usort($result, function($a, $b) {
+        if ($a['sort_priority'] == $b['sort_priority']) {
+            return strcmp($a['name'], $b['name']); // Alphabetisch innerhalb der Gruppe
+        }
+        return $a['sort_priority'] <=> $b['sort_priority'];
+    });
     
     $responseData = [
         'success' => true,

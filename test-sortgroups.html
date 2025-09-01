@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Sortiergruppen</title>
+    <style>
+        /* Sortiergruppen-Einfärbung für Namen-Zellen */
+        .name-cell {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .name-cell.sort-group-a {
+            background-color: rgba(220, 53, 69, 0.25) !important;
+            border-left: 4px solid #dc3545 !important;
+            font-weight: 600 !important;
+        }
+
+        .name-cell.sort-group-b {
+            background-color: rgba(255, 193, 7, 0.25) !important;
+            border-left: 4px solid #ffc107 !important;
+            font-weight: 600 !important;
+        }
+
+        .name-cell.sort-group-d {
+            background-color: rgba(0, 123, 255, 0.25) !important;
+            border-left: 4px solid #007bff !important;
+            font-weight: 600 !important;
+        }
+
+        /* Hover-Effekte für Sortiergruppen */
+        .name-cell.sort-group-a:hover {
+            background-color: rgba(220, 53, 69, 0.35) !important;
+        }
+
+        .name-cell.sort-group-b:hover {
+            background-color: rgba(255, 193, 7, 0.35) !important;
+        }
+
+        .name-cell.sort-group-c:hover {
+            background-color: #f8f9fa !important;
+        }
+
+        .name-cell.sort-group-d:hover {
+            background-color: rgba(0, 123, 255, 0.35) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test Sortiergruppen Einfärbung</h1>
+
+    <div class="name-cell sort-group-a">Gruppe A (Rot) - Diskrepanz mit Check-ins</div>
+    <div class="name-cell sort-group-b">Gruppe B (Orange) - HP ohne Check-ins</div>
+    <div class="name-cell sort-group-c">Gruppe C (Normal) - Keine HP, keine Check-ins</div>
+    <div class="name-cell sort-group-d">Gruppe D (Blau) - Ausgeglichen</div>
+
+    <br><br>
+
+    <button onclick="testSort()">Test API und anwenden</button>
+
+    <script>
+        async function testSort() {
+            try {
+                const response = await fetch('get-all-hp-data.php?date=2025-08-30&type=arrival');
+                const data = await response.json();
+
+                console.log('API Response:', data);
+
+                if (data.success) {
+                    const groups = {};
+                    data.data.forEach(item => {
+                        if (!groups[item.sort_group]) groups[item.sort_group] = 0;
+                        groups[item.sort_group]++;
+                    });
+
+                    document.body.innerHTML += '<h2>API Ergebnis:</h2>';
+                    Object.keys(groups).forEach(group => {
+                        document.body.innerHTML += `<p>Gruppe ${group}: ${groups[group]} Reservierungen</p>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

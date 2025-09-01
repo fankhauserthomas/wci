@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Sortierung nach Gruppen und Namen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .sort-group-a {
+            background-color: rgba(220, 53, 69, 0.25);
+            border-left: 4px solid #dc3545;
+            font-weight: 600;
+        }
+
+        .sort-group-b {
+            background-color: rgba(255, 193, 7, 0.25);
+            border-left: 4px solid #ffc107;
+            font-weight: 600;
+        }
+
+        .sort-group-d {
+            background-color: rgba(0, 123, 255, 0.25);
+            border-left: 4px solid #007bff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test: Sortierung nach Sortiergruppen und Namen</h1>
+
+    <button onclick="loadAndSort()">Daten laden und sortieren</button>
+
+    <table id="results-table" style="display: none;">
+        <thead>
+            <tr>
+                <th>Sortiergruppe</th>
+                <th>Name</th>
+                <th>Beschreibung</th>
+                <th>Res-ID</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function loadAndSort() {
+            try {
+                const response = await fetch('get-all-hp-data.php?date=2025-08-30&type=arrival');
+                const data = await response.json();
+
+                if (data.success) {
+                    // Sortiere die Daten: Primär nach Sortiergruppe, sekundär nach Name
+                    const sortedData = data.data.sort((a, b) => {
+                        // Primäre Sortierung: Sortiergruppen A → B → C → D
+                        if (a.sort_group !== b.sort_group) {
+                            return a.sort_group.localeCompare(b.sort_group);
+                        }
+
+                        // Sekundäre Sortierung: Nach Namen
+                        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                    });
+
+                    // Zeige Ergebnisse in Tabelle
+                    const tbody = document.querySelector('#results-table tbody');
+                    tbody.innerHTML = '';
+
+                    sortedData.forEach(item => {
+                        const row = document.createElement('tr');
+                        const sortGroup = item.sort_group.toLowerCase();
+
+                        row.innerHTML = `
+                            <td><strong>${item.sort_group}</strong></td>
+                            <td class="sort-group-${sortGroup}">${item.name}</td>
+                            <td style="font-size: 0.9em;">${item.sort_description || ''}</td>
+                            <td>${item.res_id}</td>
+                        `;
+
+                        tbody.appendChild(row);
+                    });
+
+                    document.getElementById('results-table').style.display = 'table';
+
+                    // Zeige Statistiken
+                    const groups = {};
+                    sortedData.forEach(item => {
+                        groups[item.sort_group] = (groups[item.sort_group] || 0) + 1;
+                    });
+
+                    console.log('📊 Sortierung abgeschlossen:');
+                    Object.entries(groups).forEach(([group, count]) => {
+                        console.log(`  Gruppe ${group}: ${count} Einträge`);
+                    });
+
+                    console.log('📋 Erste 10 Einträge:');
+                    sortedData.slice(0, 10).forEach((item, index) => {
+                        console.log(`  ${index + 1}. ${item.sort_group}: ${item.name}`);
+                    });
+                }
+            } catch (error) {
+                console.error('Fehler beim Laden:', error);
+            }
+        }
+
+        // Auto-load
+        setTimeout(loadAndSort, 500);
+    </script>
+</body>
+
+</html>

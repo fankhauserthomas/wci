@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Sortiergruppen Test - Minimal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .test-container {
+            margin: 20px 0;
+        }
+
+        .name-cell {
+            display: inline-block;
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+
+        /* Sortiergruppen CSS */
+        .name-cell.sort-group-a {
+            background-color: rgba(220, 53, 69, 0.25) !important;
+            border-left: 4px solid #dc3545 !important;
+            font-weight: 600 !important;
+        }
+
+        .name-cell.sort-group-b {
+            background-color: rgba(255, 193, 7, 0.25) !important;
+            border-left: 4px solid #ffc107 !important;
+            font-weight: 600 !important;
+        }
+
+        .name-cell.sort-group-d {
+            background-color: rgba(0, 123, 255, 0.25) !important;
+            border-left: 4px solid #007bff !important;
+            font-weight: 600 !important;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Sortiergruppen Test</h1>
+
+    <div class="test-container">
+        <h2>1. CSS Test (statisch)</h2>
+        <div class="name-cell sort-group-a">Gruppe A - Rot</div>
+        <div class="name-cell sort-group-b">Gruppe B - Orange</div>
+        <div class="name-cell sort-group-c">Gruppe C - Normal</div>
+        <div class="name-cell sort-group-d">Gruppe D - Blau</div>
+    </div>
+
+    <div class="test-container">
+        <h2>2. API Test</h2>
+        <button onclick="testAPI()">API testen</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>3. Simulation einer Reservierungstabelle</h2>
+        <button onclick="simulateTable()">Tabelle simulieren</button>
+        <table id="test-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Sortiergruppe</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let apiData = null;
+
+        async function testAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p>Lade API-Daten...</p>';
+
+            try {
+                const response = await fetch('get-all-hp-data.php?date=2025-08-30&type=arrival');
+                const data = await response.json();
+
+                if (data.success) {
+                    apiData = data.data;
+
+                    // Gruppiere nach Sortiergruppen
+                    const groups = {};
+                    data.data.forEach(item => {
+                        const group = item.sort_group || 'UNSET';
+                        groups[group] = (groups[group] || 0) + 1;
+                    });
+
+                    resultsDiv.innerHTML = '<h3>API Erfolgreich:</h3>';
+                    Object.entries(groups).forEach(([group, count]) => {
+                        resultsDiv.innerHTML += `<p><strong>Gruppe ${group}:</strong> ${count} Reservierungen</p>`;
+                    });
+
+                    resultsDiv.innerHTML += '<p style="color: green;">✅ API funktioniert korrekt!</p>';
+                } else {
+                    resultsDiv.innerHTML = '<p style="color: red;">❌ API Fehler: ' + data.error + '</p>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = '<p style="color: red;">❌ Netzwerk Fehler: ' + error.message + '</p>';
+                console.error('API Test Fehler:', error);
+            }
+        }
+
+        function simulateTable() {
+            if (!apiData) {
+                alert('Bitte erst API testen!');
+                return;
+            }
+
+            const table = document.getElementById('test-table');
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+
+            // Nehme ersten 10 Einträge
+            apiData.slice(0, 10).forEach(item => {
+                const row = document.createElement('tr');
+                row.dataset.resId = item.res_id;
+
+                row.innerHTML = `
+                    <td>${item.res_id}</td>
+                    <td><span class="name-cell" data-id="${item.res_id}">${item.name}</span></td>
+                    <td>${item.sort_group}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            table.style.display = 'table';
+
+            // Jetzt Sortiergruppen anwenden
+            setTimeout(() => {
+                applySortGroups();
+            }, 100);
+        }
+
+        function applySortGroups() {
+            if (!apiData) return;
+
+            // Erstelle eine Map der Daten
+            const dataMap = new Map();
+            apiData.forEach(item => {
+                dataMap.set(item.res_id, item);
+            });
+
+            // Wende Sortiergruppen auf Name-Cells an
+            document.querySelectorAll('.name-cell').forEach(nameCell => {
+                const resId = parseInt(nameCell.dataset.id);
+                const data = dataMap.get(resId);
+
+                if (data && data.sort_group) {
+                    const sortGroup = data.sort_group.toLowerCase();
+                    nameCell.classList.add(`sort-group-${sortGroup}`);
+                    nameCell.title = data.sort_description || `Sortiergruppe ${data.sort_group}`;
+
+                    console.log(`✅ Sortiergruppe ${data.sort_group} angewendet auf ${data.name}`);
+                }
+            });
+
+            console.log('🎨 Alle Sortiergruppen angewendet');
+        }
+
+        // Auto-start API test
+        setTimeout(testAPI, 500);
+    </script>
+</body>
+
+</html>
