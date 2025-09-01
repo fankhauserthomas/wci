@@ -441,6 +441,8 @@ document.addEventListener('DOMContentLoaded', () => {
               sortDescription: item.sort_description
             });
           });
+          // Setze Cache-Key für Validierung in anderen Funktionen
+          window.lastHpDataKey = `${date}_${getType()}`;
           // HP-Daten parallel geladen
         }
 

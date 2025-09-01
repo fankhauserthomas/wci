@@ -7,8 +7,6 @@
     <title>Reservierungsdetails</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="reservation.css">
-    <link rel="stylesheet" href="css/navigation.css">
-    <link rel="stylesheet" href="css/navigation-integration.css">
     <style>
         body.reservation-details {
             background-color: var(--bg);
@@ -481,8 +479,6 @@
         </div>
     </div>
 
-    <!-- Navigation wird durch JavaScript eingefügt -->
-
     <main class="main-content">
         <div class="reservation-form">
             <div class="form-header">
@@ -661,7 +657,7 @@
         <script src="ReservationDetails.js"></script>
 
         <script>
-            // Swipe-Navigation für Touch-Geräte mit Speicher-Abfrage
+            // Swipe-Gesten für Touch-Geräte mit Speicher-Abfrage
             let touchStartX = 0;
             let touchStartY = 0;
             let touchEndX = 0;
@@ -688,7 +684,7 @@
 
                 switch (action) {
                     case 'save':
-                        console.log('User chose to save before navigation...');
+                        console.log('User chose to save before going back...');
                         const form = document.getElementById('reservationForm');
                         if (form) {
                             const submitEvent = new Event('submit', {
@@ -707,7 +703,7 @@
                         break;
 
                     case 'discard':
-                        console.log('User chose to discard changes and navigate...');
+                        console.log('User chose to discard changes and go back...');
                         hasUnsavedChanges = false;
                         performNavigation();
                         break;
@@ -771,9 +767,9 @@
                 console.log('Form changes detected:', hasUnsavedChanges);
             }
 
-            // Funktion für sichere Navigation (gleich wie Swipe)
+            // Funktion für sichere Navigation (gleich wie Swipe-Geste)
             function safeNavigateBack() {
-                console.log('🔙 safeNavigateBack() aufgerufen (wie Swipe)');
+                console.log('🔙 safeNavigateBack() aufgerufen (wie Swipe-Geste)');
                 console.log('  - hasUnsavedChanges:', hasUnsavedChanges);
 
                 // Bei ungespeicherten Änderungen Modal zeigen
@@ -790,16 +786,11 @@
             function performNavigation() {
                 console.log('Performing navigation...');
 
-                // NavigationSystem verwenden wenn verfügbar
-                if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
-                    NavigationSystem.goBack();
+                // Browser-History oder zur Reservierungsliste
+                if (document.referrer && document.referrer.includes('/wci/')) {
+                    window.history.back();
                 } else {
-                    // Fallback: Browser-History oder zur Reservierungsliste
-                    if (document.referrer && document.referrer.includes('/wci/')) {
-                        window.history.back();
-                    } else {
-                        window.location.href = 'reservierungen.html';
-                    }
+                    window.location.href = 'reservierungen.html';
                 }
             }
 
@@ -927,9 +918,6 @@
                 }
             });
         </script>
-
-        <!-- Navigation System -->
-        <script src="js/navigation.js"></script>
 </body>
 
 </html>

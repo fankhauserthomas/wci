@@ -156,6 +156,33 @@
       text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.8);
     }
 
+    /* Dashboard Button */
+    .dashboard-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+      border: 1px solid #0056b3;
+      margin-left: 10px;
+    }
+
+    .dashboard-btn:hover {
+      background: #0056b3;
+      color: white;
+      text-decoration: none;
+    }
+
+    .dashboard-btn svg {
+      flex-shrink: 0;
+    }
+
     /* Styling für Datum und Suchfeld */
     #filterDate,
     #searchInput {
@@ -398,6 +425,14 @@
           </div>
         </div>
       </div>
+
+      <!-- Dashboard Button -->
+      <a href="index.php" class="dashboard-btn" title="Zurück zum Dashboard">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8 0L0 6v10h5V9h6v7h5V6L8 0zm0 2.5L13 7v7h-1V8H4v6H3V7l5-4.5z" />
+        </svg>
+        Dashboard
+      </a>
     </div>
 
     <div class="table-container">
@@ -647,27 +682,43 @@
     // Function to load real HP arrangement data (verwendet Cache wenn möglich)
     async function loadRealHpData() {
       try {
-        const date = document.getElementById('filterDate')?.value || new Date().toISOString().split('T')[0];
-        const type = document.getElementById('toggleType')?.textContent.includes('Anreise') ? 'arrival' : 'departure';
+        // Verwende die gleiche Datum-Logik wie script.js loadData()
+        let date;
+        const mode = localStorage.getItem('filterMode') || 'arrival';
+        if (mode === 'arrival-today') {
+          date = new Date().toISOString().slice(0, 10);
+        } else if (mode === 'departure-tomorrow') {
+          const d = new Date(); d.setDate(d.getDate() + 1);
+          date = d.toISOString().slice(0, 10);
+        } else {
+          const filterDateEl = document.getElementById('filterDate');
+          date = filterDateEl ? filterDateEl.value : new Date().toISOString().slice(0, 10);
+        }
+
+        // Verwende die gleiche Type-Logik wie script.js getType()
+        const type = (localStorage.getItem('filterMode') || 'arrival').startsWith('arrival') ? 'arrival' : 'departure';
 
         // loadRealHpData gestartet
 
-        // Warte kurz auf mögliche parallele Ladung von script.js - OPTIMIERT
-        await new Promise(resolve => setTimeout(resolve, 50)); // Reduziert von 100ms auf 50ms
-
-        // Prüfe ob bereits geladene Daten vorhanden sind (von script.js)
+        // Prüfe zuerst ob bereits aktuelle Daten vorhanden sind
         if (window.realHpData && window.realHpData.size > 0) {
-          // HP-Daten aus Cache verwendet
-          return true;
+          // Prüfe ob die Daten für das aktuelle Datum/Type sind
+          const currentKey = `${date}_${type}`;
+          if (window.lastHpDataKey === currentKey) {
+            // HP-Daten aus Cache verwendet (aktuell)
+            return true;
+          }
         }
 
         // Prüfe ob gerade ein Ladevorgang von script.js läuft
         if (window.hpDataLoading) {
           // Warte auf parallelen HP-Daten Load
-          // Warte bis zu 1 Sekunde auf den parallelen Load - OPTIMIERT
-          for (let i = 0; i < 10; i++) { // Reduziert von 20 auf 10 Iterationen
+          // Warte bis zu 1 Sekunde auf den parallelen Load
+          for (let i = 0; i < 10; i++) {
             await new Promise(resolve => setTimeout(resolve, 100));
             if (window.realHpData && window.realHpData.size > 0) {
+              // Setze den Key für Cache-Validation
+              window.lastHpDataKey = `${date}_${type}`;
               // HP-Daten von parallelem Load erhalten
               return true;
             }
@@ -699,6 +750,8 @@
             });
           });
 
+          // Setze Cache-Key für Validierung
+          window.lastHpDataKey = `${date}_${type}`;
           // HP-Daten separat geladen
 
           return true;

@@ -7,8 +7,6 @@
   <title>Gast-Details bearbeiten</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="reservation.css">
-  <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/navigation-integration.css">
   <style>
     /* Querformat-Optimierungen für GastDetail */
     .form-container {
@@ -307,8 +305,6 @@
     </div>
   </div>
 
-  <!-- Navigation wird durch JavaScript eingefügt -->
-
   <main class="main-content">
     <header class="legacy-header">
       <h1>Gast-Details</h1>
@@ -562,7 +558,7 @@
             // Änderungen als gespeichert markieren
             hasUnsavedChanges = false;
 
-            // Zurück navigieren
+            // Zurück zur vorherigen Seite
             goBack();
           } else {
             alert('Fehler: ' + j.error);
@@ -612,7 +608,7 @@
   </script>
 
   <script>
-    // Navigation und Modal-Verwaltung
+    // Modal-Verwaltung
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
@@ -672,7 +668,7 @@
           navigationBlocked = false;
 
           if (pendingNavigation) {
-            console.log('  - PENDING NAVIGATION erkannt - Browser-Back!');
+            console.log('  - PENDING ACTION erkannt - Browser-Back!');
             pendingNavigation = false;
             // Bei Browser-Back: Doppelt zurück wegen vorherigem pushState
             console.log('  - Führe doppeltes window.history.back() aus...');
@@ -682,12 +678,12 @@
               setTimeout(() => {
                 console.log('🔄 EXECUTING: window.history.back() #2');
                 window.history.back();
-                console.log('✅ Doppelte Navigation ausgeführt');
+                console.log('✅ Doppelte Aktion ausgeführt');
               }, 50);
             }, 100);
           } else {
-            console.log('  - Keine pending navigation - Button-Click!');
-            // Für Button-Clicks: Intelligente Navigation
+            console.log('  - Keine pending action - Button-Click!');
+            // Für Button-Clicks: Intelligenter Rücksprung
             if (document.referrer && document.referrer.includes('/wci/')) {
               console.log('  - Referrer vorhanden, verwende history.back()');
               let backCount = historyManipulated ? 2 : 1;
@@ -701,17 +697,11 @@
                 }
               }, 100);
             } else {
-              console.log('  - Kein Referrer, verwende NavigationSystem fallback');
-              if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
-                setTimeout(() => {
-                  NavigationSystem.goBack();
-                }, 100);
-              } else {
-                console.log('  - Direkter Fallback zu reservierungen.html');
-                setTimeout(() => {
-                  window.location.href = 'reservierungen.html';
-                }, 100);
-              }
+              console.log('  - Kein Referrer, verwende direkten Fallback');
+              console.log('  - Direkter Fallback zu reservierungen.html');
+              setTimeout(() => {
+                window.location.href = 'reservierungen.html';
+              }, 100);
             }
           }
           break;
@@ -733,9 +723,9 @@
       console.log('  - historyManipulated (nach):', historyManipulated);
     }
 
-    // Zurück-Navigation (gleich wie Swipe)
+    // Zurück-Navigation (gleich wie Swipe-Geste)
     function goBack() {
-      console.log('🔙 goBack() aufgerufen (wie Swipe)');
+      console.log('🔙 goBack() aufgerufen (wie Swipe-Geste)');
       console.log('  - hasUnsavedChanges:', hasUnsavedChanges);
 
       // Bei ungespeicherten Änderungen Modal zeigen
@@ -749,17 +739,11 @@
 
       // Versuche Browser History zuerst
       if (document.referrer && document.referrer.includes('/wci/')) {
-        console.log('� Verwende window.history.back() (Referrer vorhanden)');
+        console.log('🔄 Verwende window.history.back() (Referrer vorhanden)');
         window.history.back();
       } else {
-        // NavigationSystem als Fallback
-        if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
-          console.log('� Verwende NavigationSystem.goBack() (Fallback)');
-          NavigationSystem.goBack();
-        } else {
-          console.log('🏠 Direkt zu reservierungen.html (letzter Fallback)');
-          window.location.href = 'reservierungen.html';
-        }
+        console.log('🏠 Direkt zu reservierungen.html (Fallback)');
+        window.location.href = 'reservierungen.html';
       }
     }
 
@@ -960,9 +944,6 @@
     });
   </script>
   <script src="js/http-utils.js"></script>
-
-  <!-- Navigation System -->
-  <script src="js/navigation.js"></script>
 </body>
 
 </html>

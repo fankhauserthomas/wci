@@ -7,8 +7,6 @@
   <title>Reservierung anzeigen</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="reservation.css">
-  <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/navigation-integration.css">
 
   <!-- Guide Row Pulsing Animation -->
   <style>
@@ -120,7 +118,6 @@
 </head>
 
 <body>
-  <!-- Navigation wird durch JavaScript eingefügt -->
 
   <main class="main-content">
     <!-- Reservation Header (grün) -->
@@ -408,8 +405,6 @@
     <span class="status-text">Verbindung prüfen...</span>
   </div>
 
-  <!-- Navigation System -->
-  <script src="js/navigation.js"></script>
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
@@ -537,31 +532,18 @@
         if (deltaX > 0) {
           debugLog('Swipe right detected - navigating back');
 
-          // NavigationSystem verwenden wenn verfügbar
-          if (typeof NavigationSystem !== 'undefined' && NavigationSystem.goBack) {
-            NavigationSystem.goBack();
+          // Fallback: Browser-History oder zur Reservierungsliste
+          if (document.referrer && document.referrer.includes('/wci/')) {
+            window.history.back();
           } else {
-            // Fallback: Browser-History oder zur Reservierungsliste
-            if (document.referrer && document.referrer.includes('/wci/')) {
-              window.history.back();
-            } else {
-              window.location.href = 'reservierungen.html';
-            }
+            window.location.href = 'reservierungen.html';
           }
         }
       }
     }
 
-    // Navigation und Initialisierung
+    // Initialisierung
     document.addEventListener('DOMContentLoaded', function () {
-      // Navigation Setup
-      if (typeof NavigationSystem !== 'undefined') {
-        NavigationSystem.setupNavigation();
-        debugLog('✅ Navigation setup completed');
-      } else {
-        console.warn('⚠️ NavigationSystem not found');
-      }
-
       // Connection Status
       const indicator = document.getElementById('connection-indicator');
       if (indicator && window.connectionMonitor && window.updateConnectionStatus) {
@@ -590,7 +572,7 @@
       }, 50);
 
       debugLog('✅ Reservation page initialized');
-      debugLog('✅ Swipe navigation enabled for touch devices');
+      debugLog('✅ Swipe gestures enabled for touch devices');
     });
 
     // Debounce-Variablen für Header-Refresh
@@ -620,7 +602,7 @@
       }
     });
 
-    // PageShow Event - wichtig für Navigation zurück von anderen Seiten
+    // PageShow Event - wichtig für Browser-Cache
     window.addEventListener('pageshow', function (event) {
       // Besonders wichtig wenn von Browser-Cache geladen (bfcache)
       if (event.persisted) {
