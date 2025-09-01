@@ -394,17 +394,6 @@ tr[data-storno="false"] {
   /* hellrot */
 }
 
-/* Alle/Offen-Toggle */
-.toggle-btn.all {
-  background-color: var(--light-green);
-  /* hellgrün */
-}
-
-.toggle-btn.open {
-  background-color: #d0ebff;
-  /* hellblau */
-}
-
 /* GastDetail.html Formular */
 .form-container {
   max-width: 600px;

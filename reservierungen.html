@@ -365,9 +365,6 @@
         <!-- Storno-Toggle -->
         <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
 
-        <!-- Alle/Offen-Toggle -->
-        <button id="toggleOpen" class="toggle-btn all">Alle</button>
-
         <!-- Suche -->
         <div class="search-container">
           <input type="text" id="searchInput" placeholder="Suche Name…">
@@ -471,7 +468,6 @@
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
         script.onload = () => {
           qrCodeScriptLoaded = true;
-          console.log('[PERF] QRCode.js bei Bedarf geladen');
           resolve();
         };
         document.head.appendChild(script);
@@ -484,7 +480,6 @@
     setTimeout(() => {
       const syncScript = document.createElement('script');
       syncScript.src = 'js/sync-utils.js';
-      syncScript.onload = () => console.log('[PERF] Sync-Utils verzögert geladen');
       document.head.appendChild(syncScript);
     }, 3000);
   </script>
@@ -493,7 +488,6 @@
     setTimeout(() => {
       const barcodeScript = document.createElement('script');
       barcodeScript.src = 'auto-barcode-scanner.js';
-      barcodeScript.onload = () => console.log('[PERF] Auto-Barcode-Scanner verzögert geladen');
       document.head.appendChild(barcodeScript);
     }, 1500);
   </script>
@@ -507,11 +501,8 @@
 
       // Skip wenn keine Zellen vorhanden (Performance)
       if (nameCells.length === 0) {
-        console.log('🔗 Backup: No name cells found, skipping handler setup');
         return;
       }
-
-      console.log('🔗 Backup: Adding click handlers to', nameCells.length, 'name cells');
 
       nameCells.forEach(cell => {
         // Only add if not already clickable
@@ -519,7 +510,7 @@
           cell.style.cursor = 'pointer';
           cell.addEventListener('click', function () {
             const resId = this.dataset.id;
-            console.log('🔗 Backup: Name clicked, ID:', resId);
+
             if (resId) {
               window.location.href = `reservation.html?id=${resId}`;
             }
@@ -638,7 +629,7 @@
 
       // Wenn bereits ein Update läuft oder zu früh, ignorieren
       if (isHpUpdateRunning || (now - lastHpUpdateTime < MIN_HP_UPDATE_INTERVAL)) {
-        console.log('⏳ Sortiergruppen-Update übersprungen (zu früh oder läuft bereits)');
+        // Sortiergruppen-Update wird übersprungen (zu früh oder läuft bereits)
         return;
       }
 
@@ -646,7 +637,7 @@
       lastHpUpdateTime = now;
 
       try {
-        console.log('🔄 Sortiergruppen-Update wird ausgeführt');
+        // Sortiergruppen-Update wird ausgeführt
         await setAllSortGroups();
       } finally {
         isHpUpdateRunning = false;
@@ -659,38 +650,38 @@
         const date = document.getElementById('filterDate')?.value || new Date().toISOString().split('T')[0];
         const type = document.getElementById('toggleType')?.textContent.includes('Anreise') ? 'arrival' : 'departure';
 
-        console.log('🔄 loadRealHpData gestartet:', { date, type });
+        // loadRealHpData gestartet
 
         // Warte kurz auf mögliche parallele Ladung von script.js - OPTIMIERT
         await new Promise(resolve => setTimeout(resolve, 50)); // Reduziert von 100ms auf 50ms
 
         // Prüfe ob bereits geladene Daten vorhanden sind (von script.js)
         if (window.realHpData && window.realHpData.size > 0) {
-          console.log('✅ HP-Daten aus Cache verwendet:', window.realHpData.size, 'Reservierungen');
+          // HP-Daten aus Cache verwendet
           return true;
         }
 
         // Prüfe ob gerade ein Ladevorgang von script.js läuft
         if (window.hpDataLoading) {
-          console.log('⏳ Warte auf parallelen HP-Daten Load...');
+          // Warte auf parallelen HP-Daten Load
           // Warte bis zu 1 Sekunde auf den parallelen Load - OPTIMIERT
           for (let i = 0; i < 10; i++) { // Reduziert von 20 auf 10 Iterationen
             await new Promise(resolve => setTimeout(resolve, 100));
             if (window.realHpData && window.realHpData.size > 0) {
-              console.log('✅ HP-Daten von parallelem Load erhalten:', window.realHpData.size, 'Reservierungen');
+              // HP-Daten von parallelem Load erhalten
               return true;
             }
           }
         }
 
-        console.log('🔄 HP-Daten werden separat geladen...');
+        // HP-Daten werden separat geladen
         const url = `get-all-hp-data.php?date=${date}&type=${type}`;
-        console.log('📡 API-Aufruf:', url);
+
 
         const response = await fetch(url);
         const data = await response.json();
 
-        console.log('📡 API-Antwort:', { success: data.success, dataLength: data.data?.length });
+
 
         if (data.success) {
           // Clear existing data
@@ -708,8 +699,8 @@
             });
           });
 
-          console.log('✅ HP-Daten separat geladen:', window.realHpData.size, 'Reservierungen');
-          console.log('📊 Beispiel-Daten:', Array.from(window.realHpData.entries()).slice(0, 3));
+          // HP-Daten separat geladen
+
           return true;
         } else {
           console.error('❌ Failed to load HP data:', data.error);
@@ -743,13 +734,13 @@
       // Extrahiere Reservierungs-ID aus data-res-id Attribut der Zeile
       const resId = parseInt(row.dataset.resId);
       if (!resId || isNaN(resId)) {
-        console.log('❌ Keine gültige resId gefunden für Zeile:', row);
+        // Keine gültige resId gefunden für Zeile
         return;
       }
 
       const nameCell = row.querySelector('.name-cell');
       if (!nameCell) {
-        console.log('❌ Keine name-cell gefunden für resId:', resId);
+        // Keine name-cell gefunden für resId
         return;
       }
 
@@ -757,18 +748,13 @@
       nameCell.classList.remove('sort-group-a', 'sort-group-b', 'sort-group-c', 'sort-group-d');
 
       // Debug: Prüfe ob realHpData verfügbar ist
-      console.log('🔍 Debug setSortGroupForRow:', {
-        resId,
-        hasRealHpData: !!window.realHpData,
-        realHpDataSize: window.realHpData ? window.realHpData.size : 0,
-        hasThisResId: window.realHpData ? window.realHpData.has(resId) : false
-      });
+      // Debug setSortGroupForRow
 
       // Versuche Sortiergruppen-Daten aus realHpData zu verwenden
       if (window.realHpData && window.realHpData.has(resId)) {
         const realData = window.realHpData.get(resId);
 
-        console.log('📊 Sortiergruppen-Daten für resId', resId, ':', realData);
+        // Sortiergruppen-Daten für resId gefunden
 
         if (realData.sortGroup) {
           const sortGroup = realData.sortGroup.toLowerCase();
@@ -778,12 +764,12 @@
           // Tooltip mit Sortiergruppen-Information
           nameCell.title = realData.sortDescription || `Sortiergruppe ${realData.sortGroup}`;
 
-          console.log(`✅ Sortiergruppe ${realData.sortGroup} angewendet für ${nameCell.textContent.trim()} (resId: ${resId}) - CSS-Klasse: ${className}`);
+          // Sortiergruppe erfolgreich angewendet
         } else {
-          console.log('⚠️ Keine sortGroup in realData für resId:', resId, realData);
+          // Keine sortGroup in realData
         }
       } else {
-        console.log('⚠️ Keine HP-Daten für resId:', resId);
+        // Keine HP-Daten für resId
       }
     }
 
@@ -791,7 +777,7 @@
     async function setAllSortGroups() {
       const tbody = document.querySelector('#resTable tbody');
       if (!tbody) {
-        console.log('⚠️ setAllSortGroups: Tbody nicht gefunden');
+        // setAllSortGroups: Tbody nicht gefunden
         return;
       }
 
@@ -799,14 +785,14 @@
       await loadRealHpData();
 
       const rows = tbody.querySelectorAll('tr');
-      console.log(`🎨 Sortiergruppen werden auf ${rows.length} Zeilen angewendet`);
+      // Sortiergruppen werden angewendet
 
       // Direkte Verarbeitung aller Zeilen - keine Async/Await nötig
       rows.forEach(row => {
         setSortGroupForRow(row);
       });
 
-      console.log('✅ Sortiergruppen-Einfärbung abgeschlossen');
+      // Sortiergruppen-Einfärbung abgeschlossen
     }
 
     // Globale Verfügbarkeit für script.js
@@ -814,8 +800,8 @@
 
     // Debug-Funktion für Konsole
     window.debugSortGroups = function () {
-      console.log('🔍 Debug Sortiergruppen:');
-      console.log('realHpData Größe:', window.realHpData ? window.realHpData.size : 'nicht verfügbar');
+      // Debug Sortiergruppen
+
 
       if (window.realHpData && window.realHpData.size > 0) {
         const groups = {};
@@ -824,11 +810,11 @@
             groups[data.sortGroup] = (groups[data.sortGroup] || 0) + 1;
           }
         });
-        console.log('Verfügbare Sortiergruppen:', groups);
+
 
         // Teste erste 3 Zeilen
         const rows = document.querySelectorAll('#resTable tbody tr');
-        console.log('Gefundene Tabellenzeilen:', rows.length);
+
 
         for (let i = 0; i < Math.min(3, rows.length); i++) {
           const row = rows[i];
@@ -836,19 +822,14 @@
           const nameCell = row.querySelector('.name-cell');
           const data = window.realHpData.get(resId);
 
-          console.log(`Zeile ${i + 1}:`, {
-            resId,
-            name: nameCell ? nameCell.textContent.trim() : 'nicht gefunden',
-            sortGroup: data ? data.sortGroup : 'keine Daten',
-            cssClasses: nameCell ? Array.from(nameCell.classList) : 'keine Zelle'
-          });
+          // Debug-Info für Zeile
         }
       }
     };
 
     // Test-Funktion für manuelle Sortiergruppen-Anwendung
     window.testSortGroups = function () {
-      console.log('🧪 Manueller Test der Sortiergruppen...');
+      // Manueller Test der Sortiergruppen
       setAllSortGroups();
     };
 
@@ -861,12 +842,12 @@
         const dateField = document.getElementById('filterDate');
         if (dateField) {
           dateField.value = dateParam;
-          console.log(`📅 Datum aus URL gesetzt: ${dateParam}`);
+          // Datum aus URL gesetzt
 
           // Automatisch laden
           setTimeout(() => {
             if (window.loadData) {
-              console.log('🔄 Automatischer Daten-Load wegen URL-Parameter');
+              // Automatischer Daten-Load wegen URL-Parameter
               window.loadData();
             }
           }, 500);
@@ -1009,7 +990,7 @@
           // Debounce auch den Observer selbst - OPTIMIERT für schnellere Reaktion
           clearTimeout(observerTimeout);
           observerTimeout = setTimeout(() => {
-            console.log('🔄 Tabelle geändert - Progress Update');
+            // Tabelle geändert - Progress Update
             updateProgressIndicators();
             // Sortiergruppen nach Tabellenänderungen setzen (debounced)
             debouncedSortGroupUpdate();
@@ -1043,7 +1024,7 @@
         if (tbody && tbody.children.length > 0) {
           debouncedSortGroupUpdate();
         } else {
-          console.log('⏩ Sortiergruppen-Update übersprungen - keine Daten in Tabelle');
+          // Sortiergruppen-Update übersprungen - keine Daten in Tabelle
         }
       }, 200); // Reduziert von 1000ms auf 200ms
 
@@ -1107,7 +1088,7 @@
         // Sortiergruppen nur alle 5 Minuten neu setzen
         const now = Date.now();
         if (now - lastHpUpdate >= HP_UPDATE_INTERVAL) {
-          console.log('🔄 Sortiergruppen-Daten werden aktualisiert (alle 5 Min)');
+          // Sortiergruppen-Daten werden aktualisiert (alle 5 Min)
           throttledSortGroupUpdate(); // Verwende throttled Version (ohne await in setInterval)
           lastHpUpdate = now;
         }
@@ -1122,7 +1103,7 @@
 
     // Debug-Hilfsfunktion für manuelles Testen
     window.testSortGroups = async function (testDate = '2025-08-30') {
-      console.log('🧪 Manueller Test der Sortiergruppen für Datum:', testDate);
+      // Manueller Test der Sortiergruppen für Datum
 
       // Setze Datum
       const dateInput = document.getElementById('filterDate');
@@ -1142,13 +1123,13 @@
       // Force apply der Sortiergruppen
       await setAllSortGroups();
 
-      console.log('🧪 Test abgeschlossen. Prüfe die Tabelle!');
+      // Test abgeschlossen. Prüfe die Tabelle!
     };
 
     // Automatisch für 30. August testen wenn Seite geladen wird
     window.addEventListener('load', () => {
       setTimeout(async () => {
-        console.log('🔄 Auto-Test: Setze Datum auf 30. August für Sortiergruppen-Test');
+        // Auto-Test: Setze Datum auf 30. August für Sortiergruppen-Test
         const dateInput = document.getElementById('filterDate');
         if (dateInput && dateInput.value !== '2025-08-30') {
           await window.testSortGroups('2025-08-30');

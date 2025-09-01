@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM-Elemente
   const toggleType = document.getElementById('toggleType');
   const toggleStorno = document.getElementById('toggleStorno');
-  const toggleOpen = document.getElementById('toggleOpen');
   const filterDate = document.getElementById('filterDate');
   const searchInput = document.getElementById('searchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -79,38 +78,32 @@ document.addEventListener('DOMContentLoaded', () => {
       // Trigger input event to update the table
       const inputEvent = new Event('input', { bubbles: true });
       searchInput.dispatchEvent(inputEvent);
-      console.log('🧹 Suchfeld geleert');
+      // Suchfeld geleert
     });
   }
 
   // Debug: Prüfe ob Elemente gefunden wurden
-  console.log('Debug - Toggle Elements:', {
-    toggleType: !!toggleType,
-    toggleStorno: !!toggleStorno,
-    toggleOpen: !!toggleOpen,
-    filterDate: !!filterDate
-  });
+  // Debug - Toggle Elements
 
   // Flag um doppelte Listener zu vermeiden
   let toggleListenersSetup = false;
 
   // Setup Toggle Listeners nur einmal
-  if (toggleStorno && toggleOpen && !toggleListenersSetup) {
-    console.log('Setting up toggle listeners immediately');
-    setupToggleListeners(toggleStorno, toggleOpen);
+  if (toggleStorno && !toggleListenersSetup) {
+    // Setting up toggle listeners immediately
+    setupToggleListeners(toggleStorno);
     toggleListenersSetup = true;
   }
 
   // Fallback: Suche Elemente später nochmal falls nicht gefunden
-  if (!toggleStorno || !toggleOpen) {
-    console.log('Toggle elements not found initially, retrying...');
+  if (!toggleStorno) {
+    // Toggle elements not found initially, retrying...
     setTimeout(() => {
       if (!toggleListenersSetup) {
         const retryStorno = document.getElementById('toggleStorno');
-        const retryOpen = document.getElementById('toggleOpen');
-        if (retryStorno && retryOpen) {
-          console.log('Found toggle elements on retry');
-          setupToggleListeners(retryStorno, retryOpen);
+        if (retryStorno) {
+          // Found toggle elements on retry
+          setupToggleListeners(retryStorno);
           toggleListenersSetup = true;
         }
       }
@@ -195,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Prevent double submission
       if (isSubmitting) {
-        console.log('Form submission already in progress');
+        // Form submission already in progress
         return;
       }
 
@@ -361,16 +354,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Filter-Persistenz: Storno, Offen, Suche
   function loadFiltersFromStorage() {
     const savedSt = localStorage.getItem('filterStorno');
-    const savedOp = localStorage.getItem('filterOpen');
     const savedTerm = localStorage.getItem('searchTerm');
 
     if (savedSt === 'storno') {
       toggleStorno.classList.replace('no-storno', 'storno');
       toggleStorno.textContent = 'Storno';
-    }
-    if (savedOp === 'open') {
-      toggleOpen.classList.replace('all', 'open');
-      toggleOpen.textContent = 'Offen';
     }
     if (savedTerm) {
       searchInput.value = savedTerm;
@@ -378,7 +366,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function saveFiltersToStorage() {
     localStorage.setItem('filterStorno', toggleStorno.classList.contains('storno') ? 'storno' : 'no-storno');
-    localStorage.setItem('filterOpen', toggleOpen.classList.contains('open') ? 'open' : 'all');
     localStorage.setItem('searchTerm', searchInput.value.trim());
   }
 
@@ -454,8 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
               sortDescription: item.sort_description
             });
           });
-          console.log('✅ HP-Daten parallel geladen:', window.realHpData.size, 'Reservierungen');
-          console.log('📊 Sortiergruppen verfügbar:', hpData.data.some(item => item.sort_group));
+          // HP-Daten parallel geladen
         }
 
         renderTable();
@@ -481,15 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
       view = view.filter(r => r.storno);
     } else if (stornoElement) {
       view = view.filter(r => !r.storno);
-    }
-
-    // Offen-Filter
-    const openElement = toggleOpen || document.getElementById('toggleOpen');
-    if (openElement && openElement.classList.contains('open')) {
-      view = view.filter(r => {
-        const pct = getType() === 'arrival' ? r.percent_logged_in : r.percent_logged_out;
-        return pct < 100;
-      });
     }
 
     // Erweiterte Fuzzy-Suche
@@ -534,13 +511,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return nameA.localeCompare(nameB);
     });
 
-    // Debug: Zeige Sortierung der ersten Einträge
-    if (view.length > 0) {
+    // Debug: Zeige Sortierung der ersten Einträge (nur bei Bedarf)
+    if (window.debugSortingEnabled && view.length > 0) {
       const sortInfo = view.slice(0, 5).map(r => {
         const data = window.realHpData ? window.realHpData.get(r.id) : null;
         return `${data?.sortGroup || 'Z'}: ${r.nachname} ${r.vorname}`;
       }).join(', ');
-      console.log('📋 Erste 5 Einträge nach Sortierung:', sortInfo);
+      // Erste 5 Einträge nach Sortierung
     }
 
     view.forEach(r => {
@@ -585,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const lengthOfStay = Math.round((departureDate - arrivalDate) / (1000 * 60 * 60 * 24));
 
       // Debug: log the calculation for testing
-      console.log(`Guest: ${r.nachname}, Arrival: ${r.anreise}, Departure: ${r.abreise}, Length: ${lengthOfStay} nights`);
+      // Guest debug info
 
       let backgroundColor = '';
       if (lengthOfStay === 1) {
@@ -655,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // QR-Code für 7. Spalte (ANam) - Check-in Status
     document.querySelectorAll('.qr-cell').forEach(cell => {
       cell.style.cursor = 'pointer';
-      cell.addEventListener('click', () => {
+      cell.addEventListener('click', async () => {
         const reservationId = cell.dataset.id;
 
         qrContainer.innerHTML = `
@@ -664,88 +641,100 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div id="qrCode"></div>
         `;
-        const qrPromise = window.HttpUtils
-          ? HttpUtils.requestJsonWithLoading(`getBookingUrl.php?id=${reservationId}`, {}, {}, 'QR-Code wird generiert...')
-          : window.LoadingOverlay
-            ? LoadingOverlay.wrapFetch(() => fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json()), 'QR-Code')
-            : fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json());
 
-        qrPromise
-          .then(json => {
-            if (json.url) {
-              new QRCode(document.getElementById('qrCode'), {
-                text: json.url, width: 128, height: 128
+        try {
+          // Stelle sicher, dass QRCode.js geladen ist
+          if (typeof QRCode === 'undefined') {
+            if (typeof loadQRCodeScript === 'function') {
+              await loadQRCodeScript();
+            } else {
+              throw new Error('QRCode library loader not found');
+            }
+          }
+
+          const qrPromise = window.HttpUtils
+            ? HttpUtils.requestJsonWithLoading(`getBookingUrl.php?id=${reservationId}`, {}, {}, 'QR-Code wird generiert...')
+            : window.LoadingOverlay
+              ? LoadingOverlay.wrapFetch(() => fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json()), 'QR-Code')
+              : fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json());
+
+          const json = await qrPromise;
+
+          if (json.url) {
+            new QRCode(document.getElementById('qrCode'), {
+              text: json.url, width: 128, height: 128
+            });
+
+            // Store reservation data for email button
+            const row = cell.closest('tr');
+
+            // Fetch complete reservation data for email
+            fetch(`getReservationDetails.php?id=${reservationId}`)
+              .then(response => response.json())
+              .then(reservationData => {
+                const detail = reservationData.detail || reservationData;
+                const currentReservationForEmail = {
+                  id: reservationId,
+                  nachname: detail.nachname || '',
+                  vorname: detail.vorname || '',
+                  email: detail.email || '',
+                  anreise: detail.anreise || '',
+                  abreise: detail.abreise || ''
+                };
+
+                // Set up email button click handler
+                const emailGuestBtn = document.getElementById('emailGuestBtn');
+                if (emailGuestBtn) {
+                  // Remove existing listeners
+                  emailGuestBtn.replaceWith(emailGuestBtn.cloneNode(true));
+                  const newEmailBtn = document.getElementById('emailGuestBtn');
+
+                  newEmailBtn.addEventListener('click', () => {
+                    if (window.EmailUtils) {
+                      window.EmailUtils.sendNameListEmail(currentReservationForEmail);
+                      qrModal.classList.remove('visible');
+                    } else {
+                      alert('Email-Funktionalität nicht verfügbar.');
+                    }
+                  });
+                }
+              })
+              .catch(error => {
+                console.error('Error fetching reservation details for email:', error);
+                // Fallback with basic data from table
+                const currentReservationForEmail = {
+                  id: reservationId,
+                  nachname: row.querySelector('.name-cell')?.textContent.split(' ')[0] || '',
+                  vorname: row.querySelector('.name-cell')?.textContent.split(' ').slice(1).join(' ') || '',
+                  email: '',
+                  anreise: row.querySelector('.dates-cell')?.dataset.anreise || '',
+                  abreise: row.querySelector('.dates-cell')?.dataset.abreise || ''
+                };
+
+                const emailGuestBtn = document.getElementById('emailGuestBtn');
+                if (emailGuestBtn) {
+                  emailGuestBtn.replaceWith(emailGuestBtn.cloneNode(true));
+                  const newEmailBtn = document.getElementById('emailGuestBtn');
+
+                  newEmailBtn.addEventListener('click', () => {
+                    if (window.EmailUtils) {
+                      window.EmailUtils.sendNameListEmail(currentReservationForEmail);
+                      qrModal.classList.remove('visible');
+                    } else {
+                      alert('Email-Funktionalität nicht verfügbar.');
+                    }
+                  });
+                }
               });
 
-              // Store reservation data for email button
-              const row = cell.closest('tr');
-
-              // Fetch complete reservation data for email
-              fetch(`getReservationDetails.php?id=${reservationId}`)
-                .then(response => response.json())
-                .then(reservationData => {
-                  const detail = reservationData.detail || reservationData;
-                  const currentReservationForEmail = {
-                    id: reservationId,
-                    nachname: detail.nachname || '',
-                    vorname: detail.vorname || '',
-                    email: detail.email || '',
-                    anreise: detail.anreise || '',
-                    abreise: detail.abreise || ''
-                  };
-
-                  // Set up email button click handler
-                  const emailGuestBtn = document.getElementById('emailGuestBtn');
-                  if (emailGuestBtn) {
-                    // Remove existing listeners
-                    emailGuestBtn.replaceWith(emailGuestBtn.cloneNode(true));
-                    const newEmailBtn = document.getElementById('emailGuestBtn');
-
-                    newEmailBtn.addEventListener('click', () => {
-                      if (window.EmailUtils) {
-                        window.EmailUtils.sendNameListEmail(currentReservationForEmail);
-                        qrModal.classList.remove('visible');
-                      } else {
-                        alert('Email-Funktionalität nicht verfügbar.');
-                      }
-                    });
-                  }
-                })
-                .catch(error => {
-                  console.error('Error fetching reservation details for email:', error);
-                  // Fallback with basic data from table
-                  const currentReservationForEmail = {
-                    id: reservationId,
-                    nachname: row.querySelector('.name-cell')?.textContent.split(' ')[0] || '',
-                    vorname: row.querySelector('.name-cell')?.textContent.split(' ').slice(1).join(' ') || '',
-                    email: '',
-                    anreise: row.querySelector('.dates-cell')?.dataset.anreise || '',
-                    abreise: row.querySelector('.dates-cell')?.dataset.abreise || ''
-                  };
-
-                  const emailGuestBtn = document.getElementById('emailGuestBtn');
-                  if (emailGuestBtn) {
-                    emailGuestBtn.replaceWith(emailGuestBtn.cloneNode(true));
-                    const newEmailBtn = document.getElementById('emailGuestBtn');
-
-                    newEmailBtn.addEventListener('click', () => {
-                      if (window.EmailUtils) {
-                        window.EmailUtils.sendNameListEmail(currentReservationForEmail);
-                        qrModal.classList.remove('visible');
-                      } else {
-                        alert('Email-Funktionalität nicht verfügbar.');
-                      }
-                    });
-                  }
-                });
-
-              qrModal.classList.add('visible');
-            } else alert('Fehler beim Abrufen der Buchungs-URL');
-          })
-          .catch((error) => {
-            console.error('QR-Code Fehler:', error);
-            alert('Netzwerkfehler beim QR-Code Laden. Bitte erneut versuchen.');
-          });
+            qrModal.classList.add('visible');
+          } else {
+            alert('Fehler beim Abrufen der Buchungs-URL');
+          }
+        } catch (error) {
+          console.error('QR-Code Fehler:', error);
+          alert('Netzwerkfehler beim QR-Code Laden. Bitte erneut versuchen.');
+        }
       });
     });
 
@@ -759,19 +748,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Separate Funktion für Toggle-Listener Setup
-  function setupToggleListeners(stornoEl, openEl) {
-    if (!stornoEl || !openEl) {
-      console.log('setupToggleListeners: Elements not found', { stornoEl: !!stornoEl, openEl: !!openEl });
+  function setupToggleListeners(stornoEl) {
+    if (!stornoEl) {
+      // setupToggleListeners: Elements not found
       return;
     }
 
     // Prüfe ob bereits Event-Listener vorhanden sind
     if (stornoEl.hasAttribute('data-listeners-setup')) {
-      console.log('Toggle listeners already setup, skipping');
+      // Toggle listeners already setup, skipping
       return;
     }
 
-    console.log('Setting up toggle listeners for:', stornoEl.id, openEl.id);
+    // Setting up toggle listeners
 
     // Event-Listener für Storno
     stornoEl.addEventListener('click', (e) => {
@@ -792,28 +781,8 @@ document.addEventListener('DOMContentLoaded', () => {
       renderTable(); // NUR renderTable(), nicht loadData()!
     });
 
-    // Event-Listener für Offen
-    openEl.addEventListener('click', (e) => {
-      console.log('Open button clicked, current classes:', openEl.className);
-
-      if (openEl.classList.contains('all')) {
-        openEl.classList.replace('all', 'open');
-        openEl.textContent = 'Offen';
-        console.log('Changed to open mode');
-      } else {
-        openEl.classList.replace('open', 'all');
-        openEl.textContent = 'Alle';
-        console.log('Changed to all mode');
-      }
-
-      console.log('New classes after toggle:', openEl.className);
-      saveFiltersToStorage();
-      renderTable(); // NUR renderTable(), nicht loadData()!
-    });
-
-    // Markiere Elemente als setup
+    // Markiere Element als setup
     stornoEl.setAttribute('data-listeners-setup', 'true');
-    openEl.setAttribute('data-listeners-setup', 'true');
   }
 
   // ENTFERNT: Event-Listener Setup erfolgt bereits oben mit Flag-Protection
@@ -955,10 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === Sortiergruppen-Funktionalität ===
   // Direkte Anwendung der Sortiergruppen basierend auf API-Daten
   function applySortGroupsDirectly(hpDataArray) {
-    console.log('🎨 applySortGroupsDirectly wird ausgeführt mit', hpDataArray.length, 'Datensätzen');
-
     if (!hpDataArray || hpDataArray.length === 0) {
-      console.log('⚠️ Keine HP-Daten für Sortiergruppen verfügbar');
       return;
     }
 
@@ -968,11 +934,8 @@ document.addEventListener('DOMContentLoaded', () => {
       dataMap.set(item.res_id, item);
     });
 
-    console.log('📊 Sortiergruppen-Map erstellt mit', dataMap.size, 'Einträgen');
-
     // Finde alle Tabellenzeilen
     const rows = document.querySelectorAll('#resTable tbody tr');
-    console.log('🔍 Gefundene Tabellenzeilen:', rows.length);
 
     let appliedCount = 0;
     rows.forEach(row => {
@@ -997,14 +960,13 @@ document.addEventListener('DOMContentLoaded', () => {
         nameCell.title = data.sort_description || `Sortiergruppe ${data.sort_group}`;
 
         appliedCount++;
-        console.log(`✅ Sortiergruppe ${data.sort_group} angewendet auf "${data.name}" (ID: ${resId}) - CSS: ${className}`);
       }
     });
 
-    console.log(`🎨 Sortiergruppen-Einfärbung abgeschlossen: ${appliedCount} von ${rows.length} Zeilen eingefärbt`);
-  }
-
-  // === Universelle Verbindungsstatus-Funktionen ===
+    if (window.debugSortingEnabled) {
+      console.log(`🎨 Sortiergruppen-Einfärbung: ${appliedCount} von ${rows.length} Zeilen eingefärbt`);
+    }
+  }  // === Universelle Verbindungsstatus-Funktionen ===
   // Stelle sicher, dass updateNavigationStatus global verfügbar ist, auch wenn keine Navigation vorhanden
   if (!window.updateNavigationStatus) {
     window.updateNavigationStatus = function () {
