@@ -1,6 +1,9 @@
 <?php
 // WCI Access Analytics Widget für Dashboard Integration
 
+// Speicher-Limit erhöhen für große Log-Dateien
+ini_set('memory_limit', '256M');
+
 // Filter-Konfiguration
 $systemFiles = [
     'ping.php',
@@ -29,9 +32,38 @@ $stats = [
 ];
 
 if (file_exists($logFile)) {
-    $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $uniqueFiles = [];
     $uniqueUsers = [];
+    $lines = [];
+    
+    // Verwende tail um nur die letzten 5000 Zeilen zu lesen (speicherschonend)
+    $command = "tail -n 5000 " . escapeshellarg($logFile);
+    $handle = popen($command, 'r');
+    if ($handle) {
+        while (($line = fgets($handle)) !== false) {
+            $line = trim($line);
+            if (!empty($line)) {
+                $lines[] = $line;
+            }
+        }
+        pclose($handle);
+    }
+    
+    // Fallback: wenn tail fehlschlägt, verwende fopen mit Begrenzung
+    if (empty($lines)) {
+        $handle = fopen($logFile, 'r');
+        if ($handle) {
+            $lineCount = 0;
+            while (($line = fgets($handle)) !== false && $lineCount < 5000) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $lines[] = $line;
+                    $lineCount++;
+                }
+            }
+            fclose($handle);
+        }
+    }
     
     foreach ($lines as $line) {
         if (preg_match('/^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"\s]+)[^"]*" (\d+)/', $line, $matches)) {
@@ -74,7 +106,7 @@ if (file_exists($logFile)) {
             border-radius: 50%;
             animation: pulse 2s infinite;
         "></span>
-        <a href="access-dashboard.php" style="
+        <a href="access-dashboard-simple.php" style="
             margin-left: auto;
             background: rgba(255,255,255,0.2);
             color: white;
@@ -85,7 +117,7 @@ if (file_exists($logFile)) {
             transition: all 0.3s ease;
         " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
            onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-            📈 Details
+            � Dashboard
         </a>
     </div>
     

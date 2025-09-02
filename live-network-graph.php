@@ -7,7 +7,18 @@ $accessedFiles = [];
 $fileConnections = [];
 
 if (file_exists($logFile)) {
-    $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    // Speicher-effiziente Verarbeitung - begrenze Speicher und nutze tail für große Dateien
+    ini_set('memory_limit', '256M');
+    
+    $fileSize = filesize($logFile);
+    if ($fileSize > 50 * 1024 * 1024) { // Wenn größer als 50MB
+        $output = shell_exec("tail -n 15000 " . escapeshellarg($logFile));
+        $lines = $output ? explode("\n", trim($output)) : [];
+    } else {
+        // Für kleinere Dateien verwende file()
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!$lines) $lines = [];
+    }
     echo "<!-- DEBUG: Processing " . count($lines) . " log lines -->";
     
     $lineCount = 0;
