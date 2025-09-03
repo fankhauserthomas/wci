@@ -12,6 +12,9 @@
   <meta http-equiv="Expires" content="0">
   <meta http-equiv="Last-Modified" content="">
 
+  <!-- Cache-Buster für Scripts -->
+  <meta name="cache-buster" content="20250903-no-timers">
+
   <title>Reservierungsliste - WebCheckin</title>
   <link rel="stylesheet" href="style.css">
   <style>
@@ -494,11 +497,12 @@
 
   <!-- Barcode Scanner Modal entfernt - automatische Erkennung mit {..} -->
 
-  <!-- Scripts optimiert für Performance -->
-  <script src="js/email-utils.js"></script>
-  <script src="js/http-utils.js"></script>
-  <script src="js/loading-overlay.js"></script>
-  <script src="js/auto-refresh.js"></script>
+  <!-- Scripts optimiert für Performance mit Cache-Buster -->
+  <script src="js/email-utils.js?v=20250903"></script>
+  <script src="js/http-utils.js?v=20250903"></script>
+  <script src="js/loading-overlay.js?v=20250903"></script>
+  <!-- Auto-Refresh KOMPLETT DEAKTIVIERT - Timer-Killer laden -->
+  <script src="js/auto-refresh-disabled.js?v=20250903"></script>
   <!-- QRCode.js erst bei Bedarf laden -->
   <script>
     // QR-Code Script nur laden wenn QR-Modal geöffnet wird
@@ -528,14 +532,14 @@
   </script>
   <!-- Auto-Barcode-Scanner sofort laden (nicht verzögert) -->
   <script>
-    // Scanner sofort laden für bessere Responsivität
+    // Scanner sofort laden für bessere Responsivität (Cache-Buster)
     const barcodeScript = document.createElement('script');
-    barcodeScript.src = 'auto-barcode-scanner.js';
+    barcodeScript.src = 'auto-barcode-scanner.js?v=20250903';
     barcodeScript.onload = () => console.log('✅ Barcode-Scanner geladen');
     barcodeScript.onerror = () => console.error('❌ Barcode-Scanner Ladefehler');
     document.head.appendChild(barcodeScript);
   </script>
-  <script src="script.js"></script>
+  <script src="script.js?v=20250903"></script>
 
   <!-- BACKUP: Name-Click-Handler falls script.js versagt -->
   <script>

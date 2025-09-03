@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>API Cache Debug Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+        }
+
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .changed {
+            background-color: #ffeb3b;
+        }
+
+        .same {
+            background-color: #e8f5e8;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>API Cache Debug Test</h1>
+    <p>Teste ob APIs gecacht werden oder echte Daten liefern</p>
+
+    <button onclick="testAPI()">Teste API (mit Cache-Buster)</button>
+    <button onclick="testAPIWithoutCacheBuster()">Teste API (ohne Cache-Buster)</button>
+    <button onclick="clearResults()">Ergebnisse löschen</button>
+
+    <div id="results"></div>
+
+    <script>
+        let lastResult = null;
+        let testCount = 0;
+
+        async function testAPI() {
+            testCount++;
+            const timestamp = Date.now();
+
+            try {
+                // Mit Cache-Buster
+                const response = await fetch(`data.php?date=2025-09-03&type=arrival&_t=${timestamp}`);
+                const data = await response.json();
+
+                // Erstelle Hash der Daten für Vergleich
+                const dataHash = JSON.stringify(data).length + '_' + (data[0]?.id || 'none');
+
+                const isChanged = lastResult && lastResult !== dataHash;
+                lastResult = dataHash;
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${isChanged ? 'changed' : 'same'}`;
+                resultDiv.innerHTML = `
+                    <strong>Test #${testCount} - ${new Date(timestamp).toLocaleTimeString()}</strong><br>
+                    Hash: ${dataHash}<br>
+                    Anzahl Einträge: ${data.length}<br>
+                    Erste ID: ${data[0]?.id || 'keine'}<br>
+                    Status: ${isChanged ? '🔄 GEÄNDERT' : '✅ GLEICH'}<br>
+                    Response Headers: Cache-Control: ${response.headers.get('cache-control')}
+                `;
+
+                document.getElementById('results').appendChild(resultDiv);
+
+                // Auto-scroll nach unten
+                resultDiv.scrollIntoView();
+
+            } catch (error) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result';
+                resultDiv.style.backgroundColor = '#ffcdd2';
+                resultDiv.innerHTML = `
+                    <strong>Test #${testCount} - ERROR</strong><br>
+                    Fehler: ${error.message}
+                `;
+                document.getElementById('results').appendChild(resultDiv);
+            }
+        }
+
+        async function testAPIWithoutCacheBuster() {
+            testCount++;
+
+            try {
+                // OHNE Cache-Buster
+                const response = await fetch('data.php?date=2025-09-03&type=arrival');
+                const data = await response.json();
+
+                const dataHash = JSON.stringify(data).length + '_' + (data[0]?.id || 'none');
+                const isChanged = lastResult && lastResult !== dataHash;
+                lastResult = dataHash;
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${isChanged ? 'changed' : 'same'}`;
+                resultDiv.style.borderLeft = '5px solid #f44336';
+                resultDiv.innerHTML = `
+                    <strong>Test #${testCount} - OHNE Cache-Buster - ${new Date().toLocaleTimeString()}</strong><br>
+                    Hash: ${dataHash}<br>
+                    Anzahl Einträge: ${data.length}<br>
+                    Status: ${isChanged ? '🔄 GEÄNDERT' : '✅ GLEICH'}<br>
+                    Response Headers: Cache-Control: ${response.headers.get('cache-control')}
+                `;
+
+                document.getElementById('results').appendChild(resultDiv);
+                resultDiv.scrollIntoView();
+
+            } catch (error) {
+                console.error('API Test Fehler:', error);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            lastResult = null;
+            testCount = 0;
+        }
+
+        // Auto-Test alle 2 Sekunden
+        setInterval(() => {
+            if (document.getElementById('results').children.length < 50) {
+                testAPI();
+            }
+        }, 2000);
+    </script>
+</body>
+
+</html>

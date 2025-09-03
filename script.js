@@ -50,18 +50,28 @@ function initDateToggle(toggleBtn, dateEl, loadDataFn) {
     mode = modes[(idx + 1) % modes.length];
     persist();
     updateUI();
+    // NUR bei Benutzeraktion laden
     loadDataFn();
   });
 
   dateEl.addEventListener('change', () => {
     customDate = dateEl.value;
     persist();
+    // Bei Datum-Änderung auch laden
+    loadDataFn();
   });
 
+  // Nur UI updaten, NICHT automatisch laden
   updateUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // HP-Daten Map initialisieren
+  if (!window.realHpData) {
+    window.realHpData = new Map();
+    console.log('🗺️ HP-Daten Map initialisiert');
+  }
+
   // DOM-Elemente
   const toggleType = document.getElementById('toggleType');
   const toggleStorno = document.getElementById('toggleStorno');
@@ -95,20 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleListenersSetup = true;
   }
 
-  // Fallback: Suche Elemente später nochmal falls nicht gefunden
-  if (!toggleStorno) {
-    // Toggle elements not found initially, retrying...
-    setTimeout(() => {
-      if (!toggleListenersSetup) {
-        const retryStorno = document.getElementById('toggleStorno');
-        if (retryStorno) {
-          // Found toggle elements on retry
-          setupToggleListeners(retryStorno);
-          toggleListenersSetup = true;
-        }
-      }
-    }, 1000);
-  }
+  // Fallback: ENTFERNT - Keine verzögerten Element-Suchen mehr
+  // Elemente müssen sofort verfügbar sein
 
   const modal = document.getElementById('modal');
   const modalText = document.getElementById('modalText');
@@ -254,8 +252,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 4-Stufen Toggle initialisieren
-  initDateToggle(toggleType, filterDate, loadData);
+  // 4-Stufen Toggle initialisieren (OHNE automatisches Laden)
+  initDateToggle(toggleType, filterDate, function () {
+    // Callback für Toggle-Änderungen - lädt Daten nur bei Benutzeraktion
+    console.log('📅 Datums-Toggle geändert - lade Daten neu');
+    loadData();
+  });
 
   // Soundex für phonetische Suche
   function soundex(s) {
@@ -396,7 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const params = new URLSearchParams({ date, type: getType() });
+    const params = new URLSearchParams({
+      date,
+      type: getType(),
+      _t: Date.now() // Cache-Buster - Eindeutige Timestamp pro Anfrage
+    });
 
     // Paralleles Laden von Hauptdaten und HP-Daten für bessere Performance
     const dataPromise = window.HttpUtils
@@ -405,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? LoadingOverlay.wrapFetch(() => fetch(`data.php?${params}`).then(res => res.json()), 'Reservierungsliste')
         : fetch(`data.php?${params}`).then(res => res.json());
 
-    // HP-Daten parallel laden
+    // HP-Daten parallel laden mit Cache-Buster
     window.hpDataLoading = true; // Flag für andere Scripts
     const hpDataPromise = fetch(`get-all-hp-data.php?${params}`)
       .then(res => res.json())
@@ -417,9 +423,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.hpDataLoading = false; // Flag zurücksetzen
       });
 
-    // Beide Promises parallel ausführen
+    // Beide Promises parallel ausführen mit Fehlerbehandlung
     Promise.all([dataPromise, hpDataPromise])
       .then(([mainData, hpData]) => {
+        console.log('🔄 Beide APIs abgeschlossen:', {
+          mainDataValid: !mainData.error && Array.isArray(mainData),
+          hpDataValid: hpData.success && Array.isArray(hpData.data)
+        });
+
         if (mainData.error) {
           alert(mainData.error);
           return;
@@ -427,34 +438,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Hauptdaten verarbeiten
         rawData = mainData.map(r => ({ ...r, storno: Boolean(r.storno) }));
+        console.log(`📊 Hauptdaten geladen: ${rawData.length} Einträge`);
 
         // HP-Daten global speichern für sofortige Verwendung
-        if (hpData.success && window.realHpData) {
+        console.log('🔍 HP-Daten Check:', {
+          success: hpData.success,
+          dataLength: hpData.data?.length,
+          realHpDataExists: !!window.realHpData,
+          firstItem: hpData.data?.[0]
+        });
+
+        if (hpData.success && Array.isArray(hpData.data) && window.realHpData) {
           window.realHpData.clear();
+          let savedCount = 0;
           hpData.data.forEach(item => {
-            window.realHpData.set(item.res_id, {
-              hpArrangements: item.hp_arrangements,
-              checkedInCount: item.checked_in_count,
-              totalNames: item.total_names,
-              name: item.name,
-              sortGroup: item.sort_group,
-              sortDescription: item.sort_description
-            });
+            if (item.res_id && item.sort_group) {
+              window.realHpData.set(item.res_id, {
+                hpArrangements: item.hp_arrangements,
+                checkedInCount: item.checked_in_count,
+                totalNames: item.total_names,
+                name: item.name,
+                sortGroup: item.sort_group,
+                sortDescription: item.sort_description
+              });
+              savedCount++;
+            }
           });
           // Setze Cache-Key für Validierung in anderen Funktionen
           window.lastHpDataKey = `${date}_${getType()}`;
-          // HP-Daten parallel geladen
+          console.log(`✅ HP-Daten gespeichert: ${savedCount}/${hpData.data.length} Einträge mit Sortiergruppen`);
+
+          // Debug: Zeige Mapping zwischen Haupt- und HP-Daten
+          const mainIds = rawData.map(r => r.id);
+          const hpIds = Array.from(window.realHpData.keys());
+          const matchingIds = mainIds.filter(id => hpIds.includes(id));
+          console.log(`🔗 ID-Mapping: ${matchingIds.length}/${mainIds.length} Hauptdaten haben HP-Daten`);
+
+        } else {
+          console.warn('⚠️ HP-Daten konnten nicht gespeichert werden:', {
+            success: hpData.success,
+            isArray: Array.isArray(hpData.data),
+            realHpDataExists: !!window.realHpData,
+            error: hpData.error
+          });
         }
 
+        // Tabelle rendern (jetzt mit HP-Daten verfügbar)
         renderTable();
 
-        // Sortiergruppen DIREKT hier anwenden, da alle Daten verfügbar sind
-        setTimeout(() => {
-          applySortGroupsDirectly(hpData.success ? hpData.data : []);
-        }, 100);
-
-        // Koordination: Signalisiere Auto-Refresh dass neue Tabelle fertig ist
-        window.dispatchEvent(new CustomEvent('tableRebuilt'));
+        // Sortiergruppen werden bereits in renderTable() angewendet
       })
       .catch((error) => {
         console.error('Fehler beim Laden der Daten:', error);
@@ -464,9 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Tabelle rendern
   function renderTable() {
-    // Koordination: Signalisiere Auto-Refresh dass Tabelle neu erstellt wird
-    window.dispatchEvent(new CustomEvent('tableRebuilding'));
-
     let view = rawData.slice();
 
     // Storno-Filter
@@ -534,8 +563,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Prüfen ob Nachname fehlt oder leer ist
       const missingLastname = !r.nachname || r.nachname.trim() === '';
-      const nameClass = missingLastname ? 'name-cell name-missing-lastname' : 'name-cell';
-      const nameCell = `<td class="${nameClass}" data-id="${r.id}">${nameText}</td>`;
+      let nameClass = missingLastname ? 'name-cell name-missing-lastname' : 'name-cell';
+
+      // Sortiergruppen-Klassen direkt hinzufügen
+      const hpData = window.realHpData ? window.realHpData.get(r.id) : null;
+      if (hpData && hpData.sortGroup) {
+        const sortGroup = hpData.sortGroup.toLowerCase();
+        nameClass += ` sort-group-${sortGroup}`;
+        // Nur ersten Eintrag loggen um Console-Spam zu vermeiden
+        if (r === view[0]) {
+          console.log(`🎨 Sortiergruppe angewendet auf ersten Eintrag: ID ${r.id} → ${hpData.sortGroup}`);
+        }
+      } else {
+        // Nur ersten fehlenden Eintrag loggen
+        if (r === view[0]) {
+          console.log(`⚠️ Keine Sortiergruppe für ersten Eintrag: ID ${r.id}, HP-Data:`, hpData);
+        }
+      }
+
+      const nameCell = `<td class="${nameClass}" data-id="${r.id}" title="${hpData?.sortDescription || ''}">${nameText}</td>`;
 
       const bemHtml = r.bem && r.bem_av
         ? `${r.bem}<hr>${r.bem_av}`
@@ -809,20 +855,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === qrModal) qrModal.classList.remove('visible');
   });
 
-  // Back/Forward-Cache
-  window.addEventListener('pageshow', e => {
-    if (e.persisted) {
-      // 1. Filter (Storno, Open, Datum) wiederherstellen
-      loadFiltersFromStorage();
-
-      // 2. Suchfeld leer machen
-      searchInput.value = '';
-      localStorage.removeItem('searchTerm');
-
-      // 3. Daten neu laden
-      loadData();
-    }
-  });
+  // Back/Forward-Cache - ENTFERNT: Kein automatisches Nachladen mehr
+  // Bei Zurück-Navigation wird Seite einmal geladen, das reicht
 
   // === Navigation Status Update ===
   function updateNavigationStatus() {
@@ -881,11 +915,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Update Navigation Status alle 5 Sekunden
-  setInterval(updateNavigationStatus, 5000);
-
-  // Initial Status Update nach kurzer Verzögerung
-  setTimeout(updateNavigationStatus, 2000);
+  // Update Navigation Status - ENTFERNT: Kein periodisches Update mehr
+  // Navigation Status wird nicht mehr automatisch aktualisiert
 
   // Initial Load
   loadFiltersFromStorage();
@@ -907,74 +938,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadData();
 
-  // Seite neu laden wenn von anderen Seiten zurückgekehrt wird
-  window.addEventListener('focus', function () {
-    console.log('🔄 Reservierungen-Seite erhält Fokus - lade Daten neu');
-    loadData();
-  });
+  // === Manuelle Aktualisierung nur bei expliziten Benutzeraktionen ===
+  // ENTFERNT: Automatisches Neuladen bei Fokus/Tab-Wechsel
+  // Nur noch Daten laden beim ersten Laden der Seite
 
-  // Pagehide/Pageshow für bessere Mobile-Unterstützung
-  window.addEventListener('pageshow', function (e) {
-    if (e.persisted) {
-      console.log('🔄 Seite aus Cache geladen - lade Daten neu');
-      loadData();
-    }
-  });
-
-  // Visibility API für Tab-Wechsel
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) {
-      console.log('🔄 Tab wieder sichtbar - lade Daten neu');
-      loadData();
-    }
-  });
-
-  // === Sortiergruppen-Funktionalität ===
-  // Direkte Anwendung der Sortiergruppen basierend auf API-Daten
-  function applySortGroupsDirectly(hpDataArray) {
-    if (!hpDataArray || hpDataArray.length === 0) {
-      return;
-    }
-
-    // Erstelle Map für schnellen Zugriff
-    const dataMap = new Map();
-    hpDataArray.forEach(item => {
-      dataMap.set(item.res_id, item);
-    });
-
-    // Finde alle Tabellenzeilen
-    const rows = document.querySelectorAll('#resTable tbody tr');
-
-    let appliedCount = 0;
-    rows.forEach(row => {
-      const resId = parseInt(row.dataset.resId);
-      const nameCell = row.querySelector('.name-cell');
-
-      if (!nameCell || !resId) {
-        return;
-      }
-
-      const data = dataMap.get(resId);
-      if (data && data.sort_group) {
-        // Entferne alte Klassen
-        nameCell.classList.remove('sort-group-a', 'sort-group-b', 'sort-group-c', 'sort-group-d');
-
-        // Füge neue Klasse hinzu
-        const sortGroup = data.sort_group.toLowerCase();
-        const className = `sort-group-${sortGroup}`;
-        nameCell.classList.add(className);
-
-        // Setze Tooltip
-        nameCell.title = data.sort_description || `Sortiergruppe ${data.sort_group}`;
-
-        appliedCount++;
-      }
-    });
-
-    if (window.debugSortingEnabled) {
-      console.log(`🎨 Sortiergruppen-Einfärbung: ${appliedCount} von ${rows.length} Zeilen eingefärbt`);
-    }
-  }  // === Universelle Verbindungsstatus-Funktionen ===
+  // === Sortiergruppen-Funktionalität ENTFERNT ===
+  // Sortiergruppen werden jetzt direkt in renderTable() angewendet  // === Universelle Verbindungsstatus-Funktionen ===
   // Stelle sicher, dass updateNavigationStatus global verfügbar ist, auch wenn keine Navigation vorhanden
   if (!window.updateNavigationStatus) {
     window.updateNavigationStatus = function () {
@@ -997,17 +966,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // === Koordination mit Auto-Refresh-System ===
-  window.addEventListener('autoRefreshStarted', () => {
-    console.log('📡 Auto-Refresh gestartet - script.js pausiert');
-  });
+  // === Koordination mit Auto-Refresh-System ENTFERNT ===
+  // Kein Auto-Refresh mehr - nur einmal korrekte Darstellung beim Laden
 
-  window.addEventListener('autoRefreshCompleted', () => {
-    console.log('📡 Auto-Refresh abgeschlossen - script.js reaktiviert');
-  });
-
-  // Globale Funktionen für Auto-Refresh verfügbar machen
+  // Globale Funktionen verfügbar machen
   window.loadData = loadData;
 
-  console.log('✅ Script.js geladen und koordiniert mit Auto-Refresh');
+  console.log('✅ Script.js geladen - Auto-Refresh entfernt');
 });

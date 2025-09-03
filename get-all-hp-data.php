@@ -4,6 +4,12 @@
 require_once 'config.php';
 require_once 'hp-db-config.php';
 
+// Anti-Cache Headers - Verhindert Browser/Proxy-Caching
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+
 // Hilfsfunktion für Sortiergruppen-Beschreibungen
 function getSortGroupDescription($group, $hpArrangements, $totalNames, $checkedInCount, $reservedPersons = 0) {
     switch ($group) {
@@ -35,7 +41,9 @@ try {
     $date = $_GET['date'] ?? date('Y-m-d');
     $type = $_GET['type'] ?? 'arrival';
     
-    // Einfaches File-Caching für 30 Sekunden (reduziert DB-Last)
+    // CACHING DEAKTIVIERT für sofortige Updates
+    // Das 30-Sekunden-Caching war die Ursache für die Verzögerung!
+    /*
     $cacheKey = md5("hp-data-{$date}-{$type}");
     $cacheFile = sys_get_temp_dir() . "/hp_cache_{$cacheKey}.json";
     $cacheMaxAge = 30; // 30 Sekunden Cache
@@ -48,6 +56,7 @@ try {
             exit;
         }
     }
+    */
     
     // Hauptdatenbank-Verbindung (für AV-Daten) - verwende mysqli statt PDO
     $mysqli = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
@@ -223,9 +232,9 @@ try {
         'hp_db_available' => ($hpConn !== false)
     ];
     
-    // Cache speichern für künftige Anfragen
-    file_put_contents($cacheFile, json_encode($responseData));
-    header('X-Cache: MISS');
+    // Cache speichern DEAKTIVIERT - für sofortige Updates
+    // file_put_contents($cacheFile, json_encode($responseData));
+    header('X-Cache: DISABLED');
     
     echo json_encode($responseData);
     

@@ -2,6 +2,13 @@
 // data.php
 
 header('Content-Type: application/json');
+
+// Anti-Cache Headers - Verhindert Browser/Proxy-Caching
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+
 require 'config.php';
 
 // MySQL Error Mode lockern
