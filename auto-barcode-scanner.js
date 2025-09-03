@@ -49,6 +49,12 @@ class AutoBarcodeScanner {
             return;
         }
 
+        // Prüfe ob Auto-Refresh gerade läuft (um Konflikte zu vermeiden)
+        if (window.autoRefreshEnabled === false) {
+            // Auto-Refresh pausiert - Scanner soll trotzdem funktionieren
+            console.log('🔍 Scanner aktiv trotz pausiertem Auto-Refresh');
+        }
+
         // Nur normale Zeichen verarbeiten
         if (event.key.length === 1) {
             const char = event.key;
@@ -126,6 +132,11 @@ class AutoBarcodeScanner {
 
     processBarcodeData(barcode) {
         console.log('🔍 Verarbeite Barcode:', barcode);
+        console.log('🔍 Scanner-Status:', {
+            isReservationPage: this.isReservationPage,
+            isReservationListPage: this.isReservationListPage,
+            hasSearchInput: !!this.searchInput
+        });
 
         // Barcode auf max 20 Zeichen für Suche begrenzen
         const searchTerm = barcode.substring(0, 20);
@@ -235,10 +246,34 @@ class AutoBarcodeScanner {
     }
 }
 
-// Auto-Initialize nach DOM-Load
-document.addEventListener('DOMContentLoaded', () => {
-    // Kleine Verzögerung um sicherzustellen dass andere Scripts geladen sind
-    setTimeout(() => {
-        window.autoBarcodeScanner = new AutoBarcodeScanner();
-    }, 100);
-});
+// Auto-Initialize nach DOM-Load oder sofort wenn DOM bereits bereit
+function initializeScanner() {
+    console.log('🔍 Initialisiere Barcode-Scanner...');
+    window.autoBarcodeScanner = new AutoBarcodeScanner();
+
+    // Global verfügbare Test-Funktion
+    window.testBarcodeScanner = function (barcode = 'TEST123') {
+        console.log(`🧪 Teste Scanner mit: {${barcode}}`);
+
+        // Simuliere Scanner-Events
+        const scanner = window.autoBarcodeScanner;
+        if (scanner) {
+            scanner.buffer = '';
+            scanner.scannerActive = true;
+            scanner.buffer = barcode;
+            scanner.processBarcodeData(barcode);
+            scanner.resetScanner();
+        } else {
+            console.error('❌ Scanner nicht verfügbar');
+        }
+    };
+
+    console.log('✅ Barcode-Scanner initialisiert - Teste mit: testBarcodeScanner()');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeScanner);
+} else {
+    // DOM bereits geladen
+    initializeScanner();
+}

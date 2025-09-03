@@ -1,6 +1,17 @@
-// Automatisches Refresh-System (Hintergrund)
+// Koordiniertes Auto-Refresh-System (Version 2.0)
+// Arbeitet zusammen mit script.js statt dagegen
+
 let autoRefreshInterval = null;
 let autoRefreshEnabled = false;
+let scriptJsIsLoading = false;
+let lastTableRebuild = 0;
+let pendingSortUpdate = false;
+let isTabActive = !document.hidden;
+
+// Change Detection System
+let lastDataHash = null;
+let lastDataTimestamp = null;
+let lastReservationCount = 0;
 
 function startAutoRefresh() {
   if (autoRefreshInterval) {
@@ -8,91 +19,63 @@ function startAutoRefresh() {
   }
 
   autoRefreshEnabled = true;
-  console.log('🔄 Auto-Refresh gestartet (läuft im Hintergrund alle 10 Sekunden)');
+  console.log('🔄 Koordiniertes Auto-Refresh gestartet (alle 10 Sekunden)');
 
   autoRefreshInterval = setInterval(async () => {
-    if (!autoRefreshEnabled) {
-      // Tab ist inaktiv - markiere dass Sortierung nötig ist
+    if (!autoRefreshEnabled || scriptJsIsLoading) {
       pendingSortUpdate = true;
-      console.log('🔄 Auto-Refresh: Tab inaktiv - Sortierung wird bei Aktivierung nachgeholt');
+      console.log('🔄 Auto-Refresh pausiert - Sortierung wird nachgeholt');
+      return;
+    }
+
+    // Prüfe ob script.js gerade Tabelle neu erstellt hat
+    if (Date.now() - lastTableRebuild < 3000) {
+      console.log('🔄 Auto-Refresh übersprungen (Tabelle kürzlich neu erstellt)');
       return;
     }
 
     try {
-      console.log('🔄 Auto-Refresh: Aktualisiere Daten...');
+      console.log('🔄 Koordiniertes Auto-Refresh startet...');
 
-      // Cache invalidieren und neu laden
-      if (window.realHpData) {
-        window.realHpData.clear();
-      }
-      if (window.lastHpDataKey) {
-        window.lastHpDataKey = null;
-      }
+      // Signalisiere script.js dass wir arbeiten
+      window.dispatchEvent(new CustomEvent('autoRefreshStarted'));
 
-      // Prüfe ob loadRealHpData verfügbar ist
+      // Intelligent Change Detection + HP-Daten laden
       if (typeof window.loadRealHpData === 'function') {
-        const success = await window.loadRealHpData();
+        const changeResult = await detectRelevantChanges();
 
-        if (success) {
-          // Kurze Pause für DOM-Updates
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (changeResult.requiresFullRefresh) {
+          console.log('🔄 Relevante Änderungen erkannt - Vollständiger Seitenrefresh wird ausgelöst');
+          console.log('🔄 Änderungsdetails:', changeResult.changes);
 
-          // Farbschema aktualisieren (zuerst)
-          if (typeof window.updateColorScheme === 'function') {
-            // Bestimme aktuellen Modus
-            const mode = localStorage.getItem('filterMode') || 'arrival';
-            const isArrival = mode.startsWith('arrival');
-            window.updateColorScheme(isArrival);
-            console.log('✅ Auto-Refresh: Farbschema aktualisiert');
+          // Kurze Verzögerung für bessere UX
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+          return;
+        }
+
+        if (changeResult.success) {
+          // Prüfe ob wir wirklich neue Daten haben
+          if (window.realHpData && window.realHpData.size > 0) {
+            // Nur Formatierung anwenden
+            await applyFormattingOnly();
+            console.log('✅ Auto-Refresh erfolgreich abgeschlossen');
+          } else {
+            console.warn('⚠️ Auto-Refresh: Keine HP-Daten verfügbar für Formatierung');
           }
-
-          // Weitere Pause vor Sortierung
-          await new Promise(resolve => setTimeout(resolve, 200));
-
-          // NUR Sortierung anwenden OHNE erneuten Datenload
-          const tbody = document.querySelector('#resTable tbody');
-          if (tbody && window.realHpData) {
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(row => {
-              if (typeof window.setSortGroupForRow === 'function') {
-                window.setSortGroupForRow(row);
-              }
-            });
-            console.log('✅ Auto-Refresh: Sortgruppen direkt angewendet (ohne erneuten Datenload)');
-
-            // Stelle sicher, dass pending flag zurückgesetzt wird
-            pendingSortUpdate = false;
-          }
-
-          console.log('✅ Auto-Refresh: Vollständig aktualisiert (Daten + Formatierung + Sortierung)');
+        } else {
+          console.warn('⚠️ Auto-Refresh: Change Detection fehlgeschlagen');
         }
-      } else if (typeof window.loadData === 'function') {
-        // Fallback auf loadData wenn loadRealHpData nicht verfügbar
-        await window.loadData();
-
-        // Auch hier Formatierung anwenden
-        if (typeof window.setAllSortGroups === 'function') {
-          await window.setAllSortGroups();
-          console.log('✅ Auto-Refresh: Sortgruppen über loadData angewendet');
-        }
-
-        // Farbschema auch im Fallback
-        if (typeof window.updateColorScheme === 'function') {
-          const mode = localStorage.getItem('filterMode') || 'arrival';
-          const isArrival = mode.startsWith('arrival');
-          window.updateColorScheme(isArrival);
-          console.log('✅ Auto-Refresh: Farbschema über loadData aktualisiert');
-        }
-
-        console.log('✅ Auto-Refresh: Daten über loadData aktualisiert + formatiert');
-      } else {
-        console.warn('⚠️ Auto-Refresh: Keine Ladefunktionen verfügbar');
       }
+
+      // Signalisiere script.js dass wir fertig sind
+      window.dispatchEvent(new CustomEvent('autoRefreshCompleted'));
 
     } catch (error) {
       console.error('❌ Auto-Refresh Fehler:', error);
     }
-  }, 10000); // 10 Sekunden
+  }, 10000);
 }
 
 function stopAutoRefresh() {
@@ -104,105 +87,207 @@ function stopAutoRefresh() {
   console.log('⏹️ Auto-Refresh gestoppt');
 }
 
-// Global verfügbar machen
-window.startAutoRefresh = startAutoRefresh;
-window.stopAutoRefresh = stopAutoRefresh;
-
-// Debug- und Test-Funktionen
-window.testImmediateSorting = () => applyImmediateSorting('manual-test');
-window.forceSortingNow = () => {
-  console.log('🔧 Erzwinge Sortierung JETZT...');
-  pendingSortUpdate = true;
-  return applyImmediateSorting('force-manual');
-};
-
-window.debugAutoRefresh = function () {
-  console.log('=== AUTO-REFRESH DEBUG ===');
-  console.log('autoRefreshEnabled:', autoRefreshEnabled);
-  console.log('pendingSortUpdate:', pendingSortUpdate);
-  console.log('isTabActive:', isTabActive);
-  console.log('autoRefreshInterval:', autoRefreshInterval ? 'läuft' : 'gestoppt');
-  console.log('realHpData verfügbar:', !!window.realHpData);
-  console.log('realHpData Größe:', window.realHpData ? window.realHpData.size : 'N/A');
-  console.log('loadRealHpData verfügbar:', typeof window.loadRealHpData === 'function');
-  console.log('setSortGroupForRow verfügbar:', typeof window.setSortGroupForRow === 'function');
-  console.log('updateColorScheme verfügbar:', typeof window.updateColorScheme === 'function');
-
-  const tbody = document.querySelector('#resTable tbody');
-  console.log('Tabellen-Body:', tbody ? `${tbody.children.length} Zeilen` : 'nicht gefunden');
-
-  // Teste sofortige Sortierung
-  console.log('--- TESTE SOFORTIGE SORTIERUNG ---');
-  window.forceSortingNow();
-};
-
-// Auto-Refresh starten nach Seitenladen
-window.addEventListener('load', () => {
-  // Sofort Event-Listener installieren
-  setupRobustEventListeners();
-
-  setTimeout(() => {
-    // Warte bis alle Funktionen geladen sind
-    if (typeof window.loadRealHpData === 'function' || typeof window.loadData === 'function') {
-      startAutoRefresh();
-
-      // Initiale Sortierung nach 1 Sekunde
-      setTimeout(() => {
-        console.log('🔄 Initiale Sortierung beim Laden');
-        applyImmediateSorting('initial-load');
-      }, 1000);
-
+// Intelligent Change Detection für relevante Datenänderungen
+async function detectRelevantChanges() {
+  try {
+    // Verwende die gleiche Logik wie loadRealHpData für URL-Parameter
+    let date;
+    const mode = localStorage.getItem('filterMode') || 'arrival';
+    if (mode === 'arrival-today') {
+      date = new Date().toISOString().slice(0, 10);
+    } else if (mode === 'departure-tomorrow') {
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      date = d.toISOString().slice(0, 10);
     } else {
-      console.warn('⚠️ Auto-Refresh: Warte auf Verfügbarkeit der Ladefunktionen...');
-      // Versuche nochmal nach weiteren 2 Sekunden
-      setTimeout(() => {
-        if (typeof window.loadRealHpData === 'function' || typeof window.loadData === 'function') {
-          startAutoRefresh();
-          setTimeout(() => applyImmediateSorting('delayed-load'), 500);
-        }
-      }, 2000);
+      const filterDateEl = document.getElementById('filterDate');
+      date = filterDateEl ? filterDateEl.value : new Date().toISOString().slice(0, 10);
     }
-  }, 3000); // Reduziert von 5000ms auf 3000ms
-});
 
-// Robuste Event-Erkennung für alle Plattformen
-let pendingSortUpdate = false;
-let lastVisibilityChange = 0;
-let isTabActive = !document.hidden;
+    const type = (localStorage.getItem('filterMode') || 'arrival').startsWith('arrival') ? 'arrival' : 'departure';
+    const url = `get-all-hp-data.php?date=${date}&type=${type}&change_detect=1`;
 
-// Funktion für sofortige Sortierung (vereinfacht und robuster)
-async function applyImmediateSorting(source = 'unbekannt') {
-  console.log(`🔄 Sofortige Sortierung ausgelöst von: ${source}`);
+    const response = await fetch(url);
+    const data = await response.json();
 
-  // Stelle sicher, dass wir Daten haben
-  if (!window.realHpData || window.realHpData.size === 0) {
-    console.warn('⚠️ Keine Daten verfügbar - lade Daten nach');
-    if (typeof window.loadRealHpData === 'function') {
-      const success = await window.loadRealHpData();
-      if (!success) {
-        console.error('❌ Datenload fehlgeschlagen');
-        return false;
+    if (!data.success) {
+      console.warn('⚠️ Change Detection: Fehler beim Laden der Daten');
+      return { success: false, requiresFullRefresh: false };
+    }
+
+    // Erstelle Hash der relevanten Daten
+    const currentDataHash = generateDataHash(data.data);
+    const currentTimestamp = data.timestamp || Date.now();
+    const currentReservationCount = data.data.length;
+
+    let requiresFullRefresh = false;
+    let changes = [];
+
+    // Erste Initialisierung
+    if (lastDataHash === null) {
+      lastDataHash = currentDataHash;
+      lastDataTimestamp = currentTimestamp;
+      lastReservationCount = currentReservationCount;
+      console.log('🔍 Change Detection initialisiert');
+
+      // Cache invalidieren und neu laden für erste Ausführung
+      if (window.realHpData) {
+        window.realHpData.clear();
       }
-    } else {
-      console.error('❌ loadRealHpData Funktion nicht verfügbar');
-      return false;
+      if (window.lastHpDataKey) {
+        window.lastHpDataKey = null;
+      }
+
+      const success = await window.loadRealHpData();
+      return { success, requiresFullRefresh: false, changes: ['Initial Load'] };
+    }
+
+    // Prüfe auf relevante Änderungen
+    if (currentReservationCount !== lastReservationCount) {
+      changes.push(`Anzahl Reservierungen: ${lastReservationCount} → ${currentReservationCount}`);
+      requiresFullRefresh = true;
+    }
+
+    if (currentDataHash !== lastDataHash) {
+      changes.push('HP-Arrangements oder Sortiergruppen geändert');
+
+      // Bei Hash-Änderung prüfen ob es nur Formatierungs-relevante Änderungen sind
+      const oldData = window.realHpData ? Array.from(window.realHpData.values()) : [];
+      const significantChanges = detectSignificantChanges(oldData, data.data);
+
+      if (significantChanges.length > 0) {
+        changes.push(...significantChanges);
+        requiresFullRefresh = true;
+      }
+    }
+
+    // Update tracking variables
+    lastDataHash = currentDataHash;
+    lastDataTimestamp = currentTimestamp;
+    lastReservationCount = currentReservationCount;
+
+    if (!requiresFullRefresh) {
+      // Auch bei normalen Updates die HP-Daten laden
+      if (window.realHpData) {
+        window.realHpData.clear();
+      }
+      if (window.lastHpDataKey) {
+        window.lastHpDataKey = null;
+      }
+
+      const success = await window.loadRealHpData();
+      console.log(`🔄 HP-Daten geladen: ${success ? 'erfolgreich' : 'fehlgeschlagen'}, ${window.realHpData ? window.realHpData.size : 0} Einträge`);
+      return { success, requiresFullRefresh: false, changes: changes.length > 0 ? changes : ['Normale Aktualisierung'] };
+    }
+
+    return { success: true, requiresFullRefresh, changes };
+
+  } catch (error) {
+    console.error('❌ Change Detection Fehler:', error);
+    // Bei Fehler normales Update durchführen
+    if (window.realHpData) {
+      window.realHpData.clear();
+    }
+    if (window.lastHpDataKey) {
+      window.lastHpDataKey = null;
+    }
+
+    const success = await window.loadRealHpData();
+    return { success, requiresFullRefresh: false, changes: ['Fehler bei Change Detection'] };
+  }
+}
+
+// Generiere Hash für Datenvergleich
+function generateDataHash(data) {
+  // Erstelle String mit relevanten Daten für Hash
+  const relevantData = data.map(item => ({
+    res_id: item.res_id,
+    hp_arrangements: item.hp_arrangements,
+    checked_in_count: item.checked_in_count,
+    total_names: item.total_names,
+    sort_group: item.sort_group
+  }));
+
+  const dataString = JSON.stringify(relevantData);
+
+  // Simple Hash-Funktion
+  let hash = 0;
+  for (let i = 0; i < dataString.length; i++) {
+    const char = dataString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+
+  return hash.toString(36);
+}
+
+// Erkenne signifikante Änderungen die einen Refresh erfordern
+function detectSignificantChanges(oldData, newData) {
+  const changes = [];
+
+  // Erstelle Maps für einfacheren Vergleich
+  const oldMap = new Map(oldData.map(item => [item.res_id, item]));
+  const newMap = new Map(newData.map(item => [item.res_id, item]));
+
+  // Prüfe auf neue Reservierungen
+  for (const [resId, newItem] of newMap) {
+    if (!oldMap.has(resId)) {
+      changes.push(`Neue Reservierung: ${newItem.name || resId}`);
     }
   }
 
-  console.log(`📊 Verwende ${window.realHpData.size} Daten-Einträge`);
+  // Prüfe auf gelöschte Reservierungen
+  for (const [resId, oldItem] of oldMap) {
+    if (!newMap.has(resId)) {
+      changes.push(`Gelöschte Reservierung: ${oldItem.name || resId}`);
+    }
+  }
 
-  // 1. Farbschema SOFORT anwenden
+  // Prüfe auf signifikante Änderungen in bestehenden Reservierungen
+  for (const [resId, newItem] of newMap) {
+    const oldItem = oldMap.get(resId);
+    if (oldItem) {
+      // Prüfe HP-Arrangements Änderungen
+      if (oldItem.hpArrangements !== newItem.hp_arrangements) {
+        changes.push(`HP-Arrangements geändert für ${newItem.name || resId}: ${oldItem.hpArrangements} → ${newItem.hp_arrangements}`);
+      }
+
+      // Prüfe Check-in Count Änderungen (signifikant ab Differenz > 1)
+      const checkinDiff = Math.abs((oldItem.checkedInCount || 0) - (newItem.checked_in_count || 0));
+      if (checkinDiff > 1) {
+        changes.push(`Check-in Count signifikant geändert für ${newItem.name || resId}: ${oldItem.checkedInCount} → ${newItem.checked_in_count}`);
+      }
+
+      // Prüfe Sortiergruppen-Änderungen
+      if (oldItem.sortGroup !== newItem.sort_group) {
+        changes.push(`Sortiergruppe geändert für ${newItem.name || resId}: ${oldItem.sortGroup} → ${newItem.sort_group}`);
+      }
+    }
+  }
+
+  return changes;
+}
+
+// Neue Funktion: Nur Formatierung anwenden (keine Daten laden)
+async function applyFormattingOnly() {
+  console.log('🎨 Wende nur Formatierung an...');
+
+  // 1. Farbschema aktualisieren
   if (typeof window.updateColorScheme === 'function') {
     const mode = localStorage.getItem('filterMode') || 'arrival';
     const isArrival = mode.startsWith('arrival');
     window.updateColorScheme(isArrival);
-    console.log('✅ Farbschema sofort angewendet');
+    console.log('✅ Farbschema aktualisiert');
   }
 
-  // 2. Sortierung SOFORT anwenden
+  // 2. Sortierung anwenden
   const tbody = document.querySelector('#resTable tbody');
   if (!tbody) {
-    console.warn('⚠️ Tabellen-Body nicht gefunden');
+    console.warn('⚠️ Tabelle nicht gefunden');
+    return false;
+  }
+
+  if (!window.realHpData || window.realHpData.size === 0) {
+    console.warn('⚠️ Keine HP-Daten für Sortierung verfügbar');
     return false;
   }
 
@@ -213,80 +298,210 @@ async function applyImmediateSorting(source = 'unbekannt') {
     if (typeof window.setSortGroupForRow === 'function') {
       const resId = parseInt(row.dataset.resId);
       if (window.realHpData.has(resId)) {
-        const realData = window.realHpData.get(resId);
         window.setSortGroupForRow(row);
         appliedCount++;
 
-        // Debug für erste 3 Zeilen
-        if (index < 3) {
+        // Debug für erste 2 Zeilen
+        if (index < 2) {
           const nameCell = row.querySelector('.name-cell');
-          const classes = nameCell ? Array.from(nameCell.classList).join(', ') : 'keine name-cell';
-          console.log(`🔍 Zeile ${index}: ResID ${resId}, Gruppe "${realData.sortGroup}", Klassen: [${classes}]`);
+          const classes = nameCell ? Array.from(nameCell.classList).filter(c => c.startsWith('sort-group')).join(', ') : 'keine';
+          const realData = window.realHpData.get(resId);
+          console.log(`🔍 Zeile ${index}: ResID ${resId}, Gruppe "${realData.sortGroup}", CSS: [${classes}]`);
         }
       }
     }
   });
 
-  // 3. FORCED REPAINT (aggressiv für alle Browser)
+  // Forced Repaint für sofortige Sichtbarkeit
   tbody.style.visibility = 'hidden';
   tbody.offsetHeight; // Force reflow
   tbody.style.visibility = 'visible';
 
-  // Zusätzlicher Repaint-Trick
-  document.body.classList.add('force-repaint');
-  requestAnimationFrame(() => {
-    document.body.classList.remove('force-repaint');
-  });
-
-  console.log(`✅ Sortierung abgeschlossen: ${appliedCount}/${rows.length} Zeilen verarbeitet + Repaint erzwungen`);
+  console.log(`✅ Formatierung angewendet: ${appliedCount}/${rows.length} Zeilen verarbeitet`);
   pendingSortUpdate = false;
   return true;
 }
 
-// Einfaches aber robustes Event-System
-function setupRobustEventListeners() {
-  // Track Tab-Status
+// Event-Listener für Koordination mit script.js
+function setupCoordinatedEvents() {
+  // Höre auf script.js Signale
+  window.addEventListener('tableRebuilding', () => {
+    scriptJsIsLoading = true;
+    console.log('📡 script.js erstellt Tabelle neu - Auto-Refresh pausiert');
+  });
+
+  window.addEventListener('tableRebuilt', () => {
+    scriptJsIsLoading = false;
+    lastTableRebuild = Date.now();
+    console.log('📡 Tabelle von script.js neu erstellt - Auto-Refresh reaktiviert');
+
+    // Nach Tabellen-Neuerstellung sofort Formatierung anwenden
+    setTimeout(async () => {
+      if (window.realHpData && window.realHpData.size > 0) {
+        console.log('🎨 Wende Formatierung nach Tabellen-Rebuild an');
+        await applyFormattingOnly();
+      } else {
+        pendingSortUpdate = true;
+        console.log('⏳ Formatierung wird nachgeholt sobald Daten verfügbar');
+      }
+    }, 200);
+  });
+
+  // Tab-Sichtbarkeit verwalten
   document.addEventListener('visibilitychange', () => {
     const wasActive = isTabActive;
     isTabActive = !document.hidden;
-    lastVisibilityChange = Date.now();
 
     if (!wasActive && isTabActive) {
-      // Tab wurde gerade aktiviert
-      console.log('🔄 Tab aktiviert - führe Sortierung aus');
-      setTimeout(() => applyImmediateSorting('visibilitychange'), 100);
-    }
-
-    if (isTabActive) {
+      console.log('🔄 Tab aktiviert - prüfe auf Änderungen');
       autoRefreshEnabled = true;
+
+      // WICHTIG: Change Detection statt nur Formatierung
+      setTimeout(async () => {
+        console.log('🔄 Führe Change Detection nach Tab-Aktivierung aus');
+        const changeResult = await detectRelevantChanges();
+
+        if (changeResult.requiresFullRefresh) {
+          console.log('🔄 Änderungen bei Tab-Aktivierung erkannt - Vollrefresh');
+          console.log('🔄 Änderungsdetails:', changeResult.changes);
+          setTimeout(() => window.location.reload(), 500);
+          return;
+        }
+
+        if (changeResult.success && window.realHpData && window.realHpData.size > 0) {
+          console.log('🎨 Wende Formatierung nach Tab-Aktivierung an');
+          await applyFormattingOnly();
+          pendingSortUpdate = false;
+        } else {
+          console.warn('⚠️ Tab-Aktivierung: Keine Daten für Formatierung verfügbar');
+        }
+      }, 300);
+
+      // Auto-Refresh wieder starten
       if (!autoRefreshInterval) {
-        setTimeout(startAutoRefresh, 2000);
+        setTimeout(startAutoRefresh, 1000);
       }
-    } else {
+    } else if (wasActive && !isTabActive) {
+      console.log('🔄 Tab deaktiviert');
       autoRefreshEnabled = false;
       pendingSortUpdate = true;
     }
   });
 
-  // Window Focus (für Desktop)
-  window.addEventListener('focus', () => {
-    console.log('🔄 Window Focus - führe Sortierung aus');
-    setTimeout(() => applyImmediateSorting('focus'), 100);
-  });
-
-  // Page Show (für Mobile und Back-Navigation)
+  // Page Show für Mobile/Zurück-Navigation
   window.addEventListener('pageshow', (event) => {
-    console.log('🔄 Page Show - führe Sortierung aus');
-    setTimeout(() => applyImmediateSorting('pageshow'), 150);
+    console.log('🔄 Page Show Event - prüfe auf Änderungen');
+    setTimeout(async () => {
+      const changeResult = await detectRelevantChanges();
+
+      if (changeResult.requiresFullRefresh) {
+        console.log('🔄 Änderungen bei Page Show erkannt - Vollrefresh');
+        console.log('🔄 Änderungsdetails:', changeResult.changes);
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      if (changeResult.success && window.realHpData && window.realHpData.size > 0) {
+        await applyFormattingOnly();
+      }
+    }, 200);
   });
 
-  // Backup: Polling System (alle 2 Sekunden prüfen ob Sortierung nötig)
-  setInterval(() => {
-    if (isTabActive && pendingSortUpdate && Date.now() - lastVisibilityChange > 1000) {
-      console.log('🔄 Backup-Polling aktiviert - führe Sortierung aus');
-      applyImmediateSorting('polling-backup');
+  // Window Focus für Desktop
+  window.addEventListener('focus', () => {
+    console.log('🔄 Window Focus - prüfe auf Änderungen');
+    setTimeout(async () => {
+      const changeResult = await detectRelevantChanges();
+
+      if (changeResult.requiresFullRefresh) {
+        console.log('🔄 Änderungen bei Window Focus erkannt - Vollrefresh');
+        console.log('🔄 Änderungsdetails:', changeResult.changes);
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      if (changeResult.success && window.realHpData && window.realHpData.size > 0) {
+        await applyFormattingOnly();
+      }
+    }, 100);
+  });
+
+  console.log('✅ Koordinierte Event-Listener installiert');
+}
+
+// Initialisierung
+window.addEventListener('load', () => {
+  // Event-System sofort installieren
+  setupCoordinatedEvents();
+
+  // Auto-Refresh nach Verzögerung starten
+  setTimeout(() => {
+    if (typeof window.loadRealHpData === 'function' || typeof window.loadData === 'function') {
+      startAutoRefresh();
+
+      // Initiale Formatierung
+      setTimeout(() => {
+        console.log('🎨 Initiale Formatierung beim Laden');
+        applyFormattingOnly();
+      }, 2000);
+    } else {
+      console.warn('⚠️ Warte auf Verfügbarkeit der Funktionen...');
+      setTimeout(() => {
+        if (typeof window.loadRealHpData === 'function') {
+          startAutoRefresh();
+        }
+      }, 3000);
     }
   }, 2000);
+});
 
-  console.log('✅ Robuste Event-Listener installiert');
-}
+// Global verfügbare Funktionen
+window.startAutoRefresh = startAutoRefresh;
+window.stopAutoRefresh = stopAutoRefresh;
+window.applyFormattingOnly = applyFormattingOnly;
+
+// Debug-Funktionen
+window.testCoordinatedSorting = () => applyFormattingOnly();
+window.testChangeDetection = () => detectRelevantChanges();
+
+window.debugCoordinatedRefresh = function () {
+  console.log('=== KOORDINIERTES AUTO-REFRESH DEBUG ===');
+  console.log('autoRefreshEnabled:', autoRefreshEnabled);
+  console.log('scriptJsIsLoading:', scriptJsIsLoading);
+  console.log('pendingSortUpdate:', pendingSortUpdate);
+  console.log('isTabActive:', isTabActive);
+  console.log('lastTableRebuild:', new Date(lastTableRebuild).toLocaleTimeString());
+  console.log('autoRefreshInterval:', autoRefreshInterval ? 'läuft' : 'gestoppt');
+  console.log('realHpData verfügbar:', !!window.realHpData);
+  console.log('realHpData Größe:', window.realHpData ? window.realHpData.size : 'N/A');
+
+  console.log('=== CHANGE DETECTION STATUS ===');
+  console.log('lastDataHash:', lastDataHash);
+  console.log('lastReservationCount:', lastReservationCount);
+  console.log('lastDataTimestamp:', lastDataTimestamp ? new Date(lastDataTimestamp).toLocaleTimeString() : 'nie');
+
+  const tbody = document.querySelector('#resTable tbody');
+  console.log('Tabelle:', tbody ? `${tbody.children.length} Zeilen` : 'nicht gefunden');
+
+  console.log('--- TESTE FORMATIERUNG ---');
+  window.testCoordinatedSorting();
+
+  console.log('--- TESTE CHANGE DETECTION ---');
+  window.testChangeDetection().then(result => {
+    console.log('Change Detection Ergebnis:', result);
+  });
+};
+
+window.forcePageRefresh = function () {
+  console.log('🔄 Erzwinge Seitenrefresh...');
+  window.location.reload();
+};
+
+window.resetChangeDetection = function () {
+  lastDataHash = null;
+  lastDataTimestamp = null;
+  lastReservationCount = 0;
+  console.log('🔄 Change Detection zurückgesetzt');
+};
+
+console.log('✅ Koordiniertes Auto-Refresh-System mit Change Detection geladen');

@@ -526,13 +526,14 @@
       document.head.appendChild(syncScript);
     }, 3000);
   </script>
-  <!-- Auto-Barcode-Scanner verzögert laden -->
+  <!-- Auto-Barcode-Scanner sofort laden (nicht verzögert) -->
   <script>
-    setTimeout(() => {
-      const barcodeScript = document.createElement('script');
-      barcodeScript.src = 'auto-barcode-scanner.js';
-      document.head.appendChild(barcodeScript);
-    }, 1500);
+    // Scanner sofort laden für bessere Responsivität
+    const barcodeScript = document.createElement('script');
+    barcodeScript.src = 'auto-barcode-scanner.js';
+    barcodeScript.onload = () => console.log('✅ Barcode-Scanner geladen');
+    barcodeScript.onerror = () => console.error('❌ Barcode-Scanner Ladefehler');
+    document.head.appendChild(barcodeScript);
   </script>
   <script src="script.js"></script>
 
@@ -640,6 +641,39 @@
 
   <script>
     // Automatischer Barcode-Scanner läuft im Hintergrund und reagiert auf {..} Pattern
+    // Test mit {test123} oder einem echten Barcode
+
+    // QR-Scanner Debug Panel (nur bei Debug-Mode)
+    if (localStorage.getItem('debugMode') === 'true') {
+      const debugPanel = document.createElement('div');
+      debugPanel.style.cssText = `
+        position: fixed; top: 10px; right: 10px; 
+        background: rgba(0,0,0,0.8); color: white; 
+        padding: 10px; border-radius: 5px; 
+        font-family: monospace; font-size: 12px;
+        z-index: 9999; max-width: 300px;
+      `;
+      debugPanel.innerHTML = `
+        <h4>🔍 QR-Scanner Debug</h4>
+        <button onclick="testBarcodeScanner('TEST123')" style="margin: 2px;">Test Scanner</button>
+        <button onclick="window.location.href='qr-test.html'" style="margin: 2px;">Volltest</button>
+        <button onclick="localStorage.removeItem('debugMode'); location.reload();" style="margin: 2px;">Ausblenden</button>
+        <div id="scanner-debug-info">Scanner wird geladen...</div>
+      `;
+      document.body.appendChild(debugPanel);
+
+      // Update Debug Info
+      setInterval(() => {
+        const info = document.getElementById('scanner-debug-info');
+        if (info && window.autoBarcodeScanner) {
+          info.innerHTML = `
+            Status: ${window.autoBarcodeScanner.scannerActive ? 'AKTIV' : 'Bereit'}<br>
+            Buffer: "${window.autoBarcodeScanner.buffer}"<br>
+            Seite: ${window.autoBarcodeScanner.isReservationListPage ? 'Liste' : 'Andere'}
+          `;
+        }
+      }, 1000);
+    }
 
     // Global variable to store real HP data (auch für script.js verfügbar)
     window.realHpData = new Map();

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR-Code Scanner Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 10px;
+            margin: 10px;
+            width: 300px;
+        }
+
+        #connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #28a745;
+        }
+
+        .status-text {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 QR-Code Scanner Test</h1>
+
+    <!-- Connection Indicator für Scanner-Status -->
+    <div id="connection-indicator">
+        <div class="status-dot"></div>
+        <div class="status-text">Online</div>
+    </div>
+
+    <div class="test-section">
+        <h2>1. Automatischer Scanner Test</h2>
+        <p>Tippen Sie <code>{test123}</code> um den Scanner zu testen.</p>
+        <p>Der Scanner erkennt automatisch Text zwischen <strong>{</strong> und <strong>}</strong></p>
+
+        <input type="text" id="searchInput" placeholder="Suchfeld (wird automatisch befüllt)">
+
+        <div id="auto-test-result" class="status info">
+            Warten auf Scanner-Input...
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. API Test</h2>
+        <input type="text" id="barcode-input" placeholder="Barcode zum Testen eingeben" value="test123">
+        <button onclick="testBarcodeAPI()">API Testen</button>
+
+        <div id="api-result" class="status info">
+            Bereit für API-Test...
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Scanner Status</h2>
+        <button onclick="checkScannerStatus()">Scanner Status prüfen</button>
+        <button onclick="simulateBarcode()">Barcode simulieren</button>
+
+        <div id="scanner-status" class="status info">
+            Scanner-Status wird hier angezeigt...
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Debug Logs</h2>
+        <button onclick="clearLogs()">Logs löschen</button>
+        <pre id="debug-logs" style="background: #f8f9fa; padding: 10px; max-height: 200px; overflow-y: auto;"></pre>
+    </div>
+
+    <script>
+        // Debug-Logging überschreiben
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debug-logs');
+            logElement.textContent += `[${timestamp}] ${type}: ${args.join(' ')}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        console.log = function (...args) {
+            addLog('LOG', ...args);
+            originalLog.apply(console, arguments);
+        };
+
+        console.error = function (...args) {
+            addLog('ERROR', ...args);
+            originalError.apply(console, arguments);
+        };
+
+        console.warn = function (...args) {
+            addLog('WARN', ...args);
+            originalWarn.apply(console, arguments);
+        };
+
+        // Test-Funktionen
+        async function testBarcodeAPI() {
+            const barcode = document.getElementById('barcode-input').value;
+            const resultDiv = document.getElementById('api-result');
+
+            resultDiv.className = 'status info';
+            resultDiv.textContent = 'API wird getestet...';
+
+            try {
+                const response = await fetch(`searchBarcode.php?barcode=${encodeURIComponent(barcode)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'status success';
+                    resultDiv.innerHTML = `✅ API erfolgreich:<br>
+                        Name: ${data.data.vorname} ${data.data.nachname}<br>
+                        AV-ID: ${data.data.av_id}<br>
+                        CardName: ${data.data.cardName}`;
+                } else {
+                    resultDiv.className = 'status warning';
+                    resultDiv.innerHTML = `⚠️ Nicht gefunden:<br>
+                        ${data.message}<br>
+                        Debug: ${JSON.stringify(data.debug, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'status error';
+                resultDiv.textContent = `❌ API Fehler: ${error.message}`;
+            }
+        }
+
+        function checkScannerStatus() {
+            const statusDiv = document.getElementById('scanner-status');
+
+            if (window.autoBarcodeScanner) {
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `✅ Scanner geladen:<br>
+                    Aktiv: ${window.autoBarcodeScanner.scannerActive}<br>
+                    Buffer: "${window.autoBarcodeScanner.buffer}"<br>
+                    Reservierungsseite: ${window.autoBarcodeScanner.isReservationPage}<br>
+                    Listenseite: ${window.autoBarcodeScanner.isReservationListPage}`;
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Scanner nicht geladen';
+            }
+        }
+
+        function simulateBarcode() {
+            const testBarcode = 'TEST123';
+            console.log(`🧪 Simuliere Barcode: {${testBarcode}}`);
+
+            // Simuliere Tastatureingaben
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: '{' }));
+
+            for (let char of testBarcode) {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: char }));
+            }
+
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: '}' }));
+
+            document.getElementById('auto-test-result').className = 'status info';
+            document.getElementById('auto-test-result').textContent = `🧪 Barcode simuliert: {${testBarcode}}`;
+        }
+
+        function clearLogs() {
+            document.getElementById('debug-logs').textContent = '';
+        }
+
+        // Search Input Event Listener
+        document.getElementById('searchInput').addEventListener('input', function (e) {
+            const resultDiv = document.getElementById('auto-test-result');
+            if (this.value) {
+                resultDiv.className = 'status success';
+                resultDiv.textContent = `✅ Scanner hat Suchfeld befüllt: "${this.value}"`;
+            }
+        });
+    </script>
+
+    <!-- Lade den Auto-Barcode-Scanner -->
+    <script src="auto-barcode-scanner.js"></script>
+</body>
+
+</html>

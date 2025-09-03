@@ -452,6 +452,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
           applySortGroupsDirectly(hpData.success ? hpData.data : []);
         }, 100);
+
+        // Koordination: Signalisiere Auto-Refresh dass neue Tabelle fertig ist
+        window.dispatchEvent(new CustomEvent('tableRebuilt'));
       })
       .catch((error) => {
         console.error('Fehler beim Laden der Daten:', error);
@@ -461,6 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Tabelle rendern
   function renderTable() {
+    // Koordination: Signalisiere Auto-Refresh dass Tabelle neu erstellt wird
+    window.dispatchEvent(new CustomEvent('tableRebuilding'));
+
     let view = rawData.slice();
 
     // Storno-Filter
@@ -990,4 +996,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   };
+
+  // === Koordination mit Auto-Refresh-System ===
+  window.addEventListener('autoRefreshStarted', () => {
+    console.log('📡 Auto-Refresh gestartet - script.js pausiert');
+  });
+
+  window.addEventListener('autoRefreshCompleted', () => {
+    console.log('📡 Auto-Refresh abgeschlossen - script.js reaktiviert');
+  });
+
+  // Globale Funktionen für Auto-Refresh verfügbar machen
+  window.loadData = loadData;
+
+  console.log('✅ Script.js geladen und koordiniert mit Auto-Refresh');
 });
