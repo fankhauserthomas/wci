@@ -5,6 +5,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Anti-Cache Meta Tags - Verhindert Browser-Caching -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta http-equiv="Last-Modified" content="">
+
   <title>Reservierungsliste - WebCheckin</title>
   <link rel="stylesheet" href="style.css">
   <style>
@@ -491,6 +498,7 @@
   <script src="js/email-utils.js"></script>
   <script src="js/http-utils.js"></script>
   <script src="js/loading-overlay.js"></script>
+  <script src="js/auto-refresh.js"></script>
   <!-- QRCode.js erst bei Bedarf laden -->
   <script>
     // QR-Code Script nur laden wenn QR-Modal geöffnet wird
@@ -825,6 +833,9 @@
         // Keine HP-Daten für resId
       }
     }
+
+    // Globale Verfügbarkeit für Auto-Refresh
+    window.setSortGroupForRow = setSortGroupForRow;
 
     // Alle Zeilen auf einmal prüfen (wird nach Tabellenerstellung aufgerufen)
     async function setAllSortGroups() {

@@ -1,6 +1,12 @@
 <?php
 // WCI Simple Access Dashboard - Fokus auf Dateizugriffe
+
+// Anti-Cache Headers - Verhindert Browser-Caching
 header('Content-Type: text/html; charset=utf-8');
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
 // Papierkorb-Funktion (Einzeldatei)
 if (isset($_POST['move_to_trash']) && isset($_POST['filename'])) {
