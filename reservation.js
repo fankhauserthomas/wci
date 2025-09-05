@@ -985,6 +985,9 @@ document.addEventListener('DOMContentLoaded', () => {
         detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
       }
 
+      // AV-Zelle vorbereiten
+      const isAv = n.av === true || n.av === 1 || n.av === '1' || n.av === 'true';
+
       tr.innerHTML = `
         <td><input type="checkbox" class="rowCheckbox"></td>
         <td class="name-cell">${n.nachname || ''} ${n.vorname || ''}</td>
@@ -993,6 +996,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="bem-cell">${n.bem || ''}</td>
         <td class="guide-cell">
           <span class="guide-icon">${n.guide ? '✓' : '○'}</span>
+        </td>
+        <td class="av-cell">
+          ${isAv ? '<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">' : '<span class="av-icon">○</span>'}
         </td>
         <td class="arr-cell">${n.arr || '–'}</td>
         <td class="diet-cell">${n.diet_text || '–'}</td>
@@ -1013,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
         </td>
       `;
+
       tbody.appendChild(tr);
 
       // Scrolling zu hervorgehobener Zeile nach kurzer Verzögerung
@@ -1073,6 +1080,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <td class="bem-cell"></td>
             <td class="guide-cell">
               <span class="guide-icon" style="opacity: 0.3;">○</span>
+            </td>
+            <td class="av-cell">
+              <span class="av-icon" style="opacity: 0.3;">○</span>
             </td>
             <td class="arr-cell">–</td>
             <td class="diet-cell">–</td>
@@ -1450,9 +1460,10 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
   function updateSelectAll() {
-    const boxes = Array.from(document.querySelectorAll('.rowCheckbox'));
+    // Nur aktive (nicht-disabled) Checkboxen berücksichtigen - keine leeren Zeilen
+    const boxes = Array.from(document.querySelectorAll('.rowCheckbox:not([disabled])'));
     const checked = boxes.filter(b => b.checked).length;
-    selectAll.checked = checked === boxes.length;
+    selectAll.checked = checked === boxes.length && boxes.length > 0;
     selectAll.indeterminate = checked > 0 && checked < boxes.length;
 
     // Update bulk button states
@@ -1460,13 +1471,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   selectAll.addEventListener('change', () => {
     const val = selectAll.checked;
-    document.querySelectorAll('.rowCheckbox').forEach(cb => cb.checked = val);
+    // Nur aktive (nicht-disabled) Checkboxen selektieren - keine leeren Zeilen
+    document.querySelectorAll('.rowCheckbox:not([disabled])').forEach(cb => cb.checked = val);
     updateBulkButtonStates();
   });
 
   // 3.5) Bulk Check-in/Check-out Toggle Funktionalität
   const bulkCheckinBtn = document.getElementById('bulkCheckinBtn');
   const bulkCheckoutBtn = document.getElementById('bulkCheckoutBtn');
+  const bulkAvToggleBtn = document.getElementById('bulkAvToggleBtn');
 
   function updateBulkButtonStates() {
     const selectedRows = getSelectedRows();
@@ -1482,6 +1495,9 @@ document.addEventListener('DOMContentLoaded', () => {
       bulkCheckinBtn.textContent = 'Bulk Check-in';
       bulkCheckoutBtn.disabled = true;
       bulkCheckoutBtn.textContent = 'Bulk Check-out';
+      bulkAvToggleBtn.disabled = true;
+      bulkAvToggleBtn.textContent = 'AV Toggle';
+      bulkAvToggleBtn.className = 'btn-bulk-av';
       deleteBtn.disabled = true;
       printBtn.disabled = true;
       arrBtn.disabled = true;
@@ -1554,6 +1570,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Arrangement und Diät sind immer aktiv (arbeiten mit Auswahl oder allen)
     arrBtn.disabled = false;
     dietBtn.disabled = false;
+
+    // AV Toggle Button logic - immer aktiv
+    bulkAvToggleBtn.disabled = false;
+
+    // Analyze AV states for button text
+    const avStates = targetRows.map(row => {
+      const avCell = row.querySelector('.av-cell');
+      // Check if it contains an img with AV.svg (true) or just text content (false)
+      const hasAvImg = avCell && avCell.querySelector('img[src*="AV.svg"]');
+      return hasAvImg ? 1 : 0;
+    });
+
+    const allAv = avStates.every(state => state === 1);
+    const noneAv = avStates.every(state => state === 0);
+
+    if (allAv) {
+      bulkAvToggleBtn.textContent = `AV Off${selectionText}`;
+      bulkAvToggleBtn.className = 'btn-bulk-av btn-undo';
+    } else if (noneAv) {
+      bulkAvToggleBtn.textContent = `AV On${selectionText}`;
+      bulkAvToggleBtn.className = 'btn-bulk-av';
+    } else {
+      bulkAvToggleBtn.textContent = `Toggle AV${selectionText}`;
+      bulkAvToggleBtn.className = 'btn-bulk-av btn-mixed';
+    }
   }
 
   function getSelectedRows() {
@@ -1888,6 +1929,158 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Bulk AV Toggle mit robuster Fehlerbehandlung
+  bulkAvToggleBtn.addEventListener('click', async () => {
+    const selectedRows = getSelectedRows();
+    const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
+
+    // Verwende ausgewählte Zeilen oder alle Zeilen falls keine Auswahl
+    const targetRows = selectedRows.length > 0 ? selectedRows : allRows;
+
+    if (targetRows.length === 0) return;
+
+    // Determine action based on current button state
+    const isOffMode = bulkAvToggleBtn.textContent.includes('AV Off');
+    const isMixedMode = bulkAvToggleBtn.textContent.includes('Toggle AV');
+
+    let eligibleRows = [];
+    let action = '';
+
+    if (isOffMode) {
+      // Off mode: set AV to 0 for guests with AV=1
+      eligibleRows = targetRows.filter(row => {
+        const avCell = row.querySelector('.av-cell');
+        return avCell && avCell.querySelector('img[src*="AV.svg"]');
+      });
+      action = 'off';
+    } else {
+      // On mode: set AV to 1 for guests with AV=0
+      eligibleRows = targetRows.filter(row => {
+        const avCell = row.querySelector('.av-cell');
+        return !avCell || !avCell.querySelector('img[src*="AV.svg"]');
+      });
+      action = 'on';
+    }
+
+    if (eligibleRows.length === 0) {
+      if (isOffMode) {
+        alert('Keine Gäste haben AV-Status aktiviert.');
+      } else {
+        alert('Alle Gäste haben bereits AV-Status aktiviert.');
+      }
+      return;
+    }
+
+    // Verbindungsstatus prüfen wenn verfügbar
+    if (window.connectionMonitor && !window.connectionMonitor.isOnline()) {
+      alert('Keine Internetverbindung. Bitte Verbindung prüfen und erneut versuchen.');
+      return;
+    }
+
+    const ids = eligibleRows.map(row => row.dataset.id);
+    const actionText = action === 'on' ? 'AV Aktivierung' : 'AV Deaktivierung';
+
+    try {
+      // Verwende robuste Batch-Verarbeitung mit Loading-Overlay
+      if (window.HttpUtils) {
+        const requests = ids.map(id => ({
+          url: 'toggleAvFlag.php',
+          options: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+          }
+        }));
+
+        const { results, errors, successCount } = await HttpUtils.batchRequestWithLoading(requests, {
+          concurrency: 2,
+          retryOptions: httpOptions
+        }, `${actionText} für ${ids.length} Gäste...`);
+
+        // Ergebnisse verarbeiten
+        let errorMessages = [];
+
+        results.forEach((result, index) => {
+          const row = eligibleRows[index];
+          const id = ids[index];
+
+          if (result.success && result.data.success) {
+            const cell = row.querySelector('.av-cell');
+            if (result.data.newValue === 1) {
+              cell.innerHTML = `<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
+            } else {
+              cell.innerHTML = '<span class="av-icon">○</span>';
+            }
+          } else {
+            const nameCell = row.querySelector('.name-cell');
+            const guestName = nameCell ? nameCell.textContent : `ID ${id}`;
+            const errorMsg = result.data?.error || result.error || 'Unbekannter Fehler';
+            errorMessages.push(`${guestName}: ${errorMsg}`);
+          }
+        });
+
+        // Nur Fehler anzeigen, keine Erfolgs-Alerts
+        if (errorMessages.length > 0) {
+          alert(`❌ Fehler bei ${errorMessages.length} ${actionText}:\n${errorMessages.join('\n')}`);
+        }
+
+      } else {
+        // Fallback ohne HttpUtils
+        const fallbackOperation = async () => {
+          const promises = ids.map(async (id) => {
+            const response = await fetch('toggleAvFlag.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id })
+            });
+            return { id, result: await response.json() };
+          });
+
+          const results = await Promise.allSettled(promises);
+          let errors = [];
+          let successCount = 0;
+
+          results.forEach((result, index) => {
+            const row = eligibleRows[index];
+            const id = ids[index];
+
+            if (result.status === 'fulfilled' && result.value.result.success) {
+              const cell = row.querySelector('.av-cell');
+              if (result.value.result.newValue === 1) {
+                cell.innerHTML = `<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
+              } else {
+                cell.innerHTML = '<span class="av-icon">○</span>';
+              }
+              successCount++;
+            } else {
+              const nameCell = row.querySelector('.name-cell');
+              const guestName = nameCell ? nameCell.textContent : `ID ${id}`;
+              const errorMsg = result.value?.result?.error || result.reason?.message || 'Unbekannter Fehler';
+              errors.push(`${guestName}: ${errorMsg}`);
+            }
+          });
+
+          // Nur Fehler anzeigen, keine Erfolgs-Alerts
+          if (errors.length > 0) {
+            alert(`❌ Fehler bei ${errors.length} ${actionText}:\n${errors.join('\n')}`);
+          }
+        };
+
+        if (window.LoadingOverlay) {
+          await LoadingOverlay.wrap(fallbackOperation, `${actionText} für ${ids.length} Gäste...`);
+        } else {
+          await fallbackOperation();
+        }
+      }
+
+    } catch (error) {
+      console.error('Bulk AV Toggle error:', error);
+      alert(`❌ Kritischer Fehler beim Batch ${actionText}:\n${error.message}\n\nBitte einzeln versuchen oder Verbindung prüfen.`);
+    } finally {
+      updateBulkButtonStates();
+    }
+  });
+
   // Initial state
   updateBulkButtonStates();
 
@@ -1966,6 +2159,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (window.LoadingOverlay) {
         LoadingOverlay.wrap(toggleOperation, 'Guide-Flag wird geändert...').catch(() => alert('Netzwerkfehler beim Umschalten.'));
+      } else {
+        toggleOperation().catch(err => alert('Fehler: ' + err.message));
+      }
+      return;
+    }
+
+    // AV toggle: Klick auf die ganze Zelle
+    const avCell = e.target.closest('td.av-cell');
+    if (avCell) {
+      const toggleOperation = async () => {
+        const response = await fetch('toggleAvFlag.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const j = await response.json();
+
+        if (j.success) {
+          // AV-Zelle mit korrektem Icon aktualisieren - EXAKT wie im Haupt-Rendering
+          const isAv = j.newValue === true || j.newValue === 1 || j.newValue === '1' || j.newValue === 'true';
+          avCell.innerHTML = isAv ? '<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">' : '<span class="av-icon">○</span>';
+        } else {
+          throw new Error(j.error);
+        }
+      };
+
+      if (window.LoadingOverlay) {
+        LoadingOverlay.wrap(toggleOperation, 'AV-Flag wird geändert...').catch(() => alert('Netzwerkfehler beim Umschalten.'));
       } else {
         toggleOperation().catch(err => alert('Fehler: ' + err.message));
       }

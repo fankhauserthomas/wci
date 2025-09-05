@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unscharfe Suche - WebCheckin</title>
+
+    <!-- Anti-Cache Headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .search-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .search-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .search-form {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .clear-btn {
+            padding: 15px 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .clear-btn:hover {
+            background: #5a6268;
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .results-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .reservation-row {
+            background: #f8f9fb;
+            border-left: 4px solid #667eea;
+            font-weight: 600;
+        }
+
+        .reservation-row:hover {
+            background: #e8eaf6;
+        }
+
+        .person-row {
+            background: #fafafa;
+            border-left: 4px solid #e0e0e0;
+            font-size: 0.9em;
+            padding-left: 30px;
+        }
+
+        .person-row td {
+            padding: 8px 15px;
+        }
+
+        .person-row:hover {
+            background: #f0f0f0;
+        }
+
+        .email-link {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .email-link:hover {
+            text-decoration: underline;
+        }
+
+        .storno-ja {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .storno-nein {
+            color: #28a745;
+        }
+
+        .person-count {
+            background: #667eea;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+
+        .result-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-reservation {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .type-av {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .type-person {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
+        .result-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .result-link:hover {
+            text-decoration: underline;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #667eea;
+        }
+
+        .search-hint {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="search-container">
+        <div class="search-header">
+            <h1>🔍 Unscharfe Suche</h1>
+            <p>Suche in Reservierungen und Namen mit einem Begriff</p>
+        </div>
+
+        <div class="search-form">
+            <div class="search-input-group">
+                <input type="text" id="searchInput" class="search-input"
+                    placeholder="Name, Vorname, E-Mail, Datum (z.B. 2025-09-03, September 2025, Müller, max@beispiel.de)..."
+                    autocomplete="off">
+                <button onclick="performSearch()" class="search-btn">🔍 Suchen</button>
+                <button onclick="clearSearch()" class="clear-btn">🗑️</button>
+            </div>
+            <div class="search-hint">
+                💡 Tipp: Du kannst nach Namen, E-Mail-Adressen, Daten oder beliebigen Begriffen suchen
+            </div>
+        </div>
+
+        <div id="resultsContainer" class="results-container" style="display: none;">
+            <div class="results-header">
+                <span id="resultsCount">0 Ergebnisse gefunden</span>
+            </div>
+            <div id="resultsContent">
+                <!-- Ergebnisse werden hier eingefügt -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let searchTimeout;
+
+        // Auto-Suche bei Eingabe mit Verzögerung
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (this.value.trim().length >= 2) {
+                    performSearch();
+                }
+            }, 500);
+        });
+
+        // Enter-Taste für Suche
+        document.getElementById('searchInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+
+        async function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+
+            if (!searchTerm) {
+                document.getElementById('resultsContainer').style.display = 'none';
+                return;
+            }
+
+            if (searchTerm.length < 2) {
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`search-simple-api.php?q=${encodeURIComponent(searchTerm)}&_t=${Date.now()}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data.results, data.total);
+                } else {
+                    showError(data.error || 'Unbekannter Fehler');
+                }
+            } catch (error) {
+                console.error('Suchfehler:', error);
+                showError('Verbindungsfehler zur Datenbank');
+            }
+        }
+
+        function displayResults(results, total) {
+            const container = document.getElementById('resultsContainer');
+            const countElement = document.getElementById('resultsCount');
+            const contentElement = document.getElementById('resultsContent');
+
+            countElement.textContent = `${total} Ergebnisse gefunden`;
+
+            if (results.length === 0) {
+                contentElement.innerHTML = '<div class="no-results">Keine Ergebnisse gefunden. Versuche es mit einem anderen Suchbegriff.</div>';
+            } else {
+                let html = '<table class="results-table">';
+                html += '<thead><tr>';
+                html += '<th>Name/Bezeichnung</th>';
+                html += '<th>E-Mail</th>';
+                html += '<th>Anreise - Abreise</th>';
+                html += '<th>Personen</th>';
+                html += '<th>Storno</th>';
+                html += '<th>Aktion</th>';
+                html += '</tr></thead><tbody>';
+
+                results.forEach(result => {
+                    if (result.type === 'reservation') {
+                        // Reservierungs-Hauptzeile
+                        html += '<tr class="reservation-row">';
+
+                        // Name/Bezeichnung
+                        let title = result.title;
+                        html += `<td><strong>${title}</strong></td>`;
+
+                        // E-Mail
+                        let email = '';
+                        if (result.email) {
+                            email = `<a href="mailto:${result.email}" class="email-link">${result.email}</a>`;
+                        }
+                        html += `<td>${email}</td>`;
+
+                        // Anreise - Abreise
+                        let dates = `${result.anreise} - ${result.abreise}`;
+                        html += `<td>${dates}</td>`;
+
+                        // Personenanzahl
+                        let personenInfo = `<span class="person-count">${result.personenanzahl}</span>`;
+                        if (result.personen && result.personen.length > 0) {
+                            personenInfo += ` (${result.personen.length} gefunden)`;
+                        }
+                        html += `<td>${personenInfo}</td>`;
+
+                        // Storno
+                        let stornoClass = result.storno === 'Ja' ? 'storno-ja' : 'storno-nein';
+                        html += `<td><span class="${stornoClass}">${result.storno}</span></td>`;
+
+                        // Aktion
+                        let action = `<a href="reservation.html?id=${result.res_id}" class="result-link">Öffnen</a>`;
+                        html += `<td>${action}</td>`;
+
+                        html += '</tr>';
+
+                        // Personen-Unterzeilen
+                        if (result.personen && result.personen.length > 0) {
+                            result.personen.forEach(person => {
+                                html += '<tr class="person-row">';
+
+                                // Name
+                                html += `<td>↳ ${person.title}</td>`;
+
+                                // Geburtsdatum
+                                html += `<td>${person.geburtsdatum || ''}</td>`;
+
+                                // Bemerkung (in Anreise-Spalte)
+                                html += `<td>${person.bem || ''}</td>`;
+
+                                // AV-ID
+                                html += `<td>AV-ID: ${person.av_id}</td>`;
+
+                                // Leer
+                                html += `<td></td>`;
+
+                                // Aktion
+                                let personAction = `<a href="namen.html?av_id=${person.av_id}" class="result-link">Details</a>`;
+                                html += `<td>${personAction}</td>`;
+
+                                html += '</tr>';
+                            });
+                        }
+
+                    } else if (result.type === 'person') {
+                        // Einzelne Person ohne Reservierung
+                        html += '<tr class="person-row">';
+
+                        html += `<td>${result.title} (ohne Reservierung)</td>`;
+                        html += `<td>${result.person.geburtsdatum || ''}</td>`;
+                        html += `<td>${result.person.bem || ''}</td>`;
+                        html += `<td>AV-ID: ${result.person.av_id}</td>`;
+                        html += `<td></td>`;
+                        html += `<td><a href="namen.html?av_id=${result.person.av_id}" class="result-link">Details</a></td>`;
+
+                        html += '</tr>';
+                    }
+                });
+
+                html += '</tbody></table>';
+                contentElement.innerHTML = html;
+            }
+
+            container.style.display = 'block';
+        }
+
+        function showLoading() {
+            const container = document.getElementById('resultsContainer');
+            const contentElement = document.getElementById('resultsContent');
+            const countElement = document.getElementById('resultsCount');
+
+            countElement.textContent = 'Suche läuft...';
+            contentElement.innerHTML = '<div class="loading">🔍 Durchsuche Datenbank...</div>';
+            container.style.display = 'block';
+        }
+
+        function showError(message) {
+            const container = document.getElementById('resultsContainer');
+            const contentElement = document.getElementById('resultsContent');
+            const countElement = document.getElementById('resultsCount');
+
+            countElement.textContent = 'Fehler bei der Suche';
+            contentElement.innerHTML = `<div class="no-results">❌ ${message}</div>`;
+            container.style.display = 'block';
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('resultsContainer').style.display = 'none';
+        }
+
+        // Fokus auf Suchfeld setzen
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('searchInput').focus();
+        });
+    </script>
+</body>
+
+</html>

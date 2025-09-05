@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Sync Manager Konfiguration</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-box {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: black;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin: 5px 0;
+        }
+
+        .form-group input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .log-output {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔄 Sync Manager Konfiguration</h1>
+        <p>Verwalte die automatische Synchronisation zwischen Local und Remote Datenbank</p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>📊 System Status</h2>
+                <div id="syncStatus" class="status-box">Lade Status...</div>
+                <button class="btn btn-primary" onclick="checkStatus()">Status aktualisieren</button>
+            </div>
+
+            <div class="card">
+                <h2>⚙️ Cron-Job Konfiguration</h2>
+                <form id="cronForm">
+                    <div class="form-group">
+                        <h3>Sync-Intervall:</h3>
+                        <label>
+                            <input type="radio" name="cronInterval" value="disabled" checked>
+                            🚫 Deaktiviert
+                        </label>
+                        <label>
+                            <input type="radio" name="cronInterval" value="1">
+                            ⚡ Jede Minute (nur für Tests!)
+                        </label>
+                        <label>
+                            <input type="radio" name="cronInterval" value="5">
+                            � Alle 5 Minuten
+                        </label>
+                        <label>
+                            <input type="radio" name="cronInterval" value="60">
+                            🕐 Jede Stunde (empfohlen)
+                        </label>
+                        <label>
+                            <input type="radio" name="cronInterval" value="custom">
+                            🛠️ Custom:
+                            <input type="text" name="customCron" placeholder="*/15 * * * *" style="width: 150px;">
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <h3>Zu synchronisierende Tabellen:</h3>
+                        <label><input type="checkbox" name="tables[]" value="AV-ResNamen" checked> 👥 AV-ResNamen
+                            (Gästedaten)</label>
+
+                        <div
+                            style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                            <h4 style="color: #856404; margin-top: 0;">⚠️ KRITISCHE TABELLEN - VORSICHT!</h4>
+                            <p style="color: #856404; margin: 5px 0;">Diese Tabellen enthalten kritische Reservierungs-
+                                und Zimmerdaten. Aktivierung nur nach Rücksprache!</p>
+
+                            <label style="margin-bottom: 10px;">
+                                <input type="checkbox" name="dangerTables[]" value="AV-Res"
+                                    onchange="confirmDangerousTable(this)">
+                                🏨 AV-Res (Reservierungen) - <strong style="color: red;">KRITISCH!</strong>
+                            </label>
+                            <label style="margin-bottom: 10px;">
+                                <input type="checkbox" name="dangerTables[]" value="AV_ResDet"
+                                    onchange="confirmDangerousTable(this)">
+                                📋 AV_ResDet (Reservierungs-Details) - <strong style="color: red;">KRITISCH!</strong>
+                            </label>
+                            <label style="margin-bottom: 10px;">
+                                <input type="checkbox" name="dangerTables[]" value="zp_zimmer"
+                                    onchange="confirmDangerousTable(this)">
+                                🛏️ zp_zimmer (Zimmer-Daten) - <strong style="color: red;">KRITISCH!</strong>
+                            </label>
+
+                            <div style="margin-top: 10px;">
+                                <label>
+                                    <input type="checkbox" id="confirmDangerous" style="margin-right: 5px;">
+                                    <strong style="color: red;">Ich bestätige, dass ich die Risiken verstehe und die
+                                        Berechtigung habe, diese Tabellen zu aktivieren.</strong>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-success" onclick="saveCronConfig()">💾 Konfiguration
+                        speichern</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🧪 Manueller Sync & Test</h2>
+                <button class="btn btn-primary" onclick="testSync()">🔍 Sync testen</button>
+                <button class="btn btn-warning" onclick="forceSync()">⚡ Force Sync (letzte Stunde)</button>
+                <button class="btn btn-success" onclick="fullSync()">🔄 Vollständiger Sync</button>
+                <div id="testResults"></div>
+            </div>
+
+            <div class="card">
+                <h2>📈 Sync Statistiken</h2>
+                <div id="syncStats">Lade Statistiken...</div>
+                <button class="btn btn-primary" onclick="loadStats()">📊 Statistiken aktualisieren</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📜 Sync-Logs</h2>
+            <div style="margin: 10px 0;">
+                <button class="btn btn-primary" onclick="viewLogs()">📄 Logs anzeigen</button>
+                <button class="btn btn-warning" onclick="clearLogs()">🗑️ Logs löschen</button>
+                <button class="btn btn-success" onclick="downloadLogs()">💾 Logs herunterladen</button>
+            </div>
+            <div id="logOutput" class="log-output">Keine Logs geladen...</div>
+        </div>
+
+        <div class="card">
+            <h2>🛠️ Erweiterte Funktionen</h2>
+            <div style="margin: 10px 0;">
+                <button class="btn btn-warning" onclick="checkTables()">🔍 Tabellen-Struktur prüfen</button>
+                <button class="btn btn-primary" onclick="initializeQueues()">🚀 Queue-Tabellen initialisieren</button>
+                <button class="btn btn-danger" onclick="resetSync()"
+                    onclick="return confirm('Wirklich alle Sync-Daten zurücksetzen?')">
+                    🔄 Sync zurücksetzen
+                </button>
+            </div>
+            <div id="advancedResults"></div>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        function setLoading(loading) {
+            isLoading = loading;
+            document.body.classList.toggle('loading', loading);
+        }
+
+        async function apiCall(action, data = null, method = 'GET') {
+            if (isLoading) return;
+            setLoading(true);
+
+            try {
+                let url = `sync-config-api.php?action=${action}&t=${Date.now()}`;
+                let options = { method };
+
+                if (data && method === 'POST') {
+                    if (data instanceof FormData) {
+                        options.body = data;
+                    } else {
+                        options.headers = { 'Content-Type': 'application/json' };
+                        options.body = JSON.stringify(data);
+                    }
+                }
+
+                const response = await fetch(url, options);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                return result;
+
+            } catch (error) {
+                console.error('API Error:', error);
+                return { success: false, error: error.message };
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function checkStatus() {
+            const result = await apiCall('status');
+
+            if (result && result.success) {
+                const statusClass = result.allOk ? 'status-success' : 'status-warning';
+                document.getElementById('syncStatus').className = `status-box ${statusClass}`;
+                document.getElementById('syncStatus').innerHTML = `
+                    <strong>🔗 Remote DB:</strong> ${result.remoteConnected ? '✅ Verbunden' : '❌ Getrennt'}<br>
+                    <strong>📊 Queue Tables:</strong> ${result.queueTables ? '✅ Verfügbar' : '❌ Nicht verfügbar'}<br>
+                    <strong>🕐 Letzter Sync:</strong> ${result.lastSync || '❓ Unbekannt'}<br>
+                    <strong>⚙️ Cron Status:</strong> ${result.cronActive ? '✅ Aktiv' : '❌ Inaktiv'}<br>
+                    <strong>📈 Aktive Tabellen:</strong> ${result.activeTables?.join(', ') || 'Keine'}
+                `;
+            } else {
+                document.getElementById('syncStatus').className = 'status-box status-error';
+                document.getElementById('syncStatus').innerHTML = `❌ Fehler: ${result?.error || 'Unbekannter Fehler'}`;
+            }
+        }
+
+        function confirmDangerousTable(checkbox) {
+            if (checkbox.checked) {
+                const tableName = checkbox.value;
+                const confirmCheckbox = document.getElementById('confirmDangerous');
+
+                if (!confirmCheckbox.checked) {
+                    alert(`⚠️ WARNUNG!\n\nSie versuchen die kritische Tabelle "${tableName}" zu aktivieren.\n\nBitte bestätigen Sie zuerst, dass Sie die Risiken verstehen!`);
+                    checkbox.checked = false;
+                    return;
+                }
+
+                const confirmed = confirm(`🚨 LETZTE WARNUNG!\n\nSie aktivieren die Synchronisation für: ${tableName}\n\nDies kann zu Datenverlust oder Inkonsistenzen führen!\n\nSind Sie ABSOLUT SICHER?\n\n(Diese Aktion sollte nur von autorisierten Administratoren durchgeführt werden)`);
+
+                if (!confirmed) {
+                    checkbox.checked = false;
+                }
+            }
+        }
+
+        async function saveCronConfig() {
+            const formData = new FormData(document.getElementById('cronForm'));
+
+            // Füge dangerous tables zu normalen tables hinzu wenn bestätigt
+            const dangerousTables = formData.getAll('dangerTables[]');
+            const confirmDangerous = document.getElementById('confirmDangerous').checked;
+
+            if (dangerousTables.length > 0 && !confirmDangerous) {
+                alert('⚠️ Sie müssen die Risikobestätigung aktivieren um kritische Tabellen zu verwenden!');
+                return;
+            }
+
+            // Merge tables
+            dangerousTables.forEach(table => {
+                formData.append('tables[]', table);
+            });
+
+            const result = await apiCall('saveCron', formData, 'POST');
+
+            if (result.success) {
+                alert(`✅ Konfiguration gespeichert!\nCron-Job wurde ${result.action}\n\nAusdruck: ${result.cronExpression || 'N/A'}`);
+                checkStatus(); // Status aktualisieren
+            } else {
+                alert(`❌ Fehler: ${result.error}`);
+            }
+        }
+
+        async function testSync() {
+            document.getElementById('testResults').innerHTML = '<div class="status-box status-warning">🔍 Teste Sync...</div>';
+
+            const result = await apiCall('test');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('testResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>🧪 Test-Ergebnis:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function forceSync() {
+            document.getElementById('testResults').innerHTML = '<div class="status-box status-warning">⚡ Force Sync läuft...</div>';
+
+            const result = await apiCall('force');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('testResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>⚡ Force Sync Ergebnis:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function fullSync() {
+            if (!confirm('Vollständigen Sync starten? Das kann einige Minuten dauern.')) return;
+
+            document.getElementById('testResults').innerHTML = '<div class="status-box status-warning">🔄 Vollständiger Sync läuft...</div>';
+
+            const result = await apiCall('fullSync');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('testResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>🔄 Vollständiger Sync Ergebnis:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function loadStats() {
+            const result = await apiCall('stats');
+
+            if (result && result.success) {
+                document.getElementById('syncStats').innerHTML = `
+                    <div class="status-box status-success">
+                        <strong>📊 Sync Statistiken:</strong><br>
+                        📈 Syncs heute: ${result.stats.syncsToday || 0}<br>
+                        📈 Syncs diese Woche: ${result.stats.syncsThisWeek || 0}<br>
+                        📋 Records heute: ${result.stats.recordsToday || 0}<br>
+                        ⚠️ Fehler heute: ${result.stats.errorsToday || 0}<br>
+                        🕐 Durchschnittliche Dauer: ${result.stats.avgDuration || 'N/A'}s
+                    </div>
+                `;
+            } else {
+                document.getElementById('syncStats').innerHTML = `
+                    <div class="status-box status-error">❌ Fehler beim Laden der Statistiken: ${result?.error || 'Unbekannter Fehler'}</div>
+                `;
+            }
+        }
+
+        async function viewLogs() {
+            const result = await apiCall('logs');
+
+            if (result.success) {
+                document.getElementById('logOutput').innerHTML = result.logs || 'Keine Logs verfügbar';
+                document.getElementById('logOutput').scrollTop = document.getElementById('logOutput').scrollHeight;
+            } else {
+                document.getElementById('logOutput').innerHTML = `Fehler beim Laden der Logs: ${result.error}`;
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('Wirklich alle Logs löschen?')) return;
+
+            const result = await apiCall('clearLogs', null, 'POST');
+
+            if (result.success) {
+                document.getElementById('logOutput').innerHTML = 'Logs wurden gelöscht';
+                alert('✅ Logs erfolgreich gelöscht');
+            } else {
+                alert(`❌ Fehler beim Löschen: ${result.error}`);
+            }
+        }
+
+        async function downloadLogs() {
+            window.open('sync-config-api.php?action=downloadLogs', '_blank');
+        }
+
+        async function checkTables() {
+            document.getElementById('advancedResults').innerHTML = '<div class="status-box status-warning">🔍 Prüfe Tabellen...</div>';
+
+            const result = await apiCall('checkTables');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('advancedResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>🔍 Tabellen-Prüfung:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function initializeQueues() {
+            if (!confirm('Queue-Tabellen initialisieren? Bestehende Daten bleiben erhalten.')) return;
+
+            document.getElementById('advancedResults').innerHTML = '<div class="status-box status-warning">🚀 Initialisiere Queues...</div>';
+
+            const result = await apiCall('initQueues', null, 'POST');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('advancedResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>🚀 Queue-Initialisierung:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+
+            if (result.success) {
+                checkStatus(); // Status aktualisieren
+            }
+        }
+
+        async function resetSync() {
+            if (!confirm('ACHTUNG: Alle Sync-Queue-Daten werden gelöscht!\n\nDies setzt die Synchronisation komplett zurück.\nFortfahren?')) return;
+
+            document.getElementById('advancedResults').innerHTML = '<div class="status-box status-warning">🔄 Setze Sync zurück...</div>';
+
+            const result = await apiCall('resetSync', null, 'POST');
+
+            const resultClass = result.success ? 'status-success' : 'status-error';
+            document.getElementById('advancedResults').innerHTML = `
+                <div class="status-box ${resultClass}">
+                    <h4>🔄 Sync-Reset:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+
+            if (result.success) {
+                checkStatus(); // Status aktualisieren
+            }
+        }
+
+        // Auto-refresh Status alle 30 Sekunden
+        setInterval(checkStatus, 30000);
+
+        // Initial laden
+        checkStatus();
+        loadStats();
+    </script>
+</body>
+
+</html>

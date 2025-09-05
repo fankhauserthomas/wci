@@ -309,6 +309,57 @@ if (!AuthManager::checkSession()) {
       color: #00ff00;
     }
 
+    /* Sync-Info Karte Styling */
+    .sync-info-content {
+      padding: 10px 0;
+    }
+
+    .sync-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .sync-stat:last-child {
+      border-bottom: none;
+    }
+
+    .sync-stat-label {
+      font-weight: 500;
+      color: #555;
+    }
+
+    .sync-stat-value {
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .sync-stat-value.active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .sync-stat-value.inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .sync-stat-value.neutral {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+
+    .sync-last-run {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+      text-align: center;
+    }
+
     .matrix-line.warning {
       color: #ffff00;
       text-shadow: 0 0 2px #ffff00;
@@ -458,6 +509,15 @@ if (!AuthManager::checkSession()) {
   <main class="dashboard">
     <!-- Main Navigation -->
     <div class="dashboard-grid" id="dashboard-container">
+      <!-- Sync-Info Karte -->
+      <div class="dashboard-card" draggable="true" data-card-id="sync-info">
+        <div class="drag-handle">⋮⋮</div>
+        <h2 class="card-title">🔄 Synchronisation</h2>
+        <div id="sync-info-content">
+          <p class="card-description">Lade Sync-Informationen...</p>
+        </div>
+      </div>
+
       <div class="dashboard-card" draggable="true" data-card-id="reservierungen">
         <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Reservierungen</h2>
@@ -820,6 +880,12 @@ if (!AuthManager::checkSession()) {
       // Load saved order from localStorage
       loadDashboardOrder();
       
+      // Load sync info
+      loadSyncInfo();
+      
+      // Auto-refresh sync info every 30 seconds
+      setInterval(loadSyncInfo, 30000);
+      
       // Add event listeners to all draggable cards
       const cards = document.querySelectorAll('.dashboard-card[draggable="true"]');
       
@@ -1165,6 +1231,51 @@ if (!AuthManager::checkSession()) {
           showNotification('✅ Cache geleert! Reload empfohlen für vollständige Wirkung.', 'success', 5000);
         }
       }, 1000);
+    }
+    
+    // Sync Info Loader
+    async function loadSyncInfo() {
+      try {
+        const response = await fetch('sync-info-api.php?t=' + Date.now());
+        const data = await response.json();
+        
+        if (data.success) {
+          const stats = data.stats;
+          const syncInfoContent = document.getElementById('sync-info-content');
+          
+          syncInfoContent.innerHTML = `
+            <div class="sync-stat">
+              <span class="sync-stat-label">Cron-Status:</span>
+              <span class="sync-stat-value ${stats.cronActive ? 'active' : 'inactive'}">
+                ${stats.cronActive ? '✅ Aktiv' : '❌ Inaktiv'}
+              </span>
+            </div>
+            <div class="sync-stat">
+              <span class="sync-stat-label">Records heute:</span>
+              <span class="sync-stat-value neutral">${stats.recordsToday}</span>
+            </div>
+            <div class="sync-stat">
+              <span class="sync-stat-label">Records Woche:</span>
+              <span class="sync-stat-value neutral">${stats.recordsThisWeek}</span>
+            </div>
+            <div class="sync-stat">
+              <span class="sync-stat-label">Fehler heute:</span>
+              <span class="sync-stat-value ${stats.errorsToday > 0 ? 'inactive' : 'active'}">${stats.errorsToday}</span>
+            </div>
+            <div class="sync-last-run">
+              Letzter Sync: ${stats.lastSync}
+            </div>
+          `;
+        } else {
+          document.getElementById('sync-info-content').innerHTML = `
+            <p class="card-description" style="color: #e74c3c;">❌ Fehler beim Laden der Sync-Informationen</p>
+          `;
+        }
+      } catch (error) {
+        document.getElementById('sync-info-content').innerHTML = `
+          <p class="card-description" style="color: #e74c3c;">❌ Verbindungsfehler</p>
+        `;
+      }
     }
     
     // Enhanced notification system for cache clearing

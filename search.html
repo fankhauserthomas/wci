@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservierungen & Namen Suche - WebCheckin</title>
+
+    <!-- Anti-Cache Headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .search-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .search-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .search-form {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+            margin-bottom: 15px;
+        }
+
+        .search-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-field label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .search-field input,
+        .search-field select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-field input:focus,
+        .search-field select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .results-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .hierarchical-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .reservation-row {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .reservation-row:hover {
+            background: #e9ecef;
+        }
+
+        .reservation-row.expanded {
+            background: #fff3cd;
+        }
+
+        .name-row {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .name-row:hover {
+            background: #f8f9fa;
+        }
+
+        .hierarchical-table th,
+        .hierarchical-table td {
+            padding: 12px;
+            text-align: left;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .hierarchical-table th {
+            background: #495057;
+            color: white;
+            font-weight: 600;
+        }
+
+        .expand-icon {
+            margin-right: 10px;
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .av-badge {
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .regular-badge {
+            background: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .name-indent {
+            padding-left: 40px;
+            font-size: 14px;
+        }
+
+        .clickable {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .clickable:hover {
+            color: #5a6fd8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .highlight {
+            background-color: #fff3cd;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .search-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .search-buttons {
+                justify-content: center;
+            }
+
+            .hierarchical-table {
+                font-size: 12px;
+            }
+
+            .hierarchical-table th,
+            .hierarchical-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="search-container">
+        <div class="search-header">
+            <h1>🔍 Reservierungen & Namen Suche</h1>
+            <p>Suche nach Namen, E-Mail-Adressen oder Anwesenheitsdaten</p>
+        </div>
+
+        <div class="search-form">
+            <form id="searchForm">
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="searchTerm">Suchbegriff</label>
+                        <input type="text" id="searchTerm" name="searchTerm" placeholder="Name, Vorname oder E-Mail..."
+                            autocomplete="off">
+                    </div>
+
+                    <div class="search-field">
+                        <label for="dateFrom">Anwesenheit von</label>
+                        <input type="date" id="dateFrom" name="dateFrom">
+                    </div>
+
+                    <div class="search-field">
+                        <label for="dateTo">Anwesenheit bis</label>
+                        <input type="date" id="dateTo" name="dateTo">
+                    </div>
+
+                    <div class="search-buttons">
+                        <button type="submit" class="btn btn-primary">🔍 Suchen</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearSearch()">🗑️ Löschen</button>
+                    </div>
+                </div>
+
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="reservationType">Reservierungstyp</label>
+                        <select id="reservationType" name="reservationType">
+                            <option value="">Alle Reservierungen</option>
+                            <option value="av">Nur AV-Reservierungen</option>
+                            <option value="regular">Nur reguläre Reservierungen</option>
+                        </select>
+                    </div>
+
+                    <div class="search-field">
+                        <label for="searchIn">Suchen in</label>
+                        <select id="searchIn" name="searchIn">
+                            <option value="all">Reservierungen & Namen</option>
+                            <option value="reservations">Nur Reservierungen</option>
+                            <option value="names">Nur Namen</option>
+                        </select>
+                    </div>
+
+                    <div class="search-field">
+                        <label for="sortBy">Sortierung</label>
+                        <select id="sortBy" name="sortBy">
+                            <option value="anreise">Nach Anreise</option>
+                            <option value="abreise">Nach Abreise</option>
+                            <option value="nachname">Nach Nachname</option>
+                            <option value="relevance">Nach Relevanz</option>
+                        </select>
+                    </div>
+
+                    <div style="opacity: 0;"><!-- Spacer --></div>
+                </div>
+            </form>
+        </div>
+
+        <div class="results-container" id="resultsContainer" style="display: none;">
+            <div class="results-header">
+                <div class="stats" id="searchStats"></div>
+                <h3>Suchergebnisse</h3>
+            </div>
+
+            <div id="searchResults">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+
+        <div class="loading" id="loadingIndicator" style="display: none;">
+            <p>🔍 Suche wird durchgeführt...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/http-utils.js?v=20250903"></script>
+    <script src="js/loading-overlay.js?v=20250903"></script>
+
+    <script>
+        let searchResults = [];
+        let expandedReservations = new Set();
+
+        // Form submission
+        document.getElementById('searchForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            performSearch();
+        });
+
+        // Real-time search on input (with debouncing)
+        let searchTimeout;
+        document.getElementById('searchTerm').addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            const term = this.value.trim();
+
+            if (term.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    performSearch();
+                }, 500);
+            } else if (term.length === 0) {
+                clearResults();
+            }
+        });
+
+        // Date change handlers
+        ['dateFrom', 'dateTo', 'reservationType', 'searchIn', 'sortBy'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function () {
+                if (document.getElementById('searchTerm').value.trim().length >= 2 ||
+                    document.getElementById('dateFrom').value ||
+                    document.getElementById('dateTo').value) {
+                    performSearch();
+                }
+            });
+        });
+
+        async function performSearch() {
+            const formData = new FormData(document.getElementById('searchForm'));
+            const searchParams = new URLSearchParams();
+
+            // Add form data to search params
+            for (let [key, value] of formData.entries()) {
+                if (value.trim()) {
+                    searchParams.append(key, value.trim());
+                }
+            }
+
+            // Add cache buster
+            searchParams.append('_t', Date.now());
+
+            try {
+                showLoading(true);
+
+                const response = await fetch(`search-api.php?${searchParams}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    searchResults = data.results;
+                    displayResults(data.results, data.stats);
+                } else {
+                    showError(data.error || 'Unbekannter Fehler bei der Suche');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Netzwerkfehler bei der Suche: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayResults(results, stats) {
+            const container = document.getElementById('resultsContainer');
+            const resultsDiv = document.getElementById('searchResults');
+            const statsDiv = document.getElementById('searchStats');
+
+            if (!results || results.length === 0) {
+                container.style.display = 'block';
+                resultsDiv.innerHTML = '<div class="no-results">Keine Ergebnisse gefunden</div>';
+                statsDiv.textContent = '';
+                return;
+            }
+
+            // Display stats
+            statsDiv.innerHTML = `
+                <span>📊 ${stats.total_reservations} Reservierungen, ${stats.total_names} Namen</span>
+                <span>⏱️ Suche in ${stats.search_time}ms</span>
+            `;
+
+            // Build hierarchical table
+            let html = `
+                <table class="hierarchical-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Anreise</th>
+                            <th>Abreise</th>
+                            <th>Nachname</th>
+                            <th>Vorname</th>
+                            <th>Gruppenname</th>
+                            <th>Typ</th>
+                            <th>E-Mail</th>
+                            <th>Namen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            results.forEach((reservation, index) => {
+                const isExpanded = expandedReservations.has(reservation.id);
+                const expandIcon = isExpanded ? '▼' : '▶';
+
+                html += `
+                    <tr class="reservation-row ${isExpanded ? 'expanded' : ''}" 
+                        onclick="toggleReservation(${reservation.id})">
+                        <td>
+                            <span class="expand-icon ${isExpanded ? 'expanded' : ''}">${expandIcon}</span>
+                        </td>
+                        <td>${reservation.anreise}</td>
+                        <td>${reservation.abreise}</td>
+                        <td>
+                            <span class="clickable" onclick="event.stopPropagation(); openReservation(${reservation.id})">
+                                ${highlightTerm(reservation.nachname)}
+                            </span>
+                        </td>
+                        <td>${highlightTerm(reservation.vorname)}</td>
+                        <td>${reservation.gruppenname || '-'}</td>
+                        <td>
+                            ${reservation.av_id > 0 ?
+                        '<span class="av-badge">AV</span>' :
+                        '<span class="regular-badge">REG</span>'
+                    }
+                        </td>
+                        <td>${highlightTerm(reservation.email || '-')}</td>
+                        <td>${reservation.namen_count} Namen</td>
+                    </tr>
+                `;
+
+                // Add name rows if expanded
+                if (isExpanded && reservation.namen && reservation.namen.length > 0) {
+                    reservation.namen.forEach(name => {
+                        html += `
+                            <tr class="name-row">
+                                <td></td>
+                                <td colspan="2" class="name-indent">
+                                    <span class="clickable" onclick="openNameDetail(${name.av_id})">
+                                        👤 ${highlightTerm(name.nachname)}, ${highlightTerm(name.vorname)}
+                                    </span>
+                                </td>
+                                <td>${name.checkin_zeit || '-'}</td>
+                                <td>${name.checkout_zeit || '-'}</td>
+                                <td colspan="4">
+                                    ${name.geburtsdatum ? `🎂 ${name.geburtsdatum}` : ''}
+                                    ${name.bemerkung ? `💬 ${name.bemerkung}` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            html += '</tbody></table>';
+
+            resultsDiv.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        function toggleReservation(reservationId) {
+            if (expandedReservations.has(reservationId)) {
+                expandedReservations.delete(reservationId);
+            } else {
+                expandedReservations.add(reservationId);
+            }
+
+            // Re-render results to update expansion state
+            const currentStats = {
+                total_reservations: searchResults.length,
+                total_names: searchResults.reduce((sum, r) => sum + (r.namen_count || 0), 0),
+                search_time: 'cached'
+            };
+            displayResults(searchResults, currentStats);
+        }
+
+        function highlightTerm(text) {
+            if (!text) return '';
+
+            const searchTerm = document.getElementById('searchTerm').value.trim();
+            if (!searchTerm) return text;
+
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function openReservation(reservationId) {
+            window.open(`reservation.html?id=${reservationId}`, '_blank');
+        }
+
+        function openNameDetail(avId) {
+            window.open(`namen.html?av_id=${avId}`, '_blank');
+        }
+
+        function clearSearch() {
+            document.getElementById('searchForm').reset();
+            clearResults();
+            expandedReservations.clear();
+        }
+
+        function clearResults() {
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('searchResults').innerHTML = '';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+            document.getElementById('resultsContainer').style.display = show ? 'none' : 'block';
+        }
+
+        function showError(message) {
+            const container = document.getElementById('resultsContainer');
+            const resultsDiv = document.getElementById('searchResults');
+
+            container.style.display = 'block';
+            resultsDiv.innerHTML = `
+                <div class="no-results">
+                    <p>❌ ${message}</p>
+                    <button class="btn btn-primary" onclick="clearResults()">OK</button>
+                </div>
+            `;
+        }
+
+        // Initialize with current date range (last 7 days to next 30 days)
+        document.addEventListener('DOMContentLoaded', function () {
+            const today = new Date();
+            const lastWeek = new Date(today);
+            lastWeek.setDate(lastWeek.getDate() - 7);
+
+            const nextMonth = new Date(today);
+            nextMonth.setDate(nextMonth.getDate() + 30);
+
+            document.getElementById('dateFrom').value = lastWeek.toISOString().slice(0, 10);
+            document.getElementById('dateTo').value = nextMonth.toISOString().slice(0, 10);
+        });
+    </script>
+</body>
+
+</html>

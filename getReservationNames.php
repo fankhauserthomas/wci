@@ -34,6 +34,7 @@ SELECT
   o.country AS herkunft,
   n.bem AS bem,
   n.guide AS guide,
+  n.av AS av,
   n.NoShow AS NoShow,
   a.kbez AS arr,
   d.bez AS diet_text,

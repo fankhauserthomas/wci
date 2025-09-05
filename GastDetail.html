@@ -339,6 +339,10 @@
             <input type="checkbox" id="guide" name="guide">
             <label for="guide">Guide</label>
           </div>
+          <div class="form-group form-group-checkbox">
+            <input type="checkbox" id="av" name="av">
+            <label for="av">AV</label>
+          </div>
           <div class="form-group">
             <label for="arrangement">Arrangement:</label>
             <select id="arrangement" name="arrangement"></select>
@@ -510,6 +514,7 @@
       document.getElementById('transport').value = gastData.transport || '';
       document.getElementById('bem').value = gastData.bem || '';
       document.getElementById('guide').checked = !!gastData.guide;
+      document.getElementById('av').checked = !!gastData.av;
     }
 
     // Speichern
@@ -526,7 +531,8 @@
         dietInfo: document.getElementById('dietInfo').value,
         transport: document.getElementById('transport').value,
         bem: document.getElementById('bem').value,
-        guide: document.getElementById('guide').checked ? 1 : 0
+        guide: document.getElementById('guide').checked ? 1 : 0,
+        av: document.getElementById('av').checked ? 1 : 0
       };
 
       // Leere Strings für numerische Felder in null umwandeln, damit die DB es akzeptiert

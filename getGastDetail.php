@@ -17,7 +17,7 @@ if ($id === 0) {
 }
 
 // 2. Prepared Statement verwenden
-$sql = "SELECT id, nachname, vorname, gebdat, herkunft, bem, guide, dietInfo, transport, arr, diet FROM `AV-ResNamen` WHERE id = ?";
+$sql = "SELECT id, nachname, vorname, gebdat, herkunft, bem, guide, av, dietInfo, transport, arr, diet FROM `AV-ResNamen` WHERE id = ?";
 $stmt = $mysqli->prepare($sql);
 
 // 3. Fehlerbehandlung für prepare
@@ -34,7 +34,7 @@ $stmt->bind_param("i", $id);
 $stmt->execute();
 
 // Binde Ergebnisvariablen
-$stmt->bind_result($id_res, $nachname, $vorname, $gebdat, $herkunft, $bem, $guide, $dietInfo, $transport, $arr, $diet);
+$stmt->bind_result($id_res, $nachname, $vorname, $gebdat, $herkunft, $bem, $guide, $av, $dietInfo, $transport, $arr, $diet);
 
 // 5. Ergebnis prüfen und ausgeben
 if ($stmt->fetch()) {
@@ -47,6 +47,7 @@ if ($stmt->fetch()) {
         'herkunft' => $herkunft,
         'bem' => $bem,
         'guide' => $guide,
+        'av' => $av,
         'dietInfo' => $dietInfo,
         'transport' => $transport,
         'arr' => $arr,

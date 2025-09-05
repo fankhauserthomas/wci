@@ -486,6 +486,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tabelle rendern (jetzt mit HP-Daten verfügbar)
         renderTable();
 
+        // Progress-Indikatoren nach dem Laden der Daten aktualisieren
+        if (window.waitForTableDataAndUpdate) {
+          setTimeout(() => window.waitForTableDataAndUpdate(3, 200), 100);
+        } else if (window.updateProgressIndicators) {
+          setTimeout(window.updateProgressIndicators, 200);
+        }
+
+        // Custom Event für andere Scripts triggern
+        document.dispatchEvent(new CustomEvent('tableDataLoaded'));
+
         // Sortiergruppen werden bereits in renderTable() angewendet
       })
       .catch((error) => {
@@ -799,6 +809,13 @@ document.addEventListener('DOMContentLoaded', () => {
     //     ...
     //   });
     // });
+
+    // Progress-Indikatoren nach dem Rendern aktualisieren
+    if (window.waitForTableDataAndUpdate) {
+      setTimeout(() => window.waitForTableDataAndUpdate(3, 200), 100);
+    } else if (window.updateProgressIndicators) {
+      setTimeout(window.updateProgressIndicators, 100);
+    }
   }
 
   // Separate Funktion für Toggle-Listener Setup

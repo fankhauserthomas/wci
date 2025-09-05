@@ -39,6 +39,7 @@ $dietInfo  = $data['dietInfo'] ?? '';  // Text field - keep as string, even if e
 $transport = !empty($data['transport']) ? (float)$data['transport'] : null;
 $bem       = $data['bem'] ?? '';        // Text field - keep as string, even if empty
 $guide     = isset($data['guide']) && $data['guide'] ? 1 : 0;
+$av        = isset($data['av']) && $data['av'] ? 1 : 0;
 
 // 4. Prepared Statement für das Update
 $sql = "UPDATE `AV-ResNamen` SET 
@@ -51,7 +52,8 @@ $sql = "UPDATE `AV-ResNamen` SET
             dietInfo = ?,
             transport = ?,
             bem = ?,
-            guide = ?
+            guide = ?,
+            av = ?
         WHERE id = ?";
 
 $stmt = $mysqli->prepare($sql);
@@ -64,7 +66,7 @@ if ($stmt === false) {
 
 // 5. Parameter binden (s=string, i=integer, d=double)
 $stmt->bind_param(
-    'sssiiisdssi', // Corrected types: s,nachname; s,vorname; s,gebdat; i,herkunft; i,arr; i,diet_id; s,dietInfo; d,transport; s,bem; i,guide; i,id
+    'sssiiisdssii', // Corrected types: s,nachname; s,vorname; s,gebdat; i,herkunft; i,arr; i,diet_id; s,dietInfo; d,transport; s,bem; i,guide; i,av; i,id
     $nachname,
     $vorname,
     $gebdat,
@@ -75,6 +77,7 @@ $stmt->bind_param(
     $transport,
     $bem,
     $guide,
+    $av,
     $id
 );
 

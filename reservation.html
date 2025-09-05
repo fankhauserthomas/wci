@@ -114,6 +114,70 @@
       transform: translateY(0);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+
+    /* AV Toggle Button Styling */
+    .btn-bulk-av {
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin: 0 4px;
+      color: white;
+    }
+
+    /* AV On State - Hellgrün */
+    .btn-bulk-av:not(.btn-undo):not(.btn-mixed) {
+      background: #90EE90;
+      /* Hellgrün */
+    }
+
+    .btn-bulk-av:not(.btn-undo):not(.btn-mixed):hover {
+      background: #7FDD7F;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* AV Off State - Orange */
+    .btn-bulk-av.btn-undo {
+      background: #FFA500;
+      /* Orange */
+    }
+
+    .btn-bulk-av.btn-undo:hover {
+      background: #FF8C00;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* AV Mixed State - Gelb */
+    .btn-bulk-av.btn-mixed {
+      background: #FFD700;
+      /* Gold */
+      color: #333;
+    }
+
+    .btn-bulk-av.btn-mixed:hover {
+      background: #FFC700;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Disabled State */
+    .btn-bulk-av:disabled {
+      background: #ccc;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-bulk-av:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 
@@ -148,6 +212,7 @@
       <button id="deleteBtn">Löschen</button>
       <button id="printBtn">Drucken</button>
       <button id="addNewNamesBtn" class="btn-add-names">+ Namen</button>
+      <button id="bulkAvToggleBtn" class="btn-bulk-av" disabled>AV Toggle</button>
       <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
       <button id="dietBtn" class="btn-diet">Diät…</button>
       <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
@@ -166,6 +231,7 @@
             <th>Alter</th>
             <th>Bemerkung</th>
             <th>BF</th>
+            <th>AV</th>
             <th>Arr</th>
             <th>Diät</th>
             <th>No-Show</th>
@@ -1018,6 +1084,16 @@
 
           if (bfCell) {
             console.log('🔄 BF cell clicked:', bfCell);
+
+            // Nach Click kurz warten und Animation aktualisieren
+            setTimeout(updateGuideRowAnimation, 150);
+          }
+
+          // Prüfen ob es eine AV-Zelle ist (Spalte 7)
+          const avCell = target.closest('td:nth-child(7)');
+
+          if (avCell) {
+            console.log('🔄 AV cell clicked:', avCell);
 
             // Nach Click kurz warten und Animation aktualisieren
             setTimeout(updateGuideRowAnimation, 150);

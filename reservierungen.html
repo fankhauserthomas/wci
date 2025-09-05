@@ -140,8 +140,14 @@
 
     .progress-fill {
       height: 100%;
-      transition: width 0.3s ease;
+      transition: width 0.3s ease, min-width 0.3s ease;
       border-radius: 5px;
+      position: relative;
+    }
+
+    /* Mindestbreite für bessere Sichtbarkeit bei niedrigen Werten */
+    .progress-fill[style*="width: 0%"]:not([style*="min-width"]) {
+      min-width: 0;
     }
 
     .progress-fill.guests-checkedin {
@@ -972,6 +978,14 @@
       if (!tbody) return;
 
       const rows = tbody.querySelectorAll('tr');
+
+      // Prüfen ob Tabelle echte Daten hat (nicht nur "Keine Einträge gefunden")
+      if (rows.length === 0 ||
+        (rows.length === 1 && rows[0].textContent.includes('Keine Einträge gefunden'))) {
+        // Tabelle ist noch leer oder zeigt "Keine Einträge" - nicht aktualisieren
+        return;
+      }
+
       let totalReservations = 0;
       let processedReservations = 0;
       let totalGuests = 0;
@@ -1052,6 +1066,55 @@
       // Das verursachte die doppelten Checks - HP-Checks werden jetzt nur durch spezifische Events ausgelöst
     }
 
+    // Smarte Progress-Update-Funktion, die wartet bis Tabelle Daten hat
+    function waitForTableDataAndUpdate(maxAttempts = 10, delay = 500) {
+      let attempts = 0;
+
+      const checkAndUpdate = () => {
+        attempts++;
+        const tbody = document.querySelector('#resTable tbody');
+
+        if (!tbody) {
+          if (attempts < maxAttempts) {
+            setTimeout(checkAndUpdate, delay);
+          }
+          return;
+        }
+
+        const rows = tbody.querySelectorAll('tr');
+        const hasRealData = rows.length > 0 &&
+          !(rows.length === 1 && rows[0].textContent.includes('Keine Einträge gefunden'));
+
+        if (hasRealData) {
+          // Tabelle hat echte Daten - Progress aktualisieren
+          console.log(`Progress Update: Found ${rows.length} data rows after ${attempts} attempts`);
+          updateProgressIndicators();
+        } else if (attempts < maxAttempts) {
+          // Noch keine Daten, nochmal versuchen
+          setTimeout(checkAndUpdate, delay);
+        } else {
+          console.log('Progress Update: Max attempts reached, no data found');
+        }
+      };
+
+      checkAndUpdate();
+    }
+
+    // Progress-Indikator-Funktion global verfügbar machen
+    window.updateProgressIndicators = updateProgressIndicators;
+    window.waitForTableDataAndUpdate = waitForTableDataAndUpdate;
+
+    // Custom Event für Progress-Updates von anderen Scripts
+    document.addEventListener('tableDataLoaded', () => {
+      console.log('tableDataLoaded event received');
+      waitForTableDataAndUpdate(3, 200);
+    });
+
+    // Global verfügbare Funktion zum Triggern von Progress-Updates
+    window.triggerProgressUpdate = function (delay = 100) {
+      setTimeout(() => waitForTableDataAndUpdate(3, 200), delay);
+    };
+
     // Debounced Sort Group Update-Funktion (früh definiert) - OPTIMIERT für schnellere Darstellung
     const debouncedSortGroupUpdate = debounce(() => throttledSortGroupUpdate(), 300); // Reduziert von 2000ms auf 300ms
 
@@ -1079,6 +1142,13 @@
       if (fillElement) {
         const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
         fillElement.style.width = `${percentage}%`;
+
+        // Mindestbreite für bessere Sichtbarkeit bei niedrigen Werten
+        if (percentage > 0 && percentage < 5) {
+          fillElement.style.minWidth = '8px';
+        } else {
+          fillElement.style.minWidth = '';
+        }
       }
     }
 
@@ -1111,11 +1181,26 @@
         const originalLoadData = window.loadData;
         window.loadData = function () {
           const result = originalLoadData.apply(this, arguments);
-          setTimeout(updateProgressIndicators, 100); // Reduziert von 500ms auf 100ms
+          // Warte bis Daten geladen sind, dann Update
+          setTimeout(() => waitForTableDataAndUpdate(5, 300), 500);
           // Sortiergruppen nach loadData setzen (debounced)
           debouncedSortGroupUpdate();
           return result;
         };
+      } else {
+        // loadData noch nicht verfügbar, später nochmal versuchen
+        setTimeout(() => {
+          if (window.loadData && !window.loadData._wrapped) {
+            const originalLoadData = window.loadData;
+            window.loadData = function () {
+              const result = originalLoadData.apply(this, arguments);
+              setTimeout(() => waitForTableDataAndUpdate(5, 300), 500);
+              debouncedSortGroupUpdate();
+              return result;
+            };
+            window.loadData._wrapped = true;
+          }
+        }, 1000);
       }
 
       // Einmaliger initialer Update (Performance-optimiert) - SCHNELLER
@@ -1203,7 +1288,69 @@
       initProgressTracking();
     }
 
-    // Debug-Hilfsfunktion für manuelles Testen
+    // Warten bis Tabelle Daten hat, dann Progress aktualisieren
+    waitForTableDataAndUpdate();
+
+    // Fallback-Updates für den Fall, dass die Daten sehr langsam laden
+    setTimeout(() => waitForTableDataAndUpdate(5, 1000), 5000);
+    setTimeout(() => waitForTableDataAndUpdate(3, 2000), 10000);
+
+    // Debug-Hilfsfunktion für manuelles Testen (vereinfacht)
+    window.testProgress = function () {
+      console.log('=== PROGRESS TEST ===');
+      const guestsEl = document.getElementById('guestsProgress');
+      const reservationsEl = document.getElementById('reservationsProgress');
+
+      console.log('Current values:');
+      console.log('Guests:', guestsEl?.textContent);
+      console.log('Reservations:', reservationsEl?.textContent);
+
+      updateProgressIndicators();
+
+      console.log('After update:');
+      console.log('Guests:', guestsEl?.textContent);
+      console.log('Reservations:', reservationsEl?.textContent);
+
+      return 'Progress test completed - check values above';
+    };
+
+    // Zusätzliche Test-Funktion für direktes Element-Testing
+    window.testElements = function () {
+      console.log('=== ELEMENT TEST ===');
+
+      // Direct DOM queries
+      const elements = {
+        guestsProgress: document.getElementById('guestsProgress'),
+        reservationsProgress: document.getElementById('reservationsProgress'),
+        guestsCheckedin: document.querySelector('.guests-checkedin'),
+        reservationsProcessed: document.querySelector('.reservations-processed'),
+        progressIndicator: document.querySelector('.progress-indicator'),
+        tbody: document.querySelector('#resTable tbody')
+      };
+
+      Object.keys(elements).forEach(key => {
+        const el = elements[key];
+        console.log(`${key}:`, el);
+        if (el) {
+          console.log(`  - ID: ${el.id}, Classes: ${el.className}, Text: ${el.textContent?.slice(0, 50)}`);
+        }
+      });
+
+      // Test manual updates
+      if (elements.guestsProgress) {
+        elements.guestsProgress.textContent = 'TEST 123 / 456';
+        console.log('Manual text update applied to guestsProgress');
+      }
+
+      if (elements.guestsCheckedin) {
+        elements.guestsCheckedin.style.width = '75%';
+        elements.guestsCheckedin.style.backgroundColor = 'red';
+        console.log('Manual style update applied to guestsCheckedin');
+      }
+
+      return elements;
+    };
+
     window.testSortGroups = async function (testDate = '2025-08-30') {
       // Manueller Test der Sortiergruppen für Datum
 

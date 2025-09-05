@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Namen Details - WebCheckin</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .detail-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .detail-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .detail-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .detail-field {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+
+        .detail-field label {
+            display: block;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .detail-field .value {
+            font-size: 16px;
+            color: #212529;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-button:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="detail-container">
+        <div class="detail-header">
+            <h1>👤 Namen Details</h1>
+            <p>Detailinformationen zur Person</p>
+        </div>
+
+        <div class="detail-card">
+            <div id="nameDetails">
+                <p>Lade Details...</p>
+            </div>
+        </div>
+
+        <a href="search.html" class="back-button">← Zurück zur Suche</a>
+    </div>
+
+    <script>
+        // URL Parameter auslesen
+        const urlParams = new URLSearchParams(window.location.search);
+        const avId = urlParams.get('av_id');
+
+        if (avId) {
+            loadNameDetails(avId);
+        } else {
+            document.getElementById('nameDetails').innerHTML = '<p>Keine AV-ID angegeben</p>';
+        }
+
+        async function loadNameDetails(avId) {
+            try {
+                const response = await fetch(`name-details-api.php?av_id=${avId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayNameDetails(data.person);
+                } else {
+                    document.getElementById('nameDetails').innerHTML = `<p>Fehler: ${data.error}</p>`;
+                }
+            } catch (error) {
+                console.error('Error loading name details:', error);
+                document.getElementById('nameDetails').innerHTML = '<p>Fehler beim Laden der Details</p>';
+            }
+        }
+
+        function displayNameDetails(person) {
+            const html = `
+                <div class="detail-grid">
+                    <div class="detail-field">
+                        <label>Nachname</label>
+                        <div class="value">${person.nachname || '-'}</div>
+                    </div>
+                    <div class="detail-field">
+                        <label>Vorname</label>
+                        <div class="value">${person.vorname || '-'}</div>
+                    </div>
+                    <div class="detail-field">
+                        <label>Geburtsdatum</label>
+                        <div class="value">${person.geburtsdatum || '-'}</div>
+                    </div>
+                    <div class="detail-field">
+                        <label>AV-ID</label>
+                        <div class="value">${person.av_id}</div>
+                    </div>
+                    <div class="detail-field">
+                        <label>Check-in Zeit</label>
+                        <div class="value">${person.checkin_zeit || '-'}</div>
+                    </div>
+                    <div class="detail-field">
+                        <label>Check-out Zeit</label>
+                        <div class="value">${person.checkout_zeit || '-'}</div>
+                    </div>
+                </div>
+                ${person.bemerkung ? `
+                    <div class="detail-field">
+                        <label>Bemerkung</label>
+                        <div class="value">${person.bemerkung}</div>
+                    </div>
+                ` : ''}
+                ${person.reservation ? `
+                    <div class="detail-field">
+                        <label>Gehört zu Reservierung</label>
+                        <div class="value">
+                            <a href="reservation.html?id=${person.reservation.id}" class="clickable">
+                                ${person.reservation.nachname}, ${person.reservation.vorname} 
+                                (${person.reservation.anreise} - ${person.reservation.abreise})
+                            </a>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            document.getElementById('nameDetails').innerHTML = html;
+        }
+    </script>
+</body>
+
+</html>
