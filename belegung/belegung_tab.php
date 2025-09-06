@@ -117,6 +117,9 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                     <button onclick="applyQuotaOptimization()" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">Anwenden</button>
                 </div>
                 <div>
+                    <button onclick="showQuotaChangesPreview()" style="background: #6f42c1; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">🔄 Änderungs-Vorschau</button>
+                </div>
+                <div>
                     <button onclick="showQuotaComparison()" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer;">📊 Quota Vergleich</button>
                 </div>
             </div>
@@ -212,38 +215,8 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                         $quotaSpans = [];
                         $processedQuotas = [];
                         
-                        // === NEUE QUOTA-OPTIMIERUNG: Gruppierung vorbereiten ===
-                        $alleTageData = [];
-                        
-                        // Erst alle Tagesdaten sammeln
-                        foreach ($alleTage as $i => $tag) {
-                            $tagesQuotas = getQuotasForDate($quotaData, $tag);
-                            $alleTageData[] = [
-                                'datum' => $tag,
-                                'quotas' => $tagesQuotas,
-                                'index' => $i
-                            ];
-                        }
-                        
-                        // Identische Quotas gruppieren
-                        $quotaGruppen = groupIdenticalQuotas($alleTageData);
-                        
-                        // Für jede Gruppe einen intelligenten Namen generieren
-                        foreach ($quotaGruppen as &$gruppe) {
-                            if (!empty($gruppe['quotas'])) {
-                                $startDate = $alleTage[$gruppe['start_index']];
-                                $endDate = $alleTage[$gruppe['end_index']];
-                                $gruppe['generated_name'] = generateIntelligentQuotaName($gruppe['quotas'], $startDate, $endDate);
-                            }
-                        }
-                        
-                        // Neue Quota-Spans für rowspan (berücksichtigt Gruppierung)
-                        $neueQuotaSpans = [];
-                        foreach ($quotaGruppen as $gruppe) {
-                            if ($gruppe['days'] > 1) {
-                                $neueQuotaSpans[$gruppe['start_index']] = $gruppe['days'];
-                            }
-                        }
+                        // === VEREINFACHTE QUOTA-OPTIMIERUNG: Tagesbasiert ===
+                        // Keine Gruppierung mehr nötig - jeder Tag wird individuell optimiert
                         
                         // Original Quota-Spans (für bestehende Quota-Spalten)
                         foreach ($alleTage as $i => $tag) {
@@ -421,13 +394,9 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             
                             echo '<td class="cell-base cell-gesamt">' . ($gesamtBelegt > 0 ? $gesamtBelegt : '') . '</td>';
                             
-                            // === QUOTA-OPTIMIERUNG ===
-                            // Berechne neue Quotas für Zielauslastung
+                            // === QUOTA-OPTIMIERUNG FÜR EXAKTE ZIELAUSLASTUNG ===
+                            // Jeder Tag wird individuell optimiert für präzise Zielauslastung
                             $altGesamtAuslastung = $gesamtBelegt + $freieQuotas;
-                            
-                            // KORRIGIERTE BERECHNUNG: Zielauslastung - Gesamtbelegung = benötigte freie Quotas
-                            $benoetigteFreieQuotas = $zielauslastung - $gesamtBelegt;
-                            $quotaAnpassung = $benoetigteFreieQuotas - $freieQuotas;
                             
                             // Neue Quotas initialisieren mit aktuellen Werten
                             $neueQuotaSonder = $quotaSonderNum;
@@ -435,39 +404,17 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             $neueQuotaBetten = $quotaBettenNum;
                             $neueQuotaDz = $quotaDzNum;
                             
-                            // Quota-Optimierung wenn Anpassung nötig und wir haben Quotas
-                            if ($quotaAnpassung != 0 && !empty($tagesQuotas)) {
-                                // Primäre Strategie: Lager-Quota anpassen
-                                if ($quotaLagerNum > 0) {
-                                    $zielLagerQuota = $quotaLagerNum + $quotaAnpassung;
-                                    
-                                    // Nur Schutz vor negativen Werten
-                                    $neueQuotaLager = max(0, $zielLagerQuota);
-                                }
-                                // Fallback: Verteilung auf alle verfügbaren Kategorien
-                                else {
-                                    $verfuegbareKategorien = [];
-                                    if ($quotaSonderNum > 0) $verfuegbareKategorien[] = 'sonder';
-                                    if ($quotaBettenNum > 0) $verfuegbareKategorien[] = 'betten';
-                                    if ($quotaDzNum > 0) $verfuegbareKategorien[] = 'dz';
-                                    
-                                    if (!empty($verfuegbareKategorien)) {
-                                        $anteilProKategorie = $quotaAnpassung / count($verfuegbareKategorien);
-                                        
-                                        foreach ($verfuegbareKategorien as $kat) {
-                                            switch ($kat) {
-                                                case 'sonder':
-                                                    $neueQuotaSonder = max(0, $quotaSonderNum + $anteilProKategorie);
-                                                    break;
-                                                case 'betten':
-                                                    $neueQuotaBetten = max(0, $quotaBettenNum + $anteilProKategorie);
-                                                    break;
-                                                case 'dz':
-                                                    $neueQuotaDz = max(0, $quotaDzNum + $anteilProKategorie);
-                                                    break;
-                                            }
-                                        }
-                                    }
+                            // Optimierung für jeden Tag separat durchführen
+                            if (!empty($tagesQuotas)) {
+                                $optimizedResult = calculateOptimizedQuotasForExactTarget(
+                                    $tagesQuotas, $zielauslastung, $gesamtBelegt, $freieQuotas
+                                );
+                                
+                                if ($optimizedResult['should_optimize']) {
+                                    $neueQuotaSonder = $optimizedResult['sonder'];
+                                    $neueQuotaLager = $optimizedResult['lager'];
+                                    $neueQuotaBetten = $optimizedResult['betten'];
+                                    $neueQuotaDz = $optimizedResult['dz'];
                                 }
                             }
                             
@@ -493,26 +440,20 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             echo '<td class="cell-base" style="background: ' . $dzBgColor . ';">' . 
                                  ($neueQuotaDz > 0 ? $neueQuotaDz : '') . '</td>';
                             
-                            // Neuer Quota-Name mit rowspan
-                            $isFirstGroupDay = false;
-                            $isGroupContinuation = false;
-                            $groupName = '';
-                            
-                            // Finde die entsprechende Gruppe für diesen Tag
-                            foreach ($quotaGruppen as $gruppe) {
-                                if ($i >= $gruppe['start_index'] && $i <= $gruppe['end_index']) {
-                                    $groupName = $gruppe['generated_name'];
-                                    $isFirstGroupDay = ($i === $gruppe['start_index']);
-                                    $isGroupContinuation = ($i > $gruppe['start_index']);
-                                    break;
-                                }
+                            // Neuer Quota-Name für tagesbasierte Optimierung
+                            $wasOptimized = false;
+                            if (!empty($tagesQuotas)) {
+                                // Prüfe ob für diesen Tag optimiert wurde
+                                $optimizedResult = calculateOptimizedQuotasForExactTarget(
+                                    $tagesQuotas, $zielauslastung, $gesamtBelegt, $freieQuotas
+                                );
+                                $wasOptimized = $optimizedResult['should_optimize'];
                             }
                             
-                            if (!$isGroupContinuation) {
-                                $groupRowspanAttr = isset($neueQuotaSpans[$i]) ? ' rowspan="' . $neueQuotaSpans[$i] . '"' : '';
-                                echo '<td' . $groupRowspanAttr . ' class="cell-base" style="background: #f0f8e6; font-size: 9px; font-weight: bold;">' . 
-                                     htmlspecialchars($groupName) . '</td>';
-                            }
+                            $optimizedQuotaName = generateOptimizedQuotaName($tagesQuotas, $tag, $wasOptimized);
+                            
+                            echo '<td class="cell-base" style="background: #f0f8e6; font-size: 9px; font-weight: bold;">' . 
+                                 htmlspecialchars($optimizedQuotaName) . '</td>';
                             
                             // Alte und neue Gesamtauslastung
                             echo '<td class="cell-base" style="background: #fff2cc;">' . 
@@ -1445,6 +1386,140 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         });
     </script>
 
+    <!-- Quota-Änderungs-Vorschau Modal -->
+    <div id="quotaChangesModal" style="
+        display: none; 
+        position: fixed; 
+        top: 0; left: 0; 
+        width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.6); 
+        z-index: 15000;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;"
+    >
+        <div style="
+            background: white; 
+            max-width: 1200px; 
+            margin: 20px auto; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;"
+        >
+            <!-- Header -->
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+                padding: 20px; 
+                border-radius: 12px 12px 0 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;"
+            >
+                <div>
+                    <h2 style="margin: 0; font-size: 24px;">🔄 Quota-Änderungs-Vorschau</h2>
+                    <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;" id="quotaChangesDateRange">
+                        Zeitraum wird geladen...
+                    </p>
+                </div>
+                <button onclick="closeQuotaChangesModal()" style="
+                    background: rgba(255,255,255,0.2); 
+                    border: none; 
+                    color: white; 
+                    padding: 8px 15px; 
+                    border-radius: 6px; 
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: bold;"
+                >✕ Schließen</button>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 25px; flex: 1; overflow-y: auto;">
+                <!-- Zusammenfassung -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #667eea;">
+                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; display: flex; align-items: center;">
+                        📊 Änderungs-Zusammenfassung
+                    </h3>
+                    <div id="quotaChangesSummary" style="font-size: 14px; color: #555;">
+                        Analyse läuft...
+                    </div>
+                </div>
+                
+                <!-- Zwei-Spalten Layout -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                    <!-- Linke Spalte: Zu löschende/ersetzende Quotas -->
+                    <div>
+                        <h3 style="color: #e74c3c; display: flex; align-items: center; margin: 0 0 15px 0;">
+                            🗑️ Zu löschende Original-Quotas
+                        </h3>
+                        <div style="background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 15px;">
+                            <div id="quotasToDelete" style="font-size: 13px;">
+                                Wird analysiert...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rechte Spalte: Neue Quotas -->
+                    <div>
+                        <h3 style="color: #27ae60; display: flex; align-items: center; margin: 0 0 15px 0;">
+                            ➕ Neue optimierte Quotas
+                        </h3>
+                        <div style="background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 15px;">
+                            <div id="newQuotas" style="font-size: 13px;">
+                                Wird berechnet...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer Actions -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                        <p style="margin: 0; color: #8b5a00; font-weight: 500;">
+                            ⚠️ <strong>Vorschau-Modus:</strong> Keine Aktionen werden ausgeführt. 
+                            Die tatsächlichen Quota-Änderungen werden später im HRS-System vorgenommen.
+                        </p>
+                    </div>
+                    
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="closeQuotaChangesModal()" style="
+                            background: #6c757d; 
+                            color: white; 
+                            border: none; 
+                            padding: 12px 30px; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 16px;"
+                        >📋 Vorschau schließen</button>
+                        
+                        <button onclick="deleteSelectedQuotas()" style="
+                            background: #dc3545; 
+                            color: white; 
+                            border: none; 
+                            padding: 12px 30px; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 16px;"
+                        >�️ Original-Quotas löschen</button>
+                        
+                        <button onclick="exportQuotaChanges()" style="
+                            background: #17a2b8; 
+                            color: white; 
+                            border: none; 
+                            padding: 12px 30px; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 16px;"
+                        >📄 Als Excel exportieren</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Daten für JavaScript verfügbar machen
         const detailData = <?= json_encode($detailDaten) ?>;
@@ -2023,6 +2098,7 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 return;
             }
             
+            const allDates = <?= json_encode($alleTage) ?>;
             const rows = document.querySelectorAll('.table-row');
             const dateCells = document.querySelectorAll('.cell-datum');
             const clickedRow = rows[dayIndex];
@@ -2030,77 +2106,183 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const clickedDate = clickedRow.getAttribute('data-date');
             
             if (!quotaStartSelected) {
-                // Ersten Tag auswählen
-                quotaStartSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
-                clickedRow.classList.add('quota-start-selected');
-                clickedRow.classList.remove('quota-selection-hint');
-                clickedDateCell.classList.add('date-start-selected');
-                clickedDateCell.classList.remove('quota-selection-hint');
+                // Ersten Tag auswählen - automatisch erweitern für mehrtägige Quotas
+                const expandedRange = expandRangeForMultiDayQuotas(dayIndex, dayIndex, allDates);
+                
+                quotaStartSelected = { 
+                    index: expandedRange.startIndex, 
+                    date: allDates[expandedRange.startIndex], 
+                    row: rows[expandedRange.startIndex], 
+                    dateCell: dateCells[expandedRange.startIndex] 
+                };
+                
+                // Visuell markieren
+                quotaStartSelected.row.classList.add('quota-start-selected');
+                quotaStartSelected.row.classList.remove('quota-selection-hint');
+                quotaStartSelected.dateCell.classList.add('date-start-selected');
+                quotaStartSelected.dateCell.classList.remove('quota-selection-hint');
                 
                 // Datum in Input setzen
-                document.getElementById('quotaStartDate').value = clickedDate;
+                document.getElementById('quotaStartDate').value = quotaStartSelected.date;
                 
-                // Hint aktualisieren
-                document.getElementById('quotaSelectionHint').innerHTML = 
-                    `🖱️ Startdatum gewählt: <strong>${formatDate(clickedDate)}</strong>. Klicken Sie nun auf das <strong>Enddatum</strong>.`;
+                // Wenn mehrtägige Quota automatisch erweitert wurde, zeige Info
+                if (expandedRange.startIndex != dayIndex || expandedRange.endIndex != dayIndex) {
+                    document.getElementById('quotaSelectionHint').innerHTML = 
+                        `🖱️ Startdatum automatisch erweitert auf <strong>${formatDate(quotaStartSelected.date)}</strong> (mehrtägige Quota). Klicken Sie nun auf das <strong>Enddatum</strong>.`;
+                } else {
+                    document.getElementById('quotaSelectionHint').innerHTML = 
+                        `🖱️ Startdatum gewählt: <strong>${formatDate(quotaStartSelected.date)}</strong>. Klicken Sie nun auf das <strong>Enddatum</strong>.`;
+                }
                     
             } else if (!quotaEndSelected) {
-                // Zweiten Tag auswählen
+                // Zweiten Tag auswählen - automatisch erweitern für mehrtägige Quotas
                 const startIndex = quotaStartSelected.index;
                 const endIndex = dayIndex;
                 
-                // Prüfe ob der Bereich durchgehend SERVICED ist
-                const minIndex = Math.min(startIndex, endIndex);
-                const maxIndex = Math.max(startIndex, endIndex);
+                // WICHTIG: Erst den End-Tag einzeln erweitern, um mehrtägige Quotas zu berücksichtigen
+                const endExpanded = expandRangeForMultiDayQuotas(endIndex, endIndex, allDates);
+                const actualEndIndex = endExpanded.endIndex;
                 
-                for (let i = minIndex; i <= maxIndex; i++) {
+                // Dann den gesamten Bereich vom Start bis zum erweiterten Ende erweitern
+                const fullRange = expandRangeForMultiDayQuotas(
+                    Math.min(startIndex, actualEndIndex), 
+                    Math.max(startIndex, actualEndIndex), 
+                    allDates
+                );
+                
+                // Prüfe ob der vollständig erweiterte Bereich durchgehend SERVICED ist
+                for (let i = fullRange.startIndex; i <= fullRange.endIndex; i++) {
                     if (!servicedDays[i]) {
-                        alert(`Der ausgewählte Zeitraum enthält nicht-SERVICED Tage. Bitte wählen Sie einen durchgehend als SERVICED markierten Zeitraum.`);
+                        alert(`Der automatisch erweiterte Zeitraum (wegen mehrtägiger Quotas) enthält nicht-SERVICED Tage. Bitte wählen Sie einen anderen Zeitraum.`);
                         return;
                     }
                 }
                 
-                if (endIndex < startIndex) {
-                    // Wenn Endtag vor Starttag liegt, tauschen
-                    quotaEndSelected = quotaStartSelected;
-                    quotaStartSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
+                // Update Start falls erweitert
+                if (fullRange.startIndex < quotaStartSelected.index) {
+                    quotaStartSelected.row.classList.remove('quota-start-selected');
+                    quotaStartSelected.dateCell.classList.remove('date-start-selected');
                     
-                    // Visual update
-                    quotaEndSelected.row.classList.remove('quota-start-selected');
-                    quotaEndSelected.row.classList.add('quota-end-selected');
-                    quotaEndSelected.dateCell.classList.remove('date-start-selected');
-                    quotaEndSelected.dateCell.classList.add('date-end-selected');
+                    quotaStartSelected = { 
+                        index: fullRange.startIndex, 
+                        date: allDates[fullRange.startIndex], 
+                        row: rows[fullRange.startIndex], 
+                        dateCell: dateCells[fullRange.startIndex] 
+                    };
                     
-                    clickedRow.classList.add('quota-start-selected');
-                    clickedDateCell.classList.add('date-start-selected');
-                    
-                    // Inputs aktualisieren
-                    document.getElementById('quotaStartDate').value = clickedDate;
-                    document.getElementById('quotaEndDate').value = quotaEndSelected.date;
-                } else {
-                    quotaEndSelected = { index: dayIndex, date: clickedDate, row: clickedRow, dateCell: clickedDateCell };
-                    clickedRow.classList.add('quota-end-selected');
-                    clickedRow.classList.remove('quota-selection-hint');
-                    clickedDateCell.classList.add('date-end-selected');
-                    clickedDateCell.classList.remove('quota-selection-hint');
-                    
-                    // Datum in Input setzen
-                    document.getElementById('quotaEndDate').value = clickedDate;
+                    quotaStartSelected.row.classList.add('quota-start-selected');
+                    quotaStartSelected.dateCell.classList.add('date-start-selected');
+                    document.getElementById('quotaStartDate').value = quotaStartSelected.date;
                 }
+                
+                // Set End mit vollständiger Erweiterung
+                quotaEndSelected = { 
+                    index: fullRange.endIndex, 
+                    date: allDates[fullRange.endIndex], 
+                    row: rows[fullRange.endIndex], 
+                    dateCell: dateCells[fullRange.endIndex] 
+                };
+                
+                quotaEndSelected.row.classList.add('quota-end-selected');
+                quotaEndSelected.row.classList.remove('quota-selection-hint');
+                quotaEndSelected.dateCell.classList.add('date-end-selected');
+                quotaEndSelected.dateCell.classList.remove('quota-selection-hint');
+                
+                // Datum in Input setzen
+                document.getElementById('quotaEndDate').value = quotaEndSelected.date;
                 
                 // Bereich zwischen Start und Ende markieren
                 highlightQuotaRange();
                 
+                // Info über automatische Erweiterung
+                const originalStartIndex = Math.min(startIndex, endIndex);
+                const originalEndIndex = Math.max(startIndex, endIndex);
+                
+                if (fullRange.startIndex != originalStartIndex || 
+                    fullRange.endIndex != originalEndIndex) {
+                    document.getElementById('quotaSelectionHint').innerHTML = 
+                        `✅ Zeitraum automatisch erweitert von <strong>${formatDate(quotaStartSelected.date)}</strong> bis <strong>${formatDate(quotaEndSelected.date)}</strong> (mehrtägige Quotas vollständig eingeschlossen).`;
+                } else {
+                    document.getElementById('quotaSelectionHint').innerHTML = 
+                        `✅ Zeitraum gewählt: <strong>${formatDate(quotaStartSelected.date)}</strong> bis <strong>${formatDate(quotaEndSelected.date)}</strong>.`;
+                }
+                
                 // Auswahl automatisch beenden, aber Markierung beibehalten
                 setTimeout(() => {
                     toggleQuotaDateSelection(); // Beendet nur den Auswahlmodus, behält Markierung
-                }, 500);
+                }, 1000);
                 
             } else {
                 // Reset wenn bereits beide ausgewählt
                 clearQuotaSelection();
                 selectDateForQuota(dayIndex); // Neue Auswahl starten
             }
+        }
+        
+        // Erweitert einen Datumsbereich um vollständige mehrtägige Quotas einzuschließen
+        function expandRangeForMultiDayQuotas(startIndex, endIndex, allDates) {
+            let expandedStart = startIndex;
+            let expandedEnd = endIndex;
+            let hasExpanded = true;
+            
+            console.log(`DEBUG: Eingabe - Start: ${startIndex} (${allDates[startIndex]}), Ende: ${endIndex} (${allDates[endIndex]})`);
+            
+            // Solange erweitern bis keine mehrtägigen Quotas mehr teilweise überschnitten werden
+            while (hasExpanded) {
+                hasExpanded = false;
+                
+                // Prüfe alle Quotas im erweiterten Bereich
+                for (let i = expandedStart; i <= expandedEnd; i++) {
+                    const currentDate = allDates[i];
+                    
+                    // Finde Quotas für diesen Tag
+                    quotaDataForJS.forEach(quota => {
+                        const quotaStart = quota.date_from;
+                        const quotaEnd = quota.date_to;
+                        
+                        // Prüfe ob diese Quota den aktuellen Tag betrifft
+                        if (currentDate >= quotaStart && currentDate < quotaEnd) {
+                            console.log(`DEBUG: Quota gefunden - ${quota.title}: ${quotaStart} bis ${quotaEnd} (betrifft ${currentDate})`);
+                            
+                            // Finde Indices für Quota-Start
+                            const quotaStartIndex = allDates.indexOf(quotaStart);
+                            
+                            // Wenn Quota-Start vor unserem Bereich liegt, erweitern
+                            if (quotaStartIndex >= 0 && quotaStartIndex < expandedStart) {
+                                console.log(`DEBUG: Erweitere Start von ${expandedStart} auf ${quotaStartIndex}`);
+                                expandedStart = quotaStartIndex;
+                                hasExpanded = true;
+                            }
+                            
+                            // Für das Ende: Finde den letzten Tag der Quota
+                            // Quota-Ende ist exklusiv, also suchen wir den Tag VOR quotaEnd
+                            let lastQuotaDay = -1;
+                            for (let j = allDates.length - 1; j >= 0; j--) {
+                                if (allDates[j] < quotaEnd) {
+                                    lastQuotaDay = j;
+                                    break;
+                                }
+                            }
+                            
+                            console.log(`DEBUG: Quota Ende ${quotaEnd} → letzter Tag Index: ${lastQuotaDay} (${allDates[lastQuotaDay]})`);
+                            
+                            // Wenn der letzte Tag der Quota nach unserem Bereich liegt, erweitern
+                            if (lastQuotaDay >= 0 && lastQuotaDay > expandedEnd) {
+                                console.log(`DEBUG: Erweitere Ende von ${expandedEnd} auf ${lastQuotaDay}`);
+                                expandedEnd = lastQuotaDay;
+                                hasExpanded = true;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            console.log(`DEBUG: Ausgabe - Start: ${expandedStart} (${allDates[expandedStart]}), Ende: ${expandedEnd} (${allDates[expandedEnd]})`);
+            
+            return {
+                startIndex: expandedStart,
+                endIndex: expandedEnd
+            };
         }
         
         function highlightQuotaRange() {
@@ -2332,6 +2514,426 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
             return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')} (${days[date.getDay()]})`;
         }
+        
+        // ===== QUOTA-ÄNDERUNGS-VORSCHAU FUNKTIONEN =====
+        
+        function showQuotaChangesPreview() {
+            if (!quotaStartSelected || !quotaEndSelected) {
+                alert('Bitte wählen Sie zuerst einen Zeitraum in der Tabelle aus (Start- und Enddatum).');
+                return;
+            }
+            
+            const startDate = quotaStartSelected.date;
+            const endDate = quotaEndSelected.date;
+            const zielauslastung = parseInt(document.getElementById('zielauslastung').value) || 135;
+            
+            // Modal anzeigen
+            document.getElementById('quotaChangesModal').style.display = 'block';
+            
+            // Datum-Range anzeigen
+            document.getElementById('quotaChangesDateRange').textContent = 
+                `${formatDate(startDate)} bis ${formatDate(endDate)} | Zielauslastung: ${zielauslastung}`;
+            
+            // Daten analysieren
+            analyzeQuotaChanges(startDate, endDate, zielauslastung);
+        }
+        
+        function analyzeQuotaChanges(startDate, endDate, zielauslastung) {
+            const allDates = <?= json_encode($alleTage) ?>;
+            const startIndex = allDates.indexOf(startDate);
+            const endIndex = allDates.indexOf(endDate);
+            
+            if (startIndex === -1 || endIndex === -1) {
+                document.getElementById('quotaChangesSummary').innerHTML = 
+                    '<span style="color: #e74c3c;">❌ Fehler: Ungültiger Datumsbereich</span>';
+                return;
+            }
+            
+            const selectedDates = allDates.slice(startIndex, endIndex + 1);
+            const quotasToDelete = [];
+            const newQuotas = [];
+            const quotasDeletedIds = new Set();
+            
+            // Analyse aller betroffenen Tage
+            selectedDates.forEach(date => {
+                // Originale Quotas für diesen Tag finden
+                const dayQuotas = quotaDataForJS.filter(quota => 
+                    date >= quota.date_from && date < quota.date_to
+                );
+                
+                // Originale Quotas zur Löschliste hinzufügen (einmalig)
+                dayQuotas.forEach(quota => {
+                    if (!quotasDeletedIds.has(quota.id)) {
+                        quotasDeletedIds.add(quota.id);
+                        quotasToDelete.push({
+                            ...quota,
+                            affects_date: date
+                        });
+                    }
+                });
+                
+                // Neue optimierte Quota für diesen Tag berechnen
+                if (dayQuotas.length > 0) {
+                    const quota = dayQuotas[0];
+                    
+                    // Belegungsdaten für diesen Tag simulieren
+                    const dayKey = date + '_hrs';
+                    const lokalKey = date + '_lokal';
+                    const hrsData = <?= json_encode($datenIndex) ?>[dayKey] || {sonder: 0, lager: 0, betten: 0, dz: 0};
+                    const lokalData = <?= json_encode($datenIndex) ?>[lokalKey] || {sonder: 0, lager: 0, betten: 0, dz: 0};
+                    
+                    const gesamtBelegt = hrsData.sonder + hrsData.lager + hrsData.betten + hrsData.dz +
+                                        lokalData.sonder + lokalData.lager + lokalData.betten + lokalData.dz;
+                    
+                    // Originale Quota-Werte
+                    const originalSonder = quota.categories?.SK?.total_beds || 0;
+                    const originalLager = quota.categories?.ML?.total_beds || 0;
+                    const originalBetten = quota.categories?.MBZ?.total_beds || 0;
+                    const originalDz = quota.categories?.['2BZ']?.total_beds || 0;
+                    
+                    // Freie Quotas berechnen
+                    const freieQuotas = Math.max(0, originalSonder - hrsData.sonder) +
+                                       Math.max(0, originalLager - hrsData.lager) +
+                                       Math.max(0, originalBetten - hrsData.betten) +
+                                       Math.max(0, originalDz - hrsData.dz);
+                    
+                    // Optimierte Quotas berechnen
+                    const benoetigteFreieQuotas = zielauslastung - gesamtBelegt;
+                    const quotaAnpassung = benoetigteFreieQuotas - freieQuotas;
+                    
+                    let neueSonder = originalSonder;
+                    let neueLager = originalLager;
+                    let neueBetten = originalBetten;
+                    let neueDz = originalDz;
+                    
+                    if (quotaAnpassung !== 0) {
+                        if (originalLager > 0) {
+                            neueLager = Math.max(0, originalLager + quotaAnpassung);
+                        } else {
+                            // Verteilung auf verfügbare Kategorien
+                            const verfuegbare = [];
+                            if (originalSonder > 0) verfuegbare.push('sonder');
+                            if (originalBetten > 0) verfuegbare.push('betten');
+                            if (originalDz > 0) verfuegbare.push('dz');
+                            
+                            if (verfuegbare.length > 0) {
+                                const anteil = quotaAnpassung / verfuegbare.length;
+                                if (verfuegbare.includes('sonder')) neueSonder = Math.max(0, originalSonder + anteil);
+                                if (verfuegbare.includes('betten')) neueBetten = Math.max(0, originalBetten + anteil);
+                                if (verfuegbare.includes('dz')) neueDz = Math.max(0, originalDz + anteil);
+                            }
+                        }
+                    }
+                    
+                    // Nur hinzufügen wenn sich etwas geändert hat
+                    const hasChanges = neueSonder !== originalSonder || 
+                                      neueLager !== originalLager || 
+                                      neueBetten !== originalBetten || 
+                                      neueDz !== originalDz;
+                    
+                    if (hasChanges) {
+                        const neueGesamtAuslastung = gesamtBelegt + 
+                            Math.max(0, neueSonder - hrsData.sonder) +
+                            Math.max(0, neueLager - hrsData.lager) +
+                            Math.max(0, neueBetten - hrsData.betten) +
+                            Math.max(0, neueDz - hrsData.dz);
+                        
+                        newQuotas.push({
+                            date: date,
+                            name: `Auto-${date.substring(8)}${date.substring(5,7)}`,
+                            original: {
+                                sonder: originalSonder,
+                                lager: originalLager,
+                                betten: originalBetten,
+                                dz: originalDz
+                            },
+                            optimized: {
+                                sonder: Math.round(neueSonder),
+                                lager: Math.round(neueLager),
+                                betten: Math.round(neueBetten),
+                                dz: Math.round(neueDz)
+                            },
+                            occupancy: {
+                                belegt: gesamtBelegt,
+                                alt: gesamtBelegt + freieQuotas,
+                                neu: Math.round(neueGesamtAuslastung)
+                            }
+                        });
+                    }
+                }
+            });
+            
+            // Ergebnisse anzeigen
+            displayQuotaChanges(quotasToDelete, newQuotas, selectedDates.length);
+        }
+        
+        function displayQuotaChanges(quotasToDelete, newQuotas, totalDays) {
+            // Zusammenfassung
+            const summaryHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #3498db;">${totalDays}</div>
+                        <div style="font-size: 12px; color: #666;">Betroffene Tage</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${quotasToDelete.length}</div>
+                        <div style="font-size: 12px; color: #666;">Zu löschende Quotas</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${newQuotas.length}</div>
+                        <div style="font-size: 12px; color: #666;">Neue Quotas</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #f39c12;">${newQuotas.length - quotasToDelete.length}</div>
+                        <div style="font-size: 12px; color: #666;">Netto-Änderung</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('quotaChangesSummary').innerHTML = summaryHtml;
+            
+            // Zu löschende Quotas
+            let deleteHtml = '';
+            if (quotasToDelete.length === 0) {
+                deleteHtml = '<div style="color: #6c757d; font-style: italic;">Keine originalen Quotas betroffen</div>';
+            } else {
+                deleteHtml = '<div style="max-height: 300px; overflow-y: auto;">';
+                quotasToDelete.forEach(quota => {
+                    deleteHtml += `
+                        <div style="background: white; border: 1px solid #f1c0c0; border-radius: 4px; padding: 10px; margin-bottom: 8px;">
+                            <div style="font-weight: bold; color: #dc3545; margin-bottom: 5px;">
+                                📋 ${quota.title || 'Unbenannte Quota'} (ID: ${quota.id})
+                            </div>
+                            <div style="font-size: 11px; color: #666; margin-bottom: 5px;">
+                                🗓️ Zeitraum: ${formatDate(quota.date_from)} bis ${formatDate(quota.date_to)}
+                            </div>
+                            <div style="font-size: 11px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
+                                <span>SK: ${quota.categories?.SK?.total_beds || 0}</span>
+                                <span>ML: ${quota.categories?.ML?.total_beds || 0}</span>
+                                <span>MBZ: ${quota.categories?.MBZ?.total_beds || 0}</span>
+                                <span>2BZ: ${quota.categories?.['2BZ']?.total_beds || 0}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                deleteHtml += '</div>';
+            }
+            document.getElementById('quotasToDelete').innerHTML = deleteHtml;
+            
+            // Neue Quotas
+            let newHtml = '';
+            if (newQuotas.length === 0) {
+                newHtml = '<div style="color: #6c757d; font-style: italic;">Keine neuen Quotas erforderlich</div>';
+            } else {
+                newHtml = '<div style="max-height: 300px; overflow-y: auto;">';
+                newQuotas.forEach(quota => {
+                    newHtml += `
+                        <div style="background: white; border: 1px solid #c0f1c0; border-radius: 4px; padding: 10px; margin-bottom: 8px;">
+                            <div style="font-weight: bold; color: #28a745; margin-bottom: 5px;">
+                                ➕ ${quota.name} (${formatDate(quota.date)})
+                            </div>
+                            <div style="font-size: 11px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 5px;">
+                                <span style="color: ${quota.optimized.sonder !== quota.original.sonder ? '#dc3545' : '#666'};">
+                                    SK: ${quota.original.sonder} → ${quota.optimized.sonder}
+                                </span>
+                                <span style="color: ${quota.optimized.lager !== quota.original.lager ? '#dc3545' : '#666'};">
+                                    ML: ${quota.original.lager} → ${quota.optimized.lager}
+                                </span>
+                                <span style="color: ${quota.optimized.betten !== quota.original.betten ? '#dc3545' : '#666'};">
+                                    MBZ: ${quota.original.betten} → ${quota.optimized.betten}
+                                </span>
+                                <span style="color: ${quota.optimized.dz !== quota.original.dz ? '#dc3545' : '#666'};">
+                                    2BZ: ${quota.original.dz} → ${quota.optimized.dz}
+                                </span>
+                            </div>
+                            <div style="font-size: 10px; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
+                                📊 Auslastung: ${quota.occupancy.alt} → ${quota.occupancy.neu} (Belegung: ${quota.occupancy.belegt})
+                            </div>
+                        </div>
+                    `;
+                });
+                newHtml += '</div>';
+            }
+            document.getElementById('newQuotas').innerHTML = newHtml;
+        }
+        
+        function closeQuotaChangesModal() {
+            document.getElementById('quotaChangesModal').style.display = 'none';
+        }
+        
+        function exportQuotaChanges() {
+            alert('Excel-Export wird in einer späteren Version implementiert.');
+        }
+        
+        function deleteSelectedQuotas() {
+            // Get current quota changes from the modal analysis
+            const quotasToDeleteElements = document.querySelectorAll('#quotasToDelete > div > div');
+            
+            if (quotasToDeleteElements.length === 0) {
+                alert('ℹ️ Keine Quotas zum Löschen gefunden.');
+                return;
+            }
+            
+            // Extract quota DATABASE IDs (not HRS IDs!) from the displayed elements
+            const quotaDbIds = [];
+            const quotaDetails = [];
+            
+            quotasToDeleteElements.forEach(element => {
+                const text = element.textContent;
+                const idMatch = text.match(/ID: (\d+)/);
+                if (idMatch) {
+                    const quotaDbId = parseInt(idMatch[1]);
+                    const quotaData = quotaDataForJS.find(q => q.id === quotaDbId);
+                    if (quotaData && quotaData.hrs_id) {
+                        quotaDbIds.push(quotaDbId);
+                        quotaDetails.push({
+                            db_id: quotaDbId,
+                            hrs_id: quotaData.hrs_id,
+                            name: quotaData.title || 'Unbenannte Quota',
+                            datum_von: quotaData.date_from,
+                            datum_bis: quotaData.date_to
+                        });
+                    }
+                }
+            });
+            
+            if (quotaDbIds.length === 0) {
+                alert('❌ Fehler: Keine gültigen HRS-Quotas zum Löschen gefunden.');
+                return;
+            }
+            
+            // Confirmation dialog with DB-IDs and HRS-IDs
+            const confirmMsg = `🗑️ Wirklich ${quotaDbIds.length} Original-Quota(s) im HRS-System löschen?\n\n` +
+                              `⚠️ Dies kann nicht rückgängig gemacht werden!\n\n` +
+                              `Quotas (werden als Batch gelöscht):\n${quotaDetails.map(q => `- ${q.name} (DB-ID: ${q.db_id}, HRS-ID: ${q.hrs_id})`).join('\n')}`;
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            // Show progress modal
+            document.getElementById('quotaChangesModal').style.display = 'none';
+            showBatchDeleteProgressModal(quotaDbIds, quotaDetails);
+        }
+        
+        function showBatchDeleteProgressModal(quotaDbIds, quotaDetails) {
+            // Create progress modal
+            const modal = document.createElement('div');
+            modal.id = 'batchDeleteProgressModal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.8); z-index: 2000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 700px; width: 90%;">
+                    <h3 style="margin-top: 0; color: #dc3545;">🗑️ Batch-Löschung läuft...</h3>
+                    <div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 4px;">
+                        <strong>Modus:</strong> Ein Login für ${quotaDbIds.length} Quotas (effizienter)
+                    </div>
+                    <div id="batchDeleteProgress" style="margin: 20px 0;">
+                        <div style="background: #f8f9fa; border-radius: 4px; padding: 10px; height: 350px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button id="closeBatchDeleteModal" onclick="closeBatchDeleteProgressModal()" disabled style="
+                            background: #6c757d; color: white; border: none; padding: 10px 20px; 
+                            border-radius: 4px; cursor: not-allowed;">
+                            Schließen (läuft...)
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Start batch deletion process
+            startBatchDeletion(quotaDbIds);
+        }
+        
+        function startBatchDeletion(quotaDbIds) {
+            const progressDiv = document.querySelector('#batchDeleteProgress > div');
+            const closeBtn = document.getElementById('closeBatchDeleteModal');
+            
+            progressDiv.innerHTML += `🚀 Starte Batch-Löschung für ${quotaDbIds.length} Quotas...\n`;
+            progressDiv.scrollTop = progressDiv.scrollHeight;
+            
+            // Create FormData for POST request (like import pattern)
+            const formData = new FormData();
+            formData.append('quota_db_ids', JSON.stringify(quotaDbIds));
+            
+            // Call batch delete script
+            fetch('../hrs/hrs_del_quota_batch.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(responseText => {
+                // Parse multiple JSON responses (like in import)
+                const lines = responseText.trim().split('\n');
+                let summary = null;
+                
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        try {
+                            const result = JSON.parse(line);
+                            
+                            if (result.status === 'summary') {
+                                summary = result;
+                                progressDiv.innerHTML += `\n📊 ZUSAMMENFASSUNG:\n`;
+                                progressDiv.innerHTML += `✅ Erfolgreich: ${result.success_count}\n`;
+                                progressDiv.innerHTML += `❌ Fehler: ${result.error_count}\n`;
+                                progressDiv.innerHTML += `📋 Gesamt: ${result.total_count}\n\n`;
+                            } else if (result.status === 'success') {
+                                progressDiv.innerHTML += `✅ ${result.message}\n`;
+                            } else if (result.status === 'error') {
+                                progressDiv.innerHTML += `❌ ${result.message}\n`;
+                            } else if (result.status === 'info') {
+                                progressDiv.innerHTML += `ℹ️ ${result.message}\n`;
+                            } else if (result.status === 'complete') {
+                                progressDiv.innerHTML += `\n🏁 ${result.message}\n`;
+                                
+                                // Enable close button
+                                closeBtn.textContent = 'Fertig - Seite neu laden';
+                                closeBtn.disabled = false;
+                                closeBtn.onclick = () => window.location.reload();
+                            }
+                        } catch (e) {
+                            // Ignore parse errors for status lines
+                        }
+                    }
+                });
+                
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                
+                // If no summary was found, show basic completion
+                if (!summary) {
+                    progressDiv.innerHTML += `\n🏁 Batch-Löschung abgeschlossen\n`;
+                    closeBtn.textContent = 'Schließen';
+                    closeBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                progressDiv.innerHTML += `\n❌ Netzwerkfehler: ${error.message}\n`;
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                
+                closeBtn.textContent = 'Fehler - Schließen';
+                closeBtn.disabled = false;
+            });
+        }
+        
+        function closeBatchDeleteProgressModal() {
+            const modal = document.getElementById('batchDeleteProgressModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Modal schließen beim Klick außerhalb
+        document.getElementById('quotaChangesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeQuotaChangesModal();
+            }
+        });
     </script>
 
     <!-- Detail Panel für Dry-Run Ergebnisse -->

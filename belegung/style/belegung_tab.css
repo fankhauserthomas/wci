@@ -388,62 +388,127 @@ body {
 /* Quota Selection Styles */
 .quota-selection-active .table-row:hover {
     background: #c8e6c9 !important;
+    cursor: pointer;
 }
 
 .quota-start-selected {
-    background: #81c784 !important;
+    background: linear-gradient(45deg, #4caf50, #81c784) !important;
     font-weight: bold !important;
-    box-shadow: 0 -3px 8px rgba(129, 199, 132, 0.6) !important;
+    box-shadow: 0 -3px 8px rgba(129, 199, 132, 0.8) !important;
+    border: 2px solid #4caf50 !important;
+    animation: pulse-start 1s ease-in-out infinite alternate;
 }
 
 .quota-end-selected {
-    background: #81c784 !important;
+    background: linear-gradient(45deg, #2196f3, #64b5f6) !important;
     font-weight: bold !important;
-    box-shadow: 0 3px 8px rgba(129, 199, 132, 0.6) !important;
+    box-shadow: 0 3px 8px rgba(100, 181, 246, 0.8) !important;
+    border: 2px solid #2196f3 !important;
+    animation: pulse-end 1s ease-in-out infinite alternate;
 }
 
 .quota-range-selected {
-    background: #f1f8e9 !important;
-    border-left: 1px solid #81c784 !important;
-    border-right: 1px solid #81c784 !important;
+    background: linear-gradient(90deg, #e8f5e8, #f1f8e9, #e8f5e8) !important;
+    border-left: 2px solid #81c784 !important;
+    border-right: 2px solid #81c784 !important;
+    border-top: 1px solid #c8e6c9 !important;
+    border-bottom: 1px solid #c8e6c9 !important;
+    box-shadow: inset 0 0 5px rgba(129, 199, 132, 0.3) !important;
 }
 
 .quota-selection-hint {
     background: #fff3cd !important;
-    border: 1px dashed #ffc107 !important;
+    border: 2px dashed #ffc107 !important;
+    animation: hint-pulse 1.5s ease-in-out infinite;
 }
 
 /* Date Selection Styles */
 .quota-selection-active .cell-datum {
     cursor: pointer;
     border: 1px dashed #ffc107 !important;
+    transition: all 0.2s ease;
 }
 
 .quota-selection-active .cell-datum:hover {
     background: #fff3cd !important;
     transform: scale(1.05);
+    border: 2px solid #ffc107 !important;
 }
 
 .date-start-selected {
-    background: #81c784 !important;
+    background: linear-gradient(45deg, #4caf50, #66bb6a) !important;
     color: white !important;
     font-weight: bold !important;
-    border: 1px solid #66bb6a !important;
-    box-shadow: 0 -3px 8px rgba(129, 199, 132, 0.6) !important;
+    border: 2px solid #4caf50 !important;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.6) !important;
+    animation: pulse-start 1s ease-in-out infinite alternate;
 }
 
 .date-end-selected {
-    background: #81c784 !important;
+    background: linear-gradient(45deg, #2196f3, #42a5f5) !important;
     color: white !important;
     font-weight: bold !important;
-    border: 1px solid #66bb6a !important;
-    box-shadow: 0 3px 8px rgba(129, 199, 132, 0.6) !important;
+    border: 2px solid #2196f3 !important;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.6) !important;
+    animation: pulse-end 1s ease-in-out infinite alternate;
 }
 
 .date-range-selected {
-    background: #f1f8e9 !important;
-    border: 1px solid #81c784 !important;
-    box-shadow: inset 0 0 5px rgba(129, 199, 132, 0.3) !important;
+    background: linear-gradient(90deg, #e3f2fd, #e8f5e8, #e3f2fd) !important;
+    border-top: 1px solid #81c784 !important;
+    border-bottom: 1px solid #81c784 !important;
+    font-weight: 500 !important;
+}
+
+/* Animations */
+@keyframes pulse-start {
+    0% {
+        box-shadow: 0 -3px 8px rgba(129, 199, 132, 0.8), 0 0 0 0 rgba(76, 175, 80, 0.7);
+    }
+
+    100% {
+        box-shadow: 0 -3px 8px rgba(129, 199, 132, 0.8), 0 0 0 8px rgba(76, 175, 80, 0);
+    }
+}
+
+@keyframes pulse-end {
+    0% {
+        box-shadow: 0 3px 8px rgba(100, 181, 246, 0.8), 0 0 0 0 rgba(33, 150, 243, 0.7);
+    }
+
+    100% {
+        box-shadow: 0 3px 8px rgba(100, 181, 246, 0.8), 0 0 0 8px rgba(33, 150, 243, 0);
+    }
+}
+
+@keyframes hint-pulse {
+
+    0%,
+    100% {
+        border-color: #ffc107;
+        background: #fff3cd;
+    }
+
+    50% {
+        border-color: #ff9800;
+        background: #fff8e1;
+    }
+}
+
+.date-end-selected {
+    background: linear-gradient(45deg, #2196f3, #42a5f5) !important;
+    color: white !important;
+    font-weight: bold !important;
+    border: 2px solid #2196f3 !important;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.6) !important;
+    animation: pulse-end 1s ease-in-out infinite alternate;
+}
+
+.date-range-selected {
+    background: linear-gradient(90deg, #e3f2fd, #e8f5e8, #e3f2fd) !important;
+    border-top: 1px solid #81c784 !important;
+    border-bottom: 1px solid #81c784 !important;
+    font-weight: 500 !important;
 }
 
 /* Non-serviced Days */

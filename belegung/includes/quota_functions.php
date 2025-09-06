@@ -70,69 +70,121 @@ function getQuotasForDate($quotas, $date) {
 }
 
 /**
- * Generiert einen intelligenten Quota-Namen basierend auf Zeitraum
+ * Generiert einen optimierten Quota-Namen für tagesbasierte Berechnung
  * @param array $quotas Array mit Quota-Daten
- * @param string $startDate Start-Datum (Y-m-d)
- * @param string $endDate End-Datum (Y-m-d)
+ * @param string $date Datum für das der Name generiert wird (Y-m-d)
+ * @param bool $isOptimized Ob dieser Quota optimiert wurde
  * @return string Generierter Quota-Name
  */
-function generateIntelligentQuotaName($quotas, $startDate, $endDate) {
-    // Zeitraum im Format DDMM ohne Punkte
-    $start = date('dm', strtotime($startDate));
-    $end = date('dm', strtotime($endDate));
+function generateOptimizedQuotaName($quotas, $date, $isOptimized = false) {
+    if ($isOptimized) {
+        // Einfaches Format: Auto-ddmm (z.B. Auto-0109 für 1. September)
+        $dateFormatted = date('dm', strtotime($date));
+        return "Auto-{$dateFormatted}";
+    }
     
-    return "Auto {$start}-{$end}";
+    // Nicht optimiert - zeige originalen Namen oder Fallback
+    if (!empty($quotas)) {
+        $quota = $quotas[0];
+        $originalName = $quota['title'] ?? '';
+        if (!empty($originalName)) {
+            return $originalName;
+        }
+    }
+    
+    // Fallback wenn keine Quotas oder kein Name vorhanden
+    $dateFormatted = date('dm', strtotime($date));
+    return "Auto-{$dateFormatted}";
 }
 
 /**
+ * Legacy-Funktion für Gruppierung (wird nicht mehr verwendet)
  * Gruppiert identische Quotas für rowspan-Darstellung
  * @param array $alleDaten Array mit Tagesdaten und Quotas
  * @return array Array mit gruppierten Quota-Informationen
  */
 function groupIdenticalQuotas($alleDaten) {
-    $groups = [];
-    $currentGroup = null;
+    // Diese Funktion wird bei tagesbasierter Optimierung nicht mehr verwendet
+    // Behalten für Rückwärtskompatibilität, falls irgendwo noch aufgerufen
+    return [];
+}
+
+/**
+ * Berechnet optimierte Quotas für exakte Zielauslastung (tagesbasiert)
+ * @param array $currentQuotas Aktuelle Quotas für diesen Tag
+ * @param int $zielauslastung Gewünschte Zielauslastung
+ * @param int $gesamtBelegt Aktuelle Gesamtbelegung
+ * @param int $freieQuotas Aktuelle freie Quotas
+ * @return array Array mit optimierten Quota-Werten
+ */
+function calculateOptimizedQuotasForExactTarget($currentQuotas, $zielauslastung, $gesamtBelegt, $freieQuotas) {
+    if (empty($currentQuotas)) {
+        return [
+            'sonder' => 0,
+            'lager' => 0, 
+            'betten' => 0,
+            'dz' => 0,
+            'should_optimize' => false
+        ];
+    }
     
-    foreach ($alleDaten as $i => $tagData) {
-        $quotas = $tagData['quotas'];
-        $quotaSignature = '';
-        
-        if (!empty($quotas)) {
-            $quota = $quotas[0];
-            $quotaSignature = implode('-', [
-                $quota['categories']['SK']['total_beds'] ?? 0,
-                $quota['categories']['ML']['total_beds'] ?? 0,
-                $quota['categories']['MBZ']['total_beds'] ?? 0,
-                $quota['categories']['2BZ']['total_beds'] ?? 0
-            ]);
+    $quota = $currentQuotas[0];
+    
+    // PRÄZISE BERECHNUNG: Exakt auf Zielauslastung kommen
+    // Neue Gesamtauslastung soll genau der Zielauslastung entsprechen
+    // Zielauslastung = Gesamtbelegung + Freie Quotas (neu)
+    // => Freie Quotas (neu) = Zielauslastung - Gesamtbelegung
+    $benoetigteFreieQuotas = $zielauslastung - $gesamtBelegt;
+    $quotaAnpassung = $benoetigteFreieQuotas - $freieQuotas;
+    
+    // Aktuelle Quota-Werte als Ausgangsbasis
+    $neueQuotaSonder = $quota['categories']['SK']['total_beds'] ?? 0;
+    $neueQuotaLager = $quota['categories']['ML']['total_beds'] ?? 0;
+    $neueQuotaBetten = $quota['categories']['MBZ']['total_beds'] ?? 0;
+    $neueQuotaDz = $quota['categories']['2BZ']['total_beds'] ?? 0;
+    
+    // Optimierung nur wenn Anpassung nötig
+    if ($quotaAnpassung != 0) {
+        // Primäre Strategie: Lager-Quota anpassen (meist die flexibelste Kategorie)
+        if ($neueQuotaLager > 0) {
+            $zielLagerQuota = $neueQuotaLager + $quotaAnpassung;
+            $neueQuotaLager = max(0, $zielLagerQuota);
         }
-        
-        // Neue Gruppe starten wenn Quota sich ändert
-        if ($currentGroup === null || $currentGroup['signature'] !== $quotaSignature) {
-            if ($currentGroup !== null) {
-                $groups[] = $currentGroup;
-            }
+        // Fallback: Verteilung auf alle verfügbaren Kategorien
+        else {
+            $verfuegbareKategorien = [];
+            if ($neueQuotaSonder > 0) $verfuegbareKategorien[] = 'sonder';
+            if ($neueQuotaBetten > 0) $verfuegbareKategorien[] = 'betten'; 
+            if ($neueQuotaDz > 0) $verfuegbareKategorien[] = 'dz';
             
-            $currentGroup = [
-                'signature' => $quotaSignature,
-                'start_index' => $i,
-                'end_index' => $i,
-                'days' => 1,
-                'quotas' => $quotas,
-                'generated_name' => ''
-            ];
-        } else {
-            // Erweitere aktuelle Gruppe
-            $currentGroup['end_index'] = $i;
-            $currentGroup['days']++;
+            if (!empty($verfuegbareKategorien)) {
+                $anteilProKategorie = $quotaAnpassung / count($verfuegbareKategorien);
+                
+                foreach ($verfuegbareKategorien as $kat) {
+                    switch ($kat) {
+                        case 'sonder':
+                            $neueQuotaSonder = max(0, $neueQuotaSonder + $anteilProKategorie);
+                            break;
+                        case 'betten':
+                            $neueQuotaBetten = max(0, $neueQuotaBetten + $anteilProKategorie);
+                            break;
+                        case 'dz':
+                            $neueQuotaDz = max(0, $neueQuotaDz + $anteilProKategorie);
+                            break;
+                    }
+                }
+            }
         }
     }
     
-    // Letzte Gruppe hinzufügen
-    if ($currentGroup !== null) {
-        $groups[] = $currentGroup;
-    }
-    
-    return $groups;
+    return [
+        'sonder' => $neueQuotaSonder,
+        'lager' => $neueQuotaLager,
+        'betten' => $neueQuotaBetten,
+        'dz' => $neueQuotaDz,
+        'should_optimize' => ($quotaAnpassung != 0),
+        'quota_adjustment' => $quotaAnpassung,
+        'target_free_quotas' => $benoetigteFreieQuotas
+    ];
 }
 ?>

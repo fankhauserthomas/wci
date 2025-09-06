@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRS Quota Deletion Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #c82333;
+        }
+
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🗑️ HRS Quota Deletion Test</h1>
+        <p>Testseite für die HRS-Quota-Löschfunktionen</p>
+
+        <div class="test-section">
+            <h3>🔍 1. Connection Test</h3>
+            <p>Teste die Verbindung zur HRS-API</p>
+            <button onclick="testConnection()">Verbindung testen</button>
+            <div id="connectionResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🗑️ 2. Single Quota Deletion Test</h3>
+            <p>Teste das Löschen einer einzelnen Quota (mit Test-HRS-ID)</p>
+            <input type="number" id="testHrsId" placeholder="HRS-ID" value="12345">
+            <button onclick="testSingleDeletion()">Einzelne Quota löschen</button>
+            <div id="singleDeleteResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 3. Multiple Quota Deletion Test</h3>
+            <p>Teste das Löschen mehrerer Quotas</p>
+            <button onclick="testMultipleDeletion()">Mehrere Quotas löschen</button>
+            <div id="multipleDeleteResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Log Output</h3>
+            <div id="logOutput" class="log">Bereit für Tests...\n</div>
+            <button onclick="clearLog()">Log leeren</button>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logElement = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logOutput').textContent = 'Log geleert...\n';
+        }
+
+        async function testConnection() {
+            log('🔍 Testing HRS connection...');
+            document.getElementById('connectionResult').innerHTML = '⏳ Testing...';
+
+            try {
+                const response = await fetch('hrs_del_quota.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'test_connection'
+                    })
+                });
+
+                const result = await response.json();
+                log(`📨 Connection test result: ${JSON.stringify(result)}`);
+
+                if (result.success) {
+                    document.getElementById('connectionResult').innerHTML =
+                        '<div class="success">✅ Verbindung erfolgreich!</div>';
+                } else {
+                    document.getElementById('connectionResult').innerHTML =
+                        '<div class="error">❌ Verbindung fehlgeschlagen: ' + (result.error || 'Unbekannter Fehler') + '</div>';
+                }
+            } catch (error) {
+                log(`❌ Connection test failed: ${error.message}`);
+                document.getElementById('connectionResult').innerHTML =
+                    '<div class="error">❌ Netzwerkfehler: ' + error.message + '</div>';
+            }
+        }
+
+        async function testSingleDeletion() {
+            const hrsId = document.getElementById('testHrsId').value;
+            if (!hrsId) {
+                alert('Bitte HRS-ID eingeben');
+                return;
+            }
+
+            log(`🗑️ Testing single quota deletion for HRS-ID: ${hrsId}`);
+            document.getElementById('singleDeleteResult').innerHTML = '⏳ Deleting...';
+
+            try {
+                const response = await fetch('hrs_del_quota.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'delete_single',
+                        hrs_id: parseInt(hrsId),
+                        name: 'Test-Quota',
+                        datum_von: '2024-01-01',
+                        datum_bis: '2024-01-02'
+                    })
+                });
+
+                const result = await response.json();
+                log(`📨 Single deletion result: ${JSON.stringify(result)}`);
+
+                if (result.success) {
+                    document.getElementById('singleDeleteResult').innerHTML =
+                        '<div class="success">✅ Quota erfolgreich gelöscht!</div>';
+                } else {
+                    document.getElementById('singleDeleteResult').innerHTML =
+                        '<div class="error">❌ Löschung fehlgeschlagen: ' + (result.error || 'Unbekannter Fehler') + '</div>';
+                }
+            } catch (error) {
+                log(`❌ Single deletion failed: ${error.message}`);
+                document.getElementById('singleDeleteResult').innerHTML =
+                    '<div class="error">❌ Netzwerkfehler: ' + error.message + '</div>';
+            }
+        }
+
+        async function testMultipleDeletion() {
+            log('📋 Testing multiple quota deletion...');
+            document.getElementById('multipleDeleteResult').innerHTML = '⏳ Deleting...';
+
+            const testQuotas = [
+                { hrs_id: 11111, name: 'Test-Quota-1', datum_von: '2024-01-01', datum_bis: '2024-01-02' },
+                { hrs_id: 22222, name: 'Test-Quota-2', datum_von: '2024-01-03', datum_bis: '2024-01-04' },
+                { hrs_id: 33333, name: 'Test-Quota-3', datum_von: '2024-01-05', datum_bis: '2024-01-06' }
+            ];
+
+            try {
+                const response = await fetch('hrs_del_quota.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'delete_multiple',
+                        quotas: testQuotas
+                    })
+                });
+
+                const result = await response.json();
+                log(`📨 Multiple deletion result: ${JSON.stringify(result)}`);
+
+                if (result.success) {
+                    let message = `✅ ${result.deleted_count} von ${testQuotas.length} Quotas gelöscht!`;
+                    if (result.details) {
+                        message += '<br><small>' + result.details.map(d =>
+                            `${d.success ? '✓' : '✗'} ${d.name}: ${d.success ? 'OK' : d.error}`
+                        ).join('<br>') + '</small>';
+                    }
+                    document.getElementById('multipleDeleteResult').innerHTML =
+                        '<div class="success">' + message + '</div>';
+                } else {
+                    document.getElementById('multipleDeleteResult').innerHTML =
+                        '<div class="error">❌ Löschung fehlgeschlagen: ' + (result.error || 'Unbekannter Fehler') + '</div>';
+                }
+            } catch (error) {
+                log(`❌ Multiple deletion failed: ${error.message}`);
+                document.getElementById('multipleDeleteResult').innerHTML =
+                    '<div class="error">❌ Netzwerkfehler: ' + error.message + '</div>';
+            }
+        }
+
+        // Initial log
+        log('🚀 Test page loaded and ready');
+    </script>
+</body>
+
+</html>
