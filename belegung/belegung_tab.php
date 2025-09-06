@@ -1495,6 +1495,17 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             font-size: 16px;"
                         >📋 Vorschau schließen</button>
                         
+                        <button onclick="applyOptimization()" style="
+                            background: #28a745; 
+                            color: white; 
+                            border: none; 
+                            padding: 12px 30px; 
+                            border-radius: 6px; 
+                            cursor: pointer;
+                            font-size: 16px;
+                            font-weight: bold;"
+                        >🚀 Optimierung im HRS anwenden</button>
+                        
                         <button onclick="deleteSelectedQuotas()" style="
                             background: #dc3545; 
                             color: white; 
@@ -2923,6 +2934,289 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
         
         function closeBatchDeleteProgressModal() {
             const modal = document.getElementById('batchDeleteProgressModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // ===== KOMPLETTE OPTIMIERUNG: LÖSCHEN + ERSTELLEN =====
+        
+        function applyOptimization() {
+            // Sammle alle Daten aus der Vorschau
+            const quotasToDeleteElements = document.querySelectorAll('#quotasToDelete > div > div');
+            const quotasToCreateElements = document.querySelectorAll('#newQuotas > div > div');
+            
+            if (quotasToDeleteElements.length === 0 && quotasToCreateElements.length === 0) {
+                alert('ℹ️ Keine Optimierungen gefunden.');
+                return;
+            }
+            
+            // Sammle Lösch-Daten
+            const quotaDbIds = [];
+            const quotaDetails = [];
+            
+            quotasToDeleteElements.forEach(element => {
+                const text = element.textContent;
+                const idMatch = text.match(/ID: (\d+)/);
+                if (idMatch) {
+                    const quotaDbId = parseInt(idMatch[1]);
+                    const quotaData = quotaDataForJS.find(q => q.id === quotaDbId);
+                    if (quotaData && quotaData.hrs_id) {
+                        quotaDbIds.push(quotaDbId);
+                        quotaDetails.push({
+                            db_id: quotaDbId,
+                            hrs_id: quotaData.hrs_id,
+                            name: quotaData.title || 'Unbenannte Quota',
+                            datum_von: quotaData.date_from,
+                            datum_bis: quotaData.date_to
+                        });
+                    }
+                }
+            });
+            
+            // Sammle Erstellungs-Daten aus dem newQuotas Bereich
+            const quotasToCreate = [];
+            quotasToCreateElements.forEach(element => {
+                const text = element.textContent;
+                
+                // Parse Quota-Details aus dem Text (z.B. "Auto-1409 (14.09 Sol): SK: 0 → 0, ML: 75 → 135")
+                const titleMatch = text.match(/^([^(]+)/);
+                const dateMatch = text.match(/\(([^)]+)\)/);
+                const capacityMatch = text.match(/ML: \d+ → (\d+)/);
+                
+                if (titleMatch && dateMatch && capacityMatch) {
+                    const title = titleMatch[1].trim().replace(/^➕\s*/, ''); // Entferne ➕ Emoji
+                    const dateInfo = dateMatch[1];
+                    const newCapacity = parseInt(capacityMatch[1]);
+                    
+                    // Parse Datum (z.B. "14.09 Sol" oder "15.09 Mo)")
+                    const dayMatch = dateInfo.match(/(\d{2})\.(\d{2})/);
+                    if (dayMatch) {
+                        const day = dayMatch[1];
+                        const month = dayMatch[2];
+                        const year = new Date().getFullYear(); // Aktuelles Jahr
+                        
+                        const quotaDate = `${year}-${month}-${day}`;
+                        
+                        quotasToCreate.push({
+                            title: title,
+                            date_from: quotaDate,
+                            date_to: quotaDate, // Backend wird +1 Tag hinzufügen
+                            capacity: newCapacity
+                        });
+                    }
+                }
+            });
+            
+            // Bestätigungs-Dialog
+            let confirmMsg = `🚀 Optimierung im HRS-System anwenden?\n\n`;
+            
+            if (quotaDbIds.length > 0) {
+                confirmMsg += `🗑️ ${quotaDbIds.length} Original-Quotas werden gelöscht:\n`;
+                confirmMsg += quotaDetails.map(q => `- ${q.name} (HRS-ID: ${q.hrs_id})`).join('\n') + '\n\n';
+            }
+            
+            if (quotasToCreate.length > 0) {
+                confirmMsg += `➕ ${quotasToCreate.length} neue optimierte Quotas werden erstellt:\n`;
+                confirmMsg += quotasToCreate.map(q => `- ${q.title} (${q.date_from}, Kapazität: ${q.capacity})`).join('\n') + '\n\n';
+            }
+            
+            confirmMsg += `⚠️ Dies kann nicht rückgängig gemacht werden!`;
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            // Starte komplette Pipeline
+            document.getElementById('quotaChangesModal').style.display = 'none';
+            showOptimizationProgressModal(quotaDbIds, quotasToCreate);
+        }
+        
+        function showOptimizationProgressModal(quotaDbIds, quotasToCreate) {
+            // Create progress modal für komplette Pipeline
+            const modal = document.createElement('div');
+            modal.id = 'optimizationProgressModal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.8); z-index: 2000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 800px; width: 95%;">
+                    <h3 style="margin-top: 0; color: #28a745;">🚀 Quota-Optimierung läuft...</h3>
+                    <div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-radius: 4px;">
+                        <strong>Pipeline:</strong> Löschen (${quotaDbIds.length}) → Erstellen (${quotasToCreate.length}) → Fertig
+                    </div>
+                    <div id="optimizationProgress" style="margin: 20px 0;">
+                        <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button id="closeOptimizationModal" onclick="closeOptimizationProgressModal()" disabled style="
+                            background: #6c757d; color: white; border: none; padding: 10px 20px; 
+                            border-radius: 4px; cursor: not-allowed;">
+                            Schließen (läuft...)
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Start komplette Pipeline
+            startOptimizationPipeline(quotaDbIds, quotasToCreate);
+        }
+        
+        function startOptimizationPipeline(quotaDbIds, quotasToCreate) {
+            const progressDiv = document.querySelector('#optimizationProgress > div');
+            const closeBtn = document.getElementById('closeOptimizationModal');
+            
+            progressDiv.innerHTML += `🚀 === QUOTA-OPTIMIERUNG GESTARTET ===\n`;
+            progressDiv.innerHTML += `Phase 1: ${quotaDbIds.length} Original-Quotas löschen\n`;
+            progressDiv.innerHTML += `Phase 2: ${quotasToCreate.length} optimierte Quotas erstellen\n\n`;
+            progressDiv.scrollTop = progressDiv.scrollHeight;
+            
+            // Phase 1: Löschung (falls Quotas zu löschen vorhanden)
+            if (quotaDbIds.length > 0) {
+                progressDiv.innerHTML += `🗑️ === PHASE 1: LÖSCHUNG ===\n`;
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                
+                const formData = new FormData();
+                formData.append('quota_db_ids', JSON.stringify(quotaDbIds));
+                
+                fetch('../hrs/hrs_del_quota_batch.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(responseText => {
+                    // Parse Lösch-Antworten
+                    const lines = responseText.trim().split('\n');
+                    let deleteSuccess = false;
+                    
+                    lines.forEach(line => {
+                        if (line.trim()) {
+                            try {
+                                const result = JSON.parse(line);
+                                
+                                if (result.status === 'summary') {
+                                    deleteSuccess = (result.error_count === 0);
+                                    progressDiv.innerHTML += `📊 Löschung: ${result.success_count}✅ ${result.error_count}❌\n`;
+                                } else if (result.status === 'success') {
+                                    progressDiv.innerHTML += `✅ ${result.message}\n`;
+                                } else if (result.status === 'error') {
+                                    progressDiv.innerHTML += `❌ ${result.message}\n`;
+                                } else if (result.status === 'info') {
+                                    progressDiv.innerHTML += `ℹ️ ${result.message}\n`;
+                                } else if (result.status === 'complete') {
+                                    progressDiv.innerHTML += `🏁 Löschung abgeschlossen\n\n`;
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    });
+                    
+                    progressDiv.scrollTop = progressDiv.scrollHeight;
+                    
+                    // Phase 2: Erstellung (nur wenn Löschung erfolgreich oder keine Löschung nötig)
+                    if (deleteSuccess || quotaDbIds.length === 0) {
+                        startQuotaCreation(progressDiv, closeBtn, quotasToCreate);
+                    } else {
+                        progressDiv.innerHTML += `❌ FEHLER: Löschung fehlgeschlagen - Erstellung abgebrochen\n`;
+                        closeBtn.textContent = 'Fehler - Schließen';
+                        closeBtn.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    progressDiv.innerHTML += `❌ Löschfehler: ${error.message}\n`;
+                    progressDiv.scrollTop = progressDiv.scrollHeight;
+                    closeBtn.textContent = 'Fehler - Schließen';
+                    closeBtn.disabled = false;
+                });
+            } else {
+                // Keine Löschung nötig, direkt zur Erstellung
+                startQuotaCreation(progressDiv, closeBtn, quotasToCreate);
+            }
+        }
+        
+        function startQuotaCreation(progressDiv, closeBtn, quotasToCreate) {
+            if (quotasToCreate.length === 0) {
+                progressDiv.innerHTML += `ℹ️ Keine neuen Quotas zu erstellen\n`;
+                progressDiv.innerHTML += `\n🎉 === OPTIMIERUNG ABGESCHLOSSEN ===\n`;
+                closeBtn.textContent = 'Fertig - Seite neu laden';
+                closeBtn.disabled = false;
+                closeBtn.onclick = () => window.location.reload();
+                return;
+            }
+            
+            progressDiv.innerHTML += `➕ === PHASE 2: ERSTELLUNG ===\n`;
+            progressDiv.scrollTop = progressDiv.scrollHeight;
+            
+            const formData = new FormData();
+            formData.append('quotas_to_create', JSON.stringify(quotasToCreate));
+            
+            fetch('../hrs/hrs_create_quota_batch.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(responseText => {
+                // Parse Erstellungs-Antworten
+                const lines = responseText.trim().split('\n');
+                let createSuccess = false;
+                
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        try {
+                            const result = JSON.parse(line);
+                            
+                            if (result.status === 'summary') {
+                                createSuccess = (result.error_count === 0);
+                                progressDiv.innerHTML += `📊 Erstellung: ${result.success_count}✅ ${result.error_count}❌\n`;
+                            } else if (result.status === 'success') {
+                                progressDiv.innerHTML += `✅ ${result.message}\n`;
+                            } else if (result.status === 'error') {
+                                progressDiv.innerHTML += `❌ ${result.message}\n`;
+                            } else if (result.status === 'info') {
+                                progressDiv.innerHTML += `ℹ️ ${result.message}\n`;
+                            } else if (result.status === 'complete') {
+                                progressDiv.innerHTML += `🏁 Erstellung abgeschlossen\n\n`;
+                            }
+                        } catch (e) {
+                            // Ignore parse errors
+                        }
+                    }
+                });
+                
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                
+                // Finale
+                if (createSuccess) {
+                    progressDiv.innerHTML += `\n🎉 === OPTIMIERUNG ERFOLGREICH ABGESCHLOSSEN ===\n`;
+                    progressDiv.innerHTML += `✅ Alle Quotas erfolgreich optimiert!\n`;
+                    closeBtn.textContent = 'Fertig - Seite neu laden';
+                    closeBtn.onclick = () => window.location.reload();
+                } else {
+                    progressDiv.innerHTML += `\n⚠️ === OPTIMIERUNG MIT FEHLERN ABGESCHLOSSEN ===\n`;
+                    progressDiv.innerHTML += `❌ Einige Quotas konnten nicht erstellt werden\n`;
+                    closeBtn.textContent = 'Mit Fehlern - Schließen';
+                }
+                
+                closeBtn.disabled = false;
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+            })
+            .catch(error => {
+                progressDiv.innerHTML += `❌ Erstellungsfehler: ${error.message}\n`;
+                progressDiv.innerHTML += `\n💥 === OPTIMIERUNG FEHLGESCHLAGEN ===\n`;
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                closeBtn.textContent = 'Fehler - Schließen';
+                closeBtn.disabled = false;
+            });
+        }
+        
+        function closeOptimizationProgressModal() {
+            const modal = document.getElementById('optimizationProgressModal');
             if (modal) {
                 modal.remove();
             }
