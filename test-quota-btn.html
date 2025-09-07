@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Quota Button</title>
+</head>
+
+<body>
+    <button onclick="toggleQuotaOptimization()" id="quotaOptBtn">Quota-Optimierung</button>
+    <div id="quotaOptimizationPanel" style="display: none; background: #f8f9fa; padding: 15px;">
+        <h4>Test Panel</h4>
+        <p>Dies ist ein Test-Panel.</p>
+    </div>
+
+    <script>
+        function toggleQuotaOptimization() {
+            console.log('toggleQuotaOptimization called');
+            const panel = document.getElementById('quotaOptimizationPanel');
+            const btn = document.getElementById('quotaOptBtn');
+
+            console.log('Panel:', panel);
+            console.log('Button:', btn);
+
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                btn.textContent = 'Panel schließen';
+                btn.style.background = '#dc3545';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Quota-Optimierung';
+                btn.style.background = '#17a2b8';
+            }
+        }
+
+        console.log('Script loaded');
+    </script>
+</body>
+
+</html>

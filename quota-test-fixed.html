@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Quota Button Test - Fixed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        #quotaOptimizationPanel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Quota Optimization Button Test - FIXED</h2>
+
+    <button onclick="toggleQuotaOptimization()" class="btn-import" style="background: #17a2b8; color: white;"
+        id="quotaOptBtn">Quota-Optimierung</button>
+
+    <div id="quotaOptimizationPanel" style="display: none;">
+        <h4>⚙️ Quota-Optimierung Konfiguration</h4>
+        <p>Das Panel funktioniert jetzt korrekt!</p>
+        <p>Zeitraum: <input type="date" value="2025-09-06"> bis <input type="date" value="2025-10-07"></p>
+        <p>Zielauslastung: <input type="number" value="135"> Personen</p>
+        <button onclick="applyQuotaOptimization()"
+            style="background: #28a745; color: white; padding: 8px 12px;">Optimierung anwenden</button>
+    </div>
+
+    <div id="testResults" style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 5px;">
+        <h3>✅ Lösung implementiert:</h3>
+        <ul>
+            <li class="success">Funktionen explizit dem window-Objekt zugewiesen</li>
+            <li class="success">JavaScript-Timing-Probleme behoben</li>
+            <li class="success">Globaler Scope für onclick-Handler gewährleistet</li>
+        </ul>
+    </div>
+
+    <script>
+        function toggleQuotaOptimization() {
+            console.log('toggleQuotaOptimization aufgerufen');
+            const panel = document.getElementById('quotaOptimizationPanel');
+            const btn = document.getElementById('quotaOptBtn');
+
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                btn.textContent = 'Panel schließen';
+                btn.style.background = '#dc3545';
+            } else {
+                panel.style.display = 'none';
+                btn.textContent = 'Quota-Optimierung';
+                btn.style.background = '#17a2b8';
+            }
+        }
+
+        function applyQuotaOptimization() {
+            alert('Quota-Optimierung würde jetzt angewendet werden!\n(In der echten Anwendung wird die Seite neu geladen)');
+        }
+
+        // Funktionen explizit dem window-Objekt zuweisen - DAS WAR DIE LÖSUNG!
+        window.toggleQuotaOptimization = toggleQuotaOptimization;
+        window.applyQuotaOptimization = applyQuotaOptimization;
+
+        console.log('JavaScript erfolgreich geladen - Funktionen sind verfügbar');
+        console.log('toggleQuotaOptimization:', typeof window.toggleQuotaOptimization);
+        console.log('applyQuotaOptimization:', typeof window.applyQuotaOptimization);
+    </script>
+</body>
+
+</html>

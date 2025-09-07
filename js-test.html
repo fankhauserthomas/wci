@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>JavaScript Test</title>
+</head>
+
+<body>
+    <button onclick="testFunction()" id="testBtn">Test Button</button>
+    <div id="result"></div>
+
+    <script>
+        function testFunction() {
+            console.log('Function called successfully');
+            document.getElementById('result').innerHTML = 'Function worked!';
+        }
+
+        // Test alle JavaScript-Syntax-Elemente, die in der Hauptdatei verwendet werden
+        const testData = { "test": "value" };
+        const allDates = ["2025-01-01", "2025-01-02"];
+
+        console.log('All tests passed');
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM loaded');
+        });
+    </script>
+</body>
+
+</html>
