@@ -26,9 +26,9 @@ try {
         }
     }
     
-    // Lese Log-Datei falls vorhanden
+    // Lese Log-Datei falls vorhanden (nur letzte 1000 Zeilen für Performance)
     if (file_exists($logFile)) {
-        $logs = file_get_contents($logFile);
+        $logs = shell_exec("tail -1000 " . escapeshellarg($logFile));
         $today = date('Y-m-d');
         $weekAgo = date('Y-m-d', strtotime('-7 days'));
         

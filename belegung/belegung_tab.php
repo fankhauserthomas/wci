@@ -211,6 +211,72 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                             $datenIndex[$key] = $row;
                         }
                         
+                        // === NQ-WERTE VORBERECHNEN ===
+                        // Für jeden Tag die neuen Quota-Werte berechnen und in datenIndex einfügen
+                        foreach ($alleTage as $tag) {
+                            $hrsKey = $tag . '_hrs';
+                            $lokalKey = $tag . '_lokal';
+                            
+                            $hrsData = isset($datenIndex[$hrsKey]) ? $datenIndex[$hrsKey] : ['sonder' => 0, 'lager' => 0, 'betten' => 0, 'dz' => 0];
+                            $lokalData = isset($datenIndex[$lokalKey]) ? $datenIndex[$lokalKey] : ['sonder' => 0, 'lager' => 0, 'betten' => 0, 'dz' => 0];
+                            
+                            $gesamtBelegt = $hrsData['sonder'] + $hrsData['lager'] + $hrsData['betten'] + $hrsData['dz'] +
+                                           $lokalData['sonder'] + $lokalData['lager'] + $lokalData['betten'] + $lokalData['dz'];
+                            
+                            // Quotas für diesen Tag
+                            $tagesQuotas = getQuotasForDate($quotaData, $tag);
+                            
+                            // Aktuelle Quota-Werte
+                            $quotaSonderNum = 0;
+                            $quotaLagerNum = 0;
+                            $quotaBettenNum = 0;
+                            $quotaDzNum = 0;
+                            
+                            if (!empty($tagesQuotas)) {
+                                $quota = $tagesQuotas[0];
+                                if (isset($quota['categories']['SK'])) $quotaSonderNum = $quota['categories']['SK']['total_beds'];
+                                if (isset($quota['categories']['ML'])) $quotaLagerNum = $quota['categories']['ML']['total_beds'];
+                                if (isset($quota['categories']['MBZ'])) $quotaBettenNum = $quota['categories']['MBZ']['total_beds'];
+                                if (isset($quota['categories']['2BZ'])) $quotaDzNum = $quota['categories']['2BZ']['total_beds'];
+                            }
+                            
+                            $freieQuotas = max(0, $quotaSonderNum - $hrsData['sonder']) +
+                                          max(0, $quotaLagerNum - $hrsData['lager']) +
+                                          max(0, $quotaBettenNum - $hrsData['betten']) +
+                                          max(0, $quotaDzNum - $hrsData['dz']);
+                            
+                            // Neue Quotas berechnen
+                            $neueQuotaSonder = $quotaSonderNum;
+                            $neueQuotaLager = $quotaLagerNum;
+                            $neueQuotaBetten = $quotaBettenNum;
+                            $neueQuotaDz = $quotaDzNum;
+                            
+                            // Optimierung für jeden Tag separat durchführen
+                            if (!empty($tagesQuotas)) {
+                                $optimizedResult = calculateOptimizedQuotasForExactTarget(
+                                    $tagesQuotas, $zielauslastung, $gesamtBelegt, $freieQuotas
+                                );
+                                
+                                if ($optimizedResult['should_optimize']) {
+                                    $neueQuotaSonder = $optimizedResult['sonder'];
+                                    $neueQuotaLager = $optimizedResult['lager'];
+                                    $neueQuotaBetten = $optimizedResult['betten'];
+                                    $neueQuotaDz = $optimizedResult['dz'];
+                                }
+                            }
+                            
+                            // NQ-Werte in datenIndex speichern
+                            $nqKey = $tag . '_nq';
+                            $datenIndex[$nqKey] = [
+                                'tag' => $tag,
+                                'quelle' => 'nq',
+                                'sonder' => $neueQuotaSonder,
+                                'lager' => $neueQuotaLager,
+                                'betten' => $neueQuotaBetten,
+                                'dz' => $neueQuotaDz
+                            ];
+                        }
+                        
                         // Quota-Spans vorberechnen (für rowspan)
                         $quotaSpans = [];
                         $processedQuotas = [];
@@ -2372,6 +2438,119 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             window.location.href = '?' + params.toString();
         }
 
+        function calculateQuotaChanges(startDate, endDate, targetOccupancy) {
+            const changes = {
+                deletions: [],    // Quotas die gelöscht werden müssen
+                creations: [],    // Quotas die erstellt werden müssen
+                unchanged: [],    // Quotas die unverändert bleiben
+                summary: {
+                    totalDays: 0,
+                    deletionCount: 0,
+                    creationCount: 0,
+                    unchangedCount: 0
+                }
+            };
+            
+            // Alle Tage im Zeitraum generieren
+            const allDates = [];
+            const currentDate = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            
+            while (currentDate <= endDateObj) {
+                allDates.push(currentDate.toISOString().split('T')[0]);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            changes.summary.totalDays = allDates.length;
+            
+            // Für jeden Tag prüfen: Alte vs. Neue Quota
+            allDates.forEach(date => {
+                const existingQuotas = quotaDataForJS.filter(quota => 
+                    date >= quota.date_from && date < quota.date_to
+                );
+                
+                // Berechne optimale Quota für diesen Tag
+                const dayKey = date + '_hrs';
+                const lokalKey = date + '_lokal';
+                const nqKey = date + '_nq';
+                const allData = <?= json_encode($datenIndex) ?>;
+                const hrsData = allData[dayKey] || {sonder: 0, lager: 0, betten: 0, dz: 0};
+                const lokalData = allData[lokalKey] || {sonder: 0, lager: 0, betten: 0, dz: 0};
+                const nqData = allData[nqKey] || {sonder: 0, lager: 0, betten: 0, dz: 0};
+                
+                // Verwende die vorberechneten NQ-Werte aus PHP
+                const skBeds = parseInt(nqData.sonder) || 0;
+                const mlBeds = parseInt(nqData.lager) || 0;
+                const mbzBeds = parseInt(nqData.betten) || 0;
+                const bz2Beds = parseInt(nqData.dz) || 0;
+                
+                const newQuota = {
+                    date_from: date,
+                    date_to: new Date(new Date(date).getTime() + 24*60*60*1000).toISOString().split('T')[0], // Nächster Tag
+                    title: `Auto-${date.replace(/-/g, '').slice(2)}`,
+                    mode: 'SERVICED',
+                    capacity: mlBeds, // Hauptkapazität ist ML-Lager
+                    categories: {
+                        SK: { total_beds: skBeds },
+                        ML: { total_beds: mlBeds },
+                        MBZ: { total_beds: mbzBeds },
+                        '2BZ': { total_beds: bz2Beds }
+                    }
+                };
+                
+                // Prüfe ob eine existierende Quota identisch ist
+                let isIdentical = false;
+                if (existingQuotas.length > 0) {
+                    const existing = existingQuotas[0];
+                    
+                    // Prüfe ob es eine eintägige Quota ist (von heute bis morgen)
+                    const isOneDayQuota = existing.date_from === date && existing.date_to === newQuota.date_to;
+                    
+                    if (isOneDayQuota && existing.categories) {
+                        const existingSK = existing.categories.SK?.total_beds || 0;
+                        const existingML = existing.categories.ML?.total_beds || 0;
+                        const existingMBZ = existing.categories.MBZ?.total_beds || 0;
+                        const existing2BZ = existing.categories['2BZ']?.total_beds || 0;
+                        
+                        const newSK = newQuota.categories.SK.total_beds;
+                        const newML = newQuota.categories.ML.total_beds;
+                        const newMBZ = newQuota.categories.MBZ.total_beds;
+                        const new2BZ = newQuota.categories['2BZ'].total_beds;
+                        
+                        // Identisch wenn alle Kategorien gleich sind
+                        isIdentical = (existingSK === newSK && existingML === newML && 
+                                     existingMBZ === newMBZ && existing2BZ === new2BZ);
+                    }
+                }
+                
+                if (isIdentical) {
+                    // Quota bleibt unverändert
+                    changes.unchanged.push({
+                        date: date,
+                        quota: existingQuotas[0],
+                        reason: 'Identisch mit berechneter Quota'
+                    });
+                    changes.summary.unchangedCount++;
+                } else {
+                    // Alte Quota löschen (falls vorhanden)
+                    if (existingQuotas.length > 0) {
+                        existingQuotas.forEach(quota => {
+                            if (!changes.deletions.find(d => d.id === quota.id)) {
+                                changes.deletions.push(quota);
+                                changes.summary.deletionCount++;
+                            }
+                        });
+                    }
+                    
+                    // Neue Quota erstellen
+                    changes.creations.push(newQuota);
+                    changes.summary.creationCount++;
+                }
+            });
+            
+            return changes;
+        }
+
         async function showQuotaComparison() {
             const quotaStartDate = document.getElementById('quotaStartDate').value;
             const quotaEndDate = document.getElementById('quotaEndDate').value;
@@ -2389,28 +2568,341 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             }
             
             try {
-                // API-Aufruf für Quota-Vergleich
-                const protocol = window.location.protocol;
-                const host = window.location.host;
-                const baseUrl = `${protocol}//${host}`;
-                const response = await fetch(`${baseUrl}/wci/belegung/quota_comparison.php?start=${quotaStartDate}&end=${quotaEndDate}&za=${za}&json=1`);
-                
-                if (!response.ok) {
-                    throw new Error(`API Fehler: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    displayQuotaComparison(data.comparison, quotaStartDate, quotaEndDate, za);
-                } else {
-                    throw new Error(data.message || 'Fehler beim Laden der Quota-Daten');
-                }
+                // Verwende die neue intelligente Quota-Änderungsberechnung
+                const changes = calculateQuotaChanges(quotaStartDate, quotaEndDate, za);
+                displayQuotaChangesPreview(changes, quotaStartDate, quotaEndDate, za);
                 
             } catch (error) {
                 console.error('Quota Vergleich Fehler:', error);
-                alert('❌ Fehler beim Laden des Quota-Vergleichs: ' + error.message);
+                alert('❌ Fehler beim Berechnen der Quota-Änderungen: ' + error.message);
             }
+        }
+
+        function showProgressModal(title, totalSteps) {
+            // Entferne existierendes Modal falls vorhanden
+            hideProgressModal();
+            
+            const modal = document.createElement('div');
+            modal.id = 'progressModal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.7); z-index: 2000; 
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white; padding: 30px; border-radius: 8px; 
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3); 
+                min-width: 400px; max-width: 500px; text-align: center;
+            `;
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0; color: #007bff;">${title}</h3>
+                <div id="progressStatus" style="margin: 20px 0; color: #6c757d;"></div>
+                <div style="background: #f1f1f1; border-radius: 10px; height: 20px; margin: 20px 0; overflow: hidden;">
+                    <div id="progressBar" style="background: #007bff; height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <div id="progressText" style="font-size: 14px; color: #6c757d;">0 von ${totalSteps} Aktionen abgeschlossen</div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+        
+        function updateProgress(completed, total, statusText) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressStatus = document.getElementById('progressStatus');
+            
+            if (progressBar && progressText && progressStatus) {
+                const percentage = Math.round((completed / total) * 100);
+                progressBar.style.width = percentage + '%';
+                progressText.textContent = `${completed} von ${total} Aktionen abgeschlossen (${percentage}%)`;
+                progressStatus.textContent = statusText;
+                
+                // Farbe ändern wenn komplett
+                if (completed === total) {
+                    progressBar.style.background = '#28a745';
+                    progressStatus.style.color = '#28a745';
+                }
+            }
+        }
+        
+        function hideProgressModal() {
+            const modal = document.getElementById('progressModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        async function executeQuotaChanges() {
+            if (!window.pendingQuotaChanges) {
+                alert('❌ Keine Änderungen zur Ausführung verfügbar.');
+                return;
+            }
+            
+            const changes = window.pendingQuotaChanges;
+            const totalOperations = changes.summary.deletionCount + changes.summary.creationCount;
+            
+            if (!confirm(`Möchten Sie wirklich ${totalOperations} Quota-Änderungen ausführen?\n\n` +
+                        `🗑️ ${changes.summary.deletionCount} Löschungen\n` +
+                        `➕ ${changes.summary.creationCount} Erstellungen\n\n` +
+                        `Diese Aktion kann nicht rückgängig gemacht werden!`)) {
+                return;
+            }
+            
+            try {
+                // Progress Modal anzeigen
+                showProgressModal('Quota-Änderungen werden ausgeführt...', totalOperations);
+                let completed = 0;
+                
+                // 1. Zuerst alle Löschungen
+                if (changes.deletions.length > 0) {
+                    updateProgress(completed, totalOperations, 'Lösche überflüssige Quotas...');
+                    
+                    const deletionIds = changes.deletions.map(q => q.id);
+                    const deleteResponse = await fetch('../hrs/hrs_del_quota_batch.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `quota_db_ids=${JSON.stringify(deletionIds)}`
+                    });
+                    
+                    // Debug: Response Status und Text prüfen
+                    if (!deleteResponse.ok) {
+                        const errorText = await deleteResponse.text();
+                        console.error('Delete HTTP Error:', deleteResponse.status, errorText);
+                        throw new Error(`Delete HTTP ${deleteResponse.status}: ${errorText}`);
+                    }
+                    
+                    const deleteResponseText = await deleteResponse.text();
+                    console.log('Delete Raw Response:', deleteResponseText);
+                    
+                    // Parse multi-line JSON response von hrs_del_quota_batch.php
+                    const deleteLines = deleteResponseText.trim().split('\n');
+                    let deleteResult = null;
+                    
+                    for (const line of deleteLines) {
+                        if (line.trim()) {
+                            try {
+                                const json = JSON.parse(line);
+                                if (json.status === 'summary' || json.status === 'complete') {
+                                    deleteResult = {
+                                        success: (json.success_count > 0 || json.error_count === 0),
+                                        message: json.message,
+                                        success_count: json.success_count || 0,
+                                        error_count: json.error_count || 0
+                                    };
+                                }
+                            } catch (e) {
+                                // Ignoriere JSON-Parse-Fehler für einzelne Zeilen
+                            }
+                        }
+                    }
+                    
+                    if (!deleteResult) {
+                        throw new Error('Keine gültige Löschungs-Antwort erhalten');
+                    }
+                    
+                    if (deleteResult.error_count > 0) {
+                        console.warn(`Löschung teilweise erfolgreich: ${deleteResult.success_count} erfolgreich, ${deleteResult.error_count} Fehler`);
+                    }
+                    
+                    completed += changes.deletions.length;
+                    updateProgress(completed, totalOperations, `${deleteResult.success_count} Quotas gelöscht`);
+                }
+                
+                // 2. Dann alle Erstellungen
+                if (changes.creations.length > 0) {
+                    updateProgress(completed, totalOperations, 'Erstelle optimierte Quotas...');
+                    
+                    // Validiere JSON-Daten vor dem Senden
+                    try {
+                        const testJson = JSON.stringify({ quotas: changes.creations });
+                        console.log('JSON Validation successful, length:', testJson.length);
+                    } catch (jsonError) {
+                        console.error('JSON Validation Error:', jsonError);
+                        console.error('Invalid data:', changes.creations);
+                        throw new Error(`JSON-Validierung fehlgeschlagen: ${jsonError.message}`);
+                    }
+                    
+                    const createResponse = await fetch('../hrs/hrs_create_quota_batch.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quotas: changes.creations })
+                    });
+                    
+                    // Debug: Response Status und Text prüfen
+                    if (!createResponse.ok) {
+                        const errorText = await createResponse.text();
+                        console.error('HTTP Error:', createResponse.status, errorText);
+                        throw new Error(`HTTP ${createResponse.status}: ${errorText}`);
+                    }
+                    
+                    const responseText = await createResponse.text();
+                    console.log('Raw Response:', responseText);
+                    
+                    let createResult;
+                    try {
+                        createResult = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON Parse Error:', parseError);
+                        console.error('Response was:', responseText);
+                        throw new Error(`Ungültige JSON-Antwort: ${parseError.message}\nAntwort: ${responseText.substring(0, 200)}`);
+                    }
+                    if (!createResult.success) {
+                        throw new Error(`Erstellung fehlgeschlagen: ${createResult.message}`);
+                    }
+                    
+                    completed += changes.creations.length;
+                    updateProgress(completed, totalOperations, `${changes.creations.length} Quotas erstellt`);
+                }
+                
+                // Erfolg
+                updateProgress(totalOperations, totalOperations, '✅ Alle Änderungen erfolgreich ausgeführt!');
+                
+                setTimeout(() => {
+                    hideProgressModal();
+                    alert(`✅ Quota-Optimierung erfolgreich abgeschlossen!\n\n` +
+                          `🗑️ ${changes.summary.deletionCount} Quotas gelöscht\n` +
+                          `➕ ${changes.summary.creationCount} Quotas erstellt\n` +
+                          `➡️ ${changes.summary.unchangedCount} Quotas unverändert\n\n` +
+                          `Die Seite wird neu geladen um die Änderungen anzuzeigen.`);
+                    
+                    // Seite neu laden
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                hideProgressModal();
+                console.error('Quota-Änderung Fehler:', error);
+                alert('❌ Fehler beim Ausführen der Quota-Änderungen: ' + error.message);
+            }
+        }
+
+        function displayQuotaChangesPreview(changes, startDate, endDate, targetOccupancy) {
+            const content = document.getElementById('detailsContent');
+            
+            let html = `<h3>🔍 Intelligente Quota-Änderungs-Vorschau</h3>`;
+            
+            // Zusammenfassung
+            html += `<div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">`;
+            html += `<h4 style="margin-top: 0; color: #155724;">📊 Änderungs-Übersicht</h4>`;
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">`;
+            html += `<div><strong>Zeitraum:</strong> ${startDate} bis ${endDate}</div>`;
+            html += `<div><strong>Zielauslastung:</strong> ${targetOccupancy}%</div>`;
+            html += `<div><strong>Tage gesamt:</strong> ${changes.summary.totalDays}</div>`;
+            html += `<div style="color: #dc3545;"><strong>🗑️ Zu löschen:</strong> ${changes.summary.deletionCount}</div>`;
+            html += `<div style="color: #28a745;"><strong>➕ Zu erstellen:</strong> ${changes.summary.creationCount}</div>`;
+            html += `<div style="color: #6c757d;"><strong>➡️ Unverändert:</strong> ${changes.summary.unchangedCount}</div>`;
+            html += `</div></div>`;
+            
+            // Nur Änderungen anzeigen (Löschungen und Erstellungen)
+            if (changes.deletions.length > 0 || changes.creations.length > 0) {
+                html += `<div style="margin-bottom: 20px;">`;
+                html += `<h4>🔄 Erforderliche Änderungen</h4>`;
+                html += `<div style="overflow-x: auto;">`;
+                html += `<table style="width: 100%; border-collapse: collapse; font-size: 12px;">`;
+                html += `<thead>`;
+                html += `<tr style="background: #e9ecef;">`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">Aktion</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">Datum</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">Quota-Name</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">HRS-ID</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">SK</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">ML</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">MBZ</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">2BZ</th>`;
+                html += `<th style="padding: 8px; border: 1px solid #ddd;">Gesamt</th>`;
+                html += `</tr>`;
+                html += `</thead>`;
+                html += `<tbody>`;
+                
+                // Löschungen
+                changes.deletions.forEach(quota => {
+                    const sk = quota.categories?.SK?.total_beds || 0;
+                    const ml = quota.categories?.ML?.total_beds || 0;
+                    const mbz = quota.categories?.MBZ?.total_beds || 0;
+                    const bz2 = quota.categories?.['2BZ']?.total_beds || 0;
+                    const total = sk + ml + mbz + bz2;
+                    
+                    html += `<tr style="background: #ffeaea;">`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; color: #dc3545; font-weight: bold;">🗑️ LÖSCHEN</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">${quota.date_from} - ${quota.date_to}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">${quota.title}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">${quota.hrs_id}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${sk}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${ml}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${mbz}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${bz2}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${total}</td>`;
+                    html += `</tr>`;
+                });
+                
+                // Erstellungen
+                changes.creations.forEach(quota => {
+                    const sk = quota.categories?.SK?.total_beds || 0;
+                    const ml = quota.categories?.ML?.total_beds || 0;
+                    const mbz = quota.categories?.MBZ?.total_beds || 0;
+                    const bz2 = quota.categories?.['2BZ']?.total_beds || 0;
+                    const total = sk + ml + mbz + bz2;
+                    
+                    html += `<tr style="background: #eafaea;">`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; color: #28a745; font-weight: bold;">➕ ERSTELLEN</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">${quota.date_from}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">${quota.title}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd;">Neu</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${sk}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${ml}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${mbz}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${bz2}</td>`;
+                    html += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${total}</td>`;
+                    html += `</tr>`;
+                });
+                
+                html += `</tbody>`;
+                html += `</table>`;
+                html += `</div>`;
+                html += `</div>`;
+            }
+            
+            // Unveränderte Quotas (optional, kompakt anzeigen)
+            if (changes.unchanged.length > 0) {
+                html += `<div style="margin-bottom: 20px;">`;
+                html += `<h4 style="color: #6c757d;">➡️ Unveränderte Quotas (${changes.unchanged.length})</h4>`;
+                html += `<div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 11px;">`;
+                changes.unchanged.forEach((item, index) => {
+                    if (index < 5) { // Nur erste 5 anzeigen
+                        html += `<span style="margin-right: 15px;">${item.date}: ${item.quota.title}</span>`;
+                    }
+                });
+                if (changes.unchanged.length > 5) {
+                    html += `<span style="color: #6c757d;">... und ${changes.unchanged.length - 5} weitere</span>`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+            }
+            
+            // Aktions-Buttons
+            html += `<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; text-align: center;">`;
+            if (changes.deletions.length > 0 || changes.creations.length > 0) {
+                html += `<button onclick="executeQuotaChanges()" style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; margin-right: 10px;">`;
+                html += `🚀 Änderungen ausführen (${changes.summary.deletionCount + changes.summary.creationCount} Aktionen)`;
+                html += `</button>`;
+            } else {
+                html += `<div style="color: #28a745; font-weight: bold; font-size: 16px;">✅ Keine Änderungen erforderlich</div>`;
+                html += `<div style="color: #6c757d; margin-top: 5px;">Alle Quotas entsprechen bereits der optimalen Konfiguration.</div>`;
+            }
+            html += `<button onclick="hideDetailsPanel()" style="background: #6c757d; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; margin-left: 10px;">`;
+            html += `Schließen`;
+            html += `</button>`;
+            html += `</div>`;
+            
+            content.innerHTML = html;
+            document.getElementById('detailsPanel').style.display = 'block';
+            
+            // Speichere Änderungen für executeQuotaChanges
+            window.pendingQuotaChanges = changes;
         }
 
         function displayQuotaComparison(comparisonData, startDate, endDate, za) {
@@ -2934,6 +3426,40 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
                 closeQuotaChangesModal();
             }
         });
+        
+        // Alle wichtigen Funktionen dem window-Objekt zuweisen für onclick-Handler
+        window.updateData = updateData;
+        window.importHRSData = importHRSData;
+        window.importWebImpData = importWebImpData;
+        window.exportToExcel = exportToExcel;
+        window.showBackupPanel = showBackupPanel;
+        window.hideBackupPanel = hideBackupPanel;
+        window.showAnalysisPanel = showAnalysisPanel;
+        window.hideAnalysisPanel = hideAnalysisPanel;
+        window.createBackup = createBackup;
+        window.loadBackupList = loadBackupList;
+        window.restoreBackup = restoreBackup;
+        window.deleteBackup = deleteBackup;
+        window.runBackupComparison = runBackupComparison;
+        window.debugProblematicRecords = debugProblematicRecords;
+        window.analyzeSpecificRecords = analyzeSpecificRecords;
+        window.hideDetailsPanel = hideDetailsPanel;
+        window.toggleQuotaDateSelection = toggleQuotaDateSelection;
+        window.clearQuotaSelection = clearQuotaSelection;
+        window.selectDateForQuota = selectDateForQuota;
+        window.toggleQuotaOptimization = toggleQuotaOptimization;
+        window.applyQuotaOptimization = applyQuotaOptimization;
+        
+        // Progress Modal Funktionen
+        window.showProgressModal = showProgressModal;
+        window.updateProgress = updateProgress;
+        window.hideProgressModal = hideProgressModal;
+        
+        // Neue Funktionen dem window-Objekt zuweisen
+        window.calculateQuotaChanges = calculateQuotaChanges;
+        window.displayQuotaChangesPreview = displayQuotaChangesPreview;
+        window.executeQuotaChanges = executeQuotaChanges;
+        window.showQuotaComparison = showQuotaComparison;
     </script>
 
     <!-- Detail Panel für Dry-Run Ergebnisse -->

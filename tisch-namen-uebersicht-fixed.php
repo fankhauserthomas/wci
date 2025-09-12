@@ -62,10 +62,6 @@ function generateTischBMP($tischName, $namen, $outputPath) {
     
     // Hintergrund füllen
     imagefill($image, 0, 0, $white);
-    $gray_dark = imagecolorallocate($image, 64, 64, 64);
-    
-    // Hintergrund füllen
-    imagefill($image, 0, 0, $white);
     
     // TrueType Schriftarten definieren (nach den Überprüfungen)
     // $font_path und $font_bold_path sind bereits oben definiert
@@ -80,36 +76,33 @@ function generateTischBMP($tischName, $namen, $outputPath) {
     $title_bbox = imagettfbbox($title_size, 0, $font_bold_italic_path, $title_text);
     $title_width = $title_bbox[4] - $title_bbox[0];
     $title_x = intval(($width - $title_width) / 2);
-    $title_y = 80; // 20 Pixel nach unten verschoben
+    $title_y = 80;
     imagettftext($image, $title_size, 0, $title_x, $title_y, $black, $font_bold_italic_path, $title_text);
     
-    // Dicke Linie unter Überschrift (3-fache Stärke)
+    // Dicke Linie unter Überschrift
     imagesetthickness($image, 3);
     imageline($image, 100, 90, $width-100, 90, $gray_medium);
-    imagesetthickness($image, 1); // Zurück auf normale Dicke
+    imagesetthickness($image, 1);
     
     // Namen optimal darstellen
     if (!empty($namen)) {
-        // Verfügbaren Bereich berechnen
         $content_start_y = 110;
-        $content_end_y = $height - 80; // Platz für Fußzeile lassen
+        $content_end_y = $height - 80;
         $content_height = $content_end_y - $content_start_y;
-        $content_width = $width - 100; // 50px Rand links und rechts
+        $content_width = $width - 100;
         
-        // Anzahl der Namen zählen
         $name_count = count($namen);
         
-        // Optimale Schriftgröße iterativ berechnen - präzise Bereichsausnutzung
-        $max_font_size = 48;  // Größere Maximalschrift für bessere Ausnutzung
+        // Optimale Schriftgröße berechnen
+        $max_font_size = 48;
         $min_font_size = 10;
         $optimal_font_size = $min_font_size;
-        $line_spacing = 5; // Minimaler Abstand zwischen Zeilen
+        $line_spacing = 5;
         
-        // Iteriere durch Schriftgrößen (feinere Schritte für Präzision)
         for ($test_font_size = $max_font_size; $test_font_size >= $min_font_size; $test_font_size -= 1) {
             $total_height_needed = 0;
             $max_width_needed = 0;
-            $line_heights = []; // Sammle individuelle Zeilenhöhen
+            $line_heights = [];
             
             foreach ($namen as $gast) {
                 $name_text = $gast['name'];
@@ -118,29 +111,25 @@ function generateTischBMP($tischName, $namen, $outputPath) {
                 }
                 $full_text = $name_text . " (" . $gast['anzahl'] . ")";
                 
-                // Bounding Box für Bold-Italic berechnen
                 $bbox = imagettfbbox($test_font_size, 0, $font_bold_italic_path, $full_text);
                 $text_width = $bbox[4] - $bbox[0];
-                $text_height = $bbox[1] - $bbox[7]; // Präzise Höhe von Baseline
+                $text_height = $bbox[1] - $bbox[7];
                 
                 $line_heights[] = $text_height;
                 $max_width_needed = max($max_width_needed, $text_width);
             }
             
-            // Gesamthöhe = Summe aller Zeilenhöhen + Abstände zwischen Zeilen
             $total_height_needed = array_sum($line_heights) + ($name_count - 1) * $line_spacing;
             
-            // Prüfe ob alles in den verfügbaren Bereich passt
             if ($total_height_needed <= $content_height && $max_width_needed <= $content_width) {
                 $optimal_font_size = $test_font_size;
                 break;
             }
         }
         
-        // Namen mit optimaler Schriftgröße und Bold-Italic darstellen
-        $line_heights_final = []; // Für präzise Zentrierung
+        // Namen darstellen
+        $line_heights_final = [];
         
-        // Alle Zeilenhöhen für finale Schriftgröße berechnen
         foreach ($namen as $gast) {
             $name_text = $gast['name'];
             if (strlen($name_text) > 35) {
@@ -152,10 +141,7 @@ function generateTischBMP($tischName, $namen, $outputPath) {
             $line_heights_final[] = $text_height;
         }
         
-        // Gesamthöhe aller Namen für vertikale Zentrierung
         $total_content_height = array_sum($line_heights_final) + ($name_count - 1) * $line_spacing;
-        
-        // Vertikal zentrieren
         $start_y = $content_start_y + ($content_height - $total_content_height) / 2;
         $current_y = $start_y;
         
@@ -166,19 +152,16 @@ function generateTischBMP($tischName, $namen, $outputPath) {
             }
             $full_text = $name_text . " (" . $gast['anzahl'] . ")";
             
-            // Text horizontal zentrieren mit Bold-Italic
             $bbox = imagettfbbox($optimal_font_size, 0, $font_bold_italic_path, $full_text);
             $text_width = $bbox[4] - $bbox[0];
-            $text_height = $line_heights_final[$index]; // Verwende vorab berechnete Höhe
+            $text_height = $line_heights_final[$index];
             $text_x = intval(($width - $text_width) / 2);
             
-            // Namen zeichnen in Bold-Italic
             imagettftext($image, $optimal_font_size, 0, $text_x, intval($current_y + $text_height), $black, $font_bold_italic_path, $full_text);
             
             $current_y += $text_height + $line_spacing;
         }
     } else {
-        // Fallback wenn keine Namen - vertikal und horizontal zentriert
         $no_names = "Keine Namen verfügbar";
         $no_names_bbox = imagettfbbox(20, 0, $font_bold_italic_path, $no_names);
         $no_names_width = $no_names_bbox[4] - $no_names_bbox[0];
@@ -198,86 +181,6 @@ function generateTischBMP($tischName, $namen, $outputPath) {
     
     // BMP speichern (GD unterstützt kein natives BMP, also konvertieren wir)
     $result = saveBMP($image, $outputPath);
-    imagedestroy($image);
-    
-    return $result;
-}
-
-/**
- * Native BMP-Datei erstellen (da GD kein natives BMP unterstützt)
- */
-function saveBMP($image, $outputPath) {
-    if (!$image) {
-        return false;
-    }
-    
-    // Bildabmessungen
-    $width = imagesx($image);
-    $height = imagesy($image);
-    
-    // BMP Header erstellen
-    $fileSize = 54 + ($width * $height * 3); // Header + Pixeldaten
-    
-    // BMP File Header (14 Bytes)
-    $bmpFileHeader = 'BM' . pack('V', $fileSize) . pack('V', 0) . pack('V', 54);
-    
-    // BMP Info Header (40 Bytes)
-    $bmpInfoHeader = pack('V', 40) . pack('V', $width) . pack('V', $height) . 
-                     pack('v', 1) . pack('v', 24) . pack('V', 0) . 
-                     pack('V', 0) . pack('V', 0) . pack('V', 0) . 
-                     pack('V', 0) . pack('V', 0);
-    
-    // Pixeldaten extrahieren
-    $pixelData = '';
-    for ($y = $height - 1; $y >= 0; $y--) {
-        for ($x = 0; $x < $width; $x++) {
-            $rgb = imagecolorat($image, $x, $y);
-            $r = ($rgb >> 16) & 0xFF;
-            $g = ($rgb >> 8) & 0xFF;
-            $b = $rgb & 0xFF;
-            $pixelData .= pack('C3', $b, $g, $r); // BGR Format für BMP
-        }
-        
-        // Padding für 4-Byte-Alignment
-        $padding = (4 - (($width * 3) % 4)) % 4;
-        $pixelData .= str_repeat("\0", $padding);
-    }
-    
-    // BMP-Datei schreiben
-    $bmpData = $bmpFileHeader . $bmpInfoHeader . $pixelData;
-    
-    return file_put_contents($outputPath, $bmpData) !== false;
-}
-
-/**
- * CRC-Checksummen für BMP-Datei berechnen
- */
-function calculateBMPCRC($bmpPath) {
-    if (!file_exists($bmpPath)) {
-        return false;
-    }
-    
-    $bmpData = file_get_contents($bmpPath);
-    if ($bmpData === false) {
-        return false;
-    }
-    
-    return [
-        'file' => basename($bmpPath),
-        'size' => filesize($bmpPath),
-        'crc32' => sprintf('%08x', crc32($bmpData)),
-        'sha256' => hash('sha256', $bmpData),
-        'created' => date('Y-m-d H:i:s')
-    ];
-}
-
-/**
- * CRC-Datei im JSON-Format speichern
- */
-function saveCRCFile($crcPath, $crcData) {
-    $jsonData = json_encode($crcData, JSON_PRETTY_PRINT);
-    return file_put_contents($crcPath, $jsonData) !== false;
-}
 
 /**
  * Generiert HTML-basierte "Bild"-Vorschau als Alternative

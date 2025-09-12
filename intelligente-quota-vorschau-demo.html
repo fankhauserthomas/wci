@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Intelligente Quota-Änderungs-Vorschau Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .highlight {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .feature {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .code {
+            background: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .danger {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Intelligente Quota-Änderungs-Vorschau</h1>
+
+    <div class="highlight">
+        <h2>✨ Neue Features implementiert:</h2>
+        <ul>
+            <li class="success">✅ Lückenlose Quota-Abdeckung für ausgewählten Zeitraum</li>
+            <li class="success">✅ Intelligente Erkennung identischer Quotas (keine unnötigen Änderungen)</li>
+            <li class="success">✅ Optimierte Vorschau: Nur notwendige Löschungen und Erstellungen</li>
+            <li class="success">✅ Batch-Verarbeitung mit Progress-Anzeige</li>
+            <li class="success">✅ Detaillierte Änderungs-Übersicht vor Ausführung</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h3>🔄 Intelligente Quota-Logik</h3>
+
+        <div class="feature">
+            <h4>1. Lückenlose Abdeckung</h4>
+            <p>Für jeden Tag im ausgewählten Zeitraum wird eine eintägige Quota benötigt. Das System analysiert
+                vorhandene mehrtägige Quotas und erstellt bei Bedarf Einzeltags-Quotas.</p>
+        </div>
+
+        <div class="feature">
+            <h4>2. Identitätsprüfung</h4>
+            <p>Bevor eine Quota gelöscht und neu erstellt wird, prüft das System:</p>
+            <ul>
+                <li>Ist es bereits eine eintägige Quota? (von heute bis morgen)</li>
+                <li>Sind alle Kategorien identisch? (SK, ML, MBZ, 2BZ)</li>
+                <li>Falls ja → <span class="success">Quota bleibt unverändert</span></li>
+                <li>Falls nein → <span class="warning">Quota wird optimiert</span></li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h4>3. Optimierte Berechnungen</h4>
+            <div class="code">
+                // Neue Quota basierend auf Zielauslastung berechnen
+                const newQuotaTotal = Math.max(gesamtBelegt,
+                Math.ceil(gesamtBelegt * (100 / targetOccupancy)));
+
+                // Verteilung nach aktuellen Belegungsverhältnissen
+                const newQuota = {
+                SK: Math.round(newQuotaTotal * ratioSK),
+                ML: Math.round(newQuotaTotal * ratioML),
+                // ...
+                };
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>📊 Vorschau-Interface</h3>
+
+        <div class="feature">
+            <h4>Änderungs-Übersicht</h4>
+            <ul>
+                <li><span class="danger">🗑️ Zu löschen:</span> Anzahl der zu löschenden Quotas</li>
+                <li><span class="success">➕ Zu erstellen:</span> Anzahl der zu erstellenden Quotas</li>
+                <li><span style="color: #6c757d;">➡️ Unverändert:</span> Anzahl der bereits optimalen Quotas</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h4>Detaillierte Änderungs-Tabelle</h4>
+            <p>Zeigt nur die tatsächlich erforderlichen Änderungen:</p>
+            <ul>
+                <li>Löschungen: Alte Quotas mit ihren Daten</li>
+                <li>Erstellungen: Neue optimierte Quotas</li>
+                <li>Kompakte Anzeige unveränderte Quotas</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h4>Intelligente Aktions-Buttons</h4>
+            <ul>
+                <li>Falls Änderungen nötig: <strong>"🚀 Änderungen ausführen (X Aktionen)"</strong></li>
+                <li>Falls keine Änderungen: <strong>"✅ Keine Änderungen erforderlich"</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>⚙️ Funktions-Übersicht</h3>
+
+        <div class="code">
+            calculateQuotaChanges(startDate, endDate, targetOccupancy)
+            → Berechnet intelligente Änderungen
+
+            displayQuotaChangesPreview(changes, ...)
+            → Zeigt optimierte Vorschau an
+
+            executeQuotaChanges()
+            → Führt nur notwendige Änderungen aus
+        </div>
+
+        <div class="feature">
+            <h4>Integration in bestehenden Workflow</h4>
+            <p>Die neue Logik ersetzt die alte API-basierte Vorschau und nutzt die bestehenden
+                Batch-Delete/Create-Scripte:</p>
+            <ul>
+                <li><code>hrs_del_quota_batch.php</code> für Löschungen</li>
+                <li><code>hrs_create_quota_batch.php</code> für Erstellungen</li>
+                <li>Progress-Modal für Benutzer-Feedback</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="highlight">
+        <h3>🎯 Effizienz-Steigerung</h3>
+        <p><strong>Beispiel:</strong> Bei einem 10-Tage-Zeitraum wo 7 Quotas bereits optimal sind:</p>
+        <ul>
+            <li><span class="danger">Vorher:</span> 10 Löschungen + 10 Erstellungen = 20 API-Calls</li>
+            <li><span class="success">Jetzt:</span> 3 Löschungen + 3 Erstellungen = 6 API-Calls</li>
+            <li><strong>Einsparung: 70% weniger API-Aufrufe!</strong></li>
+        </ul>
+    </div>
+
+    <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin-top: 30px; text-align: center;">
+        <h2 style="color: #155724; margin-top: 0;">✅ Implementation abgeschlossen!</h2>
+        <p>Die intelligente Quota-Änderungs-Vorschau ist jetzt in <code>belegung_tab.php</code> integriert und sofort
+            einsatzbereit.</p>
+        <p><strong>Alle Funktionen sind dem window-Objekt zugewiesen und über onclick-Handler verfügbar.</strong></p>
+    </div>
+</body>
+
+</html>

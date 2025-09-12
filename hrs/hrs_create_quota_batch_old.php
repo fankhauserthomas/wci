@@ -65,13 +65,8 @@ try {
     // Einmaliger HRS Login für alle Erstellungsvorgänge
     $log_messages[] = 'Einmaliger HRS-Login für Quota-Erstellung...';
     
-    // Capture and suppress debug output from HRS login
-    ob_start();
     $hrsLogin = new HRSLogin();
-    $login_success = $hrsLogin->login();
-    $login_debug_output = ob_get_clean();
-    
-    if (!$login_success) {
+    if (!$hrsLogin->login()) {
         throw new Exception('HRS Login fehlgeschlagen');
     }
     
@@ -90,8 +85,10 @@ try {
         
         // Robuste Kapazitäts-Validierung
         if (!is_numeric($capacity_raw) || !is_finite($capacity_raw) || $capacity_raw < 0) {
-            $log_messages[] = "FEHLER: Ungültige Kapazität '$capacity_raw' für Quota '$quota_title'";
-            $error_count++;
+            echo json_encode(array(
+                'status' => 'error',
+                'message' => "FEHLER: Ungültige Kapazität '$capacity_raw' für Quota '$quota_title'"
+            )) . "\n";
             continue; // Überspringe diese Quota
         }
         
@@ -100,7 +97,10 @@ try {
         // KORREKTUR: date_to immer +1 Tag von date_from
         $date_to_corrected = date('Y-m-d', strtotime($date_from . ' +1 day'));
         
-        $log_messages[] = "Erstelle Quota: $quota_title ($date_from bis $date_to_corrected, Kapazität: $capacity)";
+        echo json_encode(array(
+            'status' => 'info',
+            'message' => "Erstelle Quota: $quota_title ($date_from bis $date_to_corrected, Kapazität: $capacity)"
+        )) . "\n";
         
         try {
             // Payload bauen (exakt wie im VB.NET Code)
@@ -139,9 +139,20 @@ try {
             
             $json_payload = json_encode($payload);
             
-            // HRS API Call - Quota erstellen (korrigierte URL)
+            // HRS API Call - Quota erstellen
             $hut_id = 675; // Franzsenhütte HUT-ID
             $url = "https://www.hut-reservation.org/api/v1/manage/hutQuota/$hut_id";
+            
+            // DEBUG: Payload und URL ausgeben
+            echo json_encode(array(
+                'status' => 'info',
+                'message' => "DEBUG: HRS-URL für '$quota_title': $url"
+            )) . "\n";
+            
+            echo json_encode(array(
+                'status' => 'info',
+                'message' => "DEBUG: Kompletter JSON-Payload für '$quota_title': $json_payload"
+            )) . "\n";
             
             // Cookie-Header aus HRSLogin-Cookies erstellen
             $cookies = $hrsLogin->getCookies();
@@ -182,59 +193,115 @@ try {
             }
             
             if ($http_code !== 200) {
+                // Detaillierte HTTP-Fehler ausgeben
+                echo json_encode(array(
+                    'status' => 'error',
+                    'message' => "HTTP-Fehler $http_code bei Quota '$quota_title': $response"
+                )) . "\n";
                 throw new Exception("HTTP-Fehler $http_code: $response");
             }
             
-            // Parse Response und prüfe MessageID
+            // Response parsen und detailliert loggen
+            echo json_encode(array(
+                'status' => 'info',
+                'message' => "DEBUG: HTTP-$http_code für '$quota_title' - Response: $response"
+            )) . "\n";
+            
             $response_data = json_decode($response, true);
-            if ($response_data && isset($response_data['messageId']) && $response_data['messageId'] == 120) {
-                $success_count++;
-                $log_messages[] = "✅ Quota '$quota_title' erfolgreich erstellt (MessageID: 120)";
-                $results[] = array(
-                    'title' => $quota_title,
-                    'date' => $date_from,
-                    'capacity' => $capacity,
-                    'status' => 'success',
-                    'message' => 'Erfolgreich erstellt'
-                );
-            } else {
-                throw new Exception("Unerwartete Antwort: " . $response);
+            if (!$response_data) {
+                throw new Exception("Ungültige JSON-Response: $response");
             }
             
-        } catch (Exception $quota_error) {
+            // Erfolg prüfen (wie bei Delete-Script)
+            if (isset($response_data['messageId'])) {
+                $message_id = $response_data['messageId'];
+                $description = $response_data['description'] ?? 'Unbekannt';
+                
+                echo json_encode(array(
+                    'status' => 'info',
+                    'message' => "HRS MessageID für '$quota_title': $message_id ($description)"
+                )) . "\n";
+                
+                if ($message_id == 200 || $message_id == 201 || $message_id == 120) {
+                    // Erfolgreich erstellt (120 = "Quota successfully saved")
+                    $success_count++;
+                    $results[] = array(
+                        'success' => true,
+                        'title' => $quota_title,
+                        'date_from' => $date_from,
+                        'date_to' => $date_to_corrected, // Verwende korrigierte date_to
+                        'capacity' => $capacity,
+                        'message' => "Erfolgreich erstellt (MessageID: $message_id)",
+                        'hrs_response' => $response_data
+                    );
+                    
+                    echo json_encode(array(
+                        'status' => 'success',
+                        'message' => "✅ Quota '$quota_title' erfolgreich erstellt (MessageID: $message_id)"
+                    )) . "\n";
+                    
+                } else {
+                    // HRS-Fehler mit MessageID
+                    $error_msg = "HRS-Fehler MessageID $message_id: $description";
+                    echo json_encode(array(
+                        'status' => 'error',
+                        'message' => "❌ $error_msg für Quota '$quota_title'"
+                    )) . "\n";
+                    throw new Exception($error_msg);
+                }
+            } else {
+                // Keine MessageID in Response
+                $error_msg = "Unerwartete Response-Struktur (keine MessageID): $response";
+                echo json_encode(array(
+                    'status' => 'error',
+                    'message' => "❌ $error_msg für Quota '$quota_title'"
+                )) . "\n";
+                throw new Exception($error_msg);
+            }
+            
+        } catch (Exception $e) {
             $error_count++;
-            $error_msg = $quota_error->getMessage();
-            $log_messages[] = "❌ Quota '$quota_title' Fehler: $error_msg";
+            $error_msg = $e->getMessage();
+            
             $results[] = array(
+                'success' => false,
                 'title' => $quota_title,
-                'date' => $date_from,
+                'date_from' => $date_from,
+                'date_to' => $date_to_corrected ?? $date_to_original, // Verwende korrigierte oder Original
                 'capacity' => $capacity,
-                'status' => 'error',
                 'message' => $error_msg
             );
+            
+            echo json_encode(array(
+                'status' => 'error',
+                'message' => "❌ Fehler bei Quota '$quota_title': $error_msg"
+            )) . "\n";
         }
         
         // Kurze Pause zwischen Quotas (wie im VB.NET)
         usleep(500000); // 0.5 Sekunden
     }
     
-    // Finale einzige JSON-Antwort
+    // Zusammenfassung
     echo json_encode(array(
-        'success' => ($error_count == 0),
+        'status' => 'summary',
         'message' => "Quota-Erstellung abgeschlossen: $success_count erfolgreich, $error_count Fehler",
         'success_count' => $success_count,
         'error_count' => $error_count,
         'total_count' => count($quotas_to_create),
-        'results' => $results,
-        'log' => $log_messages
-    ));
+        'results' => $results
+    )) . "\n";
     
 } catch (Exception $e) {
     $error_msg = $e->getMessage();
     echo json_encode(array(
-        'success' => false,
-        'message' => "Kritischer Fehler: $error_msg",
-        'error' => $error_msg
-    ));
+        'status' => 'error',
+        'message' => "Kritischer Fehler: $error_msg"
+    )) . "\n";
+} finally {
+    echo json_encode(array(
+        'status' => 'complete',
+        'message' => 'Quota-Erstellungsvorgang abgeschlossen'
+    )) . "\n";
 }
 ?>

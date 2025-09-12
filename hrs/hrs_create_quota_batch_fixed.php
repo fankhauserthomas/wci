@@ -65,13 +65,8 @@ try {
     // Einmaliger HRS Login für alle Erstellungsvorgänge
     $log_messages[] = 'Einmaliger HRS-Login für Quota-Erstellung...';
     
-    // Capture and suppress debug output from HRS login
-    ob_start();
     $hrsLogin = new HRSLogin();
-    $login_success = $hrsLogin->login();
-    $login_debug_output = ob_get_clean();
-    
-    if (!$login_success) {
+    if (!$hrsLogin->login()) {
         throw new Exception('HRS Login fehlgeschlagen');
     }
     
@@ -139,9 +134,7 @@ try {
             
             $json_payload = json_encode($payload);
             
-            // HRS API Call - Quota erstellen (korrigierte URL)
-            $hut_id = 675; // Franzsenhütte HUT-ID
-            $url = "https://www.hut-reservation.org/api/v1/manage/hutQuota/$hut_id";
+            $url = 'https://www.hut-reservation.org/hut/rest/hutQuota/675';
             
             // Cookie-Header aus HRSLogin-Cookies erstellen
             $cookies = $hrsLogin->getCookies();
