@@ -193,9 +193,9 @@ class UltraSecureFileSafetyAnalyzer {
             'auth.php', 'authenticate.php', 'checkAuth.php', 'logout.php',
             'SyncManager.php', 'sync-cron.php', 'sync-cronjob.php',
             'index.php', 'dashboard.php', 'belegung.php',
-            'addReservation.php', 'addReservationNames.php',
-            'deleteReservation.php', 'deleteReservationNames.php',
-            'data.php', 'style.css', 'script.js',
+            'reservierungen/api/addReservation.php', 'reservierungen/api/addReservationNames.php',
+            'reservierungen/api/deleteReservation.php', 'reservierungen/api/deleteReservationNames.php',
+            'include/data.php', 'style.css', 'script.js',
             'api.php', 'api-access-stats.php',
             'enhanced-wci-analyzer.php',
             '*.sql', 'logs/*', '*.log', '*.backup', '*.bak',
@@ -448,7 +448,7 @@ class UltraSecureFileSafetyAnalyzer {
             $dependencies = array_merge($dependencies, $matches[1]);
         }
         
-        // File paths with directories (api/getReservationDetails.php, images/logo.png)
+        // File paths with directories (api/reservierungen/api/getReservationDetails.php, images/logo.png)
         if (preg_match_all('/\b([a-zA-Z0-9_\/-]+\.(php|html|htm|css|js|png|jpg|jpeg|gif|svg|ico|webp|json|xml|pdf|txt))\b/', $content, $matches)) {
             foreach ($matches[1] as $match) {
                 $dependencies[] = basename($match); // Extract just filename
@@ -1097,7 +1097,7 @@ if (!$isCLI) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔍 Enhanced WCI Access & Security Analyzer</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <style>
         .enhanced-container {
             max-width: 1800px;

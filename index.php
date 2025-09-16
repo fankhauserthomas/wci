@@ -14,7 +14,7 @@ if (!AuthManager::checkSession()) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebCheckin - Franz-Senn-Hütte</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="include/style.css">
   <style>
     body {
       font-family: sans-serif;
@@ -524,7 +524,7 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Übersicht aller Reservierungen mit An-/Abreise-Filtern, Suche und Check-in/Check-out Verwaltung.
         </p>
-        <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
+        <a href="reservierungen/reservierungen.html" class="card-button">Reservierungen verwalten</a>
       </div>
 
       <div class="dashboard-card" draggable="true" data-card-id="statistiken">
@@ -597,7 +597,7 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Optimierte Ansichten für mobile Geräte und Tablets.
         </p>
-        <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+        <a href="reservierungen/reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
       </div>
 
       <div class="dashboard-card sync-matrix-card" draggable="true" data-card-id="sync-matrix">
@@ -627,8 +627,8 @@ if (!AuthManager::checkSession()) {
   </div>
 
   <!-- Scripts -->
-  <script src="js/http-utils.js"></script>
-  <script src="js/loading-overlay.js"></script>
+  <script src="include/js/http-utils.js"></script>
+  <script src="include/js/loading-overlay.js"></script>
   
   <script>
     // Logout-Funktion

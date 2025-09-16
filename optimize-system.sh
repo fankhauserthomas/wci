@@ -173,7 +173,7 @@ CRITICAL DEPENDENCY CHECK
    hp-db-config.php: $([ -f "hp-db-config.php" ] && echo "✅ YES" || echo "❌ NO")
 
 5. Core CSS:
-   style.css: $([ -f "style.css" ] && echo "✅ YES" || echo "❌ NO")
+   style.css: $([ -f "include/style.css" ] && echo "✅ YES" || echo "❌ NO")
    reservation.css: $([ -f "reservation.css" ] && echo "✅ YES" || echo "❌ NO")
 
 6. Navigation Framework:

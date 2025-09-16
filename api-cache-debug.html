@@ -51,7 +51,7 @@
 
             try {
                 // Mit Cache-Buster
-                const response = await fetch(`data.php?date=2025-09-03&type=arrival&_t=${timestamp}`);
+                const response = await fetch(`include/data.php?date=2025-09-03&type=arrival&_t=${timestamp}`);
                 const data = await response.json();
 
                 // Erstelle Hash der Daten für Vergleich
@@ -93,7 +93,7 @@
 
             try {
                 // OHNE Cache-Buster
-                const response = await fetch('data.php?date=2025-09-03&type=arrival');
+                const response = await fetch('include/data.php?date=2025-09-03&type=arrival');
                 const data = await response.json();
 
                 const dataHash = JSON.stringify(data).length + '_' + (data[0]?.id || 'none');

@@ -1,7 +1,7 @@
 <?php
 // GetCardPrinters.php
 header('Content-Type: application/json');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 $sql = "SELECT ID, bez, kbez FROM CartPrinters ORDER BY bez";
 if (!$result = $mysqli->query($sql)) {

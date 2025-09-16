@@ -16,7 +16,7 @@
   <meta name="cache-buster" content="20250903-no-timers">
 
   <title>Reservierungsliste - WebCheckin</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../include/style.css">
   <style>
     /* Reservierungen-spezifische Styles */
     .main-content {
@@ -443,7 +443,7 @@
       </div>
 
       <!-- Dashboard Button -->
-      <a href="index.php" class="dashboard-btn" title="Zurück zum Dashboard">
+      <a href="../index.php" class="dashboard-btn" title="Zurück zum Dashboard">
         <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M8 0L0 6v10h5V9h6v7h5V6L8 0zm0 2.5L13 7v7h-1V8H4v6H3V7l5-4.5z" />
         </svg>
@@ -504,9 +504,9 @@
   <!-- Barcode Scanner Modal entfernt - automatische Erkennung mit {..} -->
 
   <!-- Scripts optimiert für Performance mit Cache-Buster -->
-  <script src="js/email-utils.js?v=20250903"></script>
-  <script src="js/http-utils.js?v=20250903"></script>
-  <script src="js/loading-overlay.js?v=20250903"></script>
+  <script src="../include/js/email-utils.js?v=20250903"></script>
+  <script src="../include/js/http-utils.js?v=20250903"></script>
+  <script src="../include/js/loading-overlay.js?v=20250903"></script>
   <!-- Auto-Refresh KOMPLETT DEAKTIVIERT - Timer-Killer laden -->
   <script src="js/auto-refresh-disabled.js?v=20250903"></script>
   <!-- QRCode.js erst bei Bedarf laden -->
@@ -540,12 +540,12 @@
   <script>
     // Scanner sofort laden für bessere Responsivität (Cache-Buster)
     const barcodeScript = document.createElement('script');
-    barcodeScript.src = 'auto-barcode-scanner.js?v=20250903';
+    barcodeScript.src = 'js/auto-barcode-scanner.js?v=20250903';
     barcodeScript.onload = () => console.log('✅ Barcode-Scanner geladen');
     barcodeScript.onerror = () => console.error('❌ Barcode-Scanner Ladefehler');
     document.head.appendChild(barcodeScript);
   </script>
-  <script src="script.js?v=20250903"></script>
+  <script src="js/script.js?v=20250903"></script>
 
   <!-- BACKUP: Name-Click-Handler falls script.js versagt -->
   <script>

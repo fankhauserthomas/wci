@@ -3,6 +3,13 @@
  * Einheitliche Navigation zwischen allen Seiten
  */
 
+const NAV_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+const NAV_RESERVATIONS_URL = `${NAV_ROOT_PREFIX}/reservierungen/reservierungen.html`;
+const NAV_RESERVATION_URL = `${NAV_ROOT_PREFIX}/reservierungen/reservation.html`;
+const NAV_RESERVATION_DETAILS_URL = `${NAV_ROOT_PREFIX}/reservierungen/ReservationDetails.html`;
+const NAV_GUEST_DETAIL_URL = `${NAV_ROOT_PREFIX}/reservierungen/GastDetail.html`;
+const NAV_LOGO_URL = `${NAV_ROOT_PREFIX}/pic/logo.png`;
+
 class NavigationSystem {
   static currentPage = '';
   static breadcrumbs = [];
@@ -30,10 +37,10 @@ class NavigationSystem {
 
     const pageMap = {
       'index.html': 'dashboard',
-      'reservierungen.html': 'reservations',
-      'reservation.html': 'reservation',
-      'ReservationDetails.html': 'reservation-details',
-      'GastDetail.html': 'guest-details',
+      [NAV_RESERVATIONS_URL.split('/').pop()]: 'reservations',
+      [NAV_RESERVATION_URL.split('/').pop()]: 'reservation',
+      [NAV_RESERVATION_DETAILS_URL.split('/').pop()]: 'reservation-details',
+      [NAV_GUEST_DETAIL_URL.split('/').pop()]: 'guest-details',
       'calendar.html': 'calendar',
       'reports.html': 'reports',
       'statistiken.html': 'reports'
@@ -64,7 +71,7 @@ class NavigationSystem {
     nav.className = 'main-navigation';
     nav.innerHTML = `
       <div class="nav-brand">
-        <img src="pic/logo.png" alt="Franzsen Hütte" class="nav-logo" onerror="this.style.display='none'">
+        <img src="${NAV_LOGO_URL}" alt="Franzsen Hütte" class="nav-logo" onerror="this.style.display='none'">
         <span class="nav-title">Buchungssystem</span>
       </div>
       
@@ -72,7 +79,7 @@ class NavigationSystem {
         <a href="index.php" class="nav-item" data-page="dashboard">
           📊 Dashboard
         </a>
-        <a href="reservierungen.html" class="nav-item" data-page="reservations">
+        <a href="${NAV_RESERVATIONS_URL}" class="nav-item" data-page="reservations">
           📋 Reservierungen
         </a>
         <a href="statistiken.html" class="nav-item" data-page="reports">
@@ -110,7 +117,7 @@ class NavigationSystem {
     mobileNav.className = 'mobile-navigation';
     mobileNav.innerHTML = `
       <a href="index.php" class="mobile-nav-item" data-page="dashboard">📊 Dashboard</a>
-      <a href="reservierungen.html" class="mobile-nav-item" data-page="reservations">📋 Reservierungen</a>
+      <a href="${NAV_RESERVATIONS_URL}" class="mobile-nav-item" data-page="reservations">📋 Reservierungen</a>
       <a href="statistiken.html" class="mobile-nav-item" data-page="reports">📈 Statistiken</a>
     `;
 
@@ -141,17 +148,17 @@ class NavigationSystem {
       ],
       'reservation': [
         { label: '🏠 Dashboard', url: 'index.html' },
-        { label: '📋 Reservierungen', url: 'reservierungen.html' }
+        { label: '📋 Reservierungen', url: NAV_RESERVATIONS_URL }
       ],
       'reservation-details': [
         { label: '🏠 Dashboard', url: 'index.html' },
-        { label: '📋 Reservierungen', url: 'reservierungen.html' },
-        { label: '📝 Reservation', url: 'reservation.html' + window.location.search }
+        { label: '📋 Reservierungen', url: NAV_RESERVATIONS_URL },
+        { label: '📝 Reservation', url: `${NAV_RESERVATION_URL}${window.location.search}` }
       ],
       'guest-details': [
         { label: '🏠 Dashboard', url: 'index.html' },
-        { label: '📋 Reservierungen', url: 'reservierungen.html' },
-        { label: '📝 Reservation', url: 'reservation.html' + window.location.search }
+        { label: '📋 Reservierungen', url: NAV_RESERVATIONS_URL },
+        { label: '📝 Reservation', url: `${NAV_RESERVATION_URL}${window.location.search}` }
       ],
       'reports': [
         { label: '🏠 Dashboard', url: 'index.html' }
@@ -260,7 +267,7 @@ class NavigationSystem {
           <span>Dashboard Übersicht</span>
         </div>
         <div class="action-group">
-          <button class="action-primary" onclick="location.href='reservierungen.html'">
+          <button class="action-primary" onclick="location.href='${NAV_RESERVATIONS_URL}'">
             📋 Reservierungen verwalten
           </button>
           <button class="action-secondary" onclick="NavigationSystem.triggerSync()">
@@ -356,13 +363,13 @@ class NavigationSystem {
       // Fallback Navigation
       switch (this.currentPage) {
         case 'reservation':
-          location.href = 'reservierungen.html';
+          location.href = NAV_RESERVATIONS_URL;
           break;
         case 'reservation-details':
         case 'guest-details':
           const urlParams = new URLSearchParams(window.location.search);
           const resId = urlParams.get('id');
-          location.href = `reservation.html${resId ? '?id=' + resId : ''}`;
+          location.href = `${NAV_RESERVATION_URL}${resId ? '?id=' + resId : ''}`;
           break;
         default:
           location.href = 'index.html';

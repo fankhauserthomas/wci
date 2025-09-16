@@ -9,7 +9,7 @@ header('Pragma: no-cache');
 header('Expires: 0');
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
-require 'config.php';
+require_once __DIR__ . '/../config.php';
 
 // MySQL Error Mode lockern
 $mysqli->query("SET sql_mode = 'ALLOW_INVALID_DATES'");

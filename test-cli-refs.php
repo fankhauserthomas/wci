@@ -31,14 +31,14 @@ try {
     $analysis = $analysisProperty->getValue($analyzer);
     
     // Check code references
-    if (isset($analysis['code_referenced_files']['getReservationDetails.php'])) {
-        $refs = $analysis['code_referenced_files']['getReservationDetails.php'];
-        echo "\n✓ getReservationDetails.php found with " . count($refs) . " references:\n";
+    if (isset($analysis['code_referenced_files']['reservierungen/api/getReservationDetails.php'])) {
+        $refs = $analysis['code_referenced_files']['reservierungen/api/getReservationDetails.php'];
+        echo "\n✓ reservierungen/api/getReservationDetails.php found with " . count($refs) . " references:\n";
         foreach ($refs as $ref) {
             echo "  - $ref\n";
         }
     } else {
-        echo "\n✗ getReservationDetails.php NOT found in code references\n";
+        echo "\n✗ reservierungen/api/getReservationDetails.php NOT found in code references\n";
         echo "Available files with references:\n";
         $codeRefs = $analysis['code_referenced_files'] ?? [];
         $phpFiles = array_filter(array_keys($codeRefs), function($f) { 

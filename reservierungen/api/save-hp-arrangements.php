@@ -1,6 +1,6 @@
 <?php
 // save-hp-arrangements.php - Speichert HP Arrangements für eine Reservierung
-require_once 'hp-db-config.php';
+require_once __DIR__ . '/../../hp-db-config.php';
 
 header('Content-Type: application/json');
 

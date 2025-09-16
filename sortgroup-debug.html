@@ -83,7 +83,7 @@
 
                 const [dataResponse, hpDataResponse] = await Promise.all([
                     fetch(`data.php?date=2025-09-03&type=arrival&_t=${timestamp}`),
-                    fetch(`get-all-hp-data.php?date=2025-09-03&type=arrival&_t=${timestamp}`)
+                    fetch(`reservierungen/api/get-all-hp-data.php?date=2025-09-03&type=arrival&_t=${timestamp}`)
                 ]);
 
                 const [mainData, hpData] = await Promise.all([

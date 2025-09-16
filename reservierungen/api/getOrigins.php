@@ -1,7 +1,7 @@
 <?php
 // getOrigins.php - API für Origin-Daten
 header('Content-Type: application/json; charset=utf-8');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 try {
     $sql = "SELECT id, country FROM origin ORDER BY sort ASC";

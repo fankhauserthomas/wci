@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/../../config.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $sql = "SELECT id, country as name FROM countries ORDER BY name";

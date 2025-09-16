@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Header Color Test</title>
-    <link rel="stylesheet" href="reservation.css">
+    <link rel="stylesheet" href="reservierungen/css/reservation.css">
 </head>
 
 <body>
@@ -64,7 +64,7 @@
         async function loadRealData() {
             try {
                 log('Loading real data from API...');
-                const response = await fetch('getReservationDetails.php?id=6441&includeColor=true');
+                const response = await fetch('reservierungen/api/getReservationDetails.php?id=6441&includeColor=true');
                 const data = await response.json();
 
                 log('API Response: ' + JSON.stringify(data.detail, null, 2));

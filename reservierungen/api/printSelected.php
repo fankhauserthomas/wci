@@ -5,7 +5,7 @@
 // Output Buffering starten um Header-Probleme zu vermeiden
 ob_start();
 
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // CleanText-Funktion für QR-Codes (unterstützt Unicode)
 function cleanText($input, $maxlen) {

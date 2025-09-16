@@ -68,7 +68,7 @@
     <script>
         async function testSort() {
             try {
-                const response = await fetch('get-all-hp-data.php?date=2025-08-30&type=arrival');
+                const response = await fetch('reservierungen/api/get-all-hp-data.php?date=2025-08-30&type=arrival');
                 const data = await response.json();
 
                 console.log('API Response:', data);

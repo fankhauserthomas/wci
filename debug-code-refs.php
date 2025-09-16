@@ -20,14 +20,14 @@ if (isset($analysis['code_referenced_files'])) {
     $codeRefs = $analysis['code_referenced_files'];
     echo "   Total files with references: " . count($codeRefs) . "\n";
     
-    if (isset($codeRefs['getReservationDetails.php'])) {
-        $refs = $codeRefs['getReservationDetails.php'];
-        echo "   getReservationDetails.php found with " . count($refs) . " references:\n";
+    if (isset($codeRefs['reservierungen/api/getReservationDetails.php'])) {
+        $refs = $codeRefs['reservierungen/api/getReservationDetails.php'];
+        echo "   reservierungen/api/getReservationDetails.php found with " . count($refs) . " references:\n";
         foreach (array_slice($refs, 0, 5) as $ref) {
             echo "     - $ref\n";
         }
     } else {
-        echo "   getReservationDetails.php NOT found in code_referenced_files\n";
+        echo "   reservierungen/api/getReservationDetails.php NOT found in code_referenced_files\n";
         echo "   Available files: " . implode(', ', array_slice(array_keys($codeRefs), 0, 10)) . "\n";
     }
 } else {
@@ -38,7 +38,7 @@ echo "\n2. Testing getComprehensiveFileList:\n";
 $fileList = $analyzer->getComprehensiveFileList(7);
 $foundFile = null;
 foreach ($fileList as $file) {
-    if ($file['file_name'] === 'getReservationDetails.php') {
+    if ($file['file_name'] === 'reservierungen/api/getReservationDetails.php') {
         $foundFile = $file;
         break;
     }
@@ -50,5 +50,5 @@ if ($foundFile) {
     echo "   - referenced_by_count: " . $foundFile['referenced_by_count'] . "\n";
     echo "   - referenced_by_files: " . print_r($foundFile['referenced_by_files'], true) . "\n";
 } else {
-    echo "   getReservationDetails.php NOT found in comprehensive list!\n";
+    echo "   reservierungen/api/getReservationDetails.php NOT found in comprehensive list!\n";
 }

@@ -1,5 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+  const RES_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+  const API_BASE = `${RES_ROOT_PREFIX}/reservierungen/api/`;
+  const resAssetPath = `${RES_ROOT_PREFIX}/pic/`;
+  const resApiPath = (name) => `${API_BASE}${name}`;
+
   // Debug-System für reservation.js
   const DEBUG_MODE = false; // Setze auf true für Debug-Modus
 
@@ -371,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Include color parameter for accurate header coloring
-      const apiUrl = `getReservationDetails.php?id=${resId}&includeColor=true`;
+      const apiUrl = `${resApiPath('getReservationDetails.php')}?id=${resId}&includeColor=true`;
       const data = await (window.HttpUtils
         ? HttpUtils.requestJsonWithLoading(apiUrl, {}, { retries: 3, timeout: 12000 }, 'Reservierungsdetails werden geladen...')
         : window.LoadingOverlay
@@ -852,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       console.log('Sending update request:', { id: reservationId, vorname, nachname });
 
-      const response = await fetch('updateReservationNames.php', {
+      const response = await fetch(resApiPath('updateReservationNames.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -895,10 +900,10 @@ document.addEventListener('DOMContentLoaded', () => {
       selectAll.indeterminate = false;
 
       const list = await (window.HttpUtils
-        ? HttpUtils.requestJsonWithLoading(`getReservationNames.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Namensliste wird geladen...')
+        ? HttpUtils.requestJsonWithLoading(`${resApiPath('getReservationNames.php')}?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Namensliste wird geladen...')
         : window.LoadingOverlay
-          ? LoadingOverlay.wrapFetch(() => fetch(`getReservationNames.php?id=${resId}`).then(r => r.json()), 'Namensliste')
-          : fetch(`getReservationNames.php?id=${resId}`).then(r => r.json())
+          ? LoadingOverlay.wrapFetch(() => fetch(`${resApiPath('getReservationNames.php')}?id=${resId}`).then(r => r.json()), 'Namensliste')
+          : fetch(`${resApiPath('getReservationNames.php')}?id=${resId}`).then(r => r.json())
       );
 
       // Automatisch Namen erstellen wenn Namensliste leer ist
@@ -908,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Nur wenn automatische Erstellung erfolgreich war, die neue Liste laden
         if (autoCreated) {
-          const newList = await fetch(`getReservationNames.php?id=${resId}`).then(r => r.json());
+          const newList = await fetch(`${resApiPath('getReservationNames.php')}?id=${resId}`).then(r => r.json());
           renderNamesList(newList);
           return;
         }
@@ -973,16 +978,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // build detail icons
       let detailIcons = '';
       if (n.transport && parseFloat(n.transport) > 0) {
-        detailIcons += `<img src="./pic/luggage.svg" alt="Transport" class="detail-icon" title="Transport: ${n.transport}€">`;
+        detailIcons += `<img src="${resAssetPath}luggage.svg" alt="Transport" class="detail-icon" title="Transport: ${n.transport}€">`;
       }
       if (n.dietInfo && n.dietInfo.trim() !== '') {
-        detailIcons += `<img src="./pic/food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
+        detailIcons += `<img src="${resAssetPath}food.svg" alt="Diät Info" class="detail-icon" title="Info Küche: ${n.dietInfo}">`;
       }
       if (n.bem && n.bem.trim() !== '') {
-        detailIcons += `<img src="./pic/info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
+        detailIcons += `<img src="${resAssetPath}info.svg" alt="Bemerkung" class="detail-icon" title="Bemerkung: ${n.bem}">`;
       }
       if (detailIcons === '') {
-        detailIcons = `<img src="./pic/dots.svg" alt="Details" class="detail-icon">`;
+        detailIcons = `<img src="${resAssetPath}dots.svg" alt="Details" class="detail-icon">`;
       }
 
       // AV-Zelle vorbereiten
@@ -998,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="guide-icon">${n.guide ? '✓' : '○'}</span>
         </td>
         <td class="av-cell">
-          ${isAv ? '<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">' : '<span class="av-icon">○</span>'}
+          ${isAv ? `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">` : '<span class="av-icon">○</span>'}
         </td>
         <td class="arr-cell">${n.arr || '–'}</td>
         <td class="diet-cell">${n.diet_text || '–'}</td>
@@ -1011,12 +1016,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="checkin-cell ${n.checked_in ? 'checked-in' : ''}">
           ${n.checked_in
           ? fmtDateTime(n.checked_in)
-          : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+          : `<img src="${resAssetPath}notyet.svg" alt="Not yet" class="notyet-icon">`}
         </td>
         <td class="checkout-cell ${n.checked_out ? 'checked-out' : ''}">
           ${n.checked_out
           ? fmtDateTime(n.checked_out)
-          : `<img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon">`}
+          : `<img src="${resAssetPath}notyet.svg" alt="Not yet" class="notyet-icon">`}
         </td>
       `;
 
@@ -1075,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
           tr.innerHTML = `
             <td><input type="checkbox" class="rowCheckbox" disabled></td>
             <td class="name-cell" style="color: #ccc; font-style: italic;" title="Klicken zum Hinzufügen">+ Nachname Vorname</td>
-            <td class="detail-cell" style="text-align: center;"><img src="./pic/dots.svg" alt="Details" class="detail-icon" style="opacity: 0.3;"></td>
+            <td class="detail-cell" style="text-align: center;"><img src="${resAssetPath}dots.svg" alt="Details" class="detail-icon" style="opacity: 0.3;"></td>
             <td></td>
             <td class="bem-cell"></td>
             <td class="guide-cell">
@@ -1090,10 +1095,10 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="noshow-indicator noshow-no" style="opacity: 0.3;">✓</span>
             </td>
             <td class="checkin-cell">
-              <img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
+              <img src="${resAssetPath}notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
             </td>
             <td class="checkout-cell">
-              <img src="./pic/notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
+              <img src="${resAssetPath}notyet.svg" alt="Not yet" class="notyet-icon" style="opacity: 0.3;">
             </td>
           `;
           tbody.appendChild(tr);
@@ -1229,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nameCell.innerHTML = '<span style="color: #007bff;">💾 Speichert...</span>';
 
       // Save to database
-      const response = await fetch('addReservationNames.php', {
+      const response = await fetch(resApiPath('addReservationNames.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1310,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nameCell.innerHTML = '<span style="color: #007bff;">💾 Aktualisiert...</span>';
 
       // First get current data to preserve other fields
-      const currentResponse = await fetch(`getGastDetail.php?id=${id}`);
+      const currentResponse = await fetch(`${resApiPath('getGastDetail.php')}?id=${id}`);
 
       if (!currentResponse.ok) {
         throw new Error('Konnte aktuelle Daten nicht laden');
@@ -1330,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       // Update in database
-      const response = await fetch('updateGastDetail.php', {
+      const response = await fetch(resApiPath('updateGastDetail.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1429,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.log('Erstelle automatischen Namen:', entry);
 
-      const response = await fetch('addReservationNames.php', {
+      const response = await fetch(resApiPath('addReservationNames.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1671,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Verwende robuste Batch-Verarbeitung mit Loading-Overlay
       if (window.HttpUtils) {
         const requests = ids.map(id => ({
-          url: 'updateReservationNamesCheckin.php',
+          url: resApiPath('updateReservationNamesCheckin.php'),
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1698,7 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
               cell.textContent = fmtDateTime(result.data.newValue);
             } else {
               cell.classList.remove('checked-in');
-              cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+              cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
             }
           } else {
             const nameCell = row.querySelector('.name-cell');
@@ -1719,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', () => {
           console.warn('[BULK-CHECKIN-TOGGLE] HttpUtils not available, using fallback method');
 
           const results = await Promise.allSettled(ids.map(id =>
-            fetch('updateReservationNamesCheckin.php', {
+            fetch(resApiPath('updateReservationNamesCheckin.php'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, action })
@@ -1743,7 +1748,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.textContent = fmtDateTime(result.value.result.newValue);
               } else {
                 cell.classList.remove('checked-in');
-                cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+                cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
               }
               successCount++;
             } else {
@@ -1828,7 +1833,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       if (window.HttpUtils) {
         const requests = ids.map(id => ({
-          url: 'updateReservationNamesCheckout.php',
+          url: resApiPath('updateReservationNamesCheckout.php'),
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1854,7 +1859,7 @@ document.addEventListener('DOMContentLoaded', () => {
               cell.textContent = fmtDateTime(result.data.newValue);
             } else {
               cell.classList.remove('checked-out');
-              cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+              cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
             }
           } else {
             const nameCell = row.querySelector('.name-cell');
@@ -1875,7 +1880,7 @@ document.addEventListener('DOMContentLoaded', () => {
           console.warn('[BULK-CHECKOUT-TOGGLE] HttpUtils not available, using fallback method');
 
           const results = await Promise.allSettled(ids.map(id =>
-            fetch('updateReservationNamesCheckout.php', {
+            fetch(resApiPath('updateReservationNamesCheckout.php'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, action })
@@ -1899,7 +1904,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cell.textContent = fmtDateTime(result.value.result.newValue);
               } else {
                 cell.classList.remove('checked-out');
-                cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+                cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
               }
               successCount++;
             } else {
@@ -1984,7 +1989,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Verwende robuste Batch-Verarbeitung mit Loading-Overlay
       if (window.HttpUtils) {
         const requests = ids.map(id => ({
-          url: 'toggleAvFlag.php',
+          url: resApiPath('toggleAvFlag.php'),
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2007,7 +2012,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (result.success && result.data.success) {
             const cell = row.querySelector('.av-cell');
             if (result.data.newValue === 1) {
-              cell.innerHTML = `<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
+              cell.innerHTML = `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
             } else {
               cell.innerHTML = '<span class="av-icon">○</span>';
             }
@@ -2028,7 +2033,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fallback ohne HttpUtils
         const fallbackOperation = async () => {
           const promises = ids.map(async (id) => {
-            const response = await fetch('toggleAvFlag.php', {
+            const response = await fetch(resApiPath('toggleAvFlag.php'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id })
@@ -2047,7 +2052,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.status === 'fulfilled' && result.value.result.success) {
               const cell = row.querySelector('.av-cell');
               if (result.value.result.newValue === 1) {
-                cell.innerHTML = `<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
+                cell.innerHTML = `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">`;
               } else {
                 cell.innerHTML = '<span class="av-icon">○</span>';
               }
@@ -2143,7 +2148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const icon = guideCell.querySelector('.guide-icon');
 
       const toggleOperation = async () => {
-        const response = await fetch('toggleGuideFlag.php', {
+        const response = await fetch(resApiPath('toggleGuideFlag.php'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
@@ -2169,7 +2174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const avCell = e.target.closest('td.av-cell');
     if (avCell) {
       const toggleOperation = async () => {
-        const response = await fetch('toggleAvFlag.php', {
+        const response = await fetch(resApiPath('toggleAvFlag.php'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id })
@@ -2179,7 +2184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (j.success) {
           // AV-Zelle mit korrektem Icon aktualisieren - EXAKT wie im Haupt-Rendering
           const isAv = j.newValue === true || j.newValue === 1 || j.newValue === '1' || j.newValue === 'true';
-          avCell.innerHTML = isAv ? '<img src="./pic/AV.svg" alt="AV" style="width: 16px; height: 16px;">' : '<span class="av-icon">○</span>';
+          avCell.innerHTML = isAv ? `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">` : '<span class="av-icon">○</span>';
         } else {
           throw new Error(j.error);
         }
@@ -2216,7 +2221,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = row.dataset.id;
 
       // Einzelner NoShow Toggle
-      fetch('toggleNoShow.php', {
+      fetch(resApiPath('toggleNoShow.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
@@ -2255,7 +2260,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!hasIn) {
         // set now
         const checkinOperation = async () => {
-          const response = await fetch('updateReservationNamesCheckin.php', {
+          const response = await fetch(resApiPath('updateReservationNamesCheckin.php'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, action: 'set' })
@@ -2278,7 +2283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (!hasOut && hasIn) {
         // clear without confirmation
         const checkinClearOperation = async () => {
-          const response = await fetch('updateReservationNamesCheckin.php', {
+          const response = await fetch(resApiPath('updateReservationNamesCheckin.php'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, action: 'clear' })
@@ -2287,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (j.success) {
             cell.classList.remove('checked-in');
-            cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+            cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
           } else {
             throw new Error(j.error);
           }
@@ -2311,7 +2316,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hasIn && !hasOut) {
         // set now
         const checkoutOperation = async () => {
-          const response = await fetch('updateReservationNamesCheckout.php', {
+          const response = await fetch(resApiPath('updateReservationNamesCheckout.php'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, action: 'set' })
@@ -2334,7 +2339,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (hasOut) {
         // clear without confirmation
         const checkoutClearOperation = async () => {
-          const response = await fetch('updateReservationNamesCheckout.php', {
+          const response = await fetch(resApiPath('updateReservationNamesCheckout.php'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, action: 'clear' })
@@ -2343,7 +2348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (j.success) {
             cell.classList.remove('checked-out');
-            cell.innerHTML = `<img src="./pic/notyet.svg" class="notyet-icon">`;
+            cell.innerHTML = `<img src="${resAssetPath}notyet.svg" class="notyet-icon">`;
           } else {
             throw new Error(j.error);
           }
@@ -2366,7 +2371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ids.length === 0) return alert('Bitte mindestens eine Zeile markieren, um sie zu löschen.');
     if (!confirm(`Soll ${ids.length} Eintrag(e) wirklich gelöscht werden?`)) return;
 
-    fetch('deleteReservationNames.php', {
+    fetch(resApiPath('deleteReservationNames.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids })
@@ -2396,7 +2401,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .map(cb => cb.closest('tr').dataset.id);
     if (!ids.length) return alert('Bitte mindestens einen Eintrag markieren.');
 
-    fetch('GetCardPrinters.php')
+    fetch(resApiPath('GetCardPrinters.php'))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(printers => showPrintModal(printers, ids))
       .catch(err => {
@@ -2496,7 +2501,7 @@ document.addEventListener('DOMContentLoaded', () => {
       leftBtn.addEventListener('click', () => {
         document.body.removeChild(backdrop);
         const q = ids.map(i => `id[]=${i}`).join('&');
-        const url = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+        const url = `${resApiPath('printSelected.php')}?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
         window.location.href = url;
       });
       printerRow.appendChild(leftBtn);
@@ -2560,7 +2565,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Check-in für alle IDs parallel durchführen
           const checkinPromises = ids.map(async (id) => {
-            const response = await fetch('updateReservationNamesCheckin.php', {
+            const response = await fetch(resApiPath('updateReservationNamesCheckin.php'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id, action: 'set' })
@@ -2596,7 +2601,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Dann Druckauftrag senden
           const q = ids.map(i => `id[]=${i}`).join('&');
-          const printUrl = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+          const printUrl = `${resApiPath('printSelected.php')}?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
 
           // Kurz warten für UI-Update und dann drucken
           setTimeout(() => {
@@ -2609,7 +2614,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Trotzdem drucken versuchen
           const q = ids.map(i => `id[]=${i}`).join('&');
-          const printUrl = `printSelected.php?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
+          const printUrl = `${resApiPath('printSelected.php')}?printer=${encodeURIComponent(p.kbez)}&resId=${encodeURIComponent(resId)}&${q}`;
           window.location.href = printUrl;
         }
       });
@@ -2647,7 +2652,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('arrButtonsContainer');
     container.innerHTML = '';
 
-    fetch('getArrangements.php')
+    fetch(resApiPath('getArrangements.php'))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(arrs => {
         arrs.forEach(a => {
@@ -2672,7 +2677,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .addEventListener('click', () => document.getElementById('arrangementModal').classList.add('hidden'));
 
   function applyArrangement(arrId, label, ids, onDone) {
-    fetch('updateReservationNamesArrangement.php', {
+    fetch(resApiPath('updateReservationNamesArrangement.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids, arr: arrId })
@@ -2710,12 +2715,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const arrangements = await (window.LoadingOverlay ?
         LoadingOverlay.wrapFetch(() =>
-          fetch('getArrangements.php').then(r => {
+          fetch(resApiPath('getArrangements.php')).then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return r.json();
           }), 'Arrangements'
         ) :
-        fetch('getArrangements.php').then(r => {
+        fetch(resApiPath('getArrangements.php')).then(r => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.json();
         })
@@ -2732,7 +2737,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Robuste HTTP-Behandlung verwenden wenn verfügbar
       if (window.HttpUtils) {
         const requests = ids.map(id => ({
-          url: 'updateReservationNamesArrangement.php',
+          url: resApiPath('updateReservationNamesArrangement.php'),
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2782,7 +2787,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fallback mit Loading-Overlay
         const fallbackOperation = async () => {
           const results = await Promise.allSettled(ids.map(id =>
-            fetch('updateReservationNamesArrangement.php', {
+            fetch(resApiPath('updateReservationNamesArrangement.php'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ids: [id], arr: arrangement.id })
@@ -2854,7 +2859,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('dietButtonsContainer');
     container.innerHTML = '';
 
-    fetch('getDiets.php')
+    fetch(resApiPath('getDiets.php'))
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(diets => {
         diets.forEach(d => {
@@ -2879,7 +2884,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .addEventListener('click', () => document.getElementById('dietModal').classList.add('hidden'));
 
   function applyDiet(dietId, label, ids, onDone) {
-    fetch('updateReservationNamesDiet.php', {
+    fetch(resApiPath('updateReservationNamesDiet.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids, diet: dietId })
@@ -2939,7 +2944,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return alert('Keine gültigen Namen gefunden.');
     }
 
-    fetch('addReservationNames.php', {
+    fetch(resApiPath('addReservationNames.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: resId, entries })
@@ -3034,7 +3039,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Storno button - toggle storno flag with confirmation
   stornoBtn.addEventListener('click', () => {
     // Make a quick API call to get current storno status
-    fetch(`toggleStorno.php`, {
+    fetch(`${resApiPath('toggleStorno.php')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: resId, checkOnly: true })
@@ -3115,7 +3120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       requestData.deleteRoomAssignments = true;
     }
 
-    fetch('toggleStorno.php', {
+    fetch(resApiPath('toggleStorno.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData)
@@ -3285,7 +3290,7 @@ document.addEventListener('DOMContentLoaded', () => {
       LoadingOverlay.show('Reservierung wird gelöscht...');
     }
 
-    fetch('deleteReservation.php', {
+    fetch(resApiPath('deleteReservation.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: resId })
@@ -3383,7 +3388,7 @@ document.addEventListener('DOMContentLoaded', () => {
       headerArrContent.innerHTML = '<div class="loading-arr">🔄 Laden...</div>';
 
       // Verwende die bestehende HP-Arrangements API
-      const response = await fetch(`get-hp-arrangements.php?res_id=${resId}`);
+      const response = await fetch(`${resApiPath('get-hp-arrangements.php')}?res_id=${resId}`);
 
       if (!response.ok) {
         throw new Error('HTTP ' + response.status);
@@ -3525,7 +3530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // iframe URL setzen
-    const iframeUrl = `http://192.168.15.14:8080/wci/tisch-uebersicht-resid.php?resid=${resId}`;
+    const iframeUrl = `${RES_ROOT_PREFIX}/tisch-uebersicht-resid.php?resid=${resId}`;
     console.log('🔗 iframe URL:', iframeUrl);
     iframe.src = iframeUrl;
 
@@ -3598,7 +3603,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Load available arrangements and current data
-      const response = await fetch(`get-hp-arrangements-table.php?id=${resId}`);
+      const response = await fetch(`${resApiPath('get-hp-arrangements-table.php')}?id=${resId}`);
       const data = await response.json();
 
       if (!data.success) {
@@ -3834,7 +3839,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      const response = await fetch('save-hp-arrangements-table.php', {
+      const response = await fetch(resApiPath('save-hp-arrangements-table.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -3969,7 +3974,7 @@ document.addEventListener('DOMContentLoaded', () => {
         arrangements: arrangements
       };
 
-      const response = await fetch('save-hp-arrangements.php', {
+      const response = await fetch(resApiPath('save-hp-arrangements.php'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

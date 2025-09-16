@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0); // Keine HTML-Fehler in JSON-Responses
 ini_set('log_errors', 1);
 
-require 'config.php';
+require_once __DIR__ . '/../config.php';
 
 // Verwende die bestehende mysqli Verbindung aus config.php
 $mysqli = $GLOBALS['mysqli'];

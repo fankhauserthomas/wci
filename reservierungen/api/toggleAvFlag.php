@@ -1,7 +1,7 @@
 <?php
 // toggleAvFlag.php
 header('Content-Type: application/json');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // JSON-Body parsen
 $payload = json_decode(file_get_contents('php://input'), true);

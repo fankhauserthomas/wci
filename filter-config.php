@@ -22,9 +22,9 @@ return [
     ],
     
     'api_files' => [
-        'data.php',
-        'getArrangements.php',
-        'getReservationNames.php',
+        'include/data.php',
+        'reservierungen/api/getArrangements.php',
+        'reservierungen/api/getReservationNames.php',
         'getDashboardStats-simple.php'
     ],
     

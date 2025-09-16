@@ -1,7 +1,7 @@
 <?php
 // toggleNoShow.php - Simple NoShow toggle like toggleGuideFlag.php
 header('Content-Type: application/json');
-require_once 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // Enable error reporting for debugging
 ini_set('display_errors', 1);

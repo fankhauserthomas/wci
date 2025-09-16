@@ -14,7 +14,7 @@ if (!AuthManager::checkSession()) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebCheckin - Franz-Senn-Hütte</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../include/style.css">
   <style>
     body {
       font-family: sans-serif;
@@ -232,7 +232,7 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Übersicht aller Reservierungen mit An-/Abreise-Filtern, Suche und Check-in/Check-out Verwaltung.
         </p>
-        <a href="reservierungen.html" class="card-button">Reservierungen verwalten</a>
+        <a href="../reservierungen/reservierungen.html" class="card-button">Reservierungen verwalten</a>
       </div>
 
       <div class="dashboard-card">
@@ -268,8 +268,8 @@ if (!AuthManager::checkSession()) {
           Direkte Links zu häufig verwendeten Funktionen und Ansichten.
         </p>
         <div class="quick-actions">
-          <a href="reservierungen.html?filter=heute-anreise" class="card-button">Anreise heute</a>
-          <a href="reservierungen.html?filter=heute-abreise" class="card-button secondary">Abreise heute</a>
+          <a href="../reservierungen/reservierungen.html?filter=heute-anreise" class="card-button">Anreise heute</a>
+          <a href="../reservierungen/reservierungen.html?filter=heute-abreise" class="card-button secondary">Abreise heute</a>
         </div>
       </div>
 
@@ -278,7 +278,7 @@ if (!AuthManager::checkSession()) {
         <p class="card-description">
           Optimierte Ansichten für mobile Geräte und Tablets.
         </p>
-        <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+        <a href="../reservierungen/reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
       </div>
     </div>
   </main>
@@ -290,8 +290,8 @@ if (!AuthManager::checkSession()) {
   </div>
 
   <!-- Scripts -->
-  <script src="js/http-utils.js"></script>
-  <script src="js/loading-overlay.js"></script>
+  <script src="../include/js/http-utils.js"></script>
+  <script src="../include/js/loading-overlay.js"></script>
   
   <script>
     // Logout-Funktion
@@ -611,7 +611,7 @@ if (!AuthManager::checkSession()) {
           <p class="card-description">
             Übersicht aller Reservierungen mit An-/Abreise-Filtern, Suche und Check-in/Check-out Verwaltung.
           </p>
-          <a href="reservierungen.html" class="card-button">Reservierungen anzeigen</a>
+          <a href="../reservierungen/reservierungen.html" class="card-button">Reservierungen anzeigen</a>
         </div>
 
         <div class="dashboard-card">
@@ -644,8 +644,8 @@ if (!AuthManager::checkSession()) {
             Direkte Links zu häufig verwendeten Funktionen und Ansichten.
           </p>
           <div style="display: flex; gap: 8px; margin-top: 16px;">
-            <a href="reservierungen.html?filter=heute-anreise" class="card-button" style="flex: 1; font-size: 0.85rem; padding: 6px 12px;">Anreise heute</a>
-            <a href="reservierungen.html?filter=morgen-abreise" class="card-button secondary" style="flex: 1; font-size: 0.85rem; padding: 6px 12px;">Abreise morgen</a>
+            <a href="../reservierungen/reservierungen.html?filter=heute-anreise" class="card-button" style="flex: 1; font-size: 0.85rem; padding: 6px 12px;">Anreise heute</a>
+            <a href="../reservierungen/reservierungen.html?filter=morgen-abreise" class="card-button secondary" style="flex: 1; font-size: 0.85rem; padding: 6px 12px;">Abreise morgen</a>
           </div>
         </div>
 
@@ -654,7 +654,7 @@ if (!AuthManager::checkSession()) {
           <p class="card-description">
             Optimierte Ansichten für mobile Geräte und Tablets.
           </p>
-          <a href="reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
+          <a href="../reservierungen/reservierungen.html?mobile=1" class="card-button">Mobile Version</a>
         </div>
       </div>
     </div>
@@ -671,8 +671,8 @@ if (!AuthManager::checkSession()) {
   </main>
 
   <!-- Scripts -->
-  <script src="js/http-utils.js"></script>
-  <script src="js/loading-overlay.js"></script>
+  <script src="../include/js/http-utils.js"></script>
+  <script src="../include/js/loading-overlay.js"></script>
   
   <script>
     async function handleLogout() {

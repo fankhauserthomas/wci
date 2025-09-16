@@ -2,7 +2,7 @@
 // updateReservationNames.php - Update Vorname/Nachname in AV-Res table
 
 header('Content-Type: application/json');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 try {
     // Get JSON input

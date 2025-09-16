@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <style>
         .search-container {
             max-width: 1400px;
@@ -331,8 +331,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/http-utils.js?v=20250903"></script>
-    <script src="js/loading-overlay.js?v=20250903"></script>
+    <script src="include/js/http-utils.js?v=20250903"></script>
+    <script src="include/js/loading-overlay.js?v=20250903"></script>
 
     <script>
         let searchResults = [];
@@ -531,7 +531,7 @@
         }
 
         function openReservation(reservationId) {
-            window.open(`reservation.html?id=${reservationId}`, '_blank');
+            window.open(`reservierungen/reservation.html?id=${reservationId}`, '_blank');
         }
 
         function openNameDetail(avId) {

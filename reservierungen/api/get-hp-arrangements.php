@@ -1,6 +1,6 @@
 <?php
 // get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung (nur HP-Datenbank!)
-require_once 'hp-db-config.php';
+require_once __DIR__ . '/../../hp-db-config.php';
 
 header('Content-Type: application/json');
 

@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <style>
         .search-container {
             max-width: 1200px;
@@ -360,7 +360,7 @@
                         html += `<td><span class="${stornoClass}">${result.storno}</span></td>`;
 
                         // Aktion
-                        let action = `<a href="reservation.html?id=${result.res_id}" class="result-link">Öffnen</a>`;
+                        let action = `<a href="reservierungen/reservation.html?id=${result.res_id}" class="result-link">Öffnen</a>`;
                         html += `<td>${action}</td>`;
 
                         html += '</tr>';

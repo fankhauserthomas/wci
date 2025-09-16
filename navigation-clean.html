@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Navigation Clean Test</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <link rel="stylesheet" href="css/navigation.css">
     <link rel="stylesheet" href="css/navigation-integration.css">
     <style>
@@ -46,7 +46,7 @@
             </div>
             <div class="nav-links">
                 <a href="index.html" class="nav-link">Dashboard</a>
-                <a href="reservierungen.html" class="nav-link active">Reservierungen</a>
+                <a href="reservierungen/reservierungen.html" class="nav-link active">Reservierungen</a>
                 <a href="statistiken.html" class="nav-link">Statistiken</a>
             </div>
             <div class="nav-actions">
@@ -100,8 +100,8 @@
             <h2>Test-Links:</h2>
             <div style="margin: 20px 0;">
                 <a href="index.html" class="btn" style="margin: 5px;">🏠 Dashboard</a>
-                <a href="reservierungen.html" class="btn" style="margin: 5px;">📋 Reservierungen</a>
-                <a href="reservation.html" class="btn" style="margin: 5px;">📝 Reservation Details</a>
+                <a href="reservierungen/reservierungen.html" class="btn" style="margin: 5px;">📋 Reservierungen</a>
+                <a href="reservierungen/reservation.html" class="btn" style="margin: 5px;">📝 Reservation Details</a>
                 <a href="statistiken.html" class="btn" style="margin: 5px;">📊 Statistiken</a>
             </div>
 
@@ -143,7 +143,7 @@
                     // Alt + R = Reservations
                     if (e.altKey && e.key === 'r') {
                         e.preventDefault();
-                        location.href = 'reservierungen.html';
+                        location.href = 'reservierungen/reservierungen.html';
                     }
 
                     // Emergency overlay hide

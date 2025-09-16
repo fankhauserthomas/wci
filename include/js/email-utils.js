@@ -2,8 +2,12 @@
  * Email Utilities für Reservierungen
  * Erstellt standardisierte Emails für Gäste mit Buchungslinks
  */
+(() => {
+  const RES_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+  const API_BASE = `${RES_ROOT_PREFIX}/reservierungen/api/`;
+  const apiPath = (name) => `${API_BASE}${name}`;
 
-window.EmailUtils = {
+  window.EmailUtils = {
   /**
    * Erstellt und öffnet eine Email für die Namensliste-Anfrage
    * @param {Object} reservationData - Reservierungsdaten
@@ -29,7 +33,7 @@ window.EmailUtils = {
 
     try {
       // Get booking URL
-      const bookingResponse = await fetch(`getBookingUrl.php?id=${id}`);
+      const bookingResponse = await fetch(`${apiPath('getBookingUrl.php')}?id=${id}`);
       const bookingData = await bookingResponse.json();
 
       let bookingLink = '';
@@ -130,4 +134,5 @@ office@franzsennhuette.at`;
       window.location.href = mailtoLink;
     }
   }
-};
+  };
+})();

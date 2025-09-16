@@ -1,7 +1,7 @@
 <?php
 // getArrangements.php
 header('Content-Type: application/json; charset=utf-8');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 $sql = "SELECT ID, kbez FROM arr ORDER BY sort";
 $result = $mysqli->query($sql);

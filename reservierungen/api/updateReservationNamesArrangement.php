@@ -1,7 +1,7 @@
 <?php
 // updateReservationNamesArrangement.php
 header('Content-Type: application/json; charset=utf-8');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // JSON-Körper einlesen
 $data = json_decode(file_get_contents('php://input'), true);

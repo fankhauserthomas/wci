@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
+    const RES_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+    const API_BASE = `${RES_ROOT_PREFIX}/reservierungen/api/`;
+    const resApiPath = (name) => `${API_BASE}${name}`;
     const resId = urlParams.get('id');
     const form = document.getElementById('reservationForm');
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -49,10 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadArrangements() {
         try {
             const arrangements = window.HttpUtils
-                ? await HttpUtils.requestJsonWithLoading('getArrangements.php', {}, { retries: 2, timeout: 8000 }, 'Arrangements werden geladen...')
+                ? await HttpUtils.requestJsonWithLoading(resApiPath('getArrangements.php'), {}, { retries: 2, timeout: 8000 }, 'Arrangements werden geladen...')
                 : window.LoadingOverlay
-                    ? await LoadingOverlay.wrapFetch(() => fetch('getArrangements.php').then(response => response.json()), 'Arrangements')
-                    : await fetch('getArrangements.php').then(response => response.json());
+                    ? await LoadingOverlay.wrapFetch(() => fetch(resApiPath('getArrangements.php')).then(response => response.json()), 'Arrangements')
+                    : await fetch(resApiPath('getArrangements.php')).then(response => response.json());
 
             const select = document.getElementById('arr');
             select.innerHTML = '<option value="">Bitte wählen...</option>';
@@ -73,10 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Use origin table instead of countries
             const origins = window.HttpUtils
-                ? await HttpUtils.requestJsonWithLoading('getOrigins.php', {}, { retries: 2, timeout: 8000 }, 'Herkunftsdaten werden geladen...')
+                ? await HttpUtils.requestJsonWithLoading(resApiPath('getOrigins.php'), {}, { retries: 2, timeout: 8000 }, 'Herkunftsdaten werden geladen...')
                 : window.LoadingOverlay
-                    ? await LoadingOverlay.wrapFetch(() => fetch('getOrigins.php').then(response => response.json()), 'Herkunftsdaten')
-                    : await fetch('getOrigins.php').then(response => response.json());
+                    ? await LoadingOverlay.wrapFetch(() => fetch(resApiPath('getOrigins.php')).then(response => response.json()), 'Herkunftsdaten')
+                    : await fetch(resApiPath('getOrigins.php')).then(response => response.json());
 
             const select = document.getElementById('origin');
             select.innerHTML = '<option value="">Bitte wählen...</option>';
@@ -92,10 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Fallback: try countries if origins doesn't exist
             try {
                 const countries = window.HttpUtils
-                    ? await HttpUtils.requestJsonWithLoading('getCountries.php', {}, { retries: 2, timeout: 8000 }, 'Länderdaten werden geladen...')
+                    ? await HttpUtils.requestJsonWithLoading(resApiPath('getCountries.php'), {}, { retries: 2, timeout: 8000 }, 'Länderdaten werden geladen...')
                     : window.LoadingOverlay
-                        ? await LoadingOverlay.wrapFetch(() => fetch('getCountries.php').then(response => response.json()), 'Länderdaten')
-                        : await fetch('getCountries.php').then(response => response.json());
+                        ? await LoadingOverlay.wrapFetch(() => fetch(resApiPath('getCountries.php')).then(response => response.json()), 'Länderdaten')
+                        : await fetch(resApiPath('getCountries.php')).then(response => response.json());
 
                 const select = document.getElementById('origin');
                 select.innerHTML = '<option value="">Bitte wählen...</option>';
@@ -116,10 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadReservationData() {
         try {
             const result = window.HttpUtils
-                ? await HttpUtils.requestJsonWithLoading(`getReservationDetailsFull.php?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Reservierungsdetails werden geladen...')
+                ? await HttpUtils.requestJsonWithLoading(`${resApiPath('getReservationDetailsFull.php')}?id=${resId}`, {}, { retries: 3, timeout: 10000 }, 'Reservierungsdetails werden geladen...')
                 : window.LoadingOverlay
                     ? await LoadingOverlay.wrapFetch(() =>
-                        fetch(`getReservationDetailsFull.php?id=${resId}`)
+                        fetch(`${resApiPath('getReservationDetailsFull.php')}?id=${resId}`)
                             .then(response => {
                                 if (!response.ok) {
                                     throw new Error('Reservierung nicht gefunden');
@@ -127,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return response.json();
                             }), 'Reservierungsdetails'
                     )
-                    : await fetch(`getReservationDetailsFull.php?id=${resId}`)
+                    : await fetch(`${resApiPath('getReservationDetailsFull.php')}?id=${resId}`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error('Reservierung nicht gefunden');
@@ -333,10 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveReservationData(data) {
         try {
             const result = window.HttpUtils
-                ? await HttpUtils.postJsonWithLoading('updateReservationDetails.php', data, { retries: 2, timeout: 10000 }, 'Reservierungsdetails werden gespeichert...')
+                ? await HttpUtils.postJsonWithLoading(resApiPath('updateReservationDetails.php'), data, { retries: 2, timeout: 10000 }, 'Reservierungsdetails werden gespeichert...')
                 : window.LoadingOverlay
                     ? await LoadingOverlay.wrap(async () => {
-                        const response = await fetch('updateReservationDetails.php', {
+                        const response = await fetch(resApiPath('updateReservationDetails.php'), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -354,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             throw new Error('Ungültige Server-Antwort. Bitte versuchen Sie es erneut.');
                         }
                     }, 'Reservierungsdetails werden gespeichert...')
-                    : await fetch('updateReservationDetails.php', {
+                    : await fetch(resApiPath('updateReservationDetails.php'), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Namen Details - WebCheckin</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <style>
         .detail-container {
             max-width: 800px;
@@ -153,7 +153,7 @@
                     <div class="detail-field">
                         <label>Gehört zu Reservierung</label>
                         <div class="value">
-                            <a href="reservation.html?id=${person.reservation.id}" class="clickable">
+                            <a href="reservierungen/reservation.html?id=${person.reservation.id}" class="clickable">
                                 ${person.reservation.nachname}, ${person.reservation.vorname} 
                                 (${person.reservation.anreise} - ${person.reservation.abreise})
                             </a>

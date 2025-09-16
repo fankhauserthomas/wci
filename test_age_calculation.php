@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 
-// MySQL Error Mode lockern (wie in getReservationNames.php)
+// MySQL Error Mode lockern (wie in reservierungen/api/getReservationNames.php)
 $mysqli->query("SET sql_mode = ''");
 $mysqli->query("SET SESSION sql_mode = ''");
 

@@ -185,7 +185,7 @@ check_deployment() {
         [ -f 'index.php' ] && echo '✓ index.php' || echo '✗ index.php fehlt'
         [ -f 'statistiken.html' ] && echo '✓ statistiken.html' || echo '✗ statistiken.html fehlt'
         [ -f 'reservierungen.html' ] && echo '✓ reservierungen.html' || echo '✗ reservierungen.html fehlt'
-        [ -f 'style.css' ] && echo '✓ style.css' || echo '✗ style.css fehlt'
+        [ -f 'include/style.css' ] && echo '✓ style.css' || echo '✗ style.css fehlt'
         [ -d 'js' ] && echo '✓ js/ Verzeichnis' || echo '✗ js/ Verzeichnis fehlt'
     "
 }

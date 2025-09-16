@@ -2,6 +2,9 @@
 // Erkennt Barcodes anhand von Präfix "{" und Suffix "}"
 // Keine Modals, keine Buttons - vollautomatisch
 
+const RES_BARCODE_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+const RES_BARCODE_SEARCH_URL = `${RES_BARCODE_ROOT_PREFIX}/searchBarcode.php`;
+
 class AutoBarcodeScanner {
     constructor() {
         this.buffer = '';
@@ -155,7 +158,7 @@ class AutoBarcodeScanner {
     searchCardInDatabase(originalBarcode, searchTerm) {
         console.log('🔍 Suche Karte in Datenbank:', originalBarcode);
 
-        fetch(`searchBarcode.php?barcode=${encodeURIComponent(originalBarcode)}`)
+        fetch(`${RES_BARCODE_SEARCH_URL}?barcode=${encodeURIComponent(originalBarcode)}`)
             .then(response => response.json())
             .then(data => {
                 console.log('📦 Karten-Suchergebnis:', data);

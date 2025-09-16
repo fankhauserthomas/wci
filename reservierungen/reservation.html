@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservierung anzeigen</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="reservation.css">
+  <link rel="stylesheet" href="../include/style.css">
+  <link rel="stylesheet" href="css/reservation.css">
 
   <!-- Guide Row Pulsing Animation -->
   <style>
@@ -471,13 +471,15 @@
     <span class="status-text">Verbindung prüfen...</span>
   </div>
 
-  <script src="js/email-utils.js"></script>
-  <script src="js/http-utils.js"></script>
-  <script src="js/loading-overlay.js"></script>
-  <script src="auto-barcode-scanner.js"></script>
-  <script src="reservation.js"></script>
+  <script src="../include/js/email-utils.js"></script>
+  <script src="../include/js/http-utils.js"></script>
+  <script src="../include/js/loading-overlay.js"></script>
+  <script src="js/auto-barcode-scanner.js"></script>
+  <script src="js/reservation.js"></script>
 
   <script>
+    const RES_HTML_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+    const RES_HTML_ASSET_BASE = `${RES_HTML_ROOT_PREFIX}/pic/`;
     // Debug-System für Reservierung
     const DEBUG_RESERVATION = false; // Setze auf true für Debug-Modus
 
@@ -975,7 +977,7 @@
       if (!avIcon) {
         avIcon = document.createElement('img');
         avIcon.className = 'av-icon';
-        avIcon.src = 'pic/AV.svg';
+        avIcon.src = `${RES_HTML_ASSET_BASE}AV.svg`;
         avIcon.alt = 'AV Reservierung';
         avIcon.title = 'AV Reservierung';
         headerElement.appendChild(avIcon);

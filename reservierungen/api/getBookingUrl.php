@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // id aus GET
 $id = $_GET['id'] ?? '';

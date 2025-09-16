@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Navigation Demo - WebCheckin</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <link rel="stylesheet" href="css/navigation.css">
     <link rel="stylesheet" href="css/navigation-integration.css">
     <style>
@@ -159,13 +159,13 @@
                 <div class="demo-card">
                     <h4>📋 Reservierungen</h4>
                     <p>Buchungsliste</p>
-                    <a href="reservierungen.html" class="demo-link">Öffnen</a>
+                    <a href="reservierungen/reservierungen.html" class="demo-link">Öffnen</a>
                 </div>
 
                 <div class="demo-card">
                     <h4>📝 Reservation</h4>
                     <p>Einzelne Reservierung</p>
-                    <a href="reservation.html?id=6837" class="demo-link">Öffnen</a>
+                    <a href="reservierungen/reservation.html?id=6837" class="demo-link">Öffnen</a>
                 </div>
 
                 <div class="demo-card">
@@ -296,8 +296,8 @@
 
     <!-- Navigation System -->
     <script src="js/navigation.js"></script>
-    <script src="js/loading-overlay.js"></script>
-    <script src="js/http-utils.js"></script>
+    <script src="include/js/loading-overlay.js"></script>
+    <script src="include/js/http-utils.js"></script>
 
     <script>
         // Demo Functions
@@ -401,7 +401,7 @@ Performance Threshold: ${window.LoadingOverlay ? LoadingOverlay.DELAY_THRESHOLD 
                         break;
                     case 'r':
                         e.preventDefault();
-                        location.href = 'reservierungen.html';
+                        location.href = 'reservierungen/reservierungen.html';
                         break;
                 }
             }

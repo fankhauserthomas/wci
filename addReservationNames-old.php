@@ -1,5 +1,5 @@
 <?php
-// addReservationNames.php
+// reservierungen/api/addReservationNames.php
 header('Content-Type: application/json');
 require 'config.php';
 

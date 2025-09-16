@@ -4,7 +4,7 @@ ini_set('memory_limit', '512M');
 define('SUPPRESS_WEB_INTERFACE', true);
 require_once 'enhanced-wci-analyzer.php';
 
-echo "=== Testing getReservationDetails.php References ===\n";
+echo "=== Testing reservierungen/api/getReservationDetails.php References ===\n";
 
 $analyzer = new UltraSecureFileSafetyAnalyzer();
 $analyzer->performUltraSecureAnalysis(7);
@@ -15,9 +15,9 @@ $analysisProperty = $reflection->getProperty('analysis');
 $analysisProperty->setAccessible(true);
 $analysis = $analysisProperty->getValue($analyzer);
 
-if (isset($analysis['code_referenced_files']['getReservationDetails.php'])) {
-    $refs = $analysis['code_referenced_files']['getReservationDetails.php'];
-    echo "✓ Found " . count($refs) . " references to getReservationDetails.php\n";
+if (isset($analysis['code_referenced_files']['reservierungen/api/getReservationDetails.php'])) {
+    $refs = $analysis['code_referenced_files']['reservierungen/api/getReservationDetails.php'];
+    echo "✓ Found " . count($refs) . " references to reservierungen/api/getReservationDetails.php\n";
     echo "Target: 125 references in 41 files (VS Code)\n";
     echo "Progress: " . round((count($refs)/125)*100, 1) . "% of target\n\n";
     
@@ -34,7 +34,7 @@ if (isset($analysis['code_referenced_files']['getReservationDetails.php'])) {
         echo "  ... and " . (count($refs) - 10) . " more\n";
     }
 } else {
-    echo "✗ getReservationDetails.php not found in references\n";
+    echo "✗ reservierungen/api/getReservationDetails.php not found in references\n";
 }
 
 echo "\nTotal files analyzed: " . count($analysis['all_files'] ?? []) . "\n";

@@ -5,7 +5,7 @@ require_once 'config.php';
 $mysqli->query("SET sql_mode = ''");
 $mysqli->query("SET SESSION sql_mode = ''");
 
-echo "=== Test getReservationNames.php functionality ===\n";
+echo "=== Test reservierungen/api/getReservationNames.php functionality ===\n";
 
 // Find a reservation with names
 $resResult = $mysqli->query("
@@ -25,7 +25,7 @@ if ($resResult && $resResult->num_rows > 0) {
     
     // Include the API and capture output
     ob_start();
-    include 'getReservationNames.php';
+    include 'reservierungen/api/getReservationNames.php';
     $output = ob_get_clean();
     
     echo "API Response:\n";

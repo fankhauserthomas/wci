@@ -46,7 +46,7 @@ if (file_exists($logFile)) {
 // Stelle sicher, dass wir mindestens ein paar Test-Dateien haben
 if (count($accessedFiles) == 0) {
     // Fallback: Erstelle Test-Daten basierend auf tatsächlich existierenden Dateien
-    $testFiles = ['access-dashboard.php', 'live-network-graph.php', 'getReservationNames.php'];
+    $testFiles = ['access-dashboard.php', 'live-network-graph.php', 'reservierungen/api/getReservationNames.php'];
     foreach ($testFiles as $file) {
         if (file_exists('/home/vadmin/lemp/html/wci/' . $file)) {
             $accessedFiles[$file] = [

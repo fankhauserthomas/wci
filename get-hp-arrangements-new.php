@@ -1,5 +1,5 @@
 <?php
-// get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung (nur HP-Datenbank!)
+// reservierungen/api/get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung (nur HP-Datenbank!)
 require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 

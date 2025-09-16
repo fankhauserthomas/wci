@@ -1,8 +1,8 @@
 <?php
 // get-all-hp-data.php - Abrufen aller HP-Arrangements und Check-in Daten für ein Datum
 
-require_once 'config.php';
-require_once 'hp-db-config.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../hp-db-config.php';
 
 // Anti-Cache Headers - Verhindert Browser/Proxy-Caching
 header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');

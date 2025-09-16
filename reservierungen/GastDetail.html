@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gast-Details bearbeiten</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="reservation.css">
+  <link rel="stylesheet" href="../include/style.css">
+  <link rel="stylesheet" href="css/reservation.css">
   <style>
     /* Querformat-Optimierungen für GastDetail */
     .form-container {
@@ -392,6 +392,9 @@
     // ID aus URL holen
     const urlParams = new URLSearchParams(window.location.search);
     const gastId = urlParams.get('id');
+    const RES_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+    const API_BASE = `${RES_ROOT_PREFIX}/reservierungen/api/`;
+    const resApiPath = (name) => `${API_BASE}${name}`;
 
     let gastData = null;
     let countriesLoaded = false;
@@ -402,8 +405,8 @@
     const loadCountries = async () => {
       try {
         const countries = window.HttpUtils
-          ? await HttpUtils.requestJson('getCountries.php', {}, { retries: 2, timeout: 8000 })
-          : await fetch('getCountries.php').then(r => r.json());
+          ? await HttpUtils.requestJson(resApiPath('getCountries.php'), {}, { retries: 2, timeout: 8000 })
+          : await fetch(resApiPath('getCountries.php')).then(r => r.json());
 
         const select = document.getElementById('herkunft');
         countries.forEach(c => {
@@ -426,8 +429,8 @@
     const loadArrangements = async () => {
       try {
         const arrangements = window.HttpUtils
-          ? await HttpUtils.requestJson('getArrangements.php', {}, { retries: 2, timeout: 8000 })
-          : await fetch('getArrangements.php').then(r => r.json());
+          ? await HttpUtils.requestJson(resApiPath('getArrangements.php'), {}, { retries: 2, timeout: 8000 })
+          : await fetch(resApiPath('getArrangements.php')).then(r => r.json());
 
         const select = document.getElementById('arrangement');
         // Empty option für "keine Auswahl"
@@ -456,8 +459,8 @@
     const loadDiets = async () => {
       try {
         const diets = window.HttpUtils
-          ? await HttpUtils.requestJson('getDiets.php', {}, { retries: 2, timeout: 8000 })
-          : await fetch('getDiets.php').then(r => r.json());
+          ? await HttpUtils.requestJson(resApiPath('getDiets.php'), {}, { retries: 2, timeout: 8000 })
+          : await fetch(resApiPath('getDiets.php')).then(r => r.json());
 
         const select = document.getElementById('diet');
         // Empty option für "keine Auswahl"
@@ -491,8 +494,8 @@
     const loadGastData = async () => {
       try {
         const data = window.HttpUtils
-          ? await HttpUtils.requestJson(`getGastDetail.php?id=${gastId}`, {}, { retries: 3, timeout: 10000 })
-          : await fetch(`getGastDetail.php?id=${gastId}`).then(r => r.json());
+          ? await HttpUtils.requestJson(`${resApiPath('getGastDetail.php')}?id=${gastId}`, {}, { retries: 3, timeout: 10000 })
+          : await fetch(`${resApiPath('getGastDetail.php')}?id=${gastId}`).then(r => r.json());
 
         gastData = data;
         checkAllLoaded();
@@ -551,8 +554,8 @@
 
 
       const updatePromise = window.HttpUtils
-        ? HttpUtils.postJson('updateGastDetail.php', formData, { retries: 2, timeout: 8000 })
-        : fetch('updateGastDetail.php', {
+        ? HttpUtils.postJson(resApiPath('updateGastDetail.php'), formData, { retries: 2, timeout: 8000 })
+        : fetch(resApiPath('updateGastDetail.php'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
@@ -949,7 +952,7 @@
       }
     });
   </script>
-  <script src="js/http-utils.js"></script>
+  <script src="../include/js/http-utils.js"></script>
 </body>
 
 </html>

@@ -9,7 +9,7 @@ ini_set('display_errors', 1);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebCheckin Dashboard (Debug)</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../include/style.css">
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     .debug-info { background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 5px; }

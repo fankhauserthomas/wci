@@ -2,6 +2,13 @@
  * script.js
  */
 
+const RES_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+const API_BASE = `${RES_ROOT_PREFIX}/reservierungen/api/`;
+const INCLUDE_BASE = `${RES_ROOT_PREFIX}/include/`;
+const ASSET_BASE = `${RES_ROOT_PREFIX}/pic/`;
+const resApiPath = (name) => `${API_BASE}${name}`;
+const resIncludePath = (name) => `${INCLUDE_BASE}${name}`;
+
 /**
  * Initialisiert den 4-Stufen Toggle für An-/Abreise.
  *
@@ -129,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (newReservationBtn) {
     newReservationBtn.addEventListener('click', () => {
       // Herkunft und Arrangement Dropdowns laden
-      fetch('getOrigins.php')
+      fetch(resApiPath('getOrigins.php'))
         .then(r => r.json())
         .then(origins => {
           const herkunftSel = document.getElementById('newResHerkunft');
@@ -138,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(err => console.error('Fehler beim Laden der Herkunft:', err));
 
-      fetch('getArrangements.php')
+      fetch(resApiPath('getArrangements.php'))
         .then(r => r.json())
         .then(arrs => {
           const arrSel = document.getElementById('newResArrangement');
@@ -217,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // AJAX-Request an addReservation.php
-      fetch('addReservation.php', {
+      fetch(resApiPath('addReservation.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -406,14 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Paralleles Laden von Hauptdaten und HP-Daten für bessere Performance
     const dataPromise = window.HttpUtils
-      ? HttpUtils.requestJsonWithLoading(`data.php?${params}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsliste wird geladen...')
+      ? HttpUtils.requestJsonWithLoading(`${resIncludePath('data.php')}?${params}`, {}, { retries: 3, timeout: 12000 }, 'Reservierungsliste wird geladen...')
       : window.LoadingOverlay
-        ? LoadingOverlay.wrapFetch(() => fetch(`data.php?${params}`).then(res => res.json()), 'Reservierungsliste')
-        : fetch(`data.php?${params}`).then(res => res.json());
+        ? LoadingOverlay.wrapFetch(() => fetch(`${resIncludePath('data.php')}?${params}`).then(res => res.json()), 'Reservierungsliste')
+        : fetch(`${resIncludePath('data.php')}?${params}`).then(res => res.json());
 
     // HP-Daten parallel laden mit Cache-Buster
     window.hpDataLoading = true; // Flag für andere Scripts
-    const hpDataPromise = fetch(`get-all-hp-data.php?${params}`)
+    const hpDataPromise = fetch(`${resApiPath('get-all-hp-data.php')}?${params}`)
       .then(res => res.json())
       .catch(error => {
         console.warn('HP-Daten konnten nicht geladen werden:', error);
@@ -569,7 +576,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     view.forEach(r => {
       const statusPct = getType() === 'arrival' ? r.percent_logged_in : r.percent_logged_out;
-      const nameText = `${r.nachname} ${r.vorname}` + (r.hund ? ' <img src="pic/dog.svg" alt1="Hund" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.av_id > 0 ? ' <img src="pic/AV.svg" alt="AV" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.invoice ? ' <img src="pic/invoice.svg" alt="Debitor" style="width: 1.15em; height: 1.15em; vertical-align: middle;">' : '') + (r.storno ? ' <img src="pic/cancelled.svg" alt="Storniert" style="width: 4.6em; height: 1.15em; vertical-align: middle;">' : '');
+      const nameText = `${r.nachname} ${r.vorname}`
+        + (r.hund ? ` <img src="${ASSET_BASE}dog.svg" alt1="Hund" style="width: 1.15em; height: 1.15em; vertical-align: middle;">` : '')
+        + (r.av_id > 0 ? ` <img src="${ASSET_BASE}AV.svg" alt="AV" style="width: 1.15em; height: 1.15em; vertical-align: middle;">` : '')
+        + (r.invoice ? ` <img src="${ASSET_BASE}invoice.svg" alt="Debitor" style="width: 1.15em; height: 1.15em; vertical-align: middle;">` : '')
+        + (r.storno ? ` <img src="${ASSET_BASE}cancelled.svg" alt="Storniert" style="width: 4.6em; height: 1.15em; vertical-align: middle;">` : '');
 
       // Prüfen ob Nachname fehlt oder leer ist
       const missingLastname = !r.nachname || r.nachname.trim() === '';
@@ -717,10 +728,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           const qrPromise = window.HttpUtils
-            ? HttpUtils.requestJsonWithLoading(`getBookingUrl.php?id=${reservationId}`, {}, {}, 'QR-Code wird generiert...')
+            ? HttpUtils.requestJsonWithLoading(`${resApiPath('getBookingUrl.php')}?id=${reservationId}`, {}, {}, 'QR-Code wird generiert...')
             : window.LoadingOverlay
-              ? LoadingOverlay.wrapFetch(() => fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json()), 'QR-Code')
-              : fetch(`getBookingUrl.php?id=${reservationId}`).then(res => res.json());
+              ? LoadingOverlay.wrapFetch(() => fetch(`${resApiPath('getBookingUrl.php')}?id=${reservationId}`).then(res => res.json()), 'QR-Code')
+              : fetch(`${resApiPath('getBookingUrl.php')}?id=${reservationId}`).then(res => res.json());
 
           const json = await qrPromise;
 
@@ -733,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = cell.closest('tr');
 
             // Fetch complete reservation data for email
-            fetch(`getReservationDetails.php?id=${reservationId}`)
+            fetch(`${resApiPath('getReservationDetails.php')}?id=${reservationId}`)
               .then(response => response.json())
               .then(reservationData => {
                 const detail = reservationData.detail || reservationData;

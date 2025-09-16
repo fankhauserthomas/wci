@@ -1,7 +1,7 @@
 <?php
 // addReservationNames.php - Enhanced with birthdate support
 header('Content-Type: application/json');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // Verwende mysqli statt PDO
 $mysqli = $GLOBALS['mysqli'];

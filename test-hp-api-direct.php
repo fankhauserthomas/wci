@@ -5,7 +5,7 @@ $_SERVER['REQUEST_METHOD'] = 'GET';
 
 // Capture output
 ob_start();
-include 'get-hp-arrangements-table.php';
+include 'reservierungen/api/get-hp-arrangements-table.php';
 $output = ob_get_clean();
 
 echo "API Output:\n";

@@ -99,7 +99,7 @@ function generateCleanupSuggestions() {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Analysis - WebCheckin</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="include/style.css">
     <style>
         .analysis-container {
             max-width: 1400px;

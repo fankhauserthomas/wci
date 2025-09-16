@@ -1,5 +1,5 @@
 <?php
-// addReservationNames.php - Enhanced with birthdate support
+// reservierungen/api/addReservationNames.php - Enhanced with birthdate support
 header('Content-Type: application/json');
 require 'config.php';
 

@@ -1,4 +1,7 @@
 // Sync-Utilities für automatische Synchronisation
+const RES_SYNC_ROOT_PREFIX = window.location.pathname.split('/reservierungen/')[0] || '';
+const RES_SYNC_TRIGGER_URL = `${RES_SYNC_ROOT_PREFIX}/syncTrigger.php`;
+
 class SyncUtils {
     constructor() {
         this.syncInProgress = false;
@@ -27,7 +30,7 @@ class SyncUtils {
         this.log(`Triggering sync: ${action}`);
 
         try {
-            const response = await fetch('syncTrigger.php', {
+            const response = await fetch(RES_SYNC_TRIGGER_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -129,7 +132,7 @@ class SyncUtils {
     // Sync-Status prüfen
     async getSyncStatus() {
         try {
-            const response = await fetch('syncTrigger.php?action=status');
+            const response = await fetch(`${RES_SYNC_TRIGGER_URL}?action=status`);
             return await response.json();
         } catch (error) {
             this.log(`Status check failed: ${error.message}`);

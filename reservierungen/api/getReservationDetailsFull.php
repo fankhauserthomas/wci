@@ -1,7 +1,7 @@
 <?php
 // getReservationDetailsFull.php - Vollständige API für ReservationDetails.html
 header('Content-Type: application/json; charset=utf-8');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 // ID validieren
 $id = $_GET['id'] ?? '';

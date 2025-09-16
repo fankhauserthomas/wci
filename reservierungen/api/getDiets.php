@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-require 'config.php';
+require_once __DIR__ . '/../../config.php';
 
 $sql = "SELECT id, bez FROM diet ORDER BY bez";
 $res = $mysqli->query($sql);

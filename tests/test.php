@@ -36,7 +36,7 @@
         <li><?php echo file_exists('config.php') ? '✅' : '❌'; ?> config.php</li>
         <li><?php echo file_exists('auth.php') ? '✅' : '❌'; ?> auth.php</li>
         <li><?php echo file_exists('login.html') ? '✅' : '❌'; ?> login.html</li>
-        <li><?php echo file_exists('reservierungen.html') ? '✅' : '❌'; ?> reservierungen.html</li>
+        <li><?php echo file_exists('../reservierungen/reservierungen.html') ? '✅' : '❌'; ?> ../reservierungen/reservierungen.html</li>
     </ul>
     
     <p><strong>Fazit:</strong> <span class="ok">PHP läuft korrekt!</span></p>
