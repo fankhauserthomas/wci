@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
+
         .login-container {
             max-width: 400px;
             width: 90%;
@@ -25,50 +26,50 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
         }
-        
+
         .login-header {
             text-align: center;
             margin-bottom: 40px;
         }
-        
+
         .login-title {
             font-size: 2.2rem;
             color: #333;
             margin-bottom: 8px;
             font-weight: 600;
         }
-        
+
         .login-subtitle {
             color: #666;
             font-size: 1rem;
             margin-bottom: 0;
         }
-        
+
         .hotel-name {
             color: #007bff;
             font-weight: 700;
             margin-top: 12px;
             font-size: 1.1rem;
         }
-        
+
         .login-form {
             display: flex;
             flex-direction: column;
             gap: 24px;
         }
-        
+
         .form-group {
             display: flex;
             flex-direction: column;
         }
-        
+
         .form-label {
             margin-bottom: 8px;
             font-weight: 500;
             color: #333;
             font-size: 0.95rem;
         }
-        
+
         .form-input {
             padding: 14px 16px;
             border: 2px solid #e1e5e9;
@@ -77,14 +78,14 @@
             transition: all 0.3s ease;
             background: #f8f9fa;
         }
-        
+
         .form-input:focus {
             outline: none;
             border-color: #007bff;
             background: white;
             box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
         }
-        
+
         .login-button {
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
@@ -98,24 +99,24 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .login-button:hover {
             background: linear-gradient(135deg, #0056b3, #004085);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
         }
-        
+
         .login-button:active {
             transform: translateY(0);
         }
-        
+
         .login-button:disabled {
             background: #6c757d;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        
+
         .error-message {
             color: #dc3545;
             background: #f8d7da;
@@ -126,7 +127,7 @@
             border: 1px solid #f5c6cb;
             font-size: 0.9rem;
         }
-        
+
         .success-message {
             color: #155724;
             background: #d4edda;
@@ -137,7 +138,7 @@
             border: 1px solid #c3e6cb;
             font-size: 0.9rem;
         }
-        
+
         .loading-spinner {
             display: none;
             margin: 0 auto;
@@ -148,12 +149,17 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .footer-info {
             text-align: center;
             margin-top: 30px;
@@ -161,18 +167,19 @@
             font-size: 0.85rem;
             line-height: 1.4;
         }
-        
+
         @media (max-width: 480px) {
             .login-container {
                 padding: 30px 20px;
             }
-            
+
             .login-title {
                 font-size: 1.8rem;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-header">
@@ -180,55 +187,55 @@
             <p class="login-subtitle">Sicherer Zugang zum Reservierungssystem</p>
             <p class="hotel-name">Franz-Senn-Hütte</p>
         </div>
-        
+
         <div id="errorMessage" class="error-message"></div>
         <div id="successMessage" class="success-message"></div>
-        
+
         <form class="login-form" onsubmit="handleLogin(event)">
             <div class="form-group">
                 <label class="form-label" for="password">Systempasswort:</label>
-                <input type="password" id="password" class="form-input" 
-                       placeholder="Passwort eingeben..." required autofocus>
+                <input type="password" id="password" class="form-input" placeholder="Passwort eingeben..." required
+                    autofocus>
             </div>
             <button type="submit" class="login-button" id="loginButton">
                 <span id="buttonText">Anmelden</span>
                 <div id="loadingSpinner" class="loading-spinner"></div>
             </button>
         </form>
-        
+
         <div class="footer-info">
             <p><strong>Hinweis:</strong> Dieser Bereich ist nur für autorisierte Benutzer zugänglich.</p>
             <p>Bei Problemen wenden Sie sich an das IT-Team.</p>
         </div>
     </div>
-    
+
     <script>
         async function handleLogin(event) {
             event.preventDefault();
-            
+
             const password = document.getElementById('password').value;
             const button = document.getElementById('loginButton');
             const buttonText = document.getElementById('buttonText');
             const spinner = document.getElementById('loadingSpinner');
-            
+
             // UI für Loading-State
             button.disabled = true;
             buttonText.style.display = 'none';
             spinner.style.display = 'block';
             hideMessages();
-            
+
             try {
                 const response = await fetch('authenticate-simple.php', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Cache-Control': 'no-cache'
                     },
                     body: JSON.stringify({ password })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     showSuccess('Anmeldung erfolgreich! Sie werden weitergeleitet...');
                     setTimeout(() => {
@@ -247,37 +254,37 @@
                 resetForm();
             }
         }
-        
+
         function resetForm() {
             const button = document.getElementById('loginButton');
             const buttonText = document.getElementById('buttonText');
             const spinner = document.getElementById('loadingSpinner');
             const passwordField = document.getElementById('password');
-            
+
             button.disabled = false;
             buttonText.style.display = 'block';
             spinner.style.display = 'none';
             passwordField.focus();
             passwordField.select();
         }
-        
+
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
-        
+
         function showSuccess(message) {
             const successDiv = document.getElementById('successMessage');
             successDiv.textContent = message;
             successDiv.style.display = 'block';
         }
-        
+
         function hideMessages() {
             document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'none';
         }
-        
+
         // Check if already authenticated
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -292,7 +299,7 @@
                 // Ignore errors - user is not authenticated
             }
         });
-        
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.target.id === 'password') {
@@ -301,4 +308,5 @@
         });
     </script>
 </body>
+
 </html>
