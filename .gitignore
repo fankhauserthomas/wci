@@ -1,1 +1,5 @@
 erd/logs/
+logs/sync.log
+logs/av-res-dump-stats.json
+logs/av-res-dump.log
+logs/cronjob-sync.log
