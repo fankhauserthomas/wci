@@ -94,6 +94,16 @@ if (!AuthManager::checkSession()) {
       gap: 20px;
       margin-bottom: 30px;
     }
+
+    .dashboard[data-card-size="small"] .dashboard-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .dashboard[data-card-size="large"] .dashboard-grid {
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
     
     .dashboard-card {
       background: white;
@@ -105,7 +115,15 @@ if (!AuthManager::checkSession()) {
       cursor: grab;
       position: relative;
     }
-    
+
+    .dashboard[data-card-size="small"] .dashboard-card {
+      padding: 16px;
+    }
+
+    .dashboard[data-card-size="large"] .dashboard-card {
+      padding: 26px;
+    }
+
     .dashboard-card:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -122,7 +140,22 @@ if (!AuthManager::checkSession()) {
       border: 2px dashed #007bff;
       background-color: rgba(0, 123, 255, 0.1);
     }
-    
+
+    .dashboard-card.drag-over::after {
+      content: 'Hier ablegen';
+      position: absolute;
+      inset: 10px;
+      border-radius: 6px;
+      border: 2px dashed rgba(13, 110, 253, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      color: #0d6efd;
+      background: rgba(13, 110, 253, 0.05);
+      pointer-events: none;
+    }
+
     .drag-handle {
       position: absolute;
       top: 10px;
@@ -150,12 +183,28 @@ if (!AuthManager::checkSession()) {
       color: #2c3e50;
       margin-bottom: 10px;
     }
-    
+
+    .dashboard[data-card-size="small"] .card-title {
+      font-size: 1.05rem;
+    }
+
+    .dashboard[data-card-size="large"] .card-title {
+      font-size: 1.3rem;
+    }
+
     .card-description {
       color: #7f8c8d;
       margin-bottom: 20px;
       line-height: 1.5;
       font-size: 0.9rem;
+    }
+
+    .dashboard[data-card-size="small"] .card-description {
+      font-size: 0.85rem;
+    }
+
+    .dashboard[data-card-size="large"] .card-description {
+      font-size: 0.95rem;
     }
     
     .card-button {
@@ -243,6 +292,123 @@ if (!AuthManager::checkSession()) {
       flex: 1;
       padding: 8px 12px;
       font-size: 0.85rem;
+    }
+
+    .layout-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid #e9ecef;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(2px);
+    }
+
+    .layout-controls.active {
+      border-color: rgba(46, 204, 113, 0.4);
+      box-shadow: 0 6px 16px rgba(46, 204, 113, 0.18);
+    }
+
+    .layout-controls .size-control {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .size-control-label {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .size-control input[type="range"] {
+      -webkit-appearance: none;
+      width: 160px;
+      height: 6px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #95a5a6 0%, #2ecc71 50%, #2980b9 100%);
+      outline: none;
+      margin: 0;
+    }
+
+    .size-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #2ecc71;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .size-control input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .size-control input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #2ecc71;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+    }
+
+    .size-control-scale {
+      display: flex;
+      justify-content: space-between;
+      width: 160px;
+      font-size: 0.75rem;
+      color: #7f8c8d;
+      margin-top: -6px;
+    }
+
+    .size-control-value {
+      font-weight: 600;
+      color: #2c3e50;
+      min-width: 70px;
+      text-align: right;
+    }
+
+    .layout-hint {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #566573;
+      background: rgba(46, 204, 113, 0.08);
+      border: 1px solid rgba(46, 204, 113, 0.25);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+
+    .layout-hint .hint-icon {
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 720px) {
+      .layout-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .size-control input[type="range"],
+      .size-control-scale {
+        width: 100%;
+      }
+
+      .size-control-value {
+        text-align: left;
+      }
     }
 
     /* Matrix-Style Sync-Karte */
@@ -360,6 +526,85 @@ if (!AuthManager::checkSession()) {
       text-align: center;
     }
 
+    .layout-status {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(44, 62, 80, 0.92);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 1200;
+      pointer-events: none;
+      font-size: 0.9rem;
+    }
+
+    .layout-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .layout-status .status-icon {
+      font-size: 1.2rem;
+    }
+
+    .layout-status--ready {
+      background: rgba(46, 64, 83, 0.92);
+    }
+
+    .layout-status--success {
+      background: rgba(46, 204, 113, 0.92);
+      color: #0b3d1d;
+    }
+
+    .layout-status--info {
+      background: rgba(52, 152, 219, 0.92);
+    }
+
+    .layout-status--active {
+      background: rgba(155, 89, 182, 0.92);
+    }
+
+    .layout-status--neutral {
+      background: rgba(127, 140, 141, 0.92);
+    }
+
+    .layout-status--warning {
+      background: rgba(243, 156, 18, 0.92);
+    }
+
+    body.dashboard-dragging {
+      cursor: grabbing;
+    }
+
+    body.dashboard-dragging .dashboard-card:not(.dragging) {
+      filter: saturate(0.9) brightness(0.98);
+      transform: scale(0.995);
+    }
+
+    .dashboard-card.save-flash {
+      animation: cardSaveFlash 0.65s ease-in-out;
+    }
+
+    @keyframes cardSaveFlash {
+      0% {
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(46, 204, 113, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+      }
+    }
+
     .matrix-line.warning {
       color: #ffff00;
       text-shadow: 0 0 2px #ffff00;
@@ -432,7 +677,7 @@ if (!AuthManager::checkSession()) {
     
     .connection-status {
       position: fixed;
-      bottom: 20px;
+      bottom: 90px;
       left: 20px;
       background: white;
       border: 1px solid #e9ecef;
@@ -506,7 +751,23 @@ if (!AuthManager::checkSession()) {
     </div>
   </header>
 
-  <main class="dashboard">
+  <main class="dashboard" data-card-size="medium">
+    <section class="layout-controls" aria-label="Dashboard Layout Einstellungen">
+      <div class="size-control">
+        <label class="size-control-label" for="cardSizeControl">Kartengröße</label>
+        <input type="range" id="cardSizeControl" min="0" max="2" step="1" value="1" aria-label="Kartengröße einstellen">
+        <div class="size-control-scale" aria-hidden="true">
+          <span>Kompakt</span>
+          <span>Mittel</span>
+          <span>Groß</span>
+        </div>
+        <span class="size-control-value" id="cardSizeLabel">Mittel</span>
+      </div>
+      <div class="layout-hint">
+        <span class="hint-icon" aria-hidden="true">🖱️</span>
+        <span class="hint-text">Karten ziehen und ablegen – Änderungen werden automatisch gespeichert.</span>
+      </div>
+    </section>
     <!-- Main Navigation -->
     <div class="dashboard-grid" id="dashboard-container">
       <!-- Sync-Info Karte -->
@@ -620,6 +881,11 @@ if (!AuthManager::checkSession()) {
     </div>
   </main>
 
+  <div class="layout-status layout-status--ready visible" id="layoutStatus" role="status" aria-live="polite">
+    <span class="status-icon" aria-hidden="true">📌</span>
+    <span class="status-text">Layout bereit.</span>
+  </div>
+
   <!-- Connection Status -->
   <div class="connection-status" id="connection-indicator">
     <div class="status-dot"></div>
@@ -631,6 +897,98 @@ if (!AuthManager::checkSession()) {
   <script src="include/js/loading-overlay.js"></script>
   
   <script>
+    const CARD_SIZE_CONFIG = {
+      small: { label: 'Kompakt', slider: 0 },
+      medium: { label: 'Mittel', slider: 1 },
+      large: { label: 'Groß', slider: 2 }
+    };
+    const CARD_SIZE_BY_SLIDER = { '0': 'small', '1': 'medium', '2': 'large' };
+    const LAYOUT_STATUS_ICONS = {
+      success: '✅',
+      info: '💾',
+      ready: '📌',
+      active: '🖱️',
+      neutral: 'ℹ️',
+      warning: '⚠️'
+    };
+
+    let layoutStatusElement = null;
+    let layoutStatusTimeout = null;
+    let dashboardElement = null;
+    let cardSizeControlElement = null;
+    let cardSizeLabelElement = null;
+    let lastDraggedCard = null;
+
+    function updateLayoutStatus(message, variant = 'info', autoHide = true) {
+      if (!layoutStatusElement) return;
+
+      if (readyStatusTimeout) {
+        clearTimeout(readyStatusTimeout);
+        readyStatusTimeout = null;
+      }
+
+      const icon = layoutStatusElement.querySelector('.status-icon');
+      const textEl = layoutStatusElement.querySelector('.status-text');
+
+      if (textEl) {
+        textEl.textContent = message;
+      }
+
+      if (icon) {
+        icon.textContent = LAYOUT_STATUS_ICONS[variant] || 'ℹ️';
+      }
+
+      layoutStatusElement.className = `layout-status layout-status--${variant}`;
+      layoutStatusElement.classList.add('visible');
+
+      if (layoutStatusTimeout) {
+        clearTimeout(layoutStatusTimeout);
+      }
+
+      if (autoHide) {
+        layoutStatusTimeout = setTimeout(() => {
+          layoutStatusElement.classList.remove('visible');
+        }, variant === 'active' ? 6000 : 4000);
+      }
+    }
+
+    let readyStatusTimeout = null;
+
+    function applyCardSize(sizeKey, options = {}) {
+      if (!dashboardElement) return;
+
+      const config = CARD_SIZE_CONFIG[sizeKey] || CARD_SIZE_CONFIG.medium;
+      dashboardElement.dataset.cardSize = sizeKey;
+
+      if (cardSizeLabelElement) {
+        cardSizeLabelElement.textContent = config.label;
+      }
+
+      if (cardSizeControlElement && CARD_SIZE_BY_SLIDER[cardSizeControlElement.value] !== sizeKey) {
+        cardSizeControlElement.value = config.slider;
+      }
+
+      if (cardSizeControlElement) {
+        cardSizeControlElement.setAttribute('aria-valuetext', config.label);
+      }
+
+      if (!options.silent) {
+        localStorage.setItem('dashboardCardSize', sizeKey);
+        updateLayoutStatus(`Kartengröße: ${config.label}`, 'info');
+        scheduleReadyStatus(3200);
+      }
+    }
+
+    function scheduleReadyStatus(delay = 4200) {
+      if (readyStatusTimeout) {
+        clearTimeout(readyStatusTimeout);
+      }
+
+      readyStatusTimeout = setTimeout(() => {
+        updateLayoutStatus('Layout bereit – Karten ziehen zum Anpassen', 'ready', false);
+      }, delay);
+    }
+
     // Logout-Funktion
     function logout() {
       if (confirm('Möchten Sie sich wirklich abmelden?')) {
@@ -647,6 +1005,28 @@ if (!AuthManager::checkSession()) {
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+      layoutStatusElement = document.getElementById('layoutStatus');
+      dashboardElement = document.querySelector('.dashboard');
+      cardSizeControlElement = document.getElementById('cardSizeControl');
+      cardSizeLabelElement = document.getElementById('cardSizeLabel');
+
+      const layoutControls = document.querySelector('.layout-controls');
+      const savedCardSize = localStorage.getItem('dashboardCardSize') || 'medium';
+      applyCardSize(savedCardSize, { silent: true });
+
+      if (cardSizeControlElement) {
+        cardSizeControlElement.addEventListener('input', event => {
+          const sizeKey = CARD_SIZE_BY_SLIDER[event.target.value] || 'medium';
+          applyCardSize(sizeKey);
+          if (layoutControls) {
+            layoutControls.classList.add('active');
+            setTimeout(() => layoutControls.classList.remove('active'), 500);
+          }
+        });
+      }
+
+      updateLayoutStatus('Layout bereit – Karten ziehen zum Anpassen', 'ready', false);
+
       // Set up connection monitoring
       setupConnectionMonitoring();
     });
@@ -893,9 +1273,12 @@ if (!AuthManager::checkSession()) {
         // Drag start
         card.addEventListener('dragstart', function(e) {
           draggedElement = this;
+          lastDraggedCard = this;
           this.classList.add('dragging');
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('text/html', this.outerHTML);
+          document.body.classList.add('dashboard-dragging');
+          updateLayoutStatus('Karte verschieben …', 'active', false);
         });
         
         // Drag end
@@ -907,6 +1290,8 @@ if (!AuthManager::checkSession()) {
           
           // Save new order
           saveDashboardOrder();
+          document.body.classList.remove('dashboard-dragging');
+          draggedElement = null;
         });
         
         // Drag over
@@ -1011,11 +1396,18 @@ if (!AuthManager::checkSession()) {
           Array.from(document.querySelectorAll('.dashboard-grid')).indexOf(card.parentNode) : 0,
         position: Array.from(card.parentNode.children).indexOf(card)
       }));
-      
-      localStorage.setItem('dashboardOrder', JSON.stringify(order));
+      const serializedOrder = JSON.stringify(order);
+      const previousOrder = localStorage.getItem('dashboardOrder');
+
+      if (previousOrder === serializedOrder) {
+        updateLayoutStatus('Anordnung unverändert', 'neutral');
+        scheduleReadyStatus(3000);
+        lastDraggedCard = null;
+        return;
+      }
+
+      localStorage.setItem('dashboardOrder', serializedOrder);
       console.log('Dashboard order saved:', order);
-      
-      // Show save confirmation
       showSaveConfirmation();
     }
     
@@ -1082,32 +1474,18 @@ if (!AuthManager::checkSession()) {
     
     // Show save confirmation
     function showSaveConfirmation() {
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #28a745;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        z-index: 1000;
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      `;
-      notification.textContent = 'Dashboard-Anordnung gespeichert!';
-      document.body.appendChild(notification);
-      
-      // Fade in
-      setTimeout(() => notification.style.opacity = '1', 10);
-      
-      // Remove after 3 seconds
-      setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => document.body.removeChild(notification), 300);
-      }, 3000);
+      updateLayoutStatus('Anordnung gespeichert ✔', 'success');
+      scheduleReadyStatus(4200);
+
+      if (lastDraggedCard) {
+        lastDraggedCard.classList.add('save-flash');
+        setTimeout(() => {
+          if (lastDraggedCard) {
+            lastDraggedCard.classList.remove('save-flash');
+          }
+          lastDraggedCard = null;
+        }, 700);
+      }
     }
     
     // Add reset function for dashboard order
