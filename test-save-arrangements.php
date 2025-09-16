@@ -40,7 +40,7 @@ echo "<h3>Simulating save-arrangements.php...</h3>";
 // We'll need to modify our approach since we can't easily mock php://input
 // Let's create a direct function call instead
 
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 try {

@@ -73,7 +73,7 @@ ini_set('display_errors', 1);
       <?php
       try {
           if (file_exists('auth.php')) {
-              require_once 'auth.php';
+              require_once __DIR__ . '/../auth.php';
               echo "<p>✅ AuthManager-Klasse geladen</p>";
               echo "<p>Session-Status: " . (AuthManager::isAuthenticated() ? "Eingeloggt" : "Nicht eingeloggt") . "</p>";
           } else {

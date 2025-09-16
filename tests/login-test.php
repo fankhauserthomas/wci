@@ -45,7 +45,7 @@
             try {
                 updateStatus('🔄 Login wird getestet...');
                 
-                const response = await fetch('authenticate-simple.php', {
+                const response = await fetch('authenticate.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: password })
@@ -67,7 +67,7 @@
             try {
                 updateStatus('🔄 Session wird geprüft...');
                 
-                const response = await fetch('checkAuth-simple.php');
+                const response = await fetch('checkAuth.php');
                 const result = await response.json();
                 
                 if (result.authenticated) {
@@ -84,7 +84,7 @@
             try {
                 updateStatus('🔄 Logout wird getestet...');
                 
-                const response = await fetch('logout-simple.php');
+                const response = await fetch('logout.php');
                 const result = await response.json();
                 
                 if (result.success) {

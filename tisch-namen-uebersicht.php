@@ -1,6 +1,6 @@
 <?php
 // tisch-namen-uebersicht.php - Tisch-Namen-Übersicht
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 // Authentifizierung prüfen

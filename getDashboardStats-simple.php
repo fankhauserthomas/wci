@@ -1,10 +1,10 @@
 <?php
 // getDashboardStats-simple.php - Dashboard-Statistiken ohne blockierte Auth-Dateien
 
-require_once __DIR__ . '/auth-simple.php';
+require_once __DIR__ . '/auth.php';
 
 // Prüfe Authentifizierung (optional - entfernen falls das Dashboard auch ohne Login funktionieren soll)
-if (!AuthManager::isAuthenticated()) {
+if (!AuthManager::checkSession()) {
     http_response_code(401);
     die(json_encode(['error' => 'Nicht authentifiziert']));
 }

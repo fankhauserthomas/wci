@@ -1,6 +1,6 @@
 <?php
 // auth-test.php - Test der Authentifizierung
-require_once 'auth-simple.php';
+require_once __DIR__ . '/../auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = isset($_POST['password']) ? $_POST['password'] : '';

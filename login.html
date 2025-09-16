@@ -225,7 +225,7 @@
             hideMessages();
 
             try {
-                const response = await fetch('authenticate-simple.php', {
+                const response = await fetch('authenticate.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -241,7 +241,7 @@
                     setTimeout(() => {
                         // Prüfe ob eine spezifische Weiterleitung angefordert wurde
                         const urlParams = new URLSearchParams(window.location.search);
-                        const redirect = urlParams.get('redirect') || 'ultra-secure-file-safety-dashboard.php';
+                        const redirect = urlParams.get('redirect') || 'index.php';
                         window.location.href = redirect;
                     }, 1000);
                 } else {

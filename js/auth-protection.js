@@ -7,7 +7,7 @@ class AuthProtection {
     
     static async checkAuth() {
         try {
-            const response = await fetch('checkAuth-simple.php');
+            const response = await fetch('checkAuth.php');
             if (response.status === 401) {
                 this.redirectToLogin();
                 return false;
@@ -21,14 +21,29 @@ class AuthProtection {
     }
     
     static redirectToLogin() {
-        if (window.location.pathname !== '/login.html') {
-            window.location.href = 'login.html';
+        const target = 'login.html';
+        if (!window.location.pathname.endsWith(target)) {
+            window.location.href = target;
+        } else {
+            window.location.reload();
         }
     }
     
     static async logout() {
         try {
-            await fetch('logout-simple.php');
+            const response = await fetch('logout.php', { cache: 'no-cache' });
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+
+            if (response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                if (payload.redirect) {
+                    window.location.href = payload.redirect;
+                    return;
+                }
+            }
         } catch (error) {
             console.error('Logout error:', error);
         }

@@ -8,7 +8,7 @@
 $isCLI = (php_sapi_name() === 'cli' || defined('SUPPRESS_WEB_INTERFACE'));
 
 if (!$isCLI) {
-    require_once 'auth-simple.php';
+    require_once __DIR__ . '/auth.php';
 
     // Handle AJAX requests BEFORE authentication check (Web Mode Only)
     $action = $_GET['action'] ?? 'dashboard';
@@ -190,8 +190,7 @@ class UltraSecureFileSafetyAnalyzer {
     private function initCriticalWhitelist() {
         $this->whitelist = [
             'config.php', 'config-safe.php', 'config-simple.php',
-            'auth.php', 'auth-simple.php', 'authenticate.php',
-            'checkAuth.php', 'checkAuth-simple.php',
+            'auth.php', 'authenticate.php', 'checkAuth.php', 'logout.php',
             'SyncManager.php', 'sync-cron.php', 'sync-cronjob.php',
             'index.php', 'dashboard.php', 'belegung.php',
             'addReservation.php', 'addReservationNames.php',

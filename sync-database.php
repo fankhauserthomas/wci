@@ -7,7 +7,7 @@ ini_set('display_errors', 0);
 
 try {
     // Erst alle Includes OHNE Header
-    require_once 'auth-simple.php';
+    require_once __DIR__ . '/auth.php';
     require_once 'config.php';
     require_once 'hp-db-config.php';
 

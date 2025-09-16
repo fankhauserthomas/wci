@@ -11,13 +11,13 @@ try {
     
     $steps[] = "Step 1: Starting";
     
-    // Test auth-simple.php
-    if (file_exists('auth-simple.php')) {
-        $steps[] = "Step 2: auth-simple.php exists";
-        require_once 'auth-simple.php';
-        $steps[] = "Step 3: auth-simple.php loaded";
+    // Test auth.php
+    if (file_exists('auth.php')) {
+        $steps[] = "Step 2: auth.php exists";
+        require_once __DIR__ . '/auth.php';
+        $steps[] = "Step 3: auth.php loaded";
     } else {
-        throw new Exception("auth-simple.php not found");
+        throw new Exception("auth.php not found");
     }
     
     // Test config.php

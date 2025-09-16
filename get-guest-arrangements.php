@@ -1,6 +1,6 @@
 <?php
 // get-guest-arrangements.php - Arrangements eines Gastes laden
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 // Authentifizierung prüfen

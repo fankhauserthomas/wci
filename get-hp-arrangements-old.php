@@ -1,6 +1,6 @@
 <?php
 // get-hp-arrangements.php - Lädt HP Arrangements für eine Reservierung
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 // Authentifizierung prüfen

@@ -15,15 +15,15 @@ echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 // Test 1: File includes
 echo "1. Testing file includes...\n";
 try {
-    if (file_exists('auth-simple.php')) {
-        echo "   ✅ auth-simple.php exists\n";
-        require_once 'auth-simple.php';
-        echo "   ✅ auth-simple.php loaded\n";
+    if (file_exists('auth.php')) {
+        echo "   ✅ auth.php exists\n";
+        require_once __DIR__ . '/auth.php';
+        echo "   ✅ auth.php loaded\n";
     } else {
-        echo "   ❌ auth-simple.php NOT found\n";
+        echo "   ❌ auth.php NOT found\n";
     }
 } catch (Exception $e) {
-    echo "   ❌ auth-simple.php error: " . $e->getMessage() . "\n";
+    echo "   ❌ auth.php error: " . $e->getMessage() . "\n";
 }
 
 try {

@@ -1,6 +1,6 @@
 <?php
 // debug-hp-db.php - Debug HP database structure for arrangements
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 if (!AuthManager::checkSession()) {

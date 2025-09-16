@@ -1,6 +1,6 @@
 <?php
 // check-hp-db-structure.php - Prüft HP-Datenbank Struktur
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 if (!AuthManager::checkSession()) {

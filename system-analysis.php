@@ -1,6 +1,6 @@
 <?php
 // system-analysis.php - WCI System Analysis Dashboard
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 
 // Check authentication
 if (!AuthManager::checkSession()) {

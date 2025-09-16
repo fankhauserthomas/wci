@@ -71,7 +71,7 @@
                 updateStatus('🔄 Teste Statistiken ohne Authentifizierung...', 'info');
                 
                 // Zuerst abmelden
-                await fetch('logout-simple.php');
+                await fetch('logout.php');
                 
                 // Dann Statistiken testen
                 const date = document.getElementById('testDate').value || '<?php echo date('Y-m-d'); ?>';

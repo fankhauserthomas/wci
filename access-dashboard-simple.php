@@ -87,7 +87,7 @@ $showTrash = isset($_GET['show_trash']) ? $_GET['show_trash'] === 'true' : false
 $filterSystemFiles = isset($_GET['filter']) ? $_GET['filter'] === 'true' : true;
 
 $systemFiles = [
-    'ping.php', 'sync_matrix.php', 'syncTrigger.php', 'checkAuth-simple.php',
+    'ping.php', 'sync_matrix.php', 'syncTrigger.php', 'checkAuth.php',
     'checkAuth.php', 'api-access-stats.php', 'access-widget.php', 'access-dashboard.php'
 ];
 

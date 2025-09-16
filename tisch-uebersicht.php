@@ -1,6 +1,6 @@
 <?php
 // tisch-uebersicht.php - Tischübersicht basiert auf der HP-Datenbank View
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 require_once 'hp-db-config.php';
 
 // Authentifizierung prüfen

@@ -1,6 +1,6 @@
 <?php
 // index.php - WebCheckin Dashboard mit Authentifizierung
-require_once 'auth-simple.php';
+require_once __DIR__ . '/../auth.php';
 
 // Authentifizierung prüfen
 if (!AuthManager::checkSession()) {

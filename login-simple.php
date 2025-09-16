@@ -1,12 +1,12 @@
 <?php
 // login-simple.php - Einfache Login-Seite
 
-require_once 'auth-simple.php';
+require_once __DIR__ . '/auth.php';
 
 // Prüfe ob bereits eingeloggt
 if (AuthManager::checkSession()) {
     // Weiterleitung zur ursprünglich angeforderten Seite oder Dashboard
-    $redirect = $_GET['redirect'] ?? 'ultra-secure-file-safety-dashboard.php';
+    $redirect = $_GET['redirect'] ?? 'index.php';
     header('Location: ' . $redirect);
     exit;
 }
@@ -15,7 +15,7 @@ if (AuthManager::checkSession()) {
 $error = '';
 if ($_POST['password'] ?? '') {
     if (AuthManager::authenticate($_POST['password'])) {
-        $redirect = $_GET['redirect'] ?? 'ultra-secure-file-safety-dashboard.php';
+        $redirect = $_GET['redirect'] ?? 'index.php';
         header('Location: ' . $redirect);
         exit;
     } else {

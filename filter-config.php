@@ -6,7 +6,6 @@ return [
         'ping.php',
         'sync_matrix.php', 
         'syncTrigger.php',
-        'checkAuth-simple.php',
         'checkAuth.php',
         'api-access-stats.php',
         'health-check.php'
