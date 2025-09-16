@@ -11,7 +11,31 @@ header('Expires: 0');
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
 // Hilfsfunktion für Sortiergruppen-Beschreibungen
-function getSortGroupDescription($group, $hpArrangements, $totalNames, $checkedInCount, $reservedPersons = 0) {
+function getSortGroupDescription(
+    $group,
+    $hpArrangements,
+    $totalNames,
+    $checkedInCount,
+    $reservedPersons = 0,
+    $type = 'arrival',
+    $checkedOutCount = 0
+) {
+    if ($type === 'departure') {
+        switch ($group) {
+            case 'B':
+                return "Teilweise ausgecheckt: $checkedOutCount von $checkedInCount Gästen sind bereits ausgecheckt";
+            case 'C':
+                if ($checkedInCount > 0) {
+                    return "Noch keine Abreise verbucht: 0 von $checkedInCount Gästen ausgecheckt";
+                }
+                return "Keine Check-ins oder Abreisen erfasst";
+            case 'D':
+                return "Alle Gäste ausgecheckt: $checkedOutCount von $checkedInCount";
+            default:
+                return "Abreise-Status unklar (Check-ins: $checkedInCount, Check-outs: $checkedOutCount)";
+        }
+    }
+
     switch ($group) {
         case 'A':
             return "Diskrepanz: HP-Arrangements ($hpArrangements) ≠ Total Names ($totalNames), Check-ins vorhanden ($checkedInCount)";
@@ -132,29 +156,44 @@ try {
     
     // 2. Bulk Check-in Counts aus AV-ResNamen abrufen
     $checkedInData = [];
+    $checkedOutData = [];
     $totalNamesData = [];
     if (!empty($reservations)) {
         $resIds = array_column($reservations, 'id');
         $placeholders = str_repeat('?,', count($resIds) - 1) . '?';
-        
+
         // Check-ins abrufen
         $checkQuery = "
             SELECT 
                 av_id,
-                COUNT(*) as total_names,
-                SUM(CASE WHEN checked_in IS NOT NULL THEN 1 ELSE 0 END) as checked_count
+                SUM(CASE WHEN NoShow = 0 THEN 1 ELSE 0 END) as total_names,
+                SUM(CASE 
+                    WHEN NoShow = 0
+                    AND checked_in IS NOT NULL 
+                    AND CAST(checked_in AS CHAR) != '' 
+                    AND CAST(checked_in AS CHAR) != '0000-00-00 00:00:00'
+                    AND checked_in > '1970-01-01 00:00:00'
+                THEN 1 ELSE 0 END) as checked_in_count,
+                SUM(CASE 
+                    WHEN NoShow = 0
+                    AND checked_out IS NOT NULL 
+                    AND CAST(checked_out AS CHAR) != '' 
+                    AND CAST(checked_out AS CHAR) != '0000-00-00 00:00:00'
+                    AND checked_out > '1970-01-01 00:00:00'
+                THEN 1 ELSE 0 END) as checked_out_count
             FROM `AV-ResNamen` 
             WHERE av_id IN ($placeholders)
             GROUP BY av_id
         ";
-        
+
         $stmt2 = $mysqli->prepare($checkQuery);
         $stmt2->bind_param(str_repeat('i', count($resIds)), ...$resIds);
         $stmt2->execute();
         $checkResult = $stmt2->get_result();
         
         while ($row = $checkResult->fetch_assoc()) {
-            $checkedInData[$row['av_id']] = (int)$row['checked_count'];
+            $checkedInData[$row['av_id']] = (int)$row['checked_in_count'];
+            $checkedOutData[$row['av_id']] = (int)$row['checked_out_count'];
             $totalNamesData[$row['av_id']] = (int)$row['total_names'];
         }
     }
@@ -167,33 +206,50 @@ try {
         
         $hpArrangements = $hpData[$resId] ?? 0;
         $checkedInCount = $checkedInData[$resId] ?? 0;
+        $checkedOutCount = $checkedOutData[$resId] ?? 0;
         $totalNames = $totalNamesData[$resId] ?? 0;
         $reservedPersons = (int)($res['total_reserved_persons'] ?? 0);
-        
+
         // Sortiergruppen bestimmen
         $sortGroup = '';
         $sortPriority = 0;
         
-        if (($hpArrangements != $reservedPersons) && ($checkedInCount > 0)) {
-            // Gruppe A: HP-Arrangements ≠ Total Names UND Check-ins vorhanden
-            $sortGroup = 'A';
-            $sortPriority = 1;
-        } elseif (($hpArrangements > 0) && ($checkedInCount == 0)) {
-            // Gruppe B: HP-Arrangements vorhanden ABER keine Check-ins
-            $sortGroup = 'B';
-            $sortPriority = 2;
-        } elseif (($hpArrangements == 0) && ($checkedInCount == 0)) {
-            // Gruppe C: Keine HP-Arrangements UND keine Check-ins
-            $sortGroup = 'C';
-            $sortPriority = 3;
-        } elseif ($hpArrangements == $reservedPersons) {
-            // Gruppe D: HP-Arrangements = Reserved Persons (ausgeglichen)
-            $sortGroup = 'D';
-            $sortPriority = 4;
+        if ($type === 'departure') {
+            if ($checkedInCount > 0 && $checkedOutCount >= $checkedInCount) {
+                // Alle ausgecheckt → blau, ganz unten
+                $sortGroup = 'D';
+                $sortPriority = 3;
+            } elseif ($checkedOutCount > 0) {
+                // Teilweise ausgecheckt → orange, ganz oben
+                $sortGroup = 'B';
+                $sortPriority = 1;
+            } else {
+                // Noch niemand ausgecheckt → neutral in der Mitte
+                $sortGroup = 'C';
+                $sortPriority = 2;
+            }
         } else {
-            // Fallback für nicht klassifizierte Fälle
-            $sortGroup = 'X';
-            $sortPriority = 5;
+            if (($hpArrangements != $reservedPersons) && ($checkedInCount > 0)) {
+                // Gruppe A: HP-Arrangements ≠ Total Names UND Check-ins vorhanden
+                $sortGroup = 'A';
+                $sortPriority = 1;
+            } elseif (($hpArrangements > 0) && ($checkedInCount == 0)) {
+                // Gruppe B: HP-Arrangements vorhanden ABER keine Check-ins
+                $sortGroup = 'B';
+                $sortPriority = 2;
+            } elseif (($hpArrangements == 0) && ($checkedInCount == 0)) {
+                // Gruppe C: Keine HP-Arrangements UND keine Check-ins
+                $sortGroup = 'C';
+                $sortPriority = 3;
+            } elseif ($hpArrangements == $reservedPersons) {
+                // Gruppe D: HP-Arrangements = Reserved Persons (ausgeglichen)
+                $sortGroup = 'D';
+                $sortPriority = 4;
+            } else {
+                // Fallback für nicht klassifizierte Fälle
+                $sortGroup = 'X';
+                $sortPriority = 5;
+            }
         }
         
         $result[] = [
@@ -202,6 +258,7 @@ try {
             'name' => $res['nachname'] . ' ' . $res['vorname'],
             'hp_arrangements' => $hpArrangements,
             'checked_in_count' => $checkedInCount,
+            'checked_out_count' => $checkedOutCount,
             'total_names' => $totalNames,
             'reserved_persons' => $reservedPersons, // Sonder+Betten+Lager+DZ
             'breakdown' => [
@@ -212,7 +269,15 @@ try {
             ],
             'sort_group' => $sortGroup,
             'sort_priority' => $sortPriority,
-            'sort_description' => getSortGroupDescription($sortGroup, $hpArrangements, $totalNames, $checkedInCount, $reservedPersons)
+            'sort_description' => getSortGroupDescription(
+                $sortGroup,
+                $hpArrangements,
+                $totalNames,
+                $checkedInCount,
+                $reservedPersons,
+                $type,
+                $checkedOutCount
+            )
         ];
     }
     
