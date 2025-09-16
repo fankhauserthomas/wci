@@ -232,7 +232,10 @@
                 if (result.success) {
                     showSuccess('Anmeldung erfolgreich! Sie werden weitergeleitet...');
                     setTimeout(() => {
-                        window.location.href = 'index.php';
+                        // Prüfe ob eine spezifische Weiterleitung angefordert wurde
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const redirect = urlParams.get('redirect') || 'ultra-secure-file-safety-dashboard.php';
+                        window.location.href = redirect;
                     }, 1000);
                 } else {
                     showError(result.message || 'Falsches Passwort. Bitte versuchen Sie es erneut.');

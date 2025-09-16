@@ -21,6 +21,26 @@ function formatBytes($bytes, $precision = 2) {
     return round($bytes, $precision) . ' ' . $units[$i];
 }
 
+// Statistik-Datei
+$statsFile = __DIR__ . '/logs/av-res-dump-stats.json';
+
+// Lade aktuelle Statistiken
+$stats = [];
+if (file_exists($statsFile)) {
+    $stats = json_decode(file_get_contents($statsFile), true) ?: [];
+}
+
+// Update Statistiken
+$currentTime = time();
+$stats['total_runs'] = ($stats['total_runs'] ?? 0) + 1;
+$stats['last_run'] = $currentTime;
+$stats['last_run_formatted'] = date('Y-m-d H:i:s', $currentTime);
+$stats['first_run'] = $stats['first_run'] ?? $currentTime;
+$stats['first_run_formatted'] = date('Y-m-d H:i:s', $stats['first_run']);
+
+// Speichere Statistiken
+file_put_contents($statsFile, json_encode($stats, JSON_PRETTY_PRINT));
+
 $logPrefix = "[" . date('Y-m-d H:i:s') . "] [AV-RES-DUMP]";
 
 // Performance-Messung
@@ -28,6 +48,18 @@ $startTime = microtime(true);
 $memoryStart = memory_get_usage(true);
 
 try {
+    echo "$logPrefix === AUSFÜHRUNGSSTATISTIK ===\n";
+    echo "$logPrefix Ausführung #" . $stats['total_runs'] . "\n";
+    echo "$logPrefix Erste Ausführung: " . $stats['first_run_formatted'] . "\n";
+    echo "$logPrefix Letzte Ausführung: " . $stats['last_run_formatted'] . "\n";
+    if ($stats['total_runs'] > 1) {
+        $daysSinceFirst = round(($currentTime - $stats['first_run']) / 86400, 1);
+        $avgPerDay = round($stats['total_runs'] / max($daysSinceFirst, 1), 1);
+        echo "$logPrefix Läuft seit: $daysSinceFirst Tagen\n";
+        echo "$logPrefix Durchschnitt: $avgPerDay Ausführungen/Tag\n";
+    }
+    echo "$logPrefix \n";
+    
     echo "$logPrefix Starte AV-Res Dump von lokal zu remote\n";
     echo "$logPrefix Start-Zeit: " . date('Y-m-d H:i:s.') . substr(microtime(), 2, 3) . "\n";
     echo "$logPrefix Start-Memory: " . formatBytes($memoryStart) . "\n";
@@ -224,9 +256,29 @@ try {
     
     echo "$logPrefix Dump erfolgreich abgeschlossen\n";
     
+    // Update finale Statistiken
+    $endTime = time();
+    $stats['last_success'] = $endTime;
+    $stats['last_success_formatted'] = date('Y-m-d H:i:s', $endTime);
+    $stats['last_duration'] = round($totalTime, 2);
+    $stats['last_records_copied'] = $totalCopied;
+    $stats['total_records_copied'] = ($stats['total_records_copied'] ?? 0) + $totalCopied;
+    $stats['success_runs'] = ($stats['success_runs'] ?? 0) + 1;
+    
+    file_put_contents($statsFile, json_encode($stats, JSON_PRETTY_PRINT));
+    
 } catch (Exception $e) {
     echo "$logPrefix ❌ FEHLER: " . $e->getMessage() . "\n";
     echo "$logPrefix Stack trace: " . $e->getTraceAsString() . "\n";
+    
+    // Update Error-Statistiken
+    $stats['last_error'] = time();
+    $stats['last_error_formatted'] = date('Y-m-d H:i:s');
+    $stats['last_error_message'] = $e->getMessage();
+    $stats['error_runs'] = ($stats['error_runs'] ?? 0) + 1;
+    
+    file_put_contents($statsFile, json_encode($stats, JSON_PRETTY_PRINT));
+    
     exit(1);
 }
 ?>

@@ -188,14 +188,6 @@ function generateTischBMP($tischName, $namen, $outputPath) {
         imagettftext($image, 20, 0, $no_names_x, $no_names_y, $gray_medium, $font_bold_italic_path, $no_names);
     }
     
-    // Fußzeile
-    $footer_text = "Franz-Senn-Hütte - " . date('d.m.Y H:i');
-    $footer_bbox = imagettfbbox($small_size, 0, $font_path, $footer_text);
-    $footer_width = $footer_bbox[4] - $footer_bbox[0];
-    $footer_x = intval(($width - $footer_width) / 2);
-    $footer_y = $height - 30;
-    imagettftext($image, $small_size, 0, $footer_x, $footer_y, $gray_medium, $font_path, $footer_text);
-    
     // BMP speichern (GD unterstützt kein natives BMP, also konvertieren wir)
     $result = saveBMP($image, $outputPath);
     imagedestroy($image);
@@ -250,24 +242,30 @@ function saveBMP($image, $outputPath) {
 }
 
 /**
- * CRC-Checksummen für BMP-Datei berechnen
+ * CRC-Checksummen textbasiert berechnen (unabhängig von Rendering-Unterschieden)
  */
-function calculateBMPCRC($bmpPath) {
+function calculateBMPCRC($bmpPath, $tischName, $namen) {
     if (!file_exists($bmpPath)) {
         return false;
     }
     
-    $bmpData = file_get_contents($bmpPath);
-    if ($bmpData === false) {
-        return false;
+    // Textinhalt für CRC-Berechnung zusammenstellen
+    $textContent = $tischName . '|';
+    foreach ($namen as $gast) {
+        $textContent .= $gast['name'] . '(' . $gast['anzahl'] . ')';
+        if (!empty($gast['bemerkung'])) {
+            $textContent .= '[' . $gast['bemerkung'] . ']';
+        }
+        $textContent .= '|';
     }
     
     return [
         'file' => basename($bmpPath),
         'size' => filesize($bmpPath),
-        'crc32' => sprintf('%08x', crc32($bmpData)),
-        'sha256' => hash('sha256', $bmpData),
-        'created' => date('Y-m-d H:i:s')
+        'crc32' => sprintf('%08x', crc32($textContent)),
+        'sha256' => hash('sha256', $textContent),
+        'created' => date('Y-m-d H:i:s'),
+        'text_content' => $textContent  // Für Debugging
     ];
 }
 
@@ -305,6 +303,67 @@ function generateHTMLPreview($tischName, $namen) {
     $html .= '</div>';
     
     return $html;
+}
+
+/**
+ * Löscht BMP/CRC-Dateien, die nicht mehr zu aktiven Tischen gehören
+ */
+function cleanupOldErdFiles($aktiveTische) {
+    $erdPath = __DIR__ . '/erd/';
+    
+    // Alle vorhandenen BMP/CRC-Dateien finden
+    $vorhandeneDateien = [];
+    
+    // BMP-Dateien
+    $bmpFiles = glob($erdPath . '*.bmp');
+    foreach ($bmpFiles as $file) {
+        $basename = basename($file, '.bmp');
+        if ($basename !== 'erd') { // erd.bmp nicht löschen
+            $vorhandeneDateien[] = $basename;
+        }
+    }
+    
+    // CRC-Dateien
+    $crcFiles = glob($erdPath . '*.crc');
+    foreach ($crcFiles as $file) {
+        $basename = basename($file, '.crc');
+        if ($basename !== 'erd') { // erd.crc nicht löschen
+            if (!in_array($basename, $vorhandeneDateien)) {
+                $vorhandeneDateien[] = $basename;
+            }
+        }
+    }
+    
+    // Aktive Tische in safe_name Format konvertieren
+    $aktiveSafeNames = [];
+    foreach ($aktiveTische as $tischName) {
+        $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $tischName);
+        $aktiveSafeNames[] = $safeName;
+    }
+    
+    // Nicht mehr aktive Dateien löschen
+    $geloescht = [];
+    foreach ($vorhandeneDateien as $safeName) {
+        if (!in_array($safeName, $aktiveSafeNames)) {
+            // BMP löschen
+            $bmpFile = $erdPath . $safeName . '.bmp';
+            if (file_exists($bmpFile)) {
+                if (unlink($bmpFile)) {
+                    $geloescht[] = $safeName . '.bmp';
+                }
+            }
+            
+            // CRC löschen
+            $crcFile = $erdPath . $safeName . '.crc';
+            if (file_exists($crcFile)) {
+                if (unlink($crcFile)) {
+                    $geloescht[] = $safeName . '.crc';
+                }
+            }
+        }
+    }
+    
+    return $geloescht;
 }
 
 // Daten von HP-Datenbank laden
@@ -373,7 +432,7 @@ function getTischNamenUebersicht() {
                 
                 // CRC-Datei generieren wenn BMP erfolgreich erstellt wurde
                 if ($bmp_generated && $bmp_exists) {
-                    $crc_data = calculateBMPCRC($bmp_path);
+                    $crc_data = calculateBMPCRC($bmp_path, $tischName, $namen);
                     if ($crc_data) {
                         $crc_filename = $safe_tisch_name . '.crc';
                         $crc_path = __DIR__ . '/erd/' . $crc_filename;
@@ -396,6 +455,15 @@ function getTischNamenUebersicht() {
                 'use_html_preview' => $use_html_preview,
                 'html_preview' => $use_html_preview ? generateHTMLPreview($tischName, $namen) : null
             ];
+        }
+        
+        // Alte BMP/CRC-Dateien bereinigen (Tische ohne Namen löschen)
+        $aktiveTische = array_keys($tischGruppen);
+        $geloeschteDateien = cleanupOldErdFiles($aktiveTische);
+        
+        // Debug-Info zu gelöschten Dateien
+        if (!empty($geloeschteDateien)) {
+            error_log("ERD-Bereinigung: Gelöschte Dateien: " . implode(', ', $geloeschteDateien));
         }
         
         return $tischNamenData;
