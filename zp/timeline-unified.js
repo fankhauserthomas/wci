@@ -2,7 +2,10 @@
 let reservations = [];
 let roomDetails = [];
 let rooms = [];
-let arrangementsCatalog = [];
+let arrangementsCatalog = typeof window !== 'undefined' && window.arrangementsCatalog ? window.arrangementsCatalog : [];
+if (typeof window !== 'undefined') {
+    window.arrangementsCatalog = arrangementsCatalog;
+}
 let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -1474,94 +1477,50 @@ class TimelineUnifiedRenderer {
             return this.histogramCache;
         }
 
-        const diffLength = totalDays + 1;
+        const dailyDetails = new Array(totalDays).fill(null).map(() => ({
+            dz: 0,
+            betten: 0,
+            lager: 0,
+            sonder: 0,
+            total: 0
+        }));
 
-        const diffTotal = new Array(diffLength).fill(0);
-        const diffDz = new Array(diffLength).fill(0);
-        const diffBetten = new Array(diffLength).fill(0);
-        const diffLager = new Array(diffLength).fill(0);
-        const diffSonder = new Array(diffLength).fill(0);
+        const addReservationToHistogram = (reservation) => {
+            if (!reservation) return;
 
-        (roomDetails || []).forEach(detail => {
-            if (!detail) return;
-
-            const start = detail._normalizedStart ?? this.normalizeDateToNoon(detail.start);
-            const end = detail._normalizedEnd ?? this.normalizeDateToNoon(detail.end);
-            let capacity = detail._capacity ?? detail.capacity ?? 1;
-            capacity = Number.isFinite(capacity) ? capacity : Number.parseInt(capacity, 10) || 1;
+            const start = this.normalizeDateToNoon(reservation.start);
+            const end = this.normalizeDateToNoon(reservation.end);
 
             let startIndex = Math.floor((start - startTs) / MS_IN_DAY);
             let endIndex = Math.ceil((end - startTs) / MS_IN_DAY);
 
-            if (Number.isNaN(startIndex) || Number.isNaN(endIndex)) {
-                return;
-            }
-
-            if (startIndex >= totalDays || endIndex <= 0) {
-                return;
-            }
+            if (Number.isNaN(startIndex) || Number.isNaN(endIndex)) return;
+            if (startIndex >= totalDays || endIndex <= 0) return;
 
             startIndex = Math.max(0, startIndex);
             endIndex = Math.min(totalDays, endIndex);
+            if (startIndex >= endIndex) return;
 
-            if (startIndex >= endIndex) {
-                return;
+            const data = reservation.fullData || reservation.data || {};
+            const details = data.capacity_details || {};
+            const dz = Number(details.dz || 0);
+            const betten = Number(details.betten || 0);
+            const lager = Number(details.lager || 0);
+            const sonder = Number(details.sonder || 0);
+
+            for (let day = startIndex; day < endIndex; day++) {
+                dailyDetails[day].dz += dz;
+                dailyDetails[day].betten += betten;
+                dailyDetails[day].lager += lager;
+                dailyDetails[day].sonder += sonder;
+                dailyDetails[day].total += dz + betten + lager + sonder;
             }
+        };
 
-            diffTotal[startIndex] += capacity;
-            diffTotal[endIndex] -= capacity;
+        (reservations || []).forEach(addReservationToHistogram);
 
-            const category = detail._occupancyCategory || 'betten';
-
-            switch (category) {
-                case 'dz':
-                    diffDz[startIndex] += capacity;
-                    diffDz[endIndex] -= capacity;
-                    break;
-                case 'lager':
-                    diffLager[startIndex] += capacity;
-                    diffLager[endIndex] -= capacity;
-                    break;
-                case 'sonder':
-                    diffSonder[startIndex] += capacity;
-                    diffSonder[endIndex] -= capacity;
-                    break;
-                default:
-                    diffBetten[startIndex] += capacity;
-                    diffBetten[endIndex] -= capacity;
-            }
-        });
-
-        const dailyCounts = new Array(totalDays).fill(0);
-        const dailyDetails = new Array(totalDays);
-
-        let runningTotal = 0;
-        let runningDz = 0;
-        let runningBetten = 0;
-        let runningLager = 0;
-        let runningSonder = 0;
-        let maxGuests = 0;
-
-        for (let day = 0; day < totalDays; day++) {
-            runningTotal += diffTotal[day];
-            runningDz += diffDz[day];
-            runningBetten += diffBetten[day];
-            runningLager += diffLager[day];
-            runningSonder += diffSonder[day];
-
-            dailyCounts[day] = runningTotal;
-            dailyDetails[day] = {
-                dz: runningDz,
-                betten: runningBetten,
-                lager: runningLager,
-                sonder: runningSonder,
-                total: runningTotal
-            };
-
-            if (runningTotal > maxGuests) {
-                maxGuests = runningTotal;
-            }
-        }
+        const dailyCounts = dailyDetails.map(detail => detail.total);
+        const maxGuests = dailyCounts.reduce((max, value) => Math.max(max, value), 0);
 
         this.histogramCache = {
             version: this.dataVersion,
@@ -2386,15 +2345,18 @@ class TimelineUnifiedRenderer {
             this.radialMenu.hide();
         }
 
-        if (e.button !== 0) {
+        if (e.button !== undefined && e.button !== 0) {
             return;
         }
 
-        if (this.isConfigButtonHovered && this.configButtonBounds) {
-            // Öffne Konfigurationsseite
-            window.location.href = 'timeline-config.html';
-            e.preventDefault();
-            return;
+        if (this.configButtonBounds) {
+            const bounds = this.configButtonBounds;
+            if (mouseX >= bounds.x && mouseX <= bounds.x + bounds.width &&
+                mouseY >= bounds.y && mouseY <= bounds.y + bounds.height) {
+                window.location.href = 'timeline-config.html';
+                e.preventDefault();
+                return;
+            }
         }
 
         // Separator-Handling hat Priorität
@@ -4571,6 +4533,12 @@ class TimelineUnifiedRenderer {
         const availableHeight = area.height * 0.9;
         const bottomMargin = area.height * 0.05;
         const barWidth = Math.max(4, this.DAY_WIDTH - 10);
+        const categoryColors = (histogramTheme.segments) || {
+            dz: '#1f78ff',
+            betten: '#2ecc71',
+            lager: '#f1c40f',
+            sonder: '#8e44ad'
+        };
 
         dailyCounts.forEach((count, dayIndex) => {
             const xOffset = (this.DAY_WIDTH - barWidth) / 2;
@@ -4586,9 +4554,25 @@ class TimelineUnifiedRenderer {
 
             const detail = dailyDetails[dayIndex] || { total: count };
 
-            this.ctx.fillStyle = this.getHistogramBarColor(detail.total || count);
-            this.ctx.globalAlpha = 0.75;
-            this.ctx.fillRect(x, barY, barWidth, barHeight);
+            let currentTop = barY + barHeight;
+            const categoriesInOrder = ['dz', 'betten', 'lager', 'sonder'];
+
+            categoriesInOrder.forEach(key => {
+                const value = detail[key] || 0;
+                if (!value || value <= 0 || !detail.total) return;
+
+                const segmentRatio = value / detail.total;
+                const segmentHeight = segmentRatio * barHeight;
+                if (segmentHeight <= 0.5) return;
+
+                const segmentY = currentTop - segmentHeight;
+                const segmentColor = categoryColors[key] || this.getHistogramBarColor(detail.total);
+                this.ctx.fillStyle = segmentColor;
+                this.ctx.globalAlpha = 0.85;
+                this.ctx.fillRect(x, segmentY, barWidth, segmentHeight);
+                currentTop = segmentY;
+            });
+
             this.ctx.globalAlpha = 1;
 
             if (barHeight <= 16 || (detail.total || 0) <= 0) {
@@ -4604,15 +4588,15 @@ class TimelineUnifiedRenderer {
 
             this.ctx.fillText(String(detail.total || count), centerX, textY);
 
-            if (barHeight > 42 && barWidth > 40) {
-                textY -= 10;
-                const breakdown = [];
-                if (detail.dz) breakdown.push(`DZ:${detail.dz}`);
-                if (detail.betten) breakdown.push(`B:${detail.betten}`);
-                if (detail.lager) breakdown.push(`L:${detail.lager}`);
-                if (detail.sonder) breakdown.push(`S:${detail.sonder}`);
+            const breakdownLabels = [];
+            if (detail.dz) breakdownLabels.push(`DZ:${detail.dz}`);
+            if (detail.betten) breakdownLabels.push(`B:${detail.betten}`);
+            if (detail.lager) breakdownLabels.push(`L:${detail.lager}`);
+            if (detail.sonder) breakdownLabels.push(`S:${detail.sonder}`);
 
-                breakdown.forEach(label => {
+            if (barHeight > 42 && barWidth > 40 && breakdownLabels.length) {
+                textY -= 10;
+                breakdownLabels.forEach(label => {
                     this.ctx.fillText(label, centerX, textY);
                     textY -= 9;
                 });
