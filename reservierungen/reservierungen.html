@@ -216,6 +216,36 @@
       box-shadow: 0 0 0 2px rgba(85, 85, 85, 0.1);
     }
 
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .date-nav.hidden {
+      display: none;
+    }
+
+    .date-nav-btn {
+      background: #f0f0f0;
+      border: 1px solid #888;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .date-nav-btn:hover:not(:disabled) {
+      background: #e0e0e0;
+      border-color: #666;
+    }
+
+    .date-nav-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .table-container {
       flex: 1;
       overflow: hidden;
@@ -400,10 +430,14 @@
     <div class="controls legacy-controls">
       <div class="controls-left">
         <!-- Typ-Toggle -->
-        <button id="toggleType" class="toggle-btn arrival">Anreise</button>
+        <button id="toggleType" class="toggle-btn arrival">Check-in heute</button>
 
-        <!-- Datum -->
-        <input type="date" id="filterDate">
+        <!-- Datum mit Navigation -->
+        <div class="date-nav" id="dateNav">
+          <button type="button" id="filterDatePrev" class="date-nav-btn" title="Vorheriger Tag">◀</button>
+          <input type="date" id="filterDate">
+          <button type="button" id="filterDateNext" class="date-nav-btn" title="Nächster Tag">▶</button>
+        </div>
 
         <!-- Storno-Toggle -->
         <button id="toggleStorno" class="toggle-btn no-storno">Ohne Storno</button>
@@ -945,21 +979,28 @@
     function checkUrlParams() {
       const urlParams = new URLSearchParams(window.location.search);
       const dateParam = urlParams.get('date');
+      const typeParam = (urlParams.get('type') || 'arrival').toLowerCase();
 
       if (dateParam) {
+        const desiredMode = typeParam === 'departure' ? 'departure' : 'arrival';
+
+        if (typeof window.setReservationFilterMode === 'function') {
+          window.setReservationFilterMode(desiredMode, { date: dateParam, silent: true });
+        } else {
+          localStorage.setItem('filterMode', desiredMode);
+          localStorage.setItem('filterDate', dateParam);
+        }
+
         const dateField = document.getElementById('filterDate');
         if (dateField) {
           dateField.value = dateParam;
-          // Datum aus URL gesetzt
-
-          // Automatisch laden
-          setTimeout(() => {
-            if (window.loadData) {
-              // Automatischer Daten-Load wegen URL-Parameter
-              window.loadData();
-            }
-          }, 500);
         }
+
+        setTimeout(() => {
+          if (window.loadData) {
+            window.loadData();
+          }
+        }, 300);
       }
     }
 
@@ -992,8 +1033,8 @@
       let checkedInGuests = 0;
 
       // Aktueller Anzeigemodus (Anreise/Abreise)
-      const toggleType = document.getElementById('toggleType');
-      const isArrival = toggleType && toggleType.textContent.includes('Anreise');
+      const mode = localStorage.getItem('filterMode') || 'arrival-today';
+      const isArrival = mode.startsWith('arrival');
 
       // Farbschema basierend auf Modus umschalten
       updateColorScheme(isArrival);
@@ -1217,8 +1258,8 @@
 
       // Initial color scheme setzen
       setTimeout(() => {
-        const toggleType = document.getElementById('toggleType');
-        const isArrival = toggleType && toggleType.textContent.includes('Anreise');
+        const mode = localStorage.getItem('filterMode') || 'arrival-today';
+        const isArrival = mode.startsWith('arrival');
         updateColorScheme(isArrival);
       }, 100);
 

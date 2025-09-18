@@ -16,10 +16,11 @@ const resIncludePath = (name) => `${INCLUDE_BASE}${name}`;
  * @param {HTMLInputElement} dateEl Das <input type="date"> Element.
  * @param {Function} loadDataFn     Funktion, die bei jeder Änderung neu lädt.
  */
-function initDateToggle(toggleBtn, dateEl, loadDataFn) {
-  const modes = ['arrival', 'departure', 'arrival-today', 'departure-tomorrow'];
-  let mode = localStorage.getItem('filterMode') || 'arrival';
-  let customDate = localStorage.getItem('filterDate') || '';
+function initDateToggle(toggleBtn, dateEl, loadDataFn, options = {}) {
+  const modes = ['arrival-today', 'departure-tomorrow', 'arrival', 'departure'];
+  const prevBtn = options.prevBtn || null;
+  const nextBtn = options.nextBtn || null;
+  const container = options.container || null;
 
   const today = () => new Date().toISOString().slice(0, 10);
   const tomorrow = () => {
@@ -28,21 +29,78 @@ function initDateToggle(toggleBtn, dateEl, loadDataFn) {
     return d.toISOString().slice(0, 10);
   };
 
+  const todayStr = today();
+  const lastVisitKey = 'filterModeLastVisit';
+  let mode = localStorage.getItem('filterMode') || 'arrival-today';
+  let customDate = localStorage.getItem('filterDate') || '';
+  const lastVisit = localStorage.getItem(lastVisitKey);
+  const referrerIsDashboard = document.referrer && /\/index\.php/i.test(document.referrer);
+
+  if (!modes.includes(mode)) {
+    mode = 'arrival-today';
+  }
+
+  if (!lastVisit || lastVisit !== todayStr || referrerIsDashboard) {
+    mode = 'arrival-today';
+    customDate = todayStr;
+  }
+  localStorage.setItem(lastVisitKey, todayStr);
+  localStorage.setItem('filterMode', mode);
+  if (mode === 'arrival' || mode === 'departure') {
+    localStorage.setItem('filterDate', customDate);
+  }
+
+  function updateBodyClass() {
+    const body = document.body;
+    if (mode.startsWith('arrival')) {
+      body.classList.add('arrival-mode');
+      body.classList.remove('departure-mode');
+    } else {
+      body.classList.add('departure-mode');
+      body.classList.remove('arrival-mode');
+    }
+  }
+
   function updateUI() {
     const labels = {
       arrival: 'Anreise',
       departure: 'Abreise',
-      'arrival-today': 'Anreise heute',
-      'departure-tomorrow': 'Abreise morgen'
+      'arrival-today': 'Check-in heute',
+      'departure-tomorrow': 'Check-out morgen'
     };
     toggleBtn.textContent = labels[mode];
 
-    if (mode === 'arrival' || mode === 'departure') {
-      dateEl.style.display = '';
-      dateEl.value = customDate || (mode === 'arrival' ? today() : tomorrow());
+    toggleBtn.classList.remove('arrival', 'departure');
+    if (mode.startsWith('arrival')) {
+      toggleBtn.classList.add('arrival');
     } else {
-      dateEl.style.display = 'none';
+      toggleBtn.classList.add('departure');
     }
+
+    const showDate = mode === 'arrival' || mode === 'departure';
+    const effectiveDate = () => {
+      if (showDate) {
+        if (!customDate) {
+          customDate = mode === 'arrival' ? todayStr : tomorrow();
+        }
+        return customDate;
+      }
+      return mode === 'arrival-today' ? todayStr : tomorrow();
+    };
+
+    if (container) {
+      container.style.display = showDate ? 'flex' : 'none';
+    }
+    if (dateEl) {
+      dateEl.style.display = showDate ? '' : 'none';
+    }
+    if (dateEl) {
+      dateEl.value = effectiveDate();
+    }
+    if (prevBtn) prevBtn.disabled = !showDate;
+    if (nextBtn) nextBtn.disabled = !showDate;
+
+    updateBodyClass();
   }
 
   function persist() {
@@ -50,25 +108,76 @@ function initDateToggle(toggleBtn, dateEl, loadDataFn) {
     if (mode === 'arrival' || mode === 'departure') {
       localStorage.setItem('filterDate', customDate);
     }
+    localStorage.setItem(lastVisitKey, todayStr);
+  }
+
+  function applyMode(newMode, options = {}) {
+    if (!modes.includes(newMode)) {
+      return;
+    }
+
+    mode = newMode;
+
+    if (mode === 'arrival' || mode === 'departure') {
+      if (options.date) {
+        customDate = options.date;
+      } else if (!customDate) {
+        customDate = mode === 'arrival' ? todayStr : tomorrow();
+      }
+    }
+
+    persist();
+    updateUI();
+
+    if (!options.silent) {
+      loadDataFn();
+    }
+  }
+
+  function shiftDate(days) {
+    if (!(mode === 'arrival' || mode === 'departure')) {
+      return;
+    }
+    if (!dateEl) {
+      return;
+    }
+    const base = dateEl.value || customDate || (mode === 'arrival' ? todayStr : tomorrow());
+    const dateObj = new Date(base);
+    if (Number.isNaN(dateObj.getTime())) {
+      return;
+    }
+    dateObj.setDate(dateObj.getDate() + days);
+    customDate = dateObj.toISOString().slice(0, 10);
+    dateEl.value = customDate;
+    persist();
+    loadDataFn();
   }
 
   toggleBtn.addEventListener('click', () => {
     const idx = modes.indexOf(mode);
-    mode = modes[(idx + 1) % modes.length];
-    persist();
-    updateUI();
-    // NUR bei Benutzeraktion laden
-    loadDataFn();
+    const nextMode = modes[(idx + 1) % modes.length];
+    applyMode(nextMode);
   });
 
-  dateEl.addEventListener('change', () => {
-    customDate = dateEl.value;
-    persist();
-    // Bei Datum-Änderung auch laden
-    loadDataFn();
-  });
+  if (dateEl) {
+    dateEl.addEventListener('change', () => {
+      customDate = dateEl.value;
+      persist();
+      loadDataFn();
+    });
+  }
 
-  // Nur UI updaten, NICHT automatisch laden
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => shiftDate(-1));
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => shiftDate(1));
+  }
+
+  window.setReservationFilterMode = function (newMode, options = {}) {
+    applyMode(newMode, options);
+  };
+
   updateUI();
 }
 
@@ -260,11 +369,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 4-Stufen Toggle initialisieren (OHNE automatisches Laden)
+  const dateNav = document.getElementById('dateNav');
+  const datePrev = document.getElementById('filterDatePrev');
+  const dateNext = document.getElementById('filterDateNext');
+
   initDateToggle(toggleType, filterDate, function () {
     // Callback für Toggle-Änderungen - lädt Daten nur bei Benutzeraktion
     console.log('📅 Datums-Toggle geändert - lade Daten neu');
     loadData();
-  });
+  }, { prevBtn: datePrev, nextBtn: dateNext, container: dateNav });
 
   // Soundex für phonetische Suche
   function soundex(s) {
@@ -380,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Ermittelt arrival/departure aus Datumstoggle
   function getType() {
-    const mode = localStorage.getItem('filterMode') || 'arrival';
+    const mode = localStorage.getItem('filterMode') || 'arrival-today';
     return mode.startsWith('arrival') ? 'arrival' : 'departure';
   }
 
@@ -389,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveFiltersToStorage();
 
     let date;
-    const mode = localStorage.getItem('filterMode') || 'arrival';
+    const mode = localStorage.getItem('filterMode') || 'arrival-today';
     if (mode === 'arrival-today') {
       date = new Date().toISOString().slice(0, 10);
     } else if (mode === 'departure-tomorrow') {
