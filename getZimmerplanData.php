@@ -269,6 +269,7 @@ try {
             'end' => $bis->format('Y-m-d\TH:i:s'),
             'group' => 'room_' . $detail['zimID'],
             'room_id' => $detail['zimID'],
+            'arr_id' => $detail['detail_arr'],
             'title' => $guestName . '\n' . 
                       'Zimmer: ' . $detail['zimmer_name'] . '\n' .
                       'Aufenthalt: ' . $von->format('d.m.Y') . ' - ' . $bis->format('d.m.Y') . '\n' .
@@ -285,6 +286,7 @@ try {
                 'room_name' => $detail['zimmer_name'],
                 'guest_name' => $guestName,
                 'capacity' => $detail['anz'],
+                'arr_id' => $detail['detail_arr'],
                 'arrangement' => $detail['arrangement_kbez'],
                 'has_dog' => (bool)$detail['hund'],
                 'color' => $detail['color'] ?? '#3498db',

@@ -57,11 +57,56 @@
             display: none;
             /* Performance-Info ausgeblendet */
         }
+
+        .radial-menu {
+            position: absolute;
+            width: 420px;
+            height: 420px;
+            margin-left: -210px;
+            margin-top: -210px;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+        }
+
+        .radial-menu.active {
+            display: block;
+        }
+
+        .radial-menu svg {
+            width: 420px;
+            height: 420px;
+            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+        }
+
+        .radial-menu path.segment {
+            cursor: pointer;
+            pointer-events: auto;
+            stroke: rgba(0, 0, 0, 0.25);
+            stroke-width: 1;
+        }
+
+        .radial-menu path.segment:hover {
+            filter: brightness(1.2);
+        }
+
+        .radial-menu text {
+            fill: #f5f5f5;
+            font-size: 11px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            pointer-events: none;
+        }
+
+        .radial-menu .center-button {
+            cursor: pointer;
+            pointer-events: auto;
+        }
     </style>
 </head>
 
 <body>
     <div class="main-areas-container"></div>
+    <div id="timeline-radial-menu" class="radial-menu"></div>
 
     <!-- Scripts -->
     <script src="timeline-unified.js"></script>
@@ -123,6 +168,7 @@
                             res_id: reservationId,
                             reservation_id: reservationId,
                             room_id: roomId,
+                            arr_id: detailData.arr_id || item.arr_id || null,
                             guest_name: detailData.guest_name || 'Unbekannt',
                             caption,
                             start: parseAPIDate(item.start),
@@ -130,11 +176,13 @@
                             color: detailData.color || '#3498db',
                             has_dog: detailData.has_dog || false,
                             capacity: detailData.capacity || 1,
+                            arrangement_label: detailData.arrangement || detailData.arrangement_kbez || '',
                             data: {
                                 ...detailData,
                                 detail_id: detailId,
                                 res_id: reservationId,
                                 room_id: roomId,
+                                arr_id: detailData.arr_id || item.arr_id || null,
                                 caption
                             }
                         };

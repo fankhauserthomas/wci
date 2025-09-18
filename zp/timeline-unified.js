@@ -6,6 +6,198 @@ let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
+class TimelineRadialMenu {
+    constructor(rootElement, callbacks = {}) {
+        this.root = rootElement;
+        this.callbacks = callbacks;
+        this.size = 420;
+        this.center = { x: this.size / 2, y: this.size / 2 };
+        this.activeDetail = null;
+        this.isOpen = false;
+
+        if (this.root) {
+            this.root.style.pointerEvents = 'none';
+            this.root.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        }
+    }
+
+    polarToCartesian(radius, angleDegrees) {
+        const angle = (angleDegrees - 90) * Math.PI / 180.0;
+        return {
+            x: this.center.x + (radius * Math.cos(angle)),
+            y: this.center.y + (radius * Math.sin(angle))
+        };
+    }
+
+    describeSegment(innerRadius, outerRadius, startAngle, endAngle) {
+        const startOuter = this.polarToCartesian(outerRadius, startAngle);
+        const endOuter = this.polarToCartesian(outerRadius, endAngle);
+        const startInner = this.polarToCartesian(innerRadius, endAngle);
+        const endInner = this.polarToCartesian(innerRadius, startAngle);
+        const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
+
+        return [
+            'M', startOuter.x, startOuter.y,
+            'A', outerRadius, outerRadius, 0, largeArc, 1, endOuter.x, endOuter.y,
+            'L', startInner.x, startInner.y,
+            'A', innerRadius, innerRadius, 0, largeArc, 0, endInner.x, endInner.y,
+            'Z'
+        ].join(' ');
+    }
+
+    clear() {
+        if (!this.root) return;
+        while (this.root.firstChild) {
+            this.root.removeChild(this.root.firstChild);
+        }
+    }
+
+    createCenterButton() {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const group = document.createElementNS(svgNS, 'g');
+
+        const circle = document.createElementNS(svgNS, 'circle');
+        circle.setAttribute('cx', this.center.x);
+        circle.setAttribute('cy', this.center.y);
+        circle.setAttribute('r', 48);
+        circle.setAttribute('fill', '#313131');
+        circle.setAttribute('class', 'center-button');
+
+        circle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.hide();
+            this.callbacks.onClose?.();
+        });
+
+        const line1 = document.createElementNS(svgNS, 'line');
+        line1.setAttribute('x1', this.center.x - 18);
+        line1.setAttribute('y1', this.center.y - 18);
+        line1.setAttribute('x2', this.center.x + 18);
+        line1.setAttribute('y2', this.center.y + 18);
+        line1.setAttribute('stroke', '#fafafa');
+        line1.setAttribute('stroke-width', 3);
+        line1.setAttribute('stroke-linecap', 'round');
+
+        const line2 = document.createElementNS(svgNS, 'line');
+        line2.setAttribute('x1', this.center.x - 18);
+        line2.setAttribute('y1', this.center.y + 18);
+        line2.setAttribute('x2', this.center.x + 18);
+        line2.setAttribute('y2', this.center.y - 18);
+        line2.setAttribute('stroke', '#fafafa');
+        line2.setAttribute('stroke-width', 3);
+        line2.setAttribute('stroke-linecap', 'round');
+
+        [line1, line2].forEach(line => {
+            line.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.hide();
+                this.callbacks.onClose?.();
+            });
+        });
+
+        group.appendChild(circle);
+        group.appendChild(line1);
+        group.appendChild(line2);
+        return group;
+    }
+
+    renderRing(svg, ringConfig) {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const { innerRadius, outerRadius, options, action } = ringConfig;
+        if (!options || options.length === 0) return;
+
+        const step = 360 / options.length;
+        let startAngle = -90;
+
+        options.forEach(option => {
+            const endAngle = startAngle + step;
+            const path = document.createElementNS(svgNS, 'path');
+            path.setAttribute('d', this.describeSegment(innerRadius, outerRadius, startAngle, endAngle));
+            path.setAttribute('fill', option.fill || '#555');
+            path.setAttribute('class', 'segment');
+
+            path.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (action === 'color') {
+                    this.callbacks.onColorSelect?.(option, this.activeDetail);
+                } else if (action === 'arrangement') {
+                    this.callbacks.onArrangementSelect?.(option, this.activeDetail);
+                } else if (action === 'capacity') {
+                    this.callbacks.onCapacitySelect?.(option, this.activeDetail);
+                } else if (action === 'command') {
+                    this.callbacks.onCommandSelect?.(option, this.activeDetail);
+                }
+            });
+
+            svg.appendChild(path);
+
+            if (option.label) {
+                const midAngle = startAngle + (step / 2);
+                const midRadius = innerRadius + ((outerRadius - innerRadius) / 2);
+                const labelPos = this.polarToCartesian(midRadius, midAngle);
+                const text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', labelPos.x);
+                text.setAttribute('y', labelPos.y + 3);
+                if (option.textColor) {
+                    text.setAttribute('fill', option.textColor);
+                }
+                text.textContent = option.label;
+                svg.appendChild(text);
+            }
+
+            startAngle = endAngle;
+        });
+    }
+
+    show(detail, clientX, clientY, ringConfigurations = []) {
+        if (!this.root) return;
+
+        this.activeDetail = detail;
+        this.clear();
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('viewBox', `0 0 ${this.size} ${this.size}`);
+
+        ringConfigurations.forEach(ring => this.renderRing(svg, ring));
+        svg.appendChild(this.createCenterButton());
+        this.root.appendChild(svg);
+
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const half = this.size / 2;
+        let targetX = clientX;
+        let targetY = clientY;
+
+        if (targetX < half) targetX = half;
+        if (targetY < half) targetY = half;
+        if (targetX > viewportWidth - half) targetX = viewportWidth - half;
+        if (targetY > viewportHeight - half) targetY = viewportHeight - half;
+
+        this.root.style.left = `${targetX}px`;
+        this.root.style.top = `${targetY}px`;
+        this.root.classList.add('active');
+        this.root.style.pointerEvents = 'auto';
+        this.isOpen = true;
+    }
+
+    hide() {
+        if (!this.root) return;
+        this.root.classList.remove('active');
+        this.root.style.pointerEvents = 'none';
+        this.isOpen = false;
+        this.activeDetail = null;
+        this.clear();
+    }
+
+    isVisible() {
+        return this.isOpen;
+    }
+}
+
+
 class TimelineUnifiedRenderer {
     constructor(containerSelector) {
         this.container = document.querySelector(containerSelector);
@@ -151,6 +343,17 @@ class TimelineUnifiedRenderer {
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
         this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
+
+        const radialRoot = document.getElementById('timeline-radial-menu');
+        this.radialMenu = new TimelineRadialMenu(radialRoot, {
+            onClose: () => {
+                this.radialMenu?.hide();
+            },
+            onColorSelect: (option, detail) => this.handleRadialColorSelection(option, detail),
+            onArrangementSelect: (option, detail) => this.handleRadialArrangementSelection(option, detail),
+            onCapacitySelect: (option, detail) => this.handleRadialCapacitySelection(option, detail),
+            onCommandSelect: (option, detail) => this.handleRadialCommandSelection(option, detail)
+        });
 
         // DAY_WIDTH aus localStorage laden (überschreibt Theme-Wert)
         try {
@@ -467,7 +670,16 @@ class TimelineUnifiedRenderer {
             this.dataIndex.reservationsByRoom.get(roomId).push(detail);
 
             // Also index by detail ID for quick lookup
-            this.dataIndex.roomDetailsById.set(detail.id || detail.detail_id, detail);
+            const possibleKeys = [
+                detail.id,
+                detail.detail_id,
+                detail.detailId,
+                detail.data?.detail_id,
+                detail.data?.detailId
+            ];
+            possibleKeys
+                .filter(key => key !== undefined && key !== null)
+                .forEach(key => this.dataIndex.roomDetailsById.set(String(key), detail));
         });
 
         // Index by date for temporal queries
@@ -1070,6 +1282,44 @@ class TimelineUnifiedRenderer {
         this.scheduleRender('rollback_after_failed_save');
     }
 
+    persistRoomDetailAttributes(payload, onError) {
+        if (!payload || !payload.updates) {
+            return;
+        }
+
+        fetch('updateRoomDetailAttributes.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json().catch(() => {
+                    throw new Error('Ungültige Serverantwort.');
+                });
+            })
+            .then(result => {
+                if (!result || !result.success) {
+                    const message = result && result.error ? result.error : 'Unbekannter Fehler beim Speichern.';
+                    throw new Error(message);
+                }
+            })
+            .catch(error => {
+                console.error('Fehler beim Speichern der Detail-Attribute:', error);
+                if (typeof onError === 'function') {
+                    onError();
+                }
+                if (typeof window !== 'undefined' && window.alert) {
+                    window.alert('Änderung konnte nicht gespeichert werden. Die lokale Anpassung wurde zurückgesetzt.');
+                }
+            });
+    }
+
     renderRoomDayGridLines(startDate, endDate, area) {
         const startX = this.sidebarWidth - this.scrollX;
         const lineTop = area.y;
@@ -1666,6 +1916,23 @@ class TimelineUnifiedRenderer {
         this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
         this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
 
+        this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
+
+        document.addEventListener('click', (event) => {
+            if (!this.radialMenu?.isVisible()) return;
+            const root = this.radialMenu.root;
+            if (!root) return;
+            if (!root.contains(event.target)) {
+                this.radialMenu.hide();
+            }
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.radialMenu?.isVisible()) {
+                this.radialMenu.hide();
+            }
+        });
+
         // Mouse-Events für Hover-Effekte mit optimierter Performance
         let hoverTimeout = null;
         let lastRenderTime = 0;
@@ -2019,6 +2286,14 @@ class TimelineUnifiedRenderer {
         const mouseY = e.clientY - rect.top;
         const mouseX = e.clientX - rect.left;
 
+        if (this.radialMenu?.isVisible()) {
+            this.radialMenu.hide();
+        }
+
+        if (e.button !== 0) {
+            return;
+        }
+
         if (this.isConfigButtonHovered && this.configButtonBounds) {
             // Öffne Konfigurationsseite
             window.location.href = 'timeline-config.html';
@@ -2052,6 +2327,10 @@ class TimelineUnifiedRenderer {
     }
 
     handleMouseUp(e) {
+        if (e.button !== 0) {
+            return;
+        }
+
         // Canvas MouseUp nur für lokale Events, globale Events über document
         // Separator handling wird über document.mouseup behandelt
 
@@ -2060,6 +2339,421 @@ class TimelineUnifiedRenderer {
         if (this.isDraggingReservation) {
             this.finishReservationDrag();
         }
+    }
+
+    handleContextMenu(e) {
+        if (!this.canvas || !this.radialMenu) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (mouseY < this.areas.rooms.y || mouseY > this.areas.rooms.y + this.areas.rooms.height) {
+            if (this.radialMenu.isVisible()) {
+                this.radialMenu.hide();
+            }
+            return;
+        }
+
+        const hit = this.findReservationAt(mouseX, mouseY);
+        if (!hit) {
+            if (this.radialMenu.isVisible()) {
+                this.radialMenu.hide();
+            }
+            e.preventDefault();
+            return;
+        }
+
+        const detail = this.resolveRoomDetail(hit);
+        if (!detail) {
+            console.warn('Radial-Menü: Detail konnte nicht aufgelöst werden', hit);
+            e.preventDefault();
+            return;
+        }
+
+        const rings = this.buildRadialRingConfigurations(detail);
+        if (!rings.length) {
+            e.preventDefault();
+            return;
+        }
+
+        e.preventDefault();
+        this.radialMenu.show(detail, e.clientX, e.clientY, rings);
+    }
+
+    resolveRoomDetail(detail) {
+        if (!detail) return null;
+        if (!this.dataIndex) {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+
+        const identifiers = this.extractDetailIdentifiers(detail);
+
+        const lookupByKey = (key) => {
+            if (key === undefined || key === null) return null;
+            const stringKey = String(key);
+            if (this.dataIndex?.roomDetailsById?.has(stringKey)) {
+                return this.dataIndex.roomDetailsById.get(stringKey);
+            }
+            return null;
+        };
+
+        const directMatch = lookupByKey(identifiers.detailId) || lookupByKey(identifiers.uniqueId);
+        if (directMatch) {
+            return directMatch;
+        }
+
+        if (identifiers.detailId) {
+            const matchById = roomDetails.find(entry => {
+                const entryIdentifiers = this.extractDetailIdentifiers(entry);
+                return entryIdentifiers.detailId && entryIdentifiers.detailId === identifiers.detailId;
+            });
+            if (matchById) {
+                return matchById;
+            }
+        }
+
+        if (detail.id) {
+            const matchByString = roomDetails.find(entry => entry.id === detail.id);
+            if (matchByString) {
+                return matchByString;
+            }
+        }
+
+        return roomDetails.find(entry => entry === detail) || null;
+    }
+
+    buildRadialRingConfigurations(detail) {
+        const configurations = [];
+
+        const colorOptions = this.getColorPaletteOptions(detail);
+        if (colorOptions.length) {
+            configurations.push({
+                action: 'color',
+                innerRadius: 70,
+                outerRadius: 120,
+                options: colorOptions
+            });
+        }
+
+        const arrangementOptions = this.getArrangementOptions(detail);
+        if (arrangementOptions.length) {
+            configurations.push({
+                action: 'arrangement',
+                innerRadius: 128,
+                outerRadius: 170,
+                options: arrangementOptions
+            });
+        }
+
+        const capacityOptions = this.getCapacityOptions(detail);
+        if (capacityOptions.length) {
+            configurations.push({
+                action: 'capacity',
+                innerRadius: 176,
+                outerRadius: 202,
+                options: capacityOptions
+            });
+        }
+
+        const commandOptions = this.getCommandOptions(detail);
+        if (commandOptions.length) {
+            configurations.push({
+                action: 'command',
+                innerRadius: 206,
+                outerRadius: 214,
+                options: commandOptions
+            });
+        }
+
+        return configurations;
+    }
+
+    getColorPaletteOptions(detail) {
+        const palette = [
+            { label: 'Std', value: detail?.color || detail?.data?.color || '#3498db' },
+            { label: 'Blau', value: '#1f78ff' },
+            { label: 'Grün', value: '#27ae60' },
+            { label: 'Rot', value: '#c0392b' },
+            { label: 'Orange', value: '#e67e22' },
+            { label: 'Vio', value: '#8e44ad' },
+            { label: 'Cyan', value: '#16a085' },
+            { label: 'Grau', value: '#7f8c8d', textColor: '#ffffff' }
+        ];
+
+        const seen = new Set();
+        return palette.filter(option => {
+            const key = option.value.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            option.fill = option.value;
+            return true;
+        });
+    }
+
+    getArrangementOptions(detail) {
+        const resId = this.extractDetailIdentifiers(detail).resId;
+        const relevant = new Map();
+        const global = new Map();
+
+        const collect = (targetMap, entry) => {
+            const identifiers = this.extractDetailIdentifiers(entry);
+            const arrId = identifiers && entry?.arr_id !== undefined ? entry.arr_id : (entry?.data?.arr_id ?? null);
+            const label = entry?.arrangement_label || entry?.data?.arrangement || entry?.data?.arrangement_kbez || 'n/a';
+            const key = arrId !== null && arrId !== undefined ? `arr_${arrId}` : 'arr_null';
+            if (!targetMap.has(key)) {
+                targetMap.set(key, {
+                    label: label || 'n/a',
+                    id: arrId,
+                    fill: this.generateArrangementColor(targetMap.size),
+                    textColor: '#ffffff'
+                });
+            }
+        };
+
+        roomDetails.forEach(entry => {
+            const ids = this.extractDetailIdentifiers(entry);
+            if (resId && ids.resId === resId) {
+                collect(relevant, entry);
+            }
+            collect(global, entry);
+        });
+
+        if (!relevant.size) {
+            relevant.set('arr_null', {
+                label: 'n/a',
+                id: null,
+                fill: '#636e72',
+                textColor: '#ffffff'
+            });
+        }
+
+        const merged = [...relevant.values()];
+        for (const option of global.values()) {
+            if (!merged.find(item => item.id === option.id)) {
+                merged.push(option);
+            }
+            if (merged.length >= 10) break;
+        }
+
+        return merged.slice(0, 10).map((option, index) => ({
+            ...option,
+            fill: option.fill || this.generateArrangementColor(index)
+        }));
+    }
+
+    generateArrangementColor(index) {
+        const palette = ['#2980b9', '#16a085', '#8e44ad', '#d35400', '#c0392b', '#2c3e50', '#27ae60', '#7f8c8d', '#f39c12', '#34495e'];
+        return palette[index % palette.length];
+    }
+
+    getCapacityOptions(detail) {
+        const maxOption = 10;
+        const options = [];
+        for (let value = 0; value <= maxOption; value++) {
+            options.push({
+                label: String(value),
+                value,
+                fill: value === (detail?.capacity ?? detail?.data?.capacity) ? '#1abc9c' : '#2d3436',
+                textColor: '#ffffff'
+            });
+        }
+        return options;
+    }
+
+    getCommandOptions() {
+        return [
+            { label: 'Daten', command: 'dataset', fill: '#6c5ce7' },
+            { label: 'Teilen', command: 'share', fill: '#0984e3' },
+            { label: 'Split', command: 'split', fill: '#e17055' },
+            { label: 'Label', command: 'label', fill: '#00cec9' },
+            { label: 'Hund', command: 'dog', fill: '#b2bec3', textColor: '#2d3436' },
+            { label: 'Alle', command: 'delete_all', fill: '#d63031' },
+            { label: 'Del', command: 'delete', fill: '#ad1457' },
+            { label: 'Cmd', command: 'future', fill: '#636e72' }
+        ];
+    }
+
+    handleRadialColorSelection(option, detail) {
+        if (!option || !detail) return;
+        const resolved = this.resolveRoomDetail(detail);
+        if (!resolved) return;
+        const identifiers = this.extractDetailIdentifiers(resolved);
+        if (!identifiers.resId) {
+            if (window.alert) {
+                window.alert('Für diese Reservierung konnte keine ID ermittelt werden.');
+            }
+            return;
+        }
+
+        const affected = roomDetails.filter(entry => this.extractDetailIdentifiers(entry).resId === identifiers.resId);
+        const backups = affected.map(entry => ({
+            reference: entry,
+            color: entry.color,
+            dataColor: entry.data?.color
+        }));
+
+        affected.forEach(entry => {
+            entry.color = option.value;
+            if (!entry.data) entry.data = {};
+            entry.data.color = option.value;
+            entry.style = option.value ? `background-color: ${option.value};` : entry.style;
+        });
+
+        if (this.dataIndex) {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+
+        this.markDataDirty();
+        this.scheduleRender('radial_color_update');
+
+        this.persistRoomDetailAttributes({
+            scope: 'reservation',
+            res_id: identifiers.resId,
+            updates: { color: option.value }
+        }, () => {
+            backups.forEach(snapshot => {
+                snapshot.reference.color = snapshot.color;
+                if (!snapshot.reference.data) snapshot.reference.data = {};
+                snapshot.reference.data.color = snapshot.dataColor;
+            });
+            if (this.dataIndex) {
+                this.initializeDataIndex(reservations, roomDetails);
+            }
+            this.markDataDirty();
+            this.scheduleRender('radial_color_revert');
+        });
+
+        this.radialMenu.hide();
+    }
+
+    handleRadialArrangementSelection(option, detail) {
+        if (!option || !detail) return;
+        const resolved = this.resolveRoomDetail(detail);
+        if (!resolved) return;
+        const identifiers = this.extractDetailIdentifiers(resolved);
+        if (!identifiers.resId) {
+            if (window.alert) {
+                window.alert('Reservierungs-ID konnte nicht ermittelt werden.');
+            }
+            return;
+        }
+
+        const targetId = option.id !== undefined ? option.id : null;
+        const label = option.label || 'n/a';
+
+        const affected = roomDetails.filter(entry => this.extractDetailIdentifiers(entry).resId === identifiers.resId);
+        const backups = affected.map(entry => ({
+            reference: entry,
+            arrId: entry.arr_id ?? entry.data?.arr_id ?? null,
+            arrangementLabel: entry.arrangement_label ?? entry.data?.arrangement ?? null
+        }));
+
+        affected.forEach(entry => {
+            entry.arr_id = targetId;
+            entry.arrangement_label = label;
+            if (!entry.data) entry.data = {};
+            entry.data.arr_id = targetId;
+            entry.data.arrangement = label;
+            entry.data.arrangement_kbez = label;
+        });
+
+        if (this.dataIndex) {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+
+        this.markDataDirty();
+        this.scheduleRender('radial_arrangement_update');
+
+        this.persistRoomDetailAttributes({
+            scope: 'reservation',
+            res_id: identifiers.resId,
+            updates: { arr_id: targetId }
+        }, () => {
+            backups.forEach(snapshot => {
+                snapshot.reference.arr_id = snapshot.arrId;
+                if (!snapshot.reference.data) snapshot.reference.data = {};
+                snapshot.reference.arrangement_label = snapshot.arrangementLabel;
+                snapshot.reference.data.arr_id = snapshot.arrId;
+                snapshot.reference.data.arrangement = snapshot.arrangementLabel;
+                snapshot.reference.data.arrangement_kbez = snapshot.arrangementLabel;
+            });
+            if (this.dataIndex) {
+                this.initializeDataIndex(reservations, roomDetails);
+            }
+            this.markDataDirty();
+            this.scheduleRender('radial_arrangement_revert');
+        });
+
+        this.radialMenu.hide();
+    }
+
+    handleRadialCapacitySelection(option, detail) {
+        if (!option || !detail) return;
+
+        const resolved = this.resolveRoomDetail(detail);
+        if (!resolved) return;
+
+        const identifiers = this.extractDetailIdentifiers(resolved);
+        if (!identifiers.detailId) {
+            if (window.alert) {
+                window.alert('Detail-ID konnte nicht ermittelt werden.');
+            }
+            return;
+        }
+
+        const previous = {
+            capacity: resolved.capacity,
+            dataCapacity: resolved.data?.capacity,
+            dataAnz: resolved.data?.anz,
+            caption: resolved.caption
+        };
+
+        resolved.capacity = option.value;
+        if (!resolved.data) resolved.data = {};
+        resolved.data.capacity = option.value;
+        resolved.data.anz = option.value;
+
+        this.normalizeRoomDetail(resolved);
+        this.invalidateStackingCache(resolved.room_id);
+        if (this.dataIndex) {
+            this.initializeDataIndex(reservations, roomDetails);
+        }
+        this.markDataDirty();
+        this.scheduleRender('radial_capacity_update');
+
+        this.persistRoomDetailAttributes({
+            scope: 'detail',
+            detail_id: identifiers.detailId,
+            res_id: identifiers.resId,
+            updates: { anzahl: option.value }
+        }, () => {
+            resolved.capacity = previous.capacity;
+            if (!resolved.data) resolved.data = {};
+            resolved.data.capacity = previous.dataCapacity;
+            resolved.data.anz = previous.dataAnz;
+            resolved.caption = previous.caption;
+
+            this.normalizeRoomDetail(resolved);
+            this.invalidateStackingCache(resolved.room_id);
+            if (this.dataIndex) {
+                this.initializeDataIndex(reservations, roomDetails);
+            }
+            this.markDataDirty();
+            this.scheduleRender('radial_capacity_revert');
+        });
+
+        this.radialMenu.hide();
+    }
+
+    handleRadialCommandSelection(option, detail) {
+        this.radialMenu.hide();
+        if (!option) return;
+        const label = option.label || option.command || 'Aktion';
+        if (window.alert) {
+            window.alert(`Die Funktion "${label}" ist noch in Vorbereitung.`);
+        }
+        console.info('Radial-Kommando (noch nicht implementiert):', option, detail);
     }
 
     findReservationAt(mouseX, mouseY) {
