@@ -2,18 +2,36 @@
 let reservations = [];
 let roomDetails = [];
 let rooms = [];
+let arrangementsCatalog = [];
 let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
+const TIMELINE_RADIAL_MENU_SIZE = 220;
 
 class TimelineRadialMenu {
     constructor(rootElement, callbacks = {}) {
         this.root = rootElement;
         this.callbacks = callbacks;
-        this.size = 420;
+        this.size = callbacks.size || TIMELINE_RADIAL_MENU_SIZE;
         this.center = { x: this.size / 2, y: this.size / 2 };
         this.activeDetail = null;
         this.isOpen = false;
+        this.segmentIdCounter = 0;
+        this.maxRings = 4;
+
+        const computedCenter = Math.max(16, this.size * 0.12);
+        const availableRadius = Math.max(20, (this.size / 2) - computedCenter);
+        const gapCount = Math.max(0, this.maxRings - 1);
+        let ringGap = 1;
+        let ringThickness = (availableRadius - gapCount * ringGap) / this.maxRings;
+        if (ringThickness < 12) {
+            ringGap = Math.max(0, ringGap * 0.5);
+            ringThickness = (availableRadius - gapCount * ringGap) / this.maxRings;
+        }
+
+        this.centerRadius = computedCenter;
+        this.ringGap = ringGap;
+        this.ringThickness = Math.max(10, ringThickness);
 
         if (this.root) {
             this.root.style.pointerEvents = 'none';
@@ -61,7 +79,7 @@ class TimelineRadialMenu {
         const circle = document.createElementNS(svgNS, 'circle');
         circle.setAttribute('cx', this.center.x);
         circle.setAttribute('cy', this.center.y);
-        circle.setAttribute('r', 48);
+        circle.setAttribute('r', Math.max(16, this.centerRadius - 4));
         circle.setAttribute('fill', '#313131');
         circle.setAttribute('class', 'center-button');
 
@@ -72,19 +90,20 @@ class TimelineRadialMenu {
         });
 
         const line1 = document.createElementNS(svgNS, 'line');
-        line1.setAttribute('x1', this.center.x - 18);
-        line1.setAttribute('y1', this.center.y - 18);
-        line1.setAttribute('x2', this.center.x + 18);
-        line1.setAttribute('y2', this.center.y + 18);
+        const crossRadius = Math.max(8, (this.centerRadius - 8));
+        line1.setAttribute('x1', this.center.x - crossRadius);
+        line1.setAttribute('y1', this.center.y - crossRadius);
+        line1.setAttribute('x2', this.center.x + crossRadius);
+        line1.setAttribute('y2', this.center.y + crossRadius);
         line1.setAttribute('stroke', '#fafafa');
         line1.setAttribute('stroke-width', 3);
         line1.setAttribute('stroke-linecap', 'round');
 
         const line2 = document.createElementNS(svgNS, 'line');
-        line2.setAttribute('x1', this.center.x - 18);
-        line2.setAttribute('y1', this.center.y + 18);
-        line2.setAttribute('x2', this.center.x + 18);
-        line2.setAttribute('y2', this.center.y - 18);
+        line2.setAttribute('x1', this.center.x - crossRadius);
+        line2.setAttribute('y1', this.center.y + crossRadius);
+        line2.setAttribute('x2', this.center.x + crossRadius);
+        line2.setAttribute('y2', this.center.y - crossRadius);
         line2.setAttribute('stroke', '#fafafa');
         line2.setAttribute('stroke-width', 3);
         line2.setAttribute('stroke-linecap', 'round');
@@ -111,12 +130,17 @@ class TimelineRadialMenu {
         const step = 360 / options.length;
         let startAngle = -90;
 
+        const defs = this.ensureDefs(svg);
+
         options.forEach(option => {
             const endAngle = startAngle + step;
             const path = document.createElementNS(svgNS, 'path');
             path.setAttribute('d', this.describeSegment(innerRadius, outerRadius, startAngle, endAngle));
             path.setAttribute('fill', option.fill || '#555');
             path.setAttribute('class', 'segment');
+            path.setAttribute('stroke', 'rgba(0, 0, 0, 0.25)');
+            path.setAttribute('stroke-width', 0.6);
+            path.setAttribute('vector-effect', 'non-scaling-stroke');
 
             path.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -134,16 +158,27 @@ class TimelineRadialMenu {
             svg.appendChild(path);
 
             if (option.label) {
-                const midAngle = startAngle + (step / 2);
-                const midRadius = innerRadius + ((outerRadius - innerRadius) / 2);
-                const labelPos = this.polarToCartesian(midRadius, midAngle);
+                const textRadius = innerRadius + ((outerRadius - innerRadius) / 2);
+                const pathId = `segment-label-${this.segmentIdCounter++}`;
+                const textPath = document.createElementNS(svgNS, 'path');
+                textPath.setAttribute('id', pathId);
+                textPath.setAttribute('d', this.describeArcPath(textRadius, startAngle, endAngle));
+                textPath.setAttribute('fill', 'none');
+                defs.appendChild(textPath);
+
                 const text = document.createElementNS(svgNS, 'text');
-                text.setAttribute('x', labelPos.x);
-                text.setAttribute('y', labelPos.y + 3);
                 if (option.textColor) {
                     text.setAttribute('fill', option.textColor);
                 }
-                text.textContent = option.label;
+                text.setAttribute('font-size', '10');
+                text.setAttribute('dominant-baseline', 'middle');
+                const textPathElement = document.createElementNS(svgNS, 'textPath');
+                textPathElement.setAttribute('href', `#${pathId}`);
+                textPathElement.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#${pathId}`);
+                textPathElement.setAttribute('startOffset', '50%');
+                textPathElement.setAttribute('text-anchor', 'middle');
+                textPathElement.textContent = option.label;
+                text.appendChild(textPathElement);
                 svg.appendChild(text);
             }
 
@@ -151,10 +186,37 @@ class TimelineRadialMenu {
         });
     }
 
+    ensureDefs(svg) {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        let defs = svg.querySelector('defs');
+        if (!defs) {
+            defs = document.createElementNS(svgNS, 'defs');
+            svg.appendChild(defs);
+        }
+        return defs;
+    }
+
+    describeArcPath(radius, startAngle, endAngle) {
+        const start = this.polarToCartesian(radius, startAngle);
+        const end = this.polarToCartesian(radius, endAngle);
+        const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
+        return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+    }
+
+    getRingBounds(level) {
+        const safeLevel = Math.max(0, level);
+        const innerRadius = this.centerRadius + safeLevel * (this.ringThickness + this.ringGap);
+        return {
+            innerRadius,
+            outerRadius: innerRadius + this.ringThickness
+        };
+    }
+
     show(detail, clientX, clientY, ringConfigurations = []) {
         if (!this.root) return;
 
         this.activeDetail = detail;
+        this.segmentIdCounter = 0;
         this.clear();
 
         const svgNS = 'http://www.w3.org/2000/svg';
@@ -289,6 +351,8 @@ class TimelineUnifiedRenderer {
             positions: []
         };
 
+        this.arrangementsCatalog = [];
+
         this.predictiveCache = {
             scrollDirection: 0,
             scrollVelocity: 0,
@@ -345,7 +409,15 @@ class TimelineUnifiedRenderer {
         this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
 
         const radialRoot = document.getElementById('timeline-radial-menu');
+        if (radialRoot) {
+            radialRoot.style.width = `${TIMELINE_RADIAL_MENU_SIZE}px`;
+            radialRoot.style.height = `${TIMELINE_RADIAL_MENU_SIZE}px`;
+            radialRoot.style.marginLeft = `-${TIMELINE_RADIAL_MENU_SIZE / 2}px`;
+            radialRoot.style.marginTop = `-${TIMELINE_RADIAL_MENU_SIZE / 2}px`;
+        }
+
         this.radialMenu = new TimelineRadialMenu(radialRoot, {
+            size: TIMELINE_RADIAL_MENU_SIZE,
             onClose: () => {
                 this.radialMenu?.hide();
             },
@@ -1127,8 +1199,17 @@ class TimelineUnifiedRenderer {
             detail.data && detail.data.guest_name
         ];
 
-        const caption = captionSources.find(value => typeof value === 'string' && value.trim().length > 0);
-        return caption ? caption.trim() : 'Reservierung';
+        const base = captionSources.find(value => typeof value === 'string' && value.trim().length > 0);
+        const label = base ? base.trim() : 'Reservierung';
+
+        const rawCapacity = detail.capacity ?? detail.data?.capacity ?? detail.data?.anz;
+        const capacity = rawCapacity !== undefined && rawCapacity !== null ? Number(rawCapacity) : null;
+
+        if (Number.isFinite(capacity)) {
+            return `${capacity} ${label}`;
+        }
+
+        return label;
     }
 
     truncateTextToWidth(text, maxWidth) {
@@ -1318,6 +1399,21 @@ class TimelineUnifiedRenderer {
                     window.alert('Änderung konnte nicht gespeichert werden. Die lokale Anpassung wurde zurückgesetzt.');
                 }
             });
+    }
+
+    setArrangementsCatalog(catalog) {
+        if (Array.isArray(catalog)) {
+            this.arrangementsCatalog = catalog
+                .map(item => ({
+                    id: item.id,
+                    label: item.label,
+                    shortLabel: item.shortLabel || item.label,
+                    rawId: item.rawId,
+                    fill: item.fill || null
+                }));
+        } else {
+            this.arrangementsCatalog = [];
+        }
     }
 
     renderRoomDayGridLines(startDate, endDate, area) {
@@ -2424,49 +2520,36 @@ class TimelineUnifiedRenderer {
     }
 
     buildRadialRingConfigurations(detail) {
-        const configurations = [];
+        const baseConfigs = [];
 
         const colorOptions = this.getColorPaletteOptions(detail);
         if (colorOptions.length) {
-            configurations.push({
-                action: 'color',
-                innerRadius: 70,
-                outerRadius: 120,
-                options: colorOptions
-            });
+            baseConfigs.push({ action: 'color', options: colorOptions });
         }
 
         const arrangementOptions = this.getArrangementOptions(detail);
         if (arrangementOptions.length) {
-            configurations.push({
-                action: 'arrangement',
-                innerRadius: 128,
-                outerRadius: 170,
-                options: arrangementOptions
-            });
+            baseConfigs.push({ action: 'arrangement', options: arrangementOptions });
         }
 
         const capacityOptions = this.getCapacityOptions(detail);
         if (capacityOptions.length) {
-            configurations.push({
-                action: 'capacity',
-                innerRadius: 176,
-                outerRadius: 202,
-                options: capacityOptions
-            });
+            baseConfigs.push({ action: 'capacity', options: capacityOptions });
         }
 
         const commandOptions = this.getCommandOptions(detail);
         if (commandOptions.length) {
-            configurations.push({
-                action: 'command',
-                innerRadius: 206,
-                outerRadius: 214,
-                options: commandOptions
-            });
+            baseConfigs.push({ action: 'command', options: commandOptions });
         }
 
-        return configurations;
+        return baseConfigs.map((config, index) => {
+            const bounds = this.radialMenu.getRingBounds(index);
+            return {
+                ...config,
+                innerRadius: bounds.innerRadius,
+                outerRadius: bounds.outerRadius
+            };
+        });
     }
 
     getColorPaletteOptions(detail) {
@@ -2492,54 +2575,28 @@ class TimelineUnifiedRenderer {
     }
 
     getArrangementOptions(detail) {
-        const resId = this.extractDetailIdentifiers(detail).resId;
-        const relevant = new Map();
-        const global = new Map();
+        if (Array.isArray(this.arrangementsCatalog) && this.arrangementsCatalog.length > 0) {
+            return this.arrangementsCatalog.slice(0, 12).map((arr, index) => ({
+                label: arr.shortLabel || arr.label,
+                fullLabel: arr.label,
+                id: arr.id,
+                fill: arr.fill || this.generateArrangementColor(index),
+                textColor: '#ffffff'
+            }));
+        }
 
-        const collect = (targetMap, entry) => {
-            const identifiers = this.extractDetailIdentifiers(entry);
-            const arrId = identifiers && entry?.arr_id !== undefined ? entry.arr_id : (entry?.data?.arr_id ?? null);
-            const label = entry?.arrangement_label || entry?.data?.arrangement || entry?.data?.arrangement_kbez || 'n/a';
-            const key = arrId !== null && arrId !== undefined ? `arr_${arrId}` : 'arr_null';
-            if (!targetMap.has(key)) {
-                targetMap.set(key, {
-                    label: label || 'n/a',
-                    id: arrId,
-                    fill: this.generateArrangementColor(targetMap.size),
-                    textColor: '#ffffff'
-                });
-            }
-        };
-
-        roomDetails.forEach(entry => {
-            const ids = this.extractDetailIdentifiers(entry);
-            if (resId && ids.resId === resId) {
-                collect(relevant, entry);
-            }
-            collect(global, entry);
-        });
-
-        if (!relevant.size) {
-            relevant.set('arr_null', {
-                label: 'n/a',
-                id: null,
+        const fallbackLabel = detail?.arrangement_label || detail?.data?.arrangement || detail?.data?.arrangement_kbez;
+        if (fallbackLabel) {
+            return [{
+                label: fallbackLabel,
+                fullLabel: fallbackLabel,
+                id: detail?.arr_id ?? detail?.data?.arr_id ?? null,
                 fill: '#636e72',
                 textColor: '#ffffff'
-            });
+            }];
         }
 
-        const merged = [...relevant.values()];
-        for (const option of global.values()) {
-            if (!merged.find(item => item.id === option.id)) {
-                merged.push(option);
-            }
-            if (merged.length >= 10) break;
-        }
-
-        return merged.slice(0, 10).map((option, index) => ({
-            ...option,
-            fill: option.fill || this.generateArrangementColor(index)
-        }));
+        return [];
     }
 
     generateArrangementColor(index) {
@@ -2598,6 +2655,9 @@ class TimelineUnifiedRenderer {
             if (!entry.data) entry.data = {};
             entry.data.color = option.value;
             entry.style = option.value ? `background-color: ${option.value};` : entry.style;
+            if (entry.room_id) {
+                this.invalidateStackingCache(entry.room_id);
+            }
         });
 
         if (this.dataIndex) {
@@ -2605,7 +2665,7 @@ class TimelineUnifiedRenderer {
         }
 
         this.markDataDirty();
-        this.scheduleRender('radial_color_update');
+        this.render();
 
         this.persistRoomDetailAttributes({
             scope: 'reservation',
@@ -2621,7 +2681,7 @@ class TimelineUnifiedRenderer {
                 this.initializeDataIndex(reservations, roomDetails);
             }
             this.markDataDirty();
-            this.scheduleRender('radial_color_revert');
+            this.render();
         });
 
         this.radialMenu.hide();
@@ -2639,8 +2699,14 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        const targetId = option.id !== undefined ? option.id : null;
-        const label = option.label || 'n/a';
+        let targetId = null;
+        if (option.id !== undefined && option.id !== null) {
+            const parsed = Number(option.id);
+            if (Number.isFinite(parsed)) {
+                targetId = parsed;
+            }
+        }
+        const label = option.fullLabel || option.label || 'n/a';
 
         const affected = roomDetails.filter(entry => this.extractDetailIdentifiers(entry).resId === identifiers.resId);
         const backups = affected.map(entry => ({
@@ -2656,6 +2722,9 @@ class TimelineUnifiedRenderer {
             entry.data.arr_id = targetId;
             entry.data.arrangement = label;
             entry.data.arrangement_kbez = label;
+            if (entry.room_id) {
+                this.invalidateStackingCache(entry.room_id);
+            }
         });
 
         if (this.dataIndex) {
@@ -2663,7 +2732,7 @@ class TimelineUnifiedRenderer {
         }
 
         this.markDataDirty();
-        this.scheduleRender('radial_arrangement_update');
+        this.render();
 
         this.persistRoomDetailAttributes({
             scope: 'reservation',
@@ -2682,7 +2751,7 @@ class TimelineUnifiedRenderer {
                 this.initializeDataIndex(reservations, roomDetails);
             }
             this.markDataDirty();
-            this.scheduleRender('radial_arrangement_revert');
+            this.render();
         });
 
         this.radialMenu.hide();
@@ -2709,10 +2778,11 @@ class TimelineUnifiedRenderer {
             caption: resolved.caption
         };
 
-        resolved.capacity = option.value;
+        const newCapacity = Number(option.value);
+        resolved.capacity = Number.isFinite(newCapacity) ? newCapacity : option.value;
         if (!resolved.data) resolved.data = {};
-        resolved.data.capacity = option.value;
-        resolved.data.anz = option.value;
+        resolved.data.capacity = resolved.capacity;
+        resolved.data.anz = resolved.capacity;
 
         this.normalizeRoomDetail(resolved);
         this.invalidateStackingCache(resolved.room_id);
@@ -2720,13 +2790,13 @@ class TimelineUnifiedRenderer {
             this.initializeDataIndex(reservations, roomDetails);
         }
         this.markDataDirty();
-        this.scheduleRender('radial_capacity_update');
+        this.render();
 
         this.persistRoomDetailAttributes({
             scope: 'detail',
             detail_id: identifiers.detailId,
             res_id: identifiers.resId,
-            updates: { anzahl: option.value }
+            updates: { anzahl: resolved.capacity }
         }, () => {
             resolved.capacity = previous.capacity;
             if (!resolved.data) resolved.data = {};
@@ -2740,7 +2810,7 @@ class TimelineUnifiedRenderer {
                 this.initializeDataIndex(reservations, roomDetails);
             }
             this.markDataDirty();
-            this.scheduleRender('radial_capacity_revert');
+            this.render();
         });
 
         this.radialMenu.hide();
@@ -5536,20 +5606,53 @@ class TimelineUnifiedRenderer {
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
 
-            const dynamicFontSize = Math.max(8, Math.min(14, renderHeight - 2));
+            const baseFontSize = (this.themeConfig?.room?.fontSize) || 12;
+            const dynamicFontSize = Math.max(8, Math.min(baseFontSize, renderHeight - 2));
             this.ctx.font = `${dynamicFontSize}px Arial`;
             this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'alphabetic';
 
             let text = this.getDetailCaption(detail);
             if (detail.has_dog) {
                 text = `${text} 🐕`;
             }
 
-            const availableWidth = renderWidth - 8;
+            const arrangementRaw = (detail.arrangement_label || detail.data?.arrangement || detail.data?.arrangement_kbez || '').trim();
+            const arrangementLetterMatch = arrangementRaw.match(/[A-Za-zÄÖÜäöü]/);
+            const arrangementLetter = arrangementLetterMatch ? arrangementLetterMatch[0].toUpperCase() : null;
+            const hasCircle = Boolean(arrangementLetter);
+            const circleDiameter = hasCircle ? Math.max(12, Math.min(renderHeight - 4, 18)) : 0;
+            const circlePadding = hasCircle ? circleDiameter + 6 : 0;
+
+            const availableWidth = renderWidth - 8 - circlePadding;
             if (availableWidth > 0) {
                 const truncated = this.truncateTextToWidth(text, availableWidth);
                 const textY = renderY + (renderHeight / 2) + (dynamicFontSize / 3);
                 this.ctx.fillText(truncated, renderX + 3, textY);
+            }
+
+            if (hasCircle && renderWidth > circleDiameter + 10) {
+                const circleX = renderX + renderWidth - (circleDiameter / 2) - 3;
+                const circleY = renderY + renderHeight / 2;
+                const avId = detail.av_id ?? detail.data?.av_id ?? 0;
+                const circleFill = avId > 0 ? '#2ecc71' : '#bdc3c7';
+                const circleStroke = avId > 0 ? '#1e8449' : '#95a5a6';
+
+                this.ctx.beginPath();
+                this.ctx.fillStyle = circleFill;
+                this.ctx.strokeStyle = circleStroke;
+                this.ctx.lineWidth = 1;
+                this.ctx.arc(circleX, circleY, circleDiameter / 2, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.ctx.fillStyle = avId > 0 ? '#ffffff' : '#2d3436';
+                this.ctx.font = `${Math.max(8, circleDiameter * 0.55)}px Arial`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(arrangementLetter, circleX, circleY + 0.5);
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'alphabetic';
             }
         }
 
@@ -5600,6 +5703,8 @@ class TimelineUnifiedRenderer {
         reservations = newReservations || [];
         roomDetails = newRoomDetails || [];
         rooms = newRooms || [];
+
+        this.setArrangementsCatalog(arrangementsCatalog);
 
         this.updateRoomLookups();
         this.normalizeRoomDetails();

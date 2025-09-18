@@ -60,10 +60,10 @@
 
         .radial-menu {
             position: absolute;
-            width: 420px;
-            height: 420px;
-            margin-left: -210px;
-            margin-top: -210px;
+            width: 220px;
+            height: 220px;
+            margin-left: -110px;
+            margin-top: -110px;
             pointer-events: none;
             z-index: 9999;
             display: none;
@@ -74,8 +74,8 @@
         }
 
         .radial-menu svg {
-            width: 420px;
-            height: 420px;
+            width: 220px;
+            height: 220px;
             filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
         }
 
@@ -117,6 +117,7 @@
 
         // ===== GLOBAL VARIABLES =====
         let timelineRenderer = null; // Timeline-Renderer-Instanz
+        arrangementsCatalog = [];
 
         // ===== FUNCTION DEFINITIONS (moved to top for onclick availability) =====
 
@@ -137,6 +138,7 @@
                 console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
 
                 const roomsFetchPromise = fetch('getRooms.php').catch(error => error);
+                const arrangementsFetchPromise = fetch('../get-arrangements.php').catch(error => error);
 
                 const dataResponse = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
 
@@ -169,6 +171,7 @@
                             reservation_id: reservationId,
                             room_id: roomId,
                             arr_id: detailData.arr_id || item.arr_id || null,
+                            av_id: detailData.av_id || item.av_id || null,
                             guest_name: detailData.guest_name || 'Unbekannt',
                             caption,
                             start: parseAPIDate(item.start),
@@ -183,6 +186,7 @@
                                 res_id: reservationId,
                                 room_id: roomId,
                                 arr_id: detailData.arr_id || item.arr_id || null,
+                                av_id: detailData.av_id || item.av_id || null,
                                 caption
                             }
                         };
@@ -251,6 +255,31 @@
                     ];
                 }
 
+                arrangementsCatalog = [];
+                const arrangementsResponse = await arrangementsFetchPromise;
+                if (arrangementsResponse instanceof Response && arrangementsResponse.ok) {
+                    try {
+                        const arrJson = await arrangementsResponse.json();
+                        if (arrJson && typeof arrJson === 'object') {
+                            arrangementsCatalog = Object.entries(arrJson).map(([id, label]) => {
+                                const cleanLabel = typeof label === 'string' ? label.trim() : '';
+                                const shortLabel = cleanLabel.split(/\s+/)[0] || cleanLabel || 'n/a';
+                                const numericId = Number(id);
+                                return {
+                                    id: Number.isFinite(numericId) ? numericId : id,
+                                    rawId: id,
+                                    label: cleanLabel || 'n/a',
+                                    shortLabel
+                                };
+                            });
+                        }
+                    } catch (arrError) {
+                        console.warn('Arrangements konnten nicht geparst werden:', arrError);
+                    }
+                } else if (arrangementsResponse instanceof Error) {
+                    console.warn('Arrangements konnten nicht geladen werden:', arrangementsResponse.message);
+                }
+
                 console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
 
                 renderTimeline();
@@ -307,10 +336,12 @@
 
             if (timelineRenderer) {
                 console.debug('Aktualisiere bestehende Timeline-Instanz.');
+                timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
+                timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             }
         }
