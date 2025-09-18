@@ -856,6 +856,249 @@ class TimelineUnifiedRenderer {
         this.dataIndex = null;
     }
 
+    formatDateForDb(value) {
+        if (!value) return null;
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    extractDetailIdentifiers(detail) {
+        const identifiers = {
+            detailId: null,
+            resId: null,
+            uniqueId: null
+        };
+
+        if (!detail) {
+            return identifiers;
+        }
+
+        let detailId = detail.detail_id ?? detail.detailId ?? null;
+        if (!detailId && detail.data && detail.data.detail_id) {
+            detailId = detail.data.detail_id;
+        }
+        if (!detailId && typeof detail.id === 'string' && detail.id.startsWith('room_detail_')) {
+            const parsed = parseInt(detail.id.replace('room_detail_', ''), 10);
+            if (!Number.isNaN(parsed)) {
+                detailId = parsed;
+            }
+        }
+
+        let resId = detail.res_id ?? detail.reservation_id ?? null;
+        if (!resId && detail.data && detail.data.res_id) {
+            resId = detail.data.res_id;
+        }
+
+        identifiers.detailId = detailId || null;
+        identifiers.resId = resId || null;
+        identifiers.uniqueId = detail.id || (detailId ? `room_detail_${detailId}` : null);
+
+        return identifiers;
+    }
+
+    getDetailCaption(detail) {
+        if (!detail) {
+            return 'Reservierung';
+        }
+
+        const captionSources = [
+            detail.caption,
+            detail.data && detail.data.caption,
+            detail.guest_name,
+            detail.name,
+            detail.data && detail.data.guest_name
+        ];
+
+        const caption = captionSources.find(value => typeof value === 'string' && value.trim().length > 0);
+        return caption ? caption.trim() : 'Reservierung';
+    }
+
+    truncateTextToWidth(text, maxWidth) {
+        if (!text) return '';
+        if (maxWidth <= 0) return '';
+
+        if (this.ctx.measureText(text).width <= maxWidth) {
+            return text;
+        }
+
+        const ellipsis = '…';
+        let left = 0;
+        let right = text.length;
+        let bestFit = '';
+
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const candidate = text.slice(0, mid).trimEnd() + ellipsis;
+            const width = this.ctx.measureText(candidate).width;
+
+            if (width <= maxWidth) {
+                bestFit = candidate;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+
+        return bestFit || ellipsis;
+    }
+
+    buildRoomDetailUpdatePayload(detail, originalRoomId, originalStart, originalEnd) {
+        if (!detail) {
+            return null;
+        }
+
+        const { detailId, resId } = this.extractDetailIdentifiers(detail);
+        if (!detailId || !resId) {
+            console.warn('Konnte detail_id oder res_id nicht ermitteln, speichere nicht.', detail);
+            return null;
+        }
+
+        const startDate = this.formatDateForDb(detail.start);
+        const endDate = this.formatDateForDb(detail.end);
+        const originalStartStr = this.formatDateForDb(originalStart);
+        const originalEndStr = this.formatDateForDb(originalEnd);
+
+        if (!startDate || !endDate) {
+            console.warn('Ungültige Start-/Enddaten für Detail, speichere nicht.', detail);
+            return null;
+        }
+
+        const hasChange =
+            startDate !== originalStartStr ||
+            endDate !== originalEndStr ||
+            String(detail.room_id) !== String(originalRoomId);
+
+        if (!hasChange) {
+            return null;
+        }
+
+        return {
+            detail_id: Number(detailId),
+            res_id: Number(resId),
+            room_id: Number(detail.room_id),
+            start_date: startDate,
+            end_date: endDate,
+            original_room_id: originalRoomId !== undefined && originalRoomId !== null ? Number(originalRoomId) : null,
+            original_start_date: originalStartStr,
+            original_end_date: originalEndStr
+        };
+    }
+
+    persistRoomDetailChange(payload, roomIndex, originalSnapshot) {
+        if (!payload) {
+            return;
+        }
+
+        fetch('updateRoomDetail.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json().catch(() => {
+                    throw new Error('Ungültige Serverantwort.');
+                });
+            })
+            .then(result => {
+                if (!result || !result.success) {
+                    const message = result && result.error ? result.error : 'Unbekannter Fehler beim Speichern.';
+                    throw new Error(message);
+                }
+                console.debug('Zimmerdetail erfolgreich gespeichert.', payload);
+            })
+            .catch(error => {
+                console.error('Fehler beim Speichern der Zimmerdetail-Änderung:', error);
+                this.restoreRoomDetailSnapshot(roomIndex, originalSnapshot, payload);
+
+                if (typeof window !== 'undefined' && window.alert) {
+                    window.alert('Änderung konnte nicht gespeichert werden. Die Reservierung wurde zurückgesetzt.');
+                }
+            });
+    }
+
+    restoreRoomDetailSnapshot(roomIndex, snapshot, payload) {
+        if (roomIndex === null || roomIndex === undefined || roomIndex < 0 || !snapshot) {
+            return;
+        }
+
+        const clonedDetail = {
+            ...snapshot,
+            start: new Date(snapshot.start),
+            end: new Date(snapshot.end),
+            data: snapshot.data ? { ...snapshot.data } : undefined
+        };
+
+        roomDetails[roomIndex] = clonedDetail;
+        this.normalizeRoomDetail(roomDetails[roomIndex]);
+
+        const affectedRoomIds = new Set();
+        if (payload && payload.room_id) {
+            affectedRoomIds.add(payload.room_id);
+        }
+        if (payload && payload.original_room_id) {
+            affectedRoomIds.add(payload.original_room_id);
+        }
+        if (snapshot.room_id) {
+            affectedRoomIds.add(snapshot.room_id);
+        }
+
+        affectedRoomIds.forEach(roomId => {
+            if (roomId === null || roomId === undefined) return;
+            this.invalidateStackingCache(roomId);
+            const room = rooms.find(r =>
+                String(r.id) === String(roomId) ||
+                Number(r.id) === Number(roomId)
+            );
+            if (room) {
+                delete room._dynamicHeight;
+            }
+        });
+
+        this.markDataDirty();
+        this.scheduleRender('rollback_after_failed_save');
+    }
+
+    renderRoomDayGridLines(startDate, endDate, area) {
+        const startX = this.sidebarWidth - this.scrollX;
+        const lineTop = area.y;
+        const lineBottom = area.y + area.height;
+
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        this.ctx.lineWidth = 1;
+
+        const currentDate = new Date(startDate);
+        let dayIndex = 0;
+
+        while (currentDate <= endDate) {
+            const x = startX + (dayIndex * this.DAY_WIDTH);
+
+            if (x >= this.sidebarWidth - 1 && x <= this.canvas.width + 1) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, lineTop);
+                this.ctx.lineTo(x, lineBottom);
+                this.ctx.stroke();
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+            dayIndex++;
+        }
+
+        this.ctx.restore();
+    }
+
     getHistogramData(startDate, endDate) {
         if (!startDate || !endDate) {
             return { dailyCounts: [], dailyDetails: [], maxGuests: 0 };
@@ -2115,54 +2358,99 @@ class TimelineUnifiedRenderer {
         if (!this.isDraggingReservation || !this.draggedReservation) return;
 
         const originalRoomId = this.dragOriginalData.room_id;
+        const originalStart = new Date(this.dragOriginalData.start);
+        const originalEnd = new Date(this.dragOriginalData.end);
         let targetRoomId = originalRoomId;
 
-        // Bei Move-Operation: Zimmer wechseln wenn nötig
         if (this.dragMode === 'move' && this.dragTargetRoom &&
             this.dragTargetRoom.id !== this.dragOriginalData.room_id) {
             this.draggedReservation.room_id = this.dragTargetRoom.id;
             targetRoomId = this.dragTargetRoom.id;
         }
 
-        // Aktualisiere roomDetails Array ZUERST - das ist kritisch für korrekte Referenzen
-        const originalIndex = roomDetails.findIndex(detail =>
-            detail === this.draggedReservation ||
-            (detail.id && detail.id === this.draggedReservation.id) ||
-            (detail.detail_id && detail.detail_id === this.draggedReservation.detail_id) ||
-            (detail.data && detail.data.detail_id === this.draggedReservation.data?.detail_id)
-        );
+        const identifiers = this.extractDetailIdentifiers(this.draggedReservation);
+        const caption = this.getDetailCaption(this.draggedReservation);
 
-        if (originalIndex !== -1) {
-            // Wichtig: Komplett neue Kopie erstellen, um Referenz-Probleme zu vermeiden
-            roomDetails[originalIndex] = {
-                ...this.draggedReservation,
-                room_id: targetRoomId, // Sicherstellen dass room_id korrekt gesetzt ist
-                start: new Date(this.draggedReservation.start).toISOString(),
-                end: new Date(this.draggedReservation.end).toISOString()
-            };
+        let originalIndex = -1;
+        let updatePayload = null;
+        let originalSnapshot = null;
 
-            this.normalizeRoomDetail(roomDetails[originalIndex]);
+        if (Array.isArray(roomDetails) && roomDetails.length > 0) {
+            originalIndex = roomDetails.findIndex(detail =>
+                detail === this.draggedReservation ||
+                (detail.id && detail.id === this.draggedReservation.id) ||
+                (detail.detail_id && detail.detail_id === this.draggedReservation.detail_id) ||
+                (detail.data && detail.data.detail_id === this.draggedReservation.data?.detail_id)
+            );
+
+            if (originalIndex !== -1) {
+                const updatedData = {
+                    ...(this.draggedReservation.data || {}),
+                    room_id: targetRoomId,
+                    res_id: identifiers.resId,
+                    detail_id: identifiers.detailId,
+                    caption
+                };
+
+                const updatedDetail = {
+                    ...this.draggedReservation,
+                    id: identifiers.uniqueId || this.draggedReservation.id,
+                    detail_id: identifiers.detailId ?? this.draggedReservation.detail_id ?? updatedData.detail_id,
+                    res_id: identifiers.resId ?? this.draggedReservation.res_id ?? updatedData.res_id,
+                    reservation_id: identifiers.resId ?? this.draggedReservation.reservation_id,
+                    caption,
+                    room_id: targetRoomId,
+                    start: new Date(this.draggedReservation.start),
+                    end: new Date(this.draggedReservation.end),
+                    data: updatedData
+                };
+
+                roomDetails[originalIndex] = updatedDetail;
+                this.normalizeRoomDetail(updatedDetail);
+
+                if (this.dataIndex) {
+                    this.initializeDataIndex(reservations, roomDetails);
+                }
+
+                if (this.dragOptimization?.draggedReservationBackup) {
+                    const backup = this.dragOptimization.draggedReservationBackup;
+                    originalSnapshot = {
+                        ...backup,
+                        id: identifiers.uniqueId || backup.id,
+                        detail_id: identifiers.detailId || backup.detail_id || (backup.data && backup.data.detail_id) || null,
+                        res_id: identifiers.resId || backup.res_id || (backup.data && backup.data.res_id) || null,
+                        reservation_id: identifiers.resId || backup.reservation_id || null,
+                        caption: this.getDetailCaption(backup),
+                        room_id: originalRoomId,
+                        start: new Date(originalStart),
+                        end: new Date(originalEnd),
+                        data: {
+                            ...(backup.data || {}),
+                            room_id: originalRoomId,
+                            res_id: identifiers.resId || backup.res_id || (backup.data && backup.data.res_id) || null,
+                            detail_id: identifiers.detailId || backup.detail_id || (backup.data && backup.data.detail_id) || null
+                        }
+                    };
+                }
+
+                updatePayload = this.buildRoomDetailUpdatePayload(
+                    updatedDetail,
+                    originalRoomId,
+                    originalStart,
+                    originalEnd
+                );
+            }
         }
 
-        // Re-initialize data index NACH Array-Update
-        if (this.dataIndex) {
-            this.initializeDataIndex(reservations, roomDetails);
-        }
-
-        // Invalidate stacking cache NACH Daten-Update
         this.invalidateStackingCache(originalRoomId);
         if (targetRoomId !== originalRoomId) {
             this.invalidateStackingCache(targetRoomId);
         }
 
-        // Apply optimal stacking from drag preview
         if (this.dragOptimization && this.dragOptimization.previewStackingCache) {
             const cache = this.dragOptimization.previewStackingCache;
-
-            // Apply cached optimal positions to all affected rooms
             for (const [roomId, roomData] of cache) {
                 if (roomData.stacking && roomData.stacking.length > 0) {
-                    // Apply the optimal stacking positions
                     roomData.stacking.forEach(stackingInfo => {
                         const reservation = reservations.find(res => res.id === stackingInfo.id);
                         if (reservation && stackingInfo.optimalPosition !== undefined) {
@@ -2172,12 +2460,9 @@ class TimelineUnifiedRenderer {
                     });
                 }
             }
-
-            // Clear the preview cache
             this.dragOptimization.previewStackingCache.clear();
         }
 
-        // Force room height recalculation für betroffene Zimmer
         const affectedRooms = [originalRoomId];
         if (targetRoomId !== originalRoomId) {
             affectedRooms.push(targetRoomId);
@@ -2190,10 +2475,7 @@ class TimelineUnifiedRenderer {
                 Number(r.id) === Number(roomId)
             );
             if (room) {
-                // Reset room height to trigger recalculation
                 delete room._dynamicHeight;
-
-                // Force stacking cache refresh for this room
                 if (this.stackingCache) {
                     const cacheKey = `${roomId}_stacking`;
                     this.stackingCache.delete(cacheKey);
@@ -2203,16 +2485,20 @@ class TimelineUnifiedRenderer {
 
         this.markDataDirty();
 
-        // Reset drag optimization state
         if (this.dragOptimization) {
             this.dragOptimization.previewStackingCache.clear();
+            this.dragOptimization.previewStacking.clear();
             this.dragOptimization.isActive = false;
         }
 
-        // Clear drag reference for glow system
         this.draggedReservationReference = null;
 
+        const shouldPersist = Boolean(updatePayload && originalIndex !== -1);
         this.cancelDrag();
+
+        if (shouldPersist) {
+            this.persistRoomDetailChange(updatePayload, originalIndex, originalSnapshot);
+        }
     }
 
     cancelDrag() {
@@ -3995,6 +4281,8 @@ class TimelineUnifiedRenderer {
             this.ctx.restore();
         });
 
+        this.renderRoomDayGridLines(startDate, endDate, area);
+
         this.ctx.restore();
 
         // Zimmer-Captions im Sidebar-Bereich rendern
@@ -4197,6 +4485,8 @@ class TimelineUnifiedRenderer {
             this.ctx.stroke();
             this.ctx.restore();
         });
+
+        this.renderRoomDayGridLines(startDate, endDate, area);
 
         this.ctx.restore();
 
@@ -4548,25 +4838,25 @@ class TimelineUnifiedRenderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
-        if (renderWidth > 30) {
-            // Automatische Textfarbe basierend auf Balkenhelligkeit
+        if (renderWidth > 12) {
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
 
-            // Dynamische Schriftgröße basierend auf Balkenhöhe
             const dynamicFontSize = Math.max(8, Math.min(14, renderHeight - 2));
             this.ctx.font = `${dynamicFontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
-            let text = detail.guest_name || detail.name || 'Reservierung';
-            if (text === 'undefined' || text === undefined || text === null) {
-                text = 'Reservierung';
+            let text = this.getDetailCaption(detail);
+            if (detail.has_dog) {
+                text = `${text} 🐕`;
             }
-            if (detail.has_dog) text += ' 🐕';
 
-            // Vertikal zentrierter Text - angepasst für vergrößerten Balken
-            const textY = renderY + (renderHeight / 2) + (this.themeConfig.room.fontSize / 3);
-            this.ctx.fillText(text, renderX + 2, textY);
+            const availableWidth = renderWidth - 8;
+            if (availableWidth > 0) {
+                const truncated = this.truncateTextToWidth(text, availableWidth);
+                const textY = renderY + (renderHeight / 2) + (dynamicFontSize / 3);
+                this.ctx.fillText(truncated, renderX + 3, textY);
+            }
         }
 
         this.ctx.restore();

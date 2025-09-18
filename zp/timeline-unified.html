@@ -112,16 +112,31 @@
                     .filter(item => item.room_id && item.start && item.end)
                     .map(item => {
                         const detailData = item.data || {};
+                        const detailId = detailData.detail_id || null;
+                        const reservationId = detailData.res_id || null;
+                        const roomId = item.room_id || detailData.room_id || null;
+                        const caption = detailData.caption || detailData.guest_name || '';
+
                         return {
-                            room_id: item.room_id,
+                            id: item.id || (detailId ? `room_detail_${detailId}` : undefined),
+                            detail_id: detailId,
+                            res_id: reservationId,
+                            reservation_id: reservationId,
+                            room_id: roomId,
                             guest_name: detailData.guest_name || 'Unbekannt',
+                            caption,
                             start: parseAPIDate(item.start),
                             end: parseAPIDate(item.end),
                             color: detailData.color || '#3498db',
                             has_dog: detailData.has_dog || false,
                             capacity: detailData.capacity || 1,
-                            data: detailData,
-                            reservation_id: detailData.res_id || null
+                            data: {
+                                ...detailData,
+                                detail_id: detailId,
+                                res_id: reservationId,
+                                room_id: roomId,
+                                caption
+                            }
                         };
                     });
 
