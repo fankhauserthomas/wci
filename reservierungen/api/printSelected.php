@@ -27,7 +27,7 @@ $ids     = $_GET['id']      ?? [];
 
 if ($printer === '' || !ctype_digit($resId) || !is_array($ids) || count($ids) === 0) {
     // Bei fehlenden Parametern einfach zurück zur Detailseite
-    header('Location: reservation.html?id=' . urlencode($resId));
+    header('Location: ../reservation.html?id=' . urlencode($resId));
     exit;
 }
 
@@ -35,7 +35,7 @@ if ($printer === '' || !ctype_digit($resId) || !is_array($ids) || count($ids) ==
 $stmt = $mysqli->prepare("INSERT INTO prt_queue (rn_id, prt, rawName, Info, cardName) VALUES (?, ?, ?, ?, ?)");
 if (!$stmt) {
     // Bei DB-Fehlern ebenfalls zurück
-    header('Location: reservation.html?id=' . urlencode($resId));
+    header('Location: ../reservation.html?id=' . urlencode($resId));
     exit;
 }
 
@@ -137,5 +137,5 @@ if (function_exists('triggerAutoSync')) {
 
 // 6) Output Buffer leeren und sofort zurück zur Reservierungs-Detailseite
 ob_end_clean();
-header('Location: reservation.html?id=' . urlencode($resId));
+header('Location: ../reservation.html?id=' . urlencode($resId));
 exit;

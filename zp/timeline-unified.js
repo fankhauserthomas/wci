@@ -4,6 +4,7 @@ let roomDetails = [];
 let rooms = [];
 let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 class TimelineUnifiedRenderer {
     constructor(containerSelector) {
@@ -122,6 +123,29 @@ class TimelineUnifiedRenderer {
             affectedRooms: new Set(),
             lastDragPosition: { x: 0, y: 0, room: null }
         };
+
+        // Touch-/Pointer-Unterstützung
+        this.activePointerId = null;
+        this.isTouchPanning = false;
+        this.panContext = null;
+        this.panStart = {
+            clientX: 0,
+            clientY: 0,
+            scrollX: 0,
+            masterScrollY: 0,
+            roomsScrollY: 0
+        };
+
+        // Referenzen auf Scroll-Container für Synchronisation
+        this.horizontalTrack = null;
+        this.masterTrack = null;
+        this.roomsTrack = null;
+
+        // Datensynchronisation & Caches
+        this.dataVersion = 0;
+        this.histogramCache = null;
+        this.roomsById = new Map();
+        this.roomCategoryCache = new Map();
 
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
@@ -751,6 +775,217 @@ class TimelineUnifiedRenderer {
         console.log('Zimmer-Höhen neu berechnet für ROOM_BAR_HEIGHT:', this.ROOM_BAR_HEIGHT);
     }
 
+    updateRoomLookups() {
+        this.roomsById = new Map();
+        this.roomCategoryCache = new Map();
+
+        (rooms || []).forEach(room => {
+            if (!room || room.id === undefined || room.id === null) return;
+            const key = String(room.id);
+            this.roomsById.set(key, room);
+        });
+    }
+
+    normalizeRoomDetails() {
+        if (!roomDetails) return;
+        roomDetails.forEach(detail => this.normalizeRoomDetail(detail));
+    }
+
+    normalizeRoomDetail(detail) {
+        if (!detail) return;
+
+        detail._normalizedStart = this.normalizeDateToNoon(detail.start);
+        detail._normalizedEnd = this.normalizeDateToNoon(detail.end);
+        const baseCapacity = detail.capacity ?? (detail.data && detail.data.capacity) ?? 1;
+        detail._capacity = Number.isFinite(baseCapacity) ? baseCapacity : Number.parseInt(baseCapacity, 10) || 1;
+        detail._occupancyCategory = this.getRoomCategoryByRoomId(detail.room_id);
+    }
+
+    normalizeDateToNoon(value) {
+        if (!value) return 0;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 0;
+        date.setHours(12, 0, 0, 0);
+        return date.getTime();
+    }
+
+    getRoomCategoryByRoomId(roomId) {
+        const key = String(roomId ?? '');
+        if (!this.roomCategoryCache.has(key)) {
+            const room = this.roomsById.get(key);
+            this.roomCategoryCache.set(key, this.determineRoomCategory(room));
+        }
+        return this.roomCategoryCache.get(key) || 'betten';
+    }
+
+    determineRoomCategory(room) {
+        if (!room) return 'betten';
+        const caption = (room.display_name || room.caption || '').toLowerCase();
+        const capacity = room.capacity || 0;
+
+        if (caption.includes('dz') || caption.includes('doppel')) {
+            return 'dz';
+        }
+
+        if (caption.includes('lager') || caption.includes('matratzen') || capacity >= 6) {
+            return 'lager';
+        }
+
+        if (caption.includes('sonder') || caption.includes('suite') || caption.includes('fam')) {
+            return 'sonder';
+        }
+
+        return 'betten';
+    }
+
+    getHistogramBarColor(count) {
+        if (count > 50) return '#dc3545';
+        if (count > 30) return '#ffc107';
+        if (count > 10) return '#28a745';
+        const histogramTheme = this.themeConfig && this.themeConfig.histogram ? this.themeConfig.histogram : null;
+        return histogramTheme && histogramTheme.bar ? histogramTheme.bar : '#e74c3c';
+    }
+
+    invalidateHistogramCache() {
+        this.histogramCache = null;
+    }
+
+    markDataDirty() {
+        this.dataVersion += 1;
+        this.invalidateHistogramCache();
+        this.dataIndex = null;
+    }
+
+    getHistogramData(startDate, endDate) {
+        if (!startDate || !endDate) {
+            return { dailyCounts: [], dailyDetails: [], maxGuests: 0 };
+        }
+
+        const startTs = startDate.getTime();
+        const endTs = endDate.getTime();
+
+        if (this.histogramCache &&
+            this.histogramCache.version === this.dataVersion &&
+            this.histogramCache.startTs === startTs &&
+            this.histogramCache.endTs === endTs) {
+            return this.histogramCache;
+        }
+
+        const totalDays = Math.max(0, Math.ceil((endTs - startTs) / MS_IN_DAY));
+
+        if (totalDays === 0) {
+            this.histogramCache = {
+                version: this.dataVersion,
+                startTs,
+                endTs,
+                dailyCounts: [],
+                dailyDetails: [],
+                maxGuests: 0
+            };
+            return this.histogramCache;
+        }
+
+        const diffLength = totalDays + 1;
+
+        const diffTotal = new Array(diffLength).fill(0);
+        const diffDz = new Array(diffLength).fill(0);
+        const diffBetten = new Array(diffLength).fill(0);
+        const diffLager = new Array(diffLength).fill(0);
+        const diffSonder = new Array(diffLength).fill(0);
+
+        (roomDetails || []).forEach(detail => {
+            if (!detail) return;
+
+            const start = detail._normalizedStart ?? this.normalizeDateToNoon(detail.start);
+            const end = detail._normalizedEnd ?? this.normalizeDateToNoon(detail.end);
+            let capacity = detail._capacity ?? detail.capacity ?? 1;
+            capacity = Number.isFinite(capacity) ? capacity : Number.parseInt(capacity, 10) || 1;
+
+            let startIndex = Math.floor((start - startTs) / MS_IN_DAY);
+            let endIndex = Math.ceil((end - startTs) / MS_IN_DAY);
+
+            if (Number.isNaN(startIndex) || Number.isNaN(endIndex)) {
+                return;
+            }
+
+            if (startIndex >= totalDays || endIndex <= 0) {
+                return;
+            }
+
+            startIndex = Math.max(0, startIndex);
+            endIndex = Math.min(totalDays, endIndex);
+
+            if (startIndex >= endIndex) {
+                return;
+            }
+
+            diffTotal[startIndex] += capacity;
+            diffTotal[endIndex] -= capacity;
+
+            const category = detail._occupancyCategory || 'betten';
+
+            switch (category) {
+                case 'dz':
+                    diffDz[startIndex] += capacity;
+                    diffDz[endIndex] -= capacity;
+                    break;
+                case 'lager':
+                    diffLager[startIndex] += capacity;
+                    diffLager[endIndex] -= capacity;
+                    break;
+                case 'sonder':
+                    diffSonder[startIndex] += capacity;
+                    diffSonder[endIndex] -= capacity;
+                    break;
+                default:
+                    diffBetten[startIndex] += capacity;
+                    diffBetten[endIndex] -= capacity;
+            }
+        });
+
+        const dailyCounts = new Array(totalDays).fill(0);
+        const dailyDetails = new Array(totalDays);
+
+        let runningTotal = 0;
+        let runningDz = 0;
+        let runningBetten = 0;
+        let runningLager = 0;
+        let runningSonder = 0;
+        let maxGuests = 0;
+
+        for (let day = 0; day < totalDays; day++) {
+            runningTotal += diffTotal[day];
+            runningDz += diffDz[day];
+            runningBetten += diffBetten[day];
+            runningLager += diffLager[day];
+            runningSonder += diffSonder[day];
+
+            dailyCounts[day] = runningTotal;
+            dailyDetails[day] = {
+                dz: runningDz,
+                betten: runningBetten,
+                lager: runningLager,
+                sonder: runningSonder,
+                total: runningTotal
+            };
+
+            if (runningTotal > maxGuests) {
+                maxGuests = runningTotal;
+            }
+        }
+
+        this.histogramCache = {
+            version: this.dataVersion,
+            startTs,
+            endTs,
+            dailyCounts,
+            dailyDetails,
+            maxGuests
+        };
+
+        return this.histogramCache;
+    }
+
     // ===== THEME CONFIGURATION =====
     loadThemeConfiguration() {
         // Versuche aus Cookie zu laden
@@ -925,6 +1160,7 @@ class TimelineUnifiedRenderer {
             </div>
         `;
         this.canvas = document.getElementById('timeline-canvas');
+        this.canvas.style.touchAction = 'none';
         this.ctx = this.canvas.getContext('2d');
 
         this.resizeCanvas();
@@ -1061,6 +1297,10 @@ class TimelineUnifiedRenderer {
         const scrollContentMaster = this.container.querySelector('.scroll-content-master');
         const scrollContentRooms = this.container.querySelector('.scroll-content-rooms');
 
+        this.horizontalTrack = horizontalTrack;
+        this.masterTrack = masterTrack;
+        this.roomsTrack = roomsTrack;
+
         // Horizontaler Scroll
         horizontalTrack.addEventListener('scroll', (e) => {
             this.scrollX = e.target.scrollLeft;
@@ -1177,6 +1417,12 @@ class TimelineUnifiedRenderer {
     setupEvents() {
         window.addEventListener('resize', () => this.resizeCanvas());
 
+        // Pointer-Events für Touch-Unterstützung
+        this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e), { passive: false });
+        this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e), { passive: false });
+        this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+        this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
+
         // Mouse-Events für Hover-Effekte mit optimierter Performance
         let hoverTimeout = null;
         let lastRenderTime = 0;
@@ -1281,13 +1527,187 @@ class TimelineUnifiedRenderer {
                 this.isDraggingBottomSeparator = false;
                 this.draggingType = null;
             }
-        }, { passive: true }); this.canvas.addEventListener('mouseleave', () => {
+        }, { passive: true });
+
+        this.canvas.addEventListener('mouseleave', () => {
             this.hoveredReservation = null;
             this.scheduleRender('mouseleave');
         });
 
         // Setup drag & drop events for separator
         this.setupSeparatorEvents();
+    }
+
+    handlePointerDown(e) {
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+
+        if (this.activePointerId !== null) {
+            return;
+        }
+
+        this.activePointerId = e.pointerId;
+        this.canvas.setPointerCapture(e.pointerId);
+
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = e.clientX - rect.left;
+        this.mouseY = e.clientY - rect.top;
+
+        this.handleMouseDown(e);
+
+        const isSeparatorDrag = this.isDraggingSeparator || this.isDraggingBottomSeparator;
+        const isReservationDrag = this.isDraggingReservation;
+
+        if (!isSeparatorDrag && !isReservationDrag) {
+            this.startTouchPanning(e);
+        }
+
+        e.preventDefault();
+    }
+
+    handlePointerMove(e) {
+        if (e.pointerType !== 'touch' || this.activePointerId !== e.pointerId) {
+            return;
+        }
+
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = e.clientX - rect.left;
+        this.mouseY = e.clientY - rect.top;
+
+        if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
+            const mouseY = this.mouseY;
+            if (this.isDraggingSeparator) {
+                this.handleTopSeparatorDrag(mouseY);
+            } else {
+                this.handleBottomSeparatorDrag(mouseY);
+            }
+            this.scheduleRender('separator_touch_move');
+            e.preventDefault();
+            return;
+        }
+
+        if (this.isDraggingReservation) {
+            this.handleReservationDrag(e);
+            this.scheduleRender('drag_touch_move');
+            e.preventDefault();
+            return;
+        }
+
+        if (this.isTouchPanning && this.panContext) {
+            this.updateTouchPan(e);
+            e.preventDefault();
+        }
+    }
+
+    handlePointerUp(e) {
+        if (e.pointerType !== 'touch' || this.activePointerId !== e.pointerId) {
+            return;
+        }
+
+        if (this.isDraggingReservation) {
+            this.finishReservationDrag();
+            this.scheduleRender('drag_touch_end');
+        } else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
+            if (this.isDraggingSeparator) {
+                this.saveToCookie('separatorTop', this.separatorY);
+            }
+            if (this.isDraggingBottomSeparator) {
+                this.saveToCookie('separatorBottom', this.bottomSeparatorY);
+            }
+            this.isDraggingSeparator = false;
+            this.isDraggingBottomSeparator = false;
+            this.draggingType = null;
+        }
+
+        if (this.isTouchPanning) {
+            this.isTouchPanning = false;
+            this.panContext = null;
+        }
+
+        this.canvas.releasePointerCapture(e.pointerId);
+        this.activePointerId = null;
+        e.preventDefault();
+    }
+
+    startTouchPanning(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const pointerY = e.clientY - rect.top;
+
+        this.isTouchPanning = true;
+        this.panContext = this.getPanContext(pointerY);
+        this.panStart = {
+            clientX: e.clientX,
+            clientY: e.clientY,
+            scrollX: this.scrollX,
+            masterScrollY: this.masterScrollY,
+            roomsScrollY: this.roomsScrollY
+        };
+    }
+
+    updateTouchPan(e) {
+        const deltaX = e.clientX - this.panStart.clientX;
+        const deltaY = e.clientY - this.panStart.clientY;
+        let needsRender = false;
+
+        if (this.panContext.allowHorizontal && this.horizontalTrack) {
+            const maxScrollX = Math.max(0, this.horizontalTrack.scrollWidth - this.horizontalTrack.clientWidth);
+            const newScrollX = this.clamp(this.panStart.scrollX - deltaX, 0, maxScrollX);
+
+            if (Math.abs(newScrollX - this.scrollX) > 0.5) {
+                this.horizontalTrack.scrollLeft = newScrollX;
+                this.scrollX = newScrollX;
+                this.updateViewportCache(this.scrollX, this.roomsScrollY);
+                this.invalidateStackingCache();
+                needsRender = true;
+            }
+        }
+
+        if (this.panContext.allowVertical && this.panContext.mode === 'master' && this.masterTrack) {
+            const maxMaster = Math.max(0, this.masterTrack.scrollHeight - this.masterTrack.clientHeight);
+            const newMaster = this.clamp(this.panStart.masterScrollY - deltaY, 0, maxMaster);
+
+            if (Math.abs(newMaster - this.masterScrollY) > 0.5) {
+                this.masterTrack.scrollTop = newMaster;
+                this.masterScrollY = newMaster;
+                needsRender = true;
+            }
+        }
+
+        if (this.panContext.allowVertical && this.panContext.mode !== 'master' && this.roomsTrack) {
+            const maxRooms = Math.max(0, this.roomsTrack.scrollHeight - this.roomsTrack.clientHeight);
+            const newRooms = this.clamp(this.panStart.roomsScrollY - deltaY, 0, maxRooms);
+
+            if (Math.abs(newRooms - this.roomsScrollY) > 0.5) {
+                this.roomsTrack.scrollTop = newRooms;
+                this.roomsScrollY = newRooms;
+                needsRender = true;
+            }
+        }
+
+        if (needsRender) {
+            this.scheduleRender('touch_pan');
+        }
+    }
+
+    getPanContext(pointerY) {
+        if (pointerY >= this.areas.master.y && pointerY <= this.areas.master.y + this.areas.master.height) {
+            return { mode: 'master', allowHorizontal: true, allowVertical: true };
+        }
+
+        if (pointerY >= this.areas.rooms.y && pointerY <= this.areas.rooms.y + this.areas.rooms.height) {
+            return { mode: 'rooms', allowHorizontal: true, allowVertical: true };
+        }
+
+        if (pointerY >= this.areas.histogram.y && pointerY <= this.areas.histogram.y + this.areas.histogram.height) {
+            return { mode: 'histogram', allowHorizontal: true, allowVertical: false };
+        }
+
+        return { mode: 'header', allowHorizontal: true, allowVertical: false };
+    }
+
+    clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     updateLayoutAreas() {
@@ -1720,6 +2140,8 @@ class TimelineUnifiedRenderer {
                 start: new Date(this.draggedReservation.start).toISOString(),
                 end: new Date(this.draggedReservation.end).toISOString()
             };
+
+            this.normalizeRoomDetail(roomDetails[originalIndex]);
         }
 
         // Re-initialize data index NACH Array-Update
@@ -1778,6 +2200,8 @@ class TimelineUnifiedRenderer {
                 }
             }
         });
+
+        this.markDataDirty();
 
         // Reset drag optimization state
         if (this.dragOptimization) {
@@ -2512,8 +2936,8 @@ class TimelineUnifiedRenderer {
         // Neue Datums-Logik: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
         now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
-        const endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000)); // now + 2 years
+        const startDate = new Date(now.getTime() - (14 * MS_IN_DAY)); // now - 2 weeks
+        const endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY)); // now + 2 years
 
         // Pre-calculate room heights for correct scrollbar sizing
         this.preCalculateRoomHeights(startDate, endDate);
@@ -3074,55 +3498,74 @@ class TimelineUnifiedRenderer {
         const area = this.areas.histogram;
         const startX = this.sidebarWidth - this.scrollX;
 
-        // Area-Hintergrund - render immediately (not batched)
+        const histogramTheme = this.themeConfig.histogram || {};
+        const backgroundColor = histogramTheme.bg || '#34495e';
+        const textColor = histogramTheme.text || '#ecf0f1';
+        const fontSize = histogramTheme.fontSize || 9;
+
         this.ctx.save();
-        this.ctx.fillStyle = this.themeConfig.histogram.bg;
+        this.ctx.fillStyle = backgroundColor;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
-        // CLIPPING für Histogram-Bereich
         this.ctx.beginPath();
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Berechne tägliche Auslastung mit Details
-        const dailyCounts = [];
-        const dailyDetails = [];
-        const tempDate = new Date(startDate);
-        let maxGuests = 1;
+        const { dailyCounts, dailyDetails, maxGuests } = this.getHistogramData(startDate, endDate);
 
-        while (tempDate <= endDate) {
-            const guestCount = this.calculateDailyOccupancy(tempDate);
-            const details = this.calculateDetailedOccupancy(tempDate);
-            dailyCounts.push(guestCount);
-            dailyDetails.push(details);
-            maxGuests = Math.max(maxGuests, guestCount);
-            tempDate.setDate(tempDate.getDate() + 1);
+        if (!dailyCounts || dailyCounts.length === 0) {
+            this.ctx.restore();
+            return;
         }
 
-        // Render Histogram-Balken mit detaillierten Beschriftungen
-        const availableHeight = area.height * 0.8; // 80% der verfügbaren Höhe nutzen
-        const bottomMargin = area.height * 0.1; // 10% Margin
+        const availableHeight = area.height * 0.9;
+        const bottomMargin = area.height * 0.05;
+        const barWidth = Math.max(4, this.DAY_WIDTH - 10);
 
         dailyCounts.forEach((count, dayIndex) => {
-            const x = startX + (dayIndex * this.DAY_WIDTH) + 5;
-            const barWidth = this.DAY_WIDTH - 10;
+            const xOffset = (this.DAY_WIDTH - barWidth) / 2;
+            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
 
-            // Nur rendern wenn im Viewport
-            if (x + barWidth > this.sidebarWidth - 100 && x < this.canvas.width + 100) {
-                const barHeight = maxGuests > 0 ? (count / maxGuests) * availableHeight : 0;
-                const barY = area.y + area.height - bottomMargin - barHeight;
+            if (x + barWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+                return;
+            }
 
-                // Histogram-Balken
-                this.ctx.fillStyle = this.themeConfig.histogram.bar;
-                this.ctx.fillRect(x, barY, barWidth, barHeight);
+            const ratio = maxGuests > 0 ? count / maxGuests : 0;
+            const barHeight = ratio * availableHeight;
+            const barY = area.y + area.height - bottomMargin - barHeight;
 
-                // Text auf Balken (wenn hoch genug)
-                if (barHeight > 15 && count > 0) {
-                    this.ctx.fillStyle = this.themeConfig.histogram.text;
-                    this.ctx.font = `${this.themeConfig.histogram.fontSize}px Arial`;
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillText(count.toString(), x + barWidth / 2, barY + barHeight - 3);
-                }
+            const detail = dailyDetails[dayIndex] || { total: count };
+
+            this.ctx.fillStyle = this.getHistogramBarColor(detail.total || count);
+            this.ctx.globalAlpha = 0.75;
+            this.ctx.fillRect(x, barY, barWidth, barHeight);
+            this.ctx.globalAlpha = 1;
+
+            if (barHeight <= 16 || (detail.total || 0) <= 0) {
+                return;
+            }
+
+            this.ctx.fillStyle = textColor;
+            this.ctx.font = `${fontSize}px Arial`;
+            this.ctx.textAlign = 'center';
+
+            const centerX = x + barWidth / 2;
+            let textY = barY + barHeight - 6;
+
+            this.ctx.fillText(String(detail.total || count), centerX, textY);
+
+            if (barHeight > 42 && barWidth > 40) {
+                textY -= 10;
+                const breakdown = [];
+                if (detail.dz) breakdown.push(`DZ:${detail.dz}`);
+                if (detail.betten) breakdown.push(`B:${detail.betten}`);
+                if (detail.lager) breakdown.push(`L:${detail.lager}`);
+                if (detail.sonder) breakdown.push(`S:${detail.sonder}`);
+
+                breakdown.forEach(label => {
+                    this.ctx.fillText(label, centerX, textY);
+                    textY -= 9;
+                });
             }
         });
 
@@ -3780,94 +4223,6 @@ class TimelineUnifiedRenderer {
         this.ctx.restore();
     }
 
-    renderHistogramArea(startDate, endDate) {
-        const area = this.areas.histogram;
-        const startX = this.sidebarWidth - this.scrollX;
-
-        // Area-Hintergrund mit Theme-Konfiguration
-        this.ctx.fillStyle = this.themeConfig.histogram.bg;
-        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
-
-        // CLIPPING
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
-        this.ctx.clip();
-
-        // Berechne tägliche Auslastung mit Details
-        const dailyCounts = [];
-        const dailyDetails = [];
-        const tempDate = new Date(startDate);
-        let maxGuests = 1;
-
-        while (tempDate <= endDate) {
-            const guestCount = this.calculateDailyOccupancy(tempDate);
-            const details = this.calculateDetailedOccupancy(tempDate);
-            dailyCounts.push(guestCount);
-            dailyDetails.push(details);
-            maxGuests = Math.max(maxGuests, guestCount);
-            tempDate.setDate(tempDate.getDate() + 1);
-        }
-
-        // Render Histogram-Balken mit detaillierten Beschriftungen
-        const availableHeight = area.height * 0.95; // 95% der verfügbaren Höhe nutzen
-        const bottomMargin = 0; // Margin zum Scrollbar
-
-        dailyCounts.forEach((count, dayIndex) => {
-            const x = startX + (dayIndex * this.DAY_WIDTH) + 5;
-            const barWidth = this.DAY_WIDTH - 10;
-            const barHeight = (count / maxGuests) * (availableHeight - bottomMargin);
-            const y = area.y + area.height - barHeight - bottomMargin;
-
-            // Verwende Theme-Histogram-Farbe als Basis mit Intensitäts-Variationen
-            const baseColor = this.themeConfig.histogram.bar;
-            const color = count > 50 ? '#dc3545' :
-                count > 30 ? '#ffc107' :
-                    count > 10 ? '#28a745' : baseColor;
-
-            this.ctx.fillStyle = color;
-            this.ctx.globalAlpha = 0.7;
-            this.ctx.fillRect(x, y, barWidth, barHeight);
-            this.ctx.globalAlpha = 1.0;
-
-            // Detaillierte Beschriftung mit Theme-Textfarbe
-            const details = dailyDetails[dayIndex];
-            if (details && barWidth > 30) {
-                this.ctx.fillStyle = this.themeConfig.histogram.text;
-                this.ctx.font = `${this.themeConfig.histogram.fontSize}px Arial`;
-                this.ctx.textAlign = 'center';
-
-                const centerX = x + barWidth / 2;
-                let textY = area.y + area.height - 15; // Knapp über dem unteren Rand
-
-                this.ctx.fillText(`${details.total}`, centerX, textY);
-
-                // Zusätzliche Details nur wenn genug Platz vorhanden
-                if (barHeight > 30 && barWidth > 50) {
-                    textY -= 10; // Eine Zeile höher für Details
-
-                    if (details.dz > 0) {
-                        this.ctx.fillText(`DZ:${details.dz}`, centerX, textY);
-                        textY -= 8;
-                    }
-                    if (details.betten > 0) {
-                        this.ctx.fillText(`B:${details.betten}`, centerX, textY);
-                        textY -= 8;
-                    }
-                    if (details.lager > 0) {
-                        this.ctx.fillText(`L:${details.lager}`, centerX, textY);
-                        textY += 9;
-                    }
-                    if (details.sonder > 0) {
-                        this.ctx.fillText(`S:${details.sonder}`, centerX, textY);
-                    }
-                }
-            }
-        });
-
-        this.ctx.restore();
-    }
-
     renderVerticalGridLines(startDate, endDate) {
         // Leichte vertikale Gitterlinien über den Balken
         const startX = this.sidebarWidth - this.scrollX;
@@ -4256,83 +4611,22 @@ class TimelineUnifiedRenderer {
         return luminance > 0.5 ? '#000000' : '#ffffff';
     }
 
-    calculateDailyOccupancy(date) {
-        let guestCount = 0;
-        const checkDate = new Date(date);
-        checkDate.setHours(12, 0, 0, 0);
-
-        roomDetails.forEach(reservation => {
-            const checkin = new Date(reservation.start);
-            const checkout = new Date(reservation.end);
-            checkin.setHours(12, 0, 0, 0);
-            checkout.setHours(12, 0, 0, 0);
-
-            if (checkin <= checkDate && checkout > checkDate) {
-                guestCount += reservation.capacity || 1;
-            }
-        });
-
-        return guestCount;
-    }
-
-    calculateDetailedOccupancy(date) {
-        const checkDate = new Date(date);
-        checkDate.setHours(12, 0, 0, 0);
-
-        let dz = 0;
-        let betten = 0;
-        let lager = 0;
-        let sonder = 0;
-
-        roomDetails.forEach(reservation => {
-            const checkin = new Date(reservation.start);
-            const checkout = new Date(reservation.end);
-            checkin.setHours(12, 0, 0, 0);
-            checkout.setHours(12, 0, 0, 0);
-
-            if (checkin <= checkDate && checkout > checkDate) {
-                const capacity = reservation.capacity || 1;
-
-                const room = rooms.find(r => r.id === reservation.room_id);
-                if (room) {
-                    const roomName = (room.caption || '').toLowerCase();
-                    const roomCapacity = room.capacity || capacity;
-
-                    if (roomName.includes('dz') || roomName.includes('doppel')) {
-                        dz += capacity;
-                    } else if (roomName.includes('lager') || roomName.includes('matratzen') || roomCapacity >= 6) {
-                        lager += capacity;
-                    } else if (roomName.includes('sonder') || roomName.includes('suite') || roomName.includes('fam')) {
-                        sonder += capacity;
-                    } else {
-                        betten += capacity;
-                    }
-                } else {
-                    betten += capacity;
-                }
-            }
-        });
-
-        return {
-            dz,
-            betten,
-            lager,
-            sonder,
-            total: dz + betten + lager + sonder
-        };
-    }
-
     // Public API
     updateData(newReservations, newRoomDetails, newRooms) {
         reservations = newReservations || [];
         roomDetails = newRoomDetails || [];
         rooms = newRooms || [];
 
+        this.updateRoomLookups();
+        this.normalizeRoomDetails();
+        this.invalidateStackingCache();
+        this.markDataDirty();
+
         // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
         const now = new Date();
         now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        this.startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
-        this.endDate = new Date(now.getTime() + (0.5 * 365 * 24 * 60 * 60 * 1000));
+        this.startDate = new Date(now.getTime() - (14 * MS_IN_DAY));
+        this.endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY));
 
         this.render();
     }

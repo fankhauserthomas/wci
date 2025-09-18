@@ -66,8 +66,6 @@
     <!-- Scripts -->
     <script src="timeline-unified.js"></script>
     <script>
-        // Debug: Prüfe sofort nach dem Laden
-        console.log('Nach Script-Tag: TimelineUnifiedRenderer =', typeof TimelineUnifiedRenderer);
         if (typeof TimelineUnifiedRenderer === 'undefined') {
             console.error('FEHLER: TimelineUnifiedRenderer wurde nicht geladen!');
         }
@@ -80,87 +78,109 @@
         // Echte Daten laden (API-Integration)
         async function loadRealData() {
             try {
-                // Automatischer Datums-Bereich: now - 2 weeks bis now + 2 years
+                const MS_IN_DAY = 24 * 60 * 60 * 1000;
                 const now = new Date();
-                now.setHours(0, 0, 0, 0); // now = 2024-07-22 00:00:00
-                const startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-                const endDate = new Date(now.getTime() + (1 * 365 * 24 * 60 * 60 * 1000));
+                now.setHours(0, 0, 0, 0);
+
+                // Automatischer Datumsbereich: 14 Tage zurück bis 24 Monate voraus
+                const startDate = new Date(now.getTime() - (14 * MS_IN_DAY));
+                const endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY));
 
                 const startDateStr = startDate.toISOString().split('T')[0];
                 const endDateStr = endDate.toISOString().split('T')[0];
 
-                console.log(`Loading REAL data from API: ${startDateStr} to ${endDateStr}`);
+                console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
 
-                // API-Aufruf für echte Daten
-                const response = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
-                const result = await response.json();
+                const roomsFetchPromise = fetch('getRooms.php').catch(error => error);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const dataResponse = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
+
+                if (!dataResponse.ok) {
+                    throw new Error(`Zimmerplan-API HTTP ${dataResponse.status}: ${dataResponse.statusText}`);
                 }
+
+                const result = await dataResponse.json();
 
                 if (!result.success) {
                     throw new Error(result.error || 'API-Fehler');
                 }
 
-                console.log('API Response:', result);
+                const apiData = result.data || {};
 
-                // Verarbeite Zimmer-Details zuerst
-                roomDetails = result.data.room_details
-                    ? result.data.room_details
-                        .filter(item => item.room_id && item.start && item.end)
-                        .map(item => ({
+                const roomDetailsSource = Array.isArray(apiData.room_details) ? apiData.room_details : [];
+                roomDetails = roomDetailsSource
+                    .filter(item => item.room_id && item.start && item.end)
+                    .map(item => {
+                        const detailData = item.data || {};
+                        return {
                             room_id: item.room_id,
-                            guest_name: item.data ? item.data.guest_name : 'Unbekannt',
+                            guest_name: detailData.guest_name || 'Unbekannt',
                             start: parseAPIDate(item.start),
                             end: parseAPIDate(item.end),
-                            color: item.data ? item.data.color : '#3498db',
-                            has_dog: item.data ? item.data.has_dog : false,
-                            capacity: item.data ? item.data.capacity : 1,
-                            data: item.data || {},
-                            reservation_id: item.data ? item.data.res_id : null
-                        }))
-                    : [];
+                            color: detailData.color || '#3498db',
+                            has_dog: detailData.has_dog || false,
+                            capacity: detailData.capacity || 1,
+                            data: detailData,
+                            reservation_id: detailData.res_id || null
+                        };
+                    });
 
-                // Verarbeite Master-Reservierungen - filtere bereits zugewiesene aus (verwende is_disposed Flag)
-                reservations = result.data.timeline_items
-                    ? result.data.timeline_items
-                        .filter(item => item.content && item.start && item.end)
-                        .filter(item => {
-                            // Verwende das is_disposed Flag aus der API
-                            const isDisposed = item.data && item.data.is_disposed;
-                            return !isDisposed;
-                        })
-                        .map((item, index) => ({
+                const timelineItems = Array.isArray(apiData.timeline_items) ? apiData.timeline_items : [];
+                reservations = timelineItems
+                    .filter(item => item && item.content && item.start && item.end)
+                    .filter(item => !(item.data && item.data.is_disposed))
+                    .map((item, index) => {
+                        const itemData = item.data || {};
+                        return {
                             id: item.id || index,
-                            name: item.name || (item.data ? item.data.guest_name : item.content.replace(/<[^>]*>/g, '')),
-                            nachname: item.nachname || '', // FIX: Direkt aus item nehmen, nicht aus data
-                            vorname: item.vorname || '',   // FIX: Direkt aus item nehmen, nicht aus data
+                            name: item.name || itemData.guest_name || item.content.replace(/<[^>]*>/g, ''),
+                            nachname: item.nachname || '',
+                            vorname: item.vorname || '',
                             start: parseAPIDate(item.start),
                             end: parseAPIDate(item.end),
-                            capacity: item.capacity || (item.data ? item.data.capacity : 1), // FIX: Aus item zuerst
-                            arrangement_name: item.arrangement_name || item.arr_kbez || '', // FIX: Direkt aus item
-                            arr_kbez: item.arr_kbez || '',  // FIX: Direkt aus item
-                            has_dog: item.has_dog || item.hund || (item.data && item.data.has_dog) || false, // FIX: Mehrere Quellen
+                            capacity: item.capacity || itemData.capacity || 1,
+                            arrangement_name: item.arrangement_name || item.arr_kbez || '',
+                            arr_kbez: item.arr_kbez || '',
+                            has_dog: item.has_dog || item.hund || itemData.has_dog || false,
                             hund: item.hund || item.has_dog || false,
-                            fullData: item.data
-                        }))
-                    : [];
+                            fullData: itemData
+                        };
+                    });
 
-                // Lade Zimmer-Daten
-                const roomsResponse = await fetch('getRooms.php');
-                const roomsResult = await roomsResponse.json();
+                const roomsResponse = await roomsFetchPromise;
+                let roomsResult = null;
+                let roomsResponseStatus = null;
 
-                if (roomsResult.success) {
-                    rooms = roomsResult.data || [];
-                    // Sortiere Zimmer für konsistente Anzeige
+                if (roomsResponse instanceof Response) {
+                    roomsResponseStatus = `HTTP ${roomsResponse.status}: ${roomsResponse.statusText}`;
+                    if (roomsResponse.ok) {
+                        roomsResult = await roomsResponse.json();
+                    } else {
+                        try {
+                            roomsResult = await roomsResponse.json();
+                        } catch (parseError) {
+                            // Falls keine JSON-Antwort geliefert wurde, ignorieren wir den Fehler
+                        }
+                    }
+                }
+
+                if (roomsResult && roomsResult.success) {
+                    rooms = Array.isArray(roomsResult.data) ? [...roomsResult.data] : [];
                     rooms.sort((a, b) => {
                         const sortA = a.sort !== undefined ? a.sort : a.id;
                         const sortB = b.sort !== undefined ? b.sort : b.id;
                         return sortA - sortB;
                     });
                 } else {
-                    console.warn('Failed to load rooms, using fallback');
+                    let statusInfo;
+                    if (roomsResponse instanceof Response && roomsResponse.ok) {
+                        statusInfo = roomsResult && roomsResult.error ? roomsResult.error : 'Unbekannter Fehler';
+                    } else if (roomsResponse instanceof Error) {
+                        statusInfo = roomsResponse.message || 'Netzwerkfehler';
+                    } else {
+                        statusInfo = roomsResponseStatus || 'Unbekannter Fehler';
+                    }
+                    console.warn(`Zimmer konnten nicht geladen werden (${statusInfo}), verwende Fallback.`);
                     rooms = [
                         { id: 1, caption: 'Zimmer 1', capacity: 2, display_name: 'Zimmer 1 (2P)' },
                         { id: 2, caption: 'Zimmer 2', capacity: 4, display_name: 'Zimmer 2 (4P)' },
@@ -168,12 +188,9 @@
                     ];
                 }
 
-                console.log(`Loaded REAL data: ${reservations.length} reservations, ${roomDetails.length} room details, ${rooms.length} rooms`);
+                console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
 
-                // Rendere Timeline mit echten Daten
                 renderTimeline();
-
-                console.log(`✅ Echte Daten geladen: ${reservations.length} Reservierungen, ${rooms.length} Zimmer`);
 
             } catch (error) {
                 console.error('Fehler beim Laden der echten Daten:', error);
@@ -226,10 +243,10 @@
             }
 
             if (timelineRenderer) {
-                console.log('Rendering timeline with unified renderer...');
+                console.debug('Aktualisiere bestehende Timeline-Instanz.');
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             } else {
-                console.log('Creating new unified timeline renderer...');
+                console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             }
@@ -278,8 +295,8 @@
 
             // Automatisch echte Daten laden beim Seitenaufruf
             setTimeout(() => {
-                console.log('Auto-loading REAL data on page load...');
-                console.log('TimelineUnifiedRenderer verfügbar:', typeof TimelineUnifiedRenderer);
+                console.debug('Automatischer Datenabruf nach Seitenstart.');
+                console.debug('TimelineUnifiedRenderer verfügbar:', typeof TimelineUnifiedRenderer);
 
                 // Versuche echte Daten zu laden
                 loadRealData().catch(error => {
