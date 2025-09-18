@@ -62,7 +62,7 @@ try {
             throw new Exception('Prepare failed: ' . $mysqli->error);
         }
         
-        $stmt->bind_param('ssissiiiiisisssi', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund);
+        $stmt->bind_param('ssissiiiiisissi', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund);
         
         if (!$stmt->execute()) {
             throw new Exception('Execute failed: ' . $stmt->error);

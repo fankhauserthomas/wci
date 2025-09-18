@@ -413,7 +413,25 @@ document.addEventListener('DOMContentLoaded', () => {
           hund: hasDog
         })
       })
-        .then(r => r.json())
+        .then(async response => {
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const rawBody = await response.clone().text();
+          const snippet = rawBody.trim().slice(0, 200) || '(leer)';
+          if (!contentType.includes('application/json')) {
+            throw new Error(`Unerwartete Server-Antwort (${response.status}): ${snippet}`);
+          }
+          let result;
+          try {
+            result = JSON.parse(rawBody);
+          } catch (parseErr) {
+            throw new Error(`Antwort konnte nicht als JSON verarbeitet werden: ${snippet}`);
+          }
+          if (!response.ok) {
+            const message = result && result.error ? result.error : `HTTP ${response.status}`;
+            throw new Error(message);
+          }
+          return result;
+        })
         .then(result => {
           if (result.success) {
             alert('Reservierung erfolgreich angelegt!');
@@ -432,8 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         })
         .catch(err => {
-          console.error('Netzwerkfehler:', err);
-          alert('Netzwerkfehler: ' + err.message);
+          console.error('Fehler beim Speichern:', err);
+          const message = err && err.message ? err.message : 'Unbekannter Fehler';
+          alert('Speichern fehlgeschlagen: ' + message);
         })
         .finally(() => {
           isSubmitting = false;
