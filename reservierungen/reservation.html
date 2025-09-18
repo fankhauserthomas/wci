@@ -178,6 +178,18 @@
       transform: translateY(0);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 
@@ -309,110 +321,76 @@
     <!-- Name Correction Modal -->
     <div id="nameCorrectionModal" class="modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-content" style="max-width: 800px; width: 90vw;">
+      <div class="modal-content" style="max-width: 620px; width: min(90vw, 620px); padding: 16px;">
         <span class="modal-close" id="nameCorrectionModalClose">&times;</span>
-        <h3>Namen-Korrektur vorgeschlagen</h3>
-        <p>Es wurde erkannt, dass in einem Namensfeld mehrere Namen stehen. Möchten Sie diese aufteilen?</p>
 
-        <!-- NEUE OPTION: Name anzeigen mit Leerzeichen-Indikator -->
         <div id="nameDisplaySection"
-          style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-          <h4 style="margin: 0 0 15px 0; color: #495057;">Interaktive Namen-Trennung</h4>
-
-          <!-- Originalname mit Trennungsvisualisierung -->
-          <div style="margin-bottom: 15px;">
-            <label style="font-size: 0.9rem; color: #495057; margin-bottom: 5px; display: block;">Originalname:</label>
-            <div id="originalNameDisplay"
-              style="font-family: monospace; font-size: 18px; padding: 12px; background: white; border: 2px solid #007bff; border-radius: 6px; min-height: 40px; line-height: 1.4;">
+          style="margin: 12px 0; padding: 12px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+          <div style="margin-bottom: 10px;">
+            <span class="sr-only" id="originalNameLabel">Originalname</span>
+            <div id="originalNameDisplay" aria-labelledby="originalNameLabel"
+              style="font-family: monospace; font-size: 16px; padding: 10px; background: white; border: 2px solid #007bff; border-radius: 6px; min-height: 36px; line-height: 1.3;">
               <!-- Name mit farblicher Trennung wird hier angezeigt -->
             </div>
           </div>
 
-          <!-- Trennposition Slider -->
-          <div style="margin-bottom: 15px;">
-            <label for="splitPositionSlider"
-              style="font-size: 0.9rem; color: #495057; margin-bottom: 5px; display: block;">
-              Trennposition: <span id="splitPositionText">Bei Leerzeichen</span>
-            </label>
+          <div style="margin-bottom: 12px;">
             <input type="range" id="splitPositionSlider" min="0" max="10" value="0" step="1"
-              style="width: 100%; height: 8px; background: #ddd; border-radius: 5px; outline: none;">
+              style="width: 100%; height: 6px; background: #ddd; border-radius: 5px; outline: none;"
+              aria-label="Trennposition">
             <div
-              style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #6c757d; margin-top: 5px;">
-              <span>Anfang</span>
-              <span>Leerzeichen</span>
+              style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6c757d; margin-top: 4px;">
+              <span>Start</span>
+              <span id="splitPositionText">Leerzeichen</span>
               <span>Ende</span>
             </div>
           </div>
 
-          <!-- Vorschau der Aufteilung -->
-          <div style="margin-bottom: 15px;">
-            <h5 style="margin: 0 0 10px 0;">Vorschau der Aufteilung:</h5>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <div style="flex: 1;">
-                <label style="font-size: 0.9rem; color: #495057;">Nachname:</label>
-                <input type="text" id="previewNachname" readonly
-                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-weight: bold;">
-              </div>
-              <button id="swapNamesBtn"
-                style="padding: 6px 4px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 24px; max-width: 24px; min-width: 24px; flex-shrink: 0; text-align: center;"
-                title="Vor- und Nachname tauschen">
-                ⇄
-              </button>
-              <div style="flex: 1;">
-                <label style="font-size: 0.9rem; color: #495057;">Vorname:</label>
-                <input type="text" id="previewVorname" readonly
-                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-weight: bold;">
-              </div>
+          <div style="display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px;">
+            <div style="flex: 1;">
+              <label for="previewNachname" class="sr-only">Nachname Vorschau</label>
+              <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #495057; margin-bottom: 2px;">NN (Nachname)</span>
+              <input type="text" id="previewNachname" readonly
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-weight: 600;">
+            </div>
+            <button id="swapNamesBtn"
+              style="margin-top: 18px; padding: 6px 4px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; width: 24px; max-width: 24px; min-width: 24px; flex-shrink: 0; text-align: center;"
+              title="Vor- und Nachname tauschen">
+              ⇄
+            </button>
+            <div style="flex: 1;">
+              <label for="previewVorname" class="sr-only">Vorname Vorschau</label>
+              <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #495057; margin-bottom: 2px;">VN (Vorname)</span>
+              <input type="text" id="previewVorname" readonly
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-weight: 600;">
             </div>
           </div>
 
-          <!-- Sonderzeichen-Optionen -->
           <div
-            style="margin-bottom: 15px; padding: 10px; background: #ffffff; border: 1px solid #e9ecef; border-radius: 4px;">
-            <h6 style="margin: 0 0 8px 0; color: #495057;">Bereinigungsoptionen:</h6>
-            <label style="display: block; margin-bottom: 6px; cursor: pointer;">
-              <input type="checkbox" id="removeLongSpaces" checked style="margin-right: 8px;">
-              Mehrfache Leerzeichen durch einzelnes ersetzen
+            style="margin-bottom: 8px; padding: 8px; background: #ffffff; border: 1px solid #e9ecef; border-radius: 4px;">
+            <label style="display: block; margin-bottom: 4px; cursor: pointer;">
+              <input type="checkbox" id="removeLongSpaces" checked style="margin-right: 6px;">
+              Mehrfache Leerzeichen reduzieren
             </label>
-            <label style="display: block; margin-bottom: 6px; cursor: pointer;">
-              <input type="checkbox" id="removeSpecialChars" checked style="margin-right: 8px;">
-              Sonderzeichen entfernen: ( ) - _ + / , . ; : " '
+            <label style="display: block; margin-bottom: 4px; cursor: pointer;">
+              <input type="checkbox" id="removeSpecialChars" checked style="margin-right: 6px;">
+              Sonderzeichen entfernen ( ) - _ + / , . ; : " '
             </label>
-            <label style="display: block; margin-bottom: 6px; cursor: pointer;">
-              <input type="checkbox" id="removeNumbers" style="margin-right: 8px;">
+            <label style="display: block; margin-bottom: 4px; cursor: pointer;">
+              <input type="checkbox" id="removeNumbers" style="margin-right: 6px;">
               Zahlen entfernen
             </label>
           </div>
 
-          <div style="margin-top: 15px;">
-            <button id="applyPreviewBtn" class="btn-confirm" style="width: 100%; padding: 12px; font-size: 16px;">Diese
-              Aufteilung verwenden</button>
-          </div>
+          <button id="applyPreviewBtn" class="btn-confirm"
+            style="width: 100%; padding: 10px; font-size: 15px;">Diese Aufteilung verwenden</button>
         </div>
 
-        <!-- ALTE OPTION: Automatische Vorschläge -->
-        <div id="nameCorrectionOptions" style="margin: 20px 0;">
+        <div id="nameCorrectionOptions" style="margin: 12px 0;">
           <!-- Options will be populated by JavaScript -->
         </div>
 
-        <div style="margin: 15px 0;">
-          <label for="customNameSplit" style="display: block; margin-bottom: 5px; font-weight: 600;">Eigene
-            Aufteilung:</label>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <div>
-              <label for="customVorname" style="font-size: 0.9rem;">VN:</label>
-              <input type="text" id="customVorname" placeholder="Vorname"
-                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 120px;">
-            </div>
-            <div>
-              <label for="customNachname" style="font-size: 0.9rem;">NN:</label>
-              <input type="text" id="customNachname" placeholder="Nachname"
-                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 120px;">
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-buttons">
+        <div class="modal-buttons" style="margin-top: 10px;">
           <button id="nameCorrectionApply" class="btn-confirm">Anwenden</button>
           <button id="nameCorrectionSkip" class="btn-cancel">Überspringen</button>
         </div>

@@ -11,6 +11,15 @@ if (!ctype_digit($id)) {
     exit;
 }
 
+// Ensure optional column exists
+$columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-Res` LIKE 'country_id'");
+if ($columnCheck && $columnCheck->num_rows === 0) {
+    $mysqli->query("ALTER TABLE `AV-Res` ADD COLUMN country_id INT DEFAULT NULL");
+}
+if ($columnCheck) {
+    $columnCheck->free();
+}
+
 try {
     // Vollständige Reservierungsdaten abfragen mit allen Feldern
     $sql = "
@@ -31,6 +40,7 @@ try {
         IFNULL(r.sonder, 0) AS sonder,
         IFNULL(r.arr, 0) AS arr,
         IFNULL(r.origin, 0) AS origin,
+        IFNULL(r.country_id, 0) AS country_id,
         IFNULL(r.hund, 0) AS hund,
         IFNULL(r.storno, 0) AS storno,
         IFNULL(r.invoice, 0) AS invoice
@@ -66,6 +76,7 @@ try {
     $data['sonder'] = (int)$data['sonder'];
     $data['arr'] = (int)$data['arr'];
     $data['origin'] = (int)$data['origin'];
+    $data['country_id'] = (int)$data['country_id'];
     $data['hund'] = (bool)$data['hund'];
     $data['storno'] = (bool)$data['storno'];
     $data['invoice'] = (bool)$data['invoice'];

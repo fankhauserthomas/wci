@@ -154,9 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameCorrectionOptions = document.getElementById('nameCorrectionOptions');
   const nameCorrectionApply = document.getElementById('nameCorrectionApply');
   const nameCorrectionSkip = document.getElementById('nameCorrectionSkip');
-  const customVorname = document.getElementById('customVorname');
-  const customNachname = document.getElementById('customNachname');
-
   // New name display elements
   const nameWithSpaces = document.getElementById('nameWithSpaces');
   const previewVorname = document.getElementById('previewVorname');
@@ -325,17 +322,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateSplitPreview(originalName, splitPosition) {
     const cleanedName = cleanName(originalName);
 
-    let nachname = cleanedName.substring(0, splitPosition).trim();
-    let vorname = cleanedName.substring(splitPosition).trim();
+    let vorname = cleanedName.substring(0, splitPosition).trim();
+    let nachname = cleanedName.substring(splitPosition).trim();
 
     // Handle empty parts
-    if (!nachname && vorname) {
-      nachname = vorname;
-      vorname = '';
+    if (!vorname && nachname) {
+      vorname = nachname;
+      nachname = '';
     }
 
-    document.getElementById('previewNachname').value = nachname;
-    document.getElementById('previewVorname').value = vorname;
+    const nachnameField = document.getElementById('previewNachname');
+    const vornameField = document.getElementById('previewVorname');
+    if (nachnameField) nachnameField.value = nachname;
+    if (vornameField) vornameField.value = vorname;
   }
 
   function splitNamePreview(name) {
@@ -345,21 +344,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (parts.length === 0) {
       return { vorname: '', nachname: '' };
     } else if (parts.length === 1) {
-      return { vorname: '', nachname: parts[0] };
+      return { vorname: parts[0], nachname: '' };
     } else {
-      // First part as Nachname, rest as Vorname (following the existing pattern)
       return {
-        vorname: parts.slice(1).join(' '),
-        nachname: parts[0]
+        vorname: parts[0],
+        nachname: parts.slice(1).join(' ')
       };
     }
   }
 
   function updateNamePreview(originalName) {
-    if (!nameWithSpaces || !previewVorname || !previewNachname) return;
+    if (!previewVorname || !previewNachname) return;
 
-    // Display name with space indicators
-    nameWithSpaces.textContent = displayNameWithSpaces(originalName);
+    if (nameWithSpaces) {
+      nameWithSpaces.textContent = displayNameWithSpaces(originalName);
+    }
 
     // Update preview fields
     const preview = splitNamePreview(originalName);
@@ -630,10 +629,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     nameCorrectionOptions.innerHTML = optionsHtml;
 
-    // Set custom fields with current values
-    customVorname.value = currentVorname;
-    customNachname.value = currentNachname;
-
     // Initialize new name preview features
     if (previewVorname && previewNachname) {
       // Initialize preview with automatic split
@@ -641,6 +636,18 @@ document.addEventListener('DOMContentLoaded', () => {
       previewVorname.value = preview.vorname;
       previewNachname.value = preview.nachname;
     }
+
+    // Keep preview synchronized with selected suggestion
+    const suggestionRadios = document.querySelectorAll('input[name="nameSuggestion"]');
+    suggestionRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        const suggestion = suggestions[parseInt(radio.value, 10)];
+        if (suggestion && previewVorname && previewNachname) {
+          previewVorname.value = suggestion.vorname;
+          previewNachname.value = suggestion.nachname;
+        }
+      });
+    });
 
     // Initialize interactive split position functionality
     const slider = document.getElementById('splitPositionSlider');
@@ -675,95 +682,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show modal
     nameCorrectionModal.classList.remove('hidden');
 
-    // Handle apply preview button (new)
-    const applyPreviewBtn = document.getElementById('applyPreviewBtn');
-    if (applyPreviewBtn) {
-      applyPreviewBtn.onclick = async () => {
-        try {
-          const nachname = document.getElementById('previewNachname').value.trim();
-          const vorname = document.getElementById('previewVorname').value.trim();
-
-          console.log('Applying preview values:', { vorname, nachname });
-
-          // Update the reservation
-          if (vorname !== currentVorname || nachname !== currentNachname) {
-            await updateReservationNames(detail.id, vorname, nachname);
-
-            // Reload the reservation data to reflect changes
-            setTimeout(() => {
-              loadReservationData();
-            }, 500);
-          }
-
-          nameCorrectionModal.classList.add('hidden');
-        } catch (error) {
-          console.error('Error applying preview:', error);
-          alert('Fehler beim Aktualisieren der Namen: ' + error.message);
-        }
-      };
-    }
-
-    // Show modal
-    nameCorrectionModal.classList.remove('hidden');
-
     // Handle apply button
     const handleApply = async () => {
       try {
-        let selectedVorname = '', selectedNachname = '';
+        let selectedVorname = '';
+        let selectedNachname = '';
 
-        console.log('Dialog values before processing:', {
-          customVorname: customVorname.value,
-          customNachname: customNachname.value,
-          currentVorname,
-          currentNachname
-        });
+        if (previewVorname && previewNachname) {
+          selectedVorname = previewVorname.value.trim();
+          selectedNachname = previewNachname.value.trim();
+        }
 
-        // Check if custom fields have been changed from their initial values
-        const customFieldsChanged = (
-          customVorname.value.trim() !== currentVorname ||
-          customNachname.value.trim() !== currentNachname
-        );
-
-        if (customFieldsChanged) {
-          selectedVorname = customVorname.value.trim();
-          selectedNachname = customNachname.value.trim();
-          console.log('Using custom input values (changed):', { selectedVorname, selectedNachname });
-        } else {
-          // Use selected suggestion
+        if (!selectedVorname && !selectedNachname) {
           const selectedRadio = document.querySelector('input[name="nameSuggestion"]:checked');
           if (selectedRadio) {
-            const suggestion = suggestions[parseInt(selectedRadio.value)];
-            selectedVorname = suggestion.vorname;
-            selectedNachname = suggestion.nachname;
-            console.log('Using suggestion:', suggestion);
+            const suggestion = suggestions[parseInt(selectedRadio.value, 10)];
+            if (suggestion) {
+              selectedVorname = suggestion.vorname.trim();
+              selectedNachname = suggestion.nachname.trim();
+            }
           }
         }
 
-        console.log('Final comparison:', {
-          selectedVorname,
-          selectedNachname,
-          currentVorname,
-          currentNachname,
-          voornameChanged: selectedVorname !== currentVorname,
-          nachnameChanged: selectedNachname !== currentNachname
-        });
+        if (!selectedVorname && !selectedNachname) {
+          selectedVorname = currentVorname;
+          selectedNachname = currentNachname;
+        }
 
-        // Update the reservation
         if (selectedVorname !== currentVorname || selectedNachname !== currentNachname) {
-          console.log('Updating names:', {
-            id: detail.id,
-            vorname: selectedVorname,
-            nachname: selectedNachname
-          });
-
           await updateReservationNames(detail.id, selectedVorname, selectedNachname);
 
-          // Reload the reservation data to reflect changes
           setTimeout(() => {
             loadReservationData();
           }, 500);
-        } else {
-          console.log('No name changes detected');
         }
 
         nameCorrectionModal.classList.add('hidden');
@@ -797,6 +748,10 @@ document.addEventListener('DOMContentLoaded', () => {
     applyBtn.onclick = handleApply;
     skipBtn.onclick = handleSkip;
     closeBtn.onclick = handleClose;
+
+    if (applyPreviewBtn) {
+      applyPreviewBtn.onclick = handleApply;
+    }
   }
 
   function generateNameSuggestions(fullNameText) {
@@ -4200,20 +4155,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Event listener for apply preview button
-  if (applyPreviewBtn) {
-    applyPreviewBtn.addEventListener('click', () => {
-      // Set custom fields with preview values
-      if (customVorname && customNachname) {
-        customVorname.value = previewVorname.value;
-        customNachname.value = previewNachname.value;
-
-        // Trigger the existing apply logic
-        const applyBtn = document.getElementById('nameCorrectionApply');
-        if (applyBtn) {
-          applyBtn.click();
-        }
-      }
-    });
-  }
-
 });

@@ -246,6 +246,139 @@
       cursor: not-allowed;
     }
 
+    /* Neue Reservierung Modal */
+    .modal-new-reservation .modal-content {
+      width: min(90vw, 720px);
+      max-width: 720px;
+      padding: 20px 24px 24px;
+    }
+
+    .modal-new-reservation h2 {
+      margin-bottom: 12px;
+    }
+
+    .modal-new-reservation form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-new-reservation .section {
+      border: 1px solid #d9dee3;
+      border-radius: 8px;
+      padding: 12px 14px 14px;
+      background: #fafafa;
+    }
+
+    .modal-new-reservation .section h3 {
+      margin: 0 0 10px 0;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #495057;
+    }
+
+    .modal-new-reservation .section-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px 16px;
+    }
+
+    .modal-new-reservation label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 4px;
+    }
+
+    .modal-new-reservation input[type="text"],
+    .modal-new-reservation input[type="number"],
+    .modal-new-reservation input[type="date"],
+    .modal-new-reservation select,
+    .modal-new-reservation textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .modal-new-reservation textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .modal-new-reservation input:focus,
+    .modal-new-reservation select:focus,
+    .modal-new-reservation textarea:focus {
+      outline: none;
+      border-color: #2684ff;
+      box-shadow: 0 0 0 3px rgba(38, 132, 255, 0.15);
+    }
+
+    .modal-new-reservation .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 13px;
+      color: #495057;
+    }
+
+    .modal-new-reservation .count-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px 16px;
+    }
+
+    .modal-new-reservation .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .modal-new-reservation .btn-cancel,
+    .modal-new-reservation .btn-save {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .modal-new-reservation .btn-save {
+      background: #2d8f4f;
+      color: #fff;
+    }
+
+    .modal-new-reservation .btn-save:hover {
+      background: #257642;
+      box-shadow: 0 2px 8px rgba(45, 143, 79, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .modal-new-reservation .btn-cancel {
+      background: #f1f3f5;
+      color: #495057;
+    }
+
+    .modal-new-reservation .btn-cancel:hover {
+      background: #e2e6ea;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .modal-new-reservation .section small {
+      display: block;
+      margin-top: 4px;
+      color: #868e96;
+      font-size: 12px;
+    }
+
     .table-container {
       flex: 1;
       overflow: hidden;
@@ -622,62 +755,93 @@
   </script>
 
   <!-- Modal für neue Reservierung -->
-  <div id="newReservationModal" class="modal" style="display:none;">
-    <div class="modal-content" style="max-width: 500px;">
+  <div id="newReservationModal" class="modal modal-new-reservation" style="display:none;">
+    <div class="modal-content">
       <span id="newResModalClose" class="close">&times;</span>
       <h2>Neue Reservierung</h2>
-      <form id="newReservationForm">
-        <div class="form-row">
-          <label>Nachname*:</label>
-          <input type="text" id="newResNachname" required>
+      <form id="newReservationForm" novalidate>
+        <div class="section">
+          <h3>Gast &amp; Herkunft</h3>
+          <div class="section-grid">
+            <div>
+              <label for="newResNachname">Nachname*</label>
+              <input type="text" id="newResNachname" required>
+            </div>
+            <div>
+              <label for="newResVorname">Vorname</label>
+              <input type="text" id="newResVorname">
+            </div>
+            <div>
+              <label for="newResHerkunft">Herkunft</label>
+              <select id="newResHerkunft">
+                <option value="">Bitte wählen...</option>
+              </select>
+            </div>
+            <div>
+              <label for="newResCountry">Land*</label>
+              <select id="newResCountry" required>
+                <option value="">Bitte wählen...</option>
+              </select>
+            </div>
+            <div class="checkbox-field" style="grid-column: span 2;">
+              <input type="checkbox" id="newResDog">
+              <label for="newResDog" style="margin-bottom: 0; font-weight: 500;">Gast reist mit Hund</label>
+            </div>
+          </div>
         </div>
-        <div class="form-row">
-          <label>Vorname:</label>
-          <input type="text" id="newResVorname">
+
+        <div class="section">
+          <h3>Reisedaten &amp; Arrangement</h3>
+          <div class="section-grid">
+            <div>
+              <label for="newResAnreise">Anreise*</label>
+              <input type="date" id="newResAnreise" required>
+            </div>
+            <div>
+              <label for="newResAbreise">Abreise*</label>
+              <input type="date" id="newResAbreise" required>
+              <small>Abreise muss nach der Anreise liegen.</small>
+            </div>
+            <div>
+              <label for="newResArrangement">Arrangement*</label>
+              <select id="newResArrangement" required>
+                <option value="">Bitte wählen...</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="form-row">
-          <label>Herkunft:</label>
-          <select id="newResHerkunft">
-            <option value="">Bitte wählen...</option>
-          </select>
+
+        <div class="section">
+          <h3>Schlafplätze</h3>
+          <div class="count-grid">
+            <div>
+              <label for="newResDZ">Doppelzimmer</label>
+              <input type="number" id="newResDZ" min="0" value="0">
+            </div>
+            <div>
+              <label for="newResBetten">Betten</label>
+              <input type="number" id="newResBetten" min="0" value="0">
+            </div>
+            <div>
+              <label for="newResLager">Lager</label>
+              <input type="number" id="newResLager" min="0" value="0">
+            </div>
+            <div>
+              <label for="newResSonder">Sonder</label>
+              <input type="number" id="newResSonder" min="0" value="0">
+            </div>
+          </div>
+          <small>Summe der Schlafplätze muss mindestens 1 betragen.</small>
         </div>
-        <div class="form-row">
-          <label>Anreise:</label>
-          <input type="date" id="newResAnreise">
+
+        <div class="section">
+          <h3>Bemerkung</h3>
+          <textarea id="newResBemerkung" placeholder="Interne Notizen zur Reservierung"></textarea>
         </div>
-        <div class="form-row">
-          <label>Abreise:</label>
-          <input type="date" id="newResAbreise">
-        </div>
-        <div class="form-row">
-          <label>Arrangement:</label>
-          <select id="newResArrangement">
-            <option value="">Bitte wählen...</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label>Anzahl DZ:</label>
-          <input type="number" id="newResDZ" min="0" value="0">
-        </div>
-        <div class="form-row">
-          <label>Anzahl Betten:</label>
-          <input type="number" id="newResBetten" min="0" value="0">
-        </div>
-        <div class="form-row">
-          <label>Anzahl Lager:</label>
-          <input type="number" id="newResLager" min="0" value="0">
-        </div>
-        <div class="form-row">
-          <label>Anzahl Sonder:</label>
-          <input type="number" id="newResSonder" min="0" value="0">
-        </div>
-        <div class="form-row">
-          <label>Bemerkung:</label>
-          <input type="text" id="newResBemerkung">
-        </div>
+
         <div class="form-actions">
-          <button type="submit" class="btn-save">Speichern</button>
           <button type="button" id="newResCancelBtn" class="btn-cancel">Abbrechen</button>
+          <button type="submit" class="btn-save">Speichern</button>
         </div>
       </form>
     </div>
@@ -770,7 +934,7 @@
       try {
         // Verwende die gleiche Datum-Logik wie script.js loadData()
         let date;
-        const mode = localStorage.getItem('filterMode') || 'arrival';
+        const mode = localStorage.getItem('filterMode') || 'arrival-today';
         if (mode === 'arrival-today') {
           date = new Date().toISOString().slice(0, 10);
         } else if (mode === 'departure-tomorrow') {
@@ -782,7 +946,7 @@
         }
 
         // Verwende die gleiche Type-Logik wie script.js getType()
-        const type = (localStorage.getItem('filterMode') || 'arrival').startsWith('arrival') ? 'arrival' : 'departure';
+        const type = (localStorage.getItem('filterMode') || 'arrival-today').startsWith('arrival') ? 'arrival' : 'departure';
 
         // loadRealHpData gestartet
 
@@ -1415,17 +1579,6 @@
 
       // Test abgeschlossen. Prüfe die Tabelle!
     };
-
-    // Automatisch für 30. August testen wenn Seite geladen wird
-    window.addEventListener('load', () => {
-      setTimeout(async () => {
-        // Auto-Test: Setze Datum auf 30. August für Sortiergruppen-Test
-        const dateInput = document.getElementById('filterDate');
-        if (dateInput && dateInput.value !== '2025-08-30') {
-          await window.testSortGroups('2025-08-30');
-        }
-      }, 2000); // Warte 2 Sekunden bis alles geladen ist
-    });
   </script>
 </body>
 

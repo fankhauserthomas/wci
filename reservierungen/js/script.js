@@ -240,35 +240,86 @@ document.addEventListener('DOMContentLoaded', () => {
   const newResModalClose = document.getElementById('newResModalClose');
   const newResCancelBtn = document.getElementById('newResCancelBtn');
   const newReservationForm = document.getElementById('newReservationForm');
+  const newResNachname = document.getElementById('newResNachname');
+  const newResVorname = document.getElementById('newResVorname');
+  const newResHerkunft = document.getElementById('newResHerkunft');
+  const newResCountry = document.getElementById('newResCountry');
+  const newResAnreise = document.getElementById('newResAnreise');
+  const newResAbreise = document.getElementById('newResAbreise');
+  const newResArrangement = document.getElementById('newResArrangement');
+  const newResDZ = document.getElementById('newResDZ');
+  const newResBetten = document.getElementById('newResBetten');
+  const newResLager = document.getElementById('newResLager');
+  const newResSonder = document.getElementById('newResSonder');
+  const newResBemerkung = document.getElementById('newResBemerkung');
+  const newResDog = document.getElementById('newResDog');
 
   // Öffnen des Modals
   if (newReservationBtn) {
-    newReservationBtn.addEventListener('click', () => {
-      // Herkunft und Arrangement Dropdowns laden
-      fetch(resApiPath('getOrigins.php'))
-        .then(r => r.json())
-        .then(origins => {
-          const herkunftSel = document.getElementById('newResHerkunft');
-          herkunftSel.innerHTML = '<option value="">Bitte wählen...</option>' +
-            origins.map(o => `<option value="${o.id}">${o.bez}</option>`).join('');
-        })
-        .catch(err => console.error('Fehler beim Laden der Herkunft:', err));
+    newReservationBtn.addEventListener('click', async () => {
+      try {
+        if (newReservationForm) {
+          newReservationForm.reset();
+        }
 
-      fetch(resApiPath('getArrangements.php'))
-        .then(r => r.json())
-        .then(arrs => {
-          const arrSel = document.getElementById('newResArrangement');
-          arrSel.innerHTML = '<option value="">Bitte wählen...</option>' +
-            arrs.map(a => `<option value="${a.id}">${a.kbez}</option>`).join('');
-        })
-        .catch(err => console.error('Fehler beim Laden der Arrangements:', err));
+        const fetchWithFallback = async (endpoint, loadingMessage) => {
+          try {
+            if (window.HttpUtils) {
+              return await HttpUtils.requestJsonWithLoading(resApiPath(endpoint), {}, { retries: 2, timeout: 8000 }, loadingMessage);
+            }
+            if (window.LoadingOverlay) {
+              return await LoadingOverlay.wrapFetch(() => fetch(resApiPath(endpoint)).then(res => res.json()), loadingMessage);
+            }
+            return await fetch(resApiPath(endpoint)).then(res => res.json());
+          } catch (error) {
+            console.error(`Fehler beim Laden von ${endpoint}:`, error);
+            return [];
+          }
+        };
 
-      // Default-Daten setzen
-      const today = new Date().toISOString().slice(0, 10);
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      document.getElementById('newResAnreise').value = today;
-      document.getElementById('newResAbreise').value = tomorrow;
-      newReservationModal.style.display = 'block';
+        const [origins, arrangements, countries] = await Promise.all([
+          fetchWithFallback('getOrigins.php', 'Herkunftsdaten werden geladen...'),
+          fetchWithFallback('getArrangements.php', 'Arrangements werden geladen...'),
+          fetchWithFallback('getCountries.php', 'Länderdaten werden geladen...')
+        ]);
+
+        if (newResHerkunft) {
+          newResHerkunft.innerHTML = '<option value="">Bitte wählen...</option>' +
+            origins.map(o => `<option value="${o.id}">${o.bez ?? o.country ?? ''}</option>`).join('');
+          newResHerkunft.value = '';
+        }
+
+        if (newResArrangement) {
+          newResArrangement.innerHTML = '<option value="">Bitte wählen...</option>' +
+            arrangements.map(a => `<option value="${a.id}">${a.kbez}</option>`).join('');
+          newResArrangement.value = '';
+        }
+
+        if (newResCountry) {
+          newResCountry.innerHTML = '<option value="">Bitte wählen...</option>' +
+            countries.map(country => {
+              const label = country.name ?? country.bez ?? country.country ?? '';
+              return `<option value="${country.id}">${label}</option>`;
+            }).join('');
+          newResCountry.value = '';
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        if (newResAnreise) newResAnreise.value = today;
+        if (newResAbreise) newResAbreise.value = tomorrow;
+        if (newResDZ) newResDZ.value = 0;
+        if (newResBetten) newResBetten.value = 0;
+        if (newResLager) newResLager.value = 0;
+        if (newResSonder) newResSonder.value = 0;
+        if (newResDog) newResDog.checked = false;
+        if (newResBemerkung) newResBemerkung.value = '';
+
+        newReservationModal.style.display = 'block';
+      } catch (error) {
+        console.error('Fehler beim Öffnen des Reservierungsdialogs:', error);
+        alert('Fehler beim Vorbereiten der neuen Reservierung. Bitte versuchen Sie es erneut.');
+      }
     });
   }
 
@@ -307,22 +358,57 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Felder auslesen
-      const nachname = document.getElementById('newResNachname').value.trim();
+      const nachname = newResNachname ? newResNachname.value.trim() : '';
       if (!nachname) {
         alert('Nachname ist ein Pflichtfeld!');
         return;
       }
 
-      const vorname = document.getElementById('newResVorname').value.trim();
-      const herkunft = document.getElementById('newResHerkunft').value;
-      const anreise = document.getElementById('newResAnreise').value;
-      const abreise = document.getElementById('newResAbreise').value;
-      const arrangement = document.getElementById('newResArrangement').value;
-      const dz = parseInt(document.getElementById('newResDZ').value) || 0;
-      const betten = parseInt(document.getElementById('newResBetten').value) || 0;
-      const lager = parseInt(document.getElementById('newResLager').value) || 0;
-      const sonder = parseInt(document.getElementById('newResSonder').value) || 0;
-      const bemerkung = document.getElementById('newResBemerkung').value.trim();
+      const vorname = newResVorname ? newResVorname.value.trim() : '';
+      const herkunft = newResHerkunft ? newResHerkunft.value : '';
+      const land = newResCountry ? newResCountry.value : '';
+      const anreise = newResAnreise ? newResAnreise.value : '';
+      const abreise = newResAbreise ? newResAbreise.value : '';
+      const arrangement = newResArrangement ? newResArrangement.value : '';
+      const dz = newResDZ ? (parseInt(newResDZ.value, 10) || 0) : 0;
+      const betten = newResBetten ? (parseInt(newResBetten.value, 10) || 0) : 0;
+      const lager = newResLager ? (parseInt(newResLager.value, 10) || 0) : 0;
+      const sonder = newResSonder ? (parseInt(newResSonder.value, 10) || 0) : 0;
+      const bemerkung = newResBemerkung ? newResBemerkung.value.trim() : '';
+      const hasDog = newResDog ? (newResDog.checked ? 1 : 0) : 0;
+
+      const originId = herkunft ? (parseInt(herkunft, 10) || 0) : 0;
+      const countryId = land ? (parseInt(land, 10) || 0) : 0;
+      const arrangementId = arrangement ? (parseInt(arrangement, 10) || 0) : 0;
+
+      if (!countryId) {
+        alert('Bitte ein Land auswählen.');
+        return;
+      }
+
+      const anreiseDate = anreise ? new Date(anreise) : null;
+      const abreiseDate = abreise ? new Date(abreise) : null;
+
+      if (!anreise || !abreise || !anreiseDate || !abreiseDate) {
+        alert('Bitte Anreise- und Abreisedatum auswählen.');
+        return;
+      }
+
+      if (abreiseDate <= anreiseDate) {
+        alert('Abreise muss nach der Anreise liegen.');
+        return;
+      }
+
+      if (!arrangementId) {
+        alert('Bitte ein Arrangement auswählen.');
+        return;
+      }
+
+      const totalGuests = dz + betten + lager + sonder;
+      if (totalGuests <= 0) {
+        alert('Bitte mindestens einen Schlafplatz angeben.');
+        return;
+      }
 
       isSubmitting = true;
       const submitBtn = this.querySelector('button[type="submit"]');
@@ -337,8 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nachname, vorname, herkunft, anreise, abreise, arrangement,
-          dz, betten, lager, sonder, bemerkung
+          nachname, vorname,
+          herkunft: originId,
+          country: countryId,
+          anreise, abreise, arrangement: arrangementId,
+          dz, betten, lager, sonder,
+          bemerkung,
+          hund: hasDog
         })
       })
         .then(r => r.json())
@@ -348,6 +439,14 @@ document.addEventListener('DOMContentLoaded', () => {
             newReservationModal.style.display = 'none';
             // Formular zurücksetzen
             newReservationForm.reset();
+            if (newResDZ) newResDZ.value = 0;
+            if (newResBetten) newResBetten.value = 0;
+            if (newResLager) newResLager.value = 0;
+            if (newResSonder) newResSonder.value = 0;
+            if (newResDog) newResDog.checked = false;
+            if (newResHerkunft) newResHerkunft.value = '';
+            if (newResCountry) newResCountry.value = '';
+            if (newResArrangement) newResArrangement.value = '';
             // Tabelle neu laden
             loadData();
           } else {

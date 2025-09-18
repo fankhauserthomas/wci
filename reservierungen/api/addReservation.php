@@ -27,6 +27,8 @@ try {
     $lager = (int)($data['lager'] ?? 0);
     $sonder = (int)($data['sonder'] ?? 0);
     $bemerkung = trim($data['bemerkung'] ?? '');
+    $countryId = (int)($data['country'] ?? 0);
+    $hund = !empty($data['hund']) ? 1 : 0;
 
     // Validierung
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $anreise) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $abreise)) {
@@ -37,6 +39,30 @@ try {
         throw new Exception('Abreise muss nach Anreise liegen');
     }
 
+    if ($arr <= 0) {
+        throw new Exception('Bitte ein Arrangement auswählen');
+    }
+
+    $totalGuests = $dz + $betten + $lager + $sonder;
+    if ($totalGuests <= 0) {
+        throw new Exception('Bitte mindestens einen Schlafplatz angeben');
+    }
+
+    if ($countryId <= 0) {
+        throw new Exception('Bitte ein Land auswählen');
+    }
+
+    // Ensure country column exists
+    $columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-Res` LIKE 'country_id'");
+    if ($columnCheck && $columnCheck->num_rows === 0) {
+        if (!$mysqli->query("ALTER TABLE `AV-Res` ADD COLUMN country_id INT DEFAULT NULL")) {
+            throw new Exception('Spalte country_id konnte nicht angelegt werden: ' . $mysqli->error);
+        }
+    }
+    if ($columnCheck) {
+        $columnCheck->free();
+    }
+
     // DB-Insert mit MySQLi (da config.php MySQLi verwendet)
     $mysqli->begin_transaction();
 
@@ -45,15 +71,14 @@ try {
         $id64 = uniqid(); // Eindeutige ID generieren
         $vorgang = "WebCheckin-" . date('Y-m-d-H-i-s'); // Vorgangsbezeichnung
         $av_id = 0; // Neue Reservierung beginnt mit av_id = 0
-        $hund = 0; // Kein Hund standardmäßig
         
-        $stmt = $mysqli->prepare("INSERT INTO `AV-Res` (nachname, vorname, origin, anreise, abreise, arr, dz, betten, lager, sonder, bem, av_id, vorgang, id64, hund) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $mysqli->prepare("INSERT INTO `AV-Res` (nachname, vorname, origin, anreise, abreise, arr, dz, betten, lager, sonder, bem, av_id, vorgang, id64, hund, country_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $mysqli->error);
         }
         
-        $stmt->bind_param('ssissiiiisissis', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund);
+        $stmt->bind_param('ssissiiiisisssii', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund, $countryId);
         
         if (!$stmt->execute()) {
             throw new Exception('Execute failed: ' . $stmt->error);
@@ -66,17 +91,14 @@ try {
         // bez soll Nachname + " " + Vorname sein, arr übernehmen
         $vollName = trim($nachname . ' ' . $vorname);
         
-        $stmt2 = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimID, von, bis, anz, bez, col, hund, arr, tab, note, dx, dy, ParentID) VALUES (?, 1, ?, ?, ?, ?, '#cccccc', 0, ?, 'local', '', 0, 0, 0)");
+        $stmt2 = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimID, von, bis, anz, bez, col, hund, arr, tab, note, dx, dy, ParentID) VALUES (?, 1, ?, ?, ?, ?, '#cccccc', ?, ?, 'local', '', 0, 0, 0)");
         
         if (!$stmt2) {
             throw new Exception('Prepare failed for AV_ResDet: ' . $mysqli->error);
         }
         
         // Gesamtzahl Gäste berechnen
-        $totalGuests = $dz + $betten + $lager + $sonder;
-        if ($totalGuests == 0) $totalGuests = 1; // Mindestens 1 Gast
-        
-        $stmt2->bind_param('issisi', $resId, $anreise, $abreise, $totalGuests, $vollName, $arr);
+        $stmt2->bind_param('issisii', $resId, $anreise, $abreise, $totalGuests, $vollName, $hund, $arr);
         
         if (!$stmt2->execute()) {
             throw new Exception('Execute failed for AV_ResDet: ' . $stmt2->error);

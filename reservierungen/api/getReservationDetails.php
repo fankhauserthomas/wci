@@ -14,6 +14,15 @@ if (!ctype_digit($id)) {
 // Optional: Include color calculation parameter
 $includeColor = isset($_GET['includeColor']) && $_GET['includeColor'] === 'true';
 
+// Ensure optional columns exist
+$columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-Res` LIKE 'country_id'");
+if ($columnCheck && $columnCheck->num_rows === 0) {
+    $mysqli->query("ALTER TABLE `AV-Res` ADD COLUMN country_id INT DEFAULT NULL");
+}
+if ($columnCheck) {
+    $columnCheck->free();
+}
+
 // 1) Reservierungs-Basisdaten abfragen (inkl. Betten/DZ/Lager/Sonder)
 $sql1 = "
 SELECT
@@ -33,10 +42,13 @@ SELECT
     a.kbez                AS arrangement,
     r.bem,
     r.bem_av,
-    o.country             AS origin
+    o.country             AS origin,
+    IFNULL(r.country_id, 0) AS country_id,
+    ct.country            AS country_name
 FROM `AV-Res` r
 LEFT JOIN arr    a ON r.arr    = a.ID
 LEFT JOIN origin o ON r.origin = o.id
+LEFT JOIN countries ct ON r.country_id = ct.id
 WHERE r.id = ?
 LIMIT 1
 ";
@@ -56,6 +68,10 @@ if ($res1->num_rows === 0) {
 }
 $detail = $res1->fetch_assoc();
 $stmt1->close();
+
+if ($detail) {
+    $detail['country_id'] = (int)($detail['country_id'] ?? 0);
+}
 
 // 2) Zimmer-Details abfragen
 $sql2 = "

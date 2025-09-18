@@ -46,6 +46,19 @@ if ($abreiseDate <= $anreiseDate) {
     exit;
 }
 
+// Ensure country column exists (falls Migration noch nicht durchgeführt)
+$columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-Res` LIKE 'country_id'");
+if ($columnCheck && $columnCheck->num_rows === 0) {
+    if (!$mysqli->query("ALTER TABLE `AV-Res` ADD COLUMN country_id INT DEFAULT NULL")) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Spalte country_id konnte nicht angelegt werden: ' . $mysqli->error]);
+        exit;
+    }
+}
+if ($columnCheck) {
+    $columnCheck->free();
+}
+
 try {
     // First, check if reservation exists and get av_id to determine what fields can be updated
     $sql = "SELECT av_id FROM `AV-Res` WHERE id = ?";
@@ -101,15 +114,19 @@ try {
     $updateFields[] = "dz = ?";
     $params[] = (int)($data['dz'] ?? 0);
     $types .= 'i';
-    
+
     $updateFields[] = "sonder = ?";
     $params[] = (int)($data['sonder'] ?? 0);
     $types .= 'i';
-    
+
     $updateFields[] = "hund = ?";
     $params[] = (int)($data['hund'] ?? 0);
     $types .= 'i';
-    
+
+    $updateFields[] = "country_id = ?";
+    $params[] = isset($data['country']) ? (int)$data['country'] : 0;
+    $types .= 'i';
+
     $updateFields[] = "invoice = ?";
     $params[] = (int)($data['invoice'] ?? 0);
     $types .= 'i';
