@@ -297,17 +297,17 @@
       background: linear-gradient(135deg, #f8f9ff 0%, #fafafa 100%);
       border-left: 3px solid #4c7fef;
     }
-    
+
     .modal-new-reservation .section:nth-child(2) {
       background: linear-gradient(135deg, #fff8f0 0%, #fafafa 100%);
       border-left: 3px solid #ff9500;
     }
-    
+
     .modal-new-reservation .section:nth-child(3) {
       background: linear-gradient(135deg, #f0fff8 0%, #fafafa 100%);
       border-left: 3px solid #28a745;
     }
-    
+
     .modal-new-reservation .section:nth-child(4) {
       background: linear-gradient(135deg, #fff0f8 0%, #fafafa 100%);
       border-left: 3px solid #dc3545;
@@ -333,7 +333,8 @@
       grid-template-columns: 85px 1fr;
       gap: 12px;
       align-items: center;
-      min-width: 0; /* Verhindert Overflow */
+      min-width: 0;
+      /* Verhindert Overflow */
     }
 
     .modal-new-reservation label {
@@ -356,7 +357,8 @@
       font-size: 13px;
       background: #fff;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      min-width: 0; /* Verhindert Overflow */
+      min-width: 0;
+      /* Verhindert Overflow */
       width: 100%;
       box-sizing: border-box;
     }
@@ -1667,12 +1669,12 @@
     };
 
     // Auto-Select Text bei Fokus für Text/Number Inputs im Modal
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const modal = document.getElementById('newReservationModal');
-      
+
       if (modal) {
         // Event Delegation für dynamisch hinzugefügte Elemente
-        modal.addEventListener('focus', function(e) {
+        modal.addEventListener('focus', function (e) {
           if (e.target.matches('input[type="text"], input[type="number"]')) {
             // Kleine Verzögerung für bessere UX
             setTimeout(() => {
