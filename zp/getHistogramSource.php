@@ -34,11 +34,13 @@ try {
                    COALESCE(dz, 0) AS dz,
                    COALESCE(betten, 0) AS betten,
                    COALESCE(lager, 0) AS lager,
-                   COALESCE(sonder, 0) AS sonder
+                   COALESCE(sonder, 0) AS sonder,
+                   nachname, vorname
             FROM `AV-Res`
             WHERE anreise <= ?
-              AND abreise >= ?
-              AND (storno IS NULL OR storno = 0)";
+              AND abreise > ?
+              AND (storno IS NULL OR storno = 0)
+            ORDER BY anreise, id";
 
     $stmt = $mysqli->prepare($sql);
     if (!$stmt) {
@@ -54,8 +56,17 @@ try {
     $data = [];
 
     while ($row = $result->fetch_assoc()) {
-        $anreise = DateTime::createFromFormat('Y-m-d', $row['anreise'] ?? '');
-        $abreise = DateTime::createFromFormat('Y-m-d', $row['abreise'] ?? '');
+        $anreise = DateTime::createFromFormat('Y-m-d H:i:s', $row['anreise'] ?? '');
+        $abreise = DateTime::createFromFormat('Y-m-d H:i:s', $row['abreise'] ?? '');
+        
+        // Fallback für reines Datumsformat
+        if (!$anreise) {
+            $anreise = DateTime::createFromFormat('Y-m-d', $row['anreise'] ?? '');
+        }
+        if (!$abreise) {
+            $abreise = DateTime::createFromFormat('Y-m-d', $row['abreise'] ?? '');
+        }
+        
         if (!$anreise || !$abreise) {
             continue;
         }
@@ -64,6 +75,7 @@ try {
             'id' => (int)$row['id'],
             'start' => $anreise->format('Y-m-d'),
             'end' => $abreise->format('Y-m-d'),
+            'guest_name' => trim(($row['nachname'] ?? '') . ' ' . ($row['vorname'] ?? '')),
             'capacity_details' => [
                 'dz' => (int)$row['dz'],
                 'betten' => (int)$row['betten'],

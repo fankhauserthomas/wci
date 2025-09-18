@@ -286,22 +286,32 @@
 
                 let histogramSource = [];
                 const histogramResponse = await histogramFetchPromise;
+                console.log('🔍 Histogramm Response:', histogramResponse);
+
                 if (histogramResponse instanceof Response && histogramResponse.ok) {
                     try {
                         const histogramJson = await histogramResponse.json();
+                        console.log('📊 Histogramm JSON:', histogramJson);
+
                         if (histogramJson && histogramJson.success && histogramJson.data?.histogram) {
                             histogramSource = histogramJson.data.histogram.map(entry => ({
                                 id: Number(entry.id),
                                 start: entry.start,
                                 end: entry.end,
+                                guest_name: entry.guest_name || '',
                                 capacity_details: entry.capacity_details || {}
                             }));
+                            console.log(`✅ ${histogramSource.length} Histogramm-Einträge verarbeitet`);
+                        } else {
+                            console.warn('❌ Histogramm JSON hat keine gültige Struktur:', histogramJson);
                         }
                     } catch (histError) {
-                        console.warn('Histogrammdaten konnten nicht geparst werden:', histError);
+                        console.warn('❌ Histogrammdaten konnten nicht geparst werden:', histError);
                     }
                 } else if (histogramResponse instanceof Error) {
-                    console.warn('Histogrammdaten konnten nicht geladen werden:', histogramResponse.message);
+                    console.warn('❌ Histogrammdaten konnten nicht geladen werden:', histogramResponse.message);
+                } else {
+                    console.warn('❌ Histogramm Response nicht OK:', histogramResponse?.status, histogramResponse?.statusText);
                 }
 
                 window.histogramSource = histogramSource;

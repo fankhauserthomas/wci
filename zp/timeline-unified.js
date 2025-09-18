@@ -1550,7 +1550,7 @@ class TimelineUnifiedRenderer {
             const end = this.normalizeDateToNoon(endValue);
 
             let startIndex = Math.floor((start - startTs) / MS_IN_DAY);
-            let endIndex = Math.ceil((end - startTs) / MS_IN_DAY);
+            let endIndex = Math.floor((end - startTs) / MS_IN_DAY);
 
             if (Number.isNaN(startIndex) || Number.isNaN(endIndex)) return;
             if (startIndex >= totalDays || endIndex <= 0) return;
@@ -1575,9 +1575,13 @@ class TimelineUnifiedRenderer {
             }
         };
 
-        const sourceReservations = (Array.isArray(this.histogramSource) && this.histogramSource.length > 0)
+        const sourceReservations = Array.isArray(this.histogramSource) && this.histogramSource.length > 0
             ? this.histogramSource
-            : (reservations || []);
+            : [];
+
+        if (sourceReservations.length === 0) {
+            console.warn('Keine Histogramm-Daten verfügbar. Histogramm wird leer angezeigt.');
+        }
 
         sourceReservations.forEach(addReservationToHistogram);
 
@@ -4664,6 +4668,21 @@ class TimelineUnifiedRenderer {
         // Grid lines and labels
         this.ctx.setLineDash([4, 4]);
         this.ctx.strokeStyle = gridColor;
+
+        // Erst die Gitterlinien im geclippten Bereich zeichnen
+        ticks.forEach(tick => {
+            const y = area.y + area.height - bottomMargin - (tick / scaledMax) * availableHeight;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.sidebarWidth, y);
+            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.stroke();
+        });
+
+        // Dann Clipping aufheben und Labels außerhalb zeichnen
+        this.ctx.restore();
+        this.ctx.save();
+
+        // Labels ohne Clipping zeichnen
         this.ctx.fillStyle = textColor;
         this.ctx.textAlign = 'right';
         this.ctx.textBaseline = 'middle';
@@ -4671,17 +4690,19 @@ class TimelineUnifiedRenderer {
 
         ticks.forEach(tick => {
             const y = area.y + area.height - bottomMargin - (tick / scaledMax) * availableHeight;
-            this.ctx.beginPath();
-            this.ctx.moveTo(this.sidebarWidth, y);
-            this.ctx.lineTo(this.canvas.width, y);
-            this.ctx.stroke();
-            this.ctx.setLineDash([]);
             this.ctx.fillText(String(tick), this.sidebarWidth - 6, y);
-            this.ctx.setLineDash([4, 4]);
         });
 
-        const headerArea = this.areas.header;
+        // Clipping wieder aktivieren für den Rest
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
+        // Weitere Labels ohne Clipping
+        this.ctx.restore();
         this.ctx.save();
+
+        const headerArea = this.areas.header;
         this.ctx.fillStyle = textColor;
         this.ctx.font = `${fontSize}px Arial`;
         this.ctx.textAlign = 'right';
@@ -4689,9 +4710,12 @@ class TimelineUnifiedRenderer {
         this.ctx.fillText(String(ticks[ticks.length - 1] || scaledMax), this.sidebarWidth - 6, headerArea.y + headerArea.height - 2);
         this.ctx.textBaseline = 'top';
         this.ctx.fillText('0', this.sidebarWidth - 6, area.y + area.height - bottomMargin + 4);
-        this.ctx.restore();
 
-        this.ctx.setLineDash([]);
+        // Clipping wieder für Balken aktivieren
+        this.ctx.beginPath();
+        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.clip();
+
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'alphabetic';
 
