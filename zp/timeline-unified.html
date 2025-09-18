@@ -118,6 +118,7 @@
         // ===== GLOBAL VARIABLES =====
         let timelineRenderer = null; // Timeline-Renderer-Instanz
         window.arrangementsCatalog = [];
+        window.histogramSource = [];
 
         // ===== FUNCTION DEFINITIONS (moved to top for onclick availability) =====
 
@@ -139,6 +140,7 @@
 
                 const roomsFetchPromise = fetch('getRooms.php').catch(error => error);
                 const arrangementsFetchPromise = fetch('../get-arrangements.php').catch(error => error);
+                const histogramFetchPromise = fetch(`getHistogramSource.php?start=${startDateStr}&end=${endDateStr}`).catch(error => error);
 
                 const dataResponse = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
 
@@ -280,6 +282,32 @@
                     console.warn('Arrangements konnten nicht geladen werden:', arrangementsResponse.message);
                 }
 
+                window.arrangementsCatalog = arrangementsCatalog;
+
+                let histogramSource = [];
+                const histogramResponse = await histogramFetchPromise;
+                if (histogramResponse instanceof Response && histogramResponse.ok) {
+                    try {
+                        const histogramJson = await histogramResponse.json();
+                        if (histogramJson && histogramJson.success && histogramJson.data?.histogram) {
+                            histogramSource = histogramJson.data.histogram.map(entry => ({
+                                id: Number(entry.id),
+                                start: entry.start,
+                                end: entry.end,
+                                capacity_details: entry.capacity_details || {}
+                            }));
+                        }
+                    } catch (histError) {
+                        console.warn('Histogrammdaten konnten nicht geparst werden:', histError);
+                    }
+                } else if (histogramResponse instanceof Error) {
+                    console.warn('Histogrammdaten konnten nicht geladen werden:', histogramResponse.message);
+                }
+
+                window.histogramSource = histogramSource;
+                histogramSourceData = window.histogramSource;
+                arrangementsCatalog = window.arrangementsCatalog;
+
                 console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
 
                 renderTimeline();
@@ -290,6 +318,10 @@
                 reservations = [];
                 roomDetails = [];
                 rooms = [];
+                arrangementsCatalog = [];
+                window.arrangementsCatalog = [];
+                window.histogramSource = [];
+                histogramSourceData = [];
                 renderTimeline();
             }
         }
@@ -337,11 +369,13 @@
             if (timelineRenderer) {
                 console.debug('Aktualisiere bestehende Timeline-Instanz.');
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
+                timelineRenderer.setHistogramSource(window.histogramSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
+                timelineRenderer.setHistogramSource(window.histogramSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
             }
         }

@@ -146,7 +146,8 @@ try {
         'active_today' => 0,
         'upcoming' => 0,
         'disposed' => 0,
-        'undisposed' => 0
+        'undisposed' => 0,
+        'histogram_source' => []
     ];
     
     $today = date('Y-m-d');
@@ -217,6 +218,18 @@ try {
         // Update statistics
         $statistics['total_reservations']++;
         $statistics['total_guests'] += $res['total_capacity'];
+
+        $statistics['histogram_source'][] = [
+            'id' => (int)$res['id'],
+            'start' => $anreise->format('Y-m-d'),
+            'end' => $abreise->format('Y-m-d'),
+            'capacity_details' => [
+                'dz' => (int)$res['dz'],
+                'betten' => (int)$res['betten'],
+                'lager' => (int)$res['lager'],
+                'sonder' => (int)$res['sonder']
+            ]
+        ];
         
         // Update disposition statistics
         if ($isDisposed) {

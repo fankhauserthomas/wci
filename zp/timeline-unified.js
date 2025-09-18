@@ -3,8 +3,10 @@ let reservations = [];
 let roomDetails = [];
 let rooms = [];
 let arrangementsCatalog = typeof window !== 'undefined' && window.arrangementsCatalog ? window.arrangementsCatalog : [];
+let histogramSourceData = typeof window !== 'undefined' && window.histogramSource ? window.histogramSource : [];
 if (typeof window !== 'undefined') {
     window.arrangementsCatalog = arrangementsCatalog;
+    window.histogramSource = histogramSourceData;
 }
 let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
@@ -354,7 +356,8 @@ class TimelineUnifiedRenderer {
             positions: []
         };
 
-        this.arrangementsCatalog = [];
+        this.arrangementsCatalog = Array.isArray(arrangementsCatalog) ? arrangementsCatalog : [];
+        this.histogramSource = Array.isArray(histogramSourceData) ? histogramSourceData : [];
 
         this.predictiveCache = {
             scrollDirection: 0,
@@ -1417,6 +1420,58 @@ class TimelineUnifiedRenderer {
         } else {
             this.arrangementsCatalog = [];
         }
+
+        arrangementsCatalog = this.arrangementsCatalog;
+        if (typeof window !== 'undefined') {
+            window.arrangementsCatalog = this.arrangementsCatalog;
+        }
+    }
+
+    setHistogramSource(source) {
+        if (Array.isArray(source)) {
+            this.histogramSource = source.map(entry => ({
+                id: entry.id,
+                start: entry.start,
+                end: entry.end,
+                capacity_details: entry.capacity_details || {}
+            }));
+        } else {
+            this.histogramSource = [];
+        }
+
+        histogramSourceData = this.histogramSource;
+        if (typeof window !== 'undefined') {
+            window.histogramSource = this.histogramSource;
+        }
+    }
+
+    shadeWeekendColumns(area, startDate, endDate, options = {}) {
+        const weekendConfig = this.themeConfig.weekend || {};
+        const fill = options.fill || weekendConfig.fill || 'rgba(255, 99, 132, 0.08)';
+        if (!fill) return;
+
+        const barWidth = options.barWidth !== undefined ? options.barWidth : this.DAY_WIDTH;
+        const xOffset = options.xOffset || 0;
+        const offsetY = options.offsetY !== undefined ? options.offsetY : area.y;
+        const height = options.height !== undefined ? options.height : area.height;
+        const startX = this.sidebarWidth - this.scrollX;
+        const startTime = startDate.getTime();
+        const endTime = endDate.getTime();
+        if (!(endTime >= startTime)) return;
+
+        const dayCount = Math.max(1, Math.floor((endTime - startTime) / MS_IN_DAY) + 1);
+        for (let dayIndex = 0; dayIndex < dayCount; dayIndex++) {
+            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
+            if (x + barWidth <= this.sidebarWidth || x >= this.canvas.width) {
+                continue;
+            }
+            const dayDate = new Date(startTime + dayIndex * MS_IN_DAY);
+            const day = dayDate.getDay();
+            if (day === 0 || day === 6) {
+                this.ctx.fillStyle = fill;
+                this.ctx.fillRect(x, offsetY, barWidth, height);
+            }
+        }
     }
 
     renderRoomDayGridLines(startDate, endDate, area) {
@@ -1488,8 +1543,11 @@ class TimelineUnifiedRenderer {
         const addReservationToHistogram = (reservation) => {
             if (!reservation) return;
 
-            const start = this.normalizeDateToNoon(reservation.start);
-            const end = this.normalizeDateToNoon(reservation.end);
+            const startValue = reservation.start ?? reservation.start_date ?? reservation.startDate;
+            const endValue = reservation.end ?? reservation.end_date ?? reservation.endDate;
+
+            const start = this.normalizeDateToNoon(startValue);
+            const end = this.normalizeDateToNoon(endValue);
 
             let startIndex = Math.floor((start - startTs) / MS_IN_DAY);
             let endIndex = Math.ceil((end - startTs) / MS_IN_DAY);
@@ -1501,7 +1559,7 @@ class TimelineUnifiedRenderer {
             endIndex = Math.min(totalDays, endIndex);
             if (startIndex >= endIndex) return;
 
-            const data = reservation.fullData || reservation.data || {};
+            const data = reservation.capacity_details ? { capacity_details: reservation.capacity_details } : (reservation.fullData || reservation.data || {});
             const details = data.capacity_details || {};
             const dz = Number(details.dz || 0);
             const betten = Number(details.betten || 0);
@@ -1517,7 +1575,11 @@ class TimelineUnifiedRenderer {
             }
         };
 
-        (reservations || []).forEach(addReservationToHistogram);
+        const sourceReservations = (Array.isArray(this.histogramSource) && this.histogramSource.length > 0)
+            ? this.histogramSource
+            : (reservations || []);
+
+        sourceReservations.forEach(addReservationToHistogram);
 
         const dailyCounts = dailyDetails.map(detail => detail.total);
         const maxGuests = dailyCounts.reduce((max, value) => Math.max(max, value), 0);
@@ -1533,6 +1595,40 @@ class TimelineUnifiedRenderer {
 
         return this.histogramCache;
     }
+
+    niceNumber(range, round) {
+        if (range === 0) return 0;
+        const exponent = Math.floor(Math.log10(range));
+        const fraction = range / Math.pow(10, exponent);
+        let niceFraction;
+        if (round) {
+            if (fraction < 1.5) niceFraction = 1;
+            else if (fraction < 3) niceFraction = 2;
+            else if (fraction < 7) niceFraction = 5;
+            else niceFraction = 10;
+        } else {
+            if (fraction <= 1) niceFraction = 1;
+            else if (fraction <= 2) niceFraction = 2;
+            else if (fraction <= 5) niceFraction = 5;
+            else niceFraction = 10;
+        }
+        return niceFraction * Math.pow(10, exponent);
+    }
+
+    getHistogramTicks(maxValue, desiredTickCount = 5) {
+        if (!maxValue || maxValue <= 0) {
+            return { ticks: [0], niceMax: 0 };
+        }
+        const niceRange = this.niceNumber(maxValue, false);
+        const tickSpacing = this.niceNumber(niceRange / Math.max(desiredTickCount - 1, 1), true);
+        const niceMax = Math.ceil(maxValue / tickSpacing) * tickSpacing;
+        const ticks = [];
+        for (let tick = 0; tick <= niceMax + tickSpacing * 0.5; tick += tickSpacing) {
+            ticks.push(Math.round(tick * 100) / 100);
+        }
+        return { ticks, niceMax, spacing: tickSpacing };
+    }
+
 
     // ===== THEME CONFIGURATION =====
     loadThemeConfiguration() {
@@ -4308,7 +4404,6 @@ class TimelineUnifiedRenderer {
         //this.ctx.fillText('Zimmer', 0, 5);
         this.ctx.restore();
 
-        this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
 
         this.ctx.restore();
     }
@@ -4390,6 +4485,8 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
+        this.shadeWeekendColumns(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
+
         // Datum-Header mit Theme-Konfiguration
         this.ctx.fillStyle = this.themeConfig.header.text;
         this.ctx.font = `${this.themeConfig.header.fontSize}px Arial`;
@@ -4440,6 +4537,8 @@ class TimelineUnifiedRenderer {
         this.ctx.beginPath();
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
+
+        this.shadeWeekendColumns(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
 
         // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
         const reservationsToRender = reservations;
@@ -4533,12 +4632,68 @@ class TimelineUnifiedRenderer {
         const availableHeight = area.height * 0.9;
         const bottomMargin = area.height * 0.05;
         const barWidth = Math.max(4, this.DAY_WIDTH - 10);
-        const categoryColors = (histogramTheme.segments) || {
+        const categoryColors = histogramTheme.segments || {
             dz: '#1f78ff',
             betten: '#2ecc71',
             lager: '#f1c40f',
             sonder: '#8e44ad'
         };
+        const weekendFill = histogramTheme.weekendFill || (this.themeConfig.weekend && this.themeConfig.weekend.fill) || 'rgba(255, 99, 132, 0.08)';
+        const gridColor = histogramTheme.gridColor || 'rgba(255,255,255,0.28)';
+
+        const { ticks, niceMax } = this.getHistogramTicks(maxGuests);
+        const scaledMax = niceMax > 0 ? niceMax : (maxGuests > 0 ? maxGuests : 1);
+
+        // Shade weekends
+        dailyCounts.forEach((_, dayIndex) => {
+            const xOffset = (this.DAY_WIDTH - barWidth) / 2;
+            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
+            if (x + barWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+                return;
+            }
+            const dayDate = new Date(startDate.getTime() + dayIndex * MS_IN_DAY);
+            const dayOfWeek = dayDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                this.ctx.fillStyle = weekendFill;
+                this.ctx.globalAlpha = 1;
+                this.ctx.fillRect(x, area.y, barWidth, area.height);
+            }
+        });
+        this.ctx.globalAlpha = 1;
+
+        // Grid lines and labels
+        this.ctx.setLineDash([4, 4]);
+        this.ctx.strokeStyle = gridColor;
+        this.ctx.fillStyle = textColor;
+        this.ctx.textAlign = 'right';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.font = `${fontSize}px Arial`;
+
+        ticks.forEach(tick => {
+            const y = area.y + area.height - bottomMargin - (tick / scaledMax) * availableHeight;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.sidebarWidth, y);
+            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            this.ctx.fillText(String(tick), this.sidebarWidth - 6, y);
+            this.ctx.setLineDash([4, 4]);
+        });
+
+        const headerArea = this.areas.header;
+        this.ctx.save();
+        this.ctx.fillStyle = textColor;
+        this.ctx.font = `${fontSize}px Arial`;
+        this.ctx.textAlign = 'right';
+        this.ctx.textBaseline = 'bottom';
+        this.ctx.fillText(String(ticks[ticks.length - 1] || scaledMax), this.sidebarWidth - 6, headerArea.y + headerArea.height - 2);
+        this.ctx.textBaseline = 'top';
+        this.ctx.fillText('0', this.sidebarWidth - 6, area.y + area.height - bottomMargin + 4);
+        this.ctx.restore();
+
+        this.ctx.setLineDash([]);
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'alphabetic';
 
         dailyCounts.forEach((count, dayIndex) => {
             const xOffset = (this.DAY_WIDTH - barWidth) / 2;
@@ -4548,25 +4703,25 @@ class TimelineUnifiedRenderer {
                 return;
             }
 
-            const ratio = maxGuests > 0 ? count / maxGuests : 0;
+            const detail = dailyDetails[dayIndex] || { total: count };
+            const totalValue = detail.total || 0;
+            const ratio = scaledMax > 0 ? totalValue / scaledMax : 0;
             const barHeight = ratio * availableHeight;
             const barY = area.y + area.height - bottomMargin - barHeight;
-
-            const detail = dailyDetails[dayIndex] || { total: count };
 
             let currentTop = barY + barHeight;
             const categoriesInOrder = ['dz', 'betten', 'lager', 'sonder'];
 
             categoriesInOrder.forEach(key => {
                 const value = detail[key] || 0;
-                if (!value || value <= 0 || !detail.total) return;
+                if (!value || value <= 0 || !totalValue) return;
 
-                const segmentRatio = value / detail.total;
+                const segmentRatio = value / totalValue;
                 const segmentHeight = segmentRatio * barHeight;
                 if (segmentHeight <= 0.5) return;
 
                 const segmentY = currentTop - segmentHeight;
-                const segmentColor = categoryColors[key] || this.getHistogramBarColor(detail.total);
+                const segmentColor = categoryColors[key] || this.getHistogramBarColor(totalValue);
                 this.ctx.fillStyle = segmentColor;
                 this.ctx.globalAlpha = 0.85;
                 this.ctx.fillRect(x, segmentY, barWidth, segmentHeight);
@@ -4575,18 +4730,16 @@ class TimelineUnifiedRenderer {
 
             this.ctx.globalAlpha = 1;
 
-            if (barHeight <= 16 || (detail.total || 0) <= 0) {
+            if (barHeight <= 16 || totalValue <= 0) {
                 return;
             }
 
             this.ctx.fillStyle = textColor;
             this.ctx.font = `${fontSize}px Arial`;
-            this.ctx.textAlign = 'center';
-
             const centerX = x + barWidth / 2;
             let textY = barY + barHeight - 6;
 
-            this.ctx.fillText(String(detail.total || count), centerX, textY);
+            this.ctx.fillText(String(totalValue), centerX, textY);
 
             const breakdownLabels = [];
             if (detail.dz) breakdownLabels.push(`DZ:${detail.dz}`);
@@ -4605,7 +4758,6 @@ class TimelineUnifiedRenderer {
 
         this.ctx.restore();
     }
-
     renderVerticalGridLinesOptimized(startDate, endDate) {
         // Render grid lines immediately (not batched) to fix clipping issues
         this.ctx.save();
@@ -4757,7 +4909,6 @@ class TimelineUnifiedRenderer {
         //this.ctx.fillText('Zimmer', 0, 5);
         this.ctx.restore();
 
-        this.ctx.fillText('Auslastung', this.sidebarWidth / 2, this.areas.histogram.y + 20);
     }
 
     renderHeader(startDate, endDate) {
@@ -5204,6 +5355,8 @@ class TimelineUnifiedRenderer {
                 this.ctx.globalAlpha = 1.0;
             }
             this.ctx.restore();
+
+            this.shadeWeekendColumns({ y: baseRoomY, height: roomHeight }, startDate, endDate, { barWidth: this.DAY_WIDTH, offsetY: baseRoomY, height: roomHeight });
 
             // Render Reservierungen - Ghost-Reservierungen werden NIEMALS sichtbar gerendert  
             sortedReservations.forEach(reservation => {
@@ -5689,6 +5842,7 @@ class TimelineUnifiedRenderer {
         rooms = newRooms || [];
 
         this.setArrangementsCatalog(arrangementsCatalog);
+        this.setHistogramSource(histogramSourceData);
 
         this.updateRoomLookups();
         this.normalizeRoomDetails();
