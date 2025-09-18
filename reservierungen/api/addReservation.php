@@ -27,7 +27,6 @@ try {
     $lager = (int)($data['lager'] ?? 0);
     $sonder = (int)($data['sonder'] ?? 0);
     $bemerkung = trim($data['bemerkung'] ?? '');
-    $countryId = (int)($data['country'] ?? 0);
     $hund = !empty($data['hund']) ? 1 : 0;
 
     // Validierung
@@ -48,21 +47,6 @@ try {
         throw new Exception('Bitte mindestens einen Schlafplatz angeben');
     }
 
-    if ($countryId <= 0) {
-        throw new Exception('Bitte ein Land auswählen');
-    }
-
-    // Ensure country column exists
-    $columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-Res` LIKE 'country_id'");
-    if ($columnCheck && $columnCheck->num_rows === 0) {
-        if (!$mysqli->query("ALTER TABLE `AV-Res` ADD COLUMN country_id INT DEFAULT NULL")) {
-            throw new Exception('Spalte country_id konnte nicht angelegt werden: ' . $mysqli->error);
-        }
-    }
-    if ($columnCheck) {
-        $columnCheck->free();
-    }
-
     // DB-Insert mit MySQLi (da config.php MySQLi verwendet)
     $mysqli->begin_transaction();
 
@@ -72,13 +56,13 @@ try {
         $vorgang = "WebCheckin-" . date('Y-m-d-H-i-s'); // Vorgangsbezeichnung
         $av_id = 0; // Neue Reservierung beginnt mit av_id = 0
         
-        $stmt = $mysqli->prepare("INSERT INTO `AV-Res` (nachname, vorname, origin, anreise, abreise, arr, dz, betten, lager, sonder, bem, av_id, vorgang, id64, hund, country_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $mysqli->prepare("INSERT INTO `AV-Res` (nachname, vorname, origin, anreise, abreise, arr, dz, betten, lager, sonder, bem, av_id, vorgang, id64, hund) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         if (!$stmt) {
             throw new Exception('Prepare failed: ' . $mysqli->error);
         }
         
-        $stmt->bind_param('ssissiiiisisssii', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund, $countryId);
+        $stmt->bind_param('ssissiiiiisisssi', $nachname, $vorname, $origin, $anreise, $abreise, $arr, $dz, $betten, $lager, $sonder, $bemerkung, $av_id, $vorgang, $id64, $hund);
         
         if (!$stmt->execute()) {
             throw new Exception('Execute failed: ' . $stmt->error);

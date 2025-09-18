@@ -243,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const newResNachname = document.getElementById('newResNachname');
   const newResVorname = document.getElementById('newResVorname');
   const newResHerkunft = document.getElementById('newResHerkunft');
-  const newResCountry = document.getElementById('newResCountry');
   const newResAnreise = document.getElementById('newResAnreise');
   const newResAbreise = document.getElementById('newResAbreise');
   const newResArrangement = document.getElementById('newResArrangement');
@@ -277,10 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         };
 
-        const [origins, arrangements, countries] = await Promise.all([
+        const [origins, arrangements] = await Promise.all([
           fetchWithFallback('getOrigins.php', 'Herkunftsdaten werden geladen...'),
-          fetchWithFallback('getArrangements.php', 'Arrangements werden geladen...'),
-          fetchWithFallback('getCountries.php', 'Länderdaten werden geladen...')
+          fetchWithFallback('getArrangements.php', 'Arrangements werden geladen...')
         ]);
 
         if (newResHerkunft) {
@@ -293,15 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
           newResArrangement.innerHTML = '<option value="">Bitte wählen...</option>' +
             arrangements.map(a => `<option value="${a.id}">${a.kbez}</option>`).join('');
           newResArrangement.value = '';
-        }
-
-        if (newResCountry) {
-          newResCountry.innerHTML = '<option value="">Bitte wählen...</option>' +
-            countries.map(country => {
-              const label = country.name ?? country.bez ?? country.country ?? '';
-              return `<option value="${country.id}">${label}</option>`;
-            }).join('');
-          newResCountry.value = '';
         }
 
         const today = new Date().toISOString().slice(0, 10);
@@ -366,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const vorname = newResVorname ? newResVorname.value.trim() : '';
       const herkunft = newResHerkunft ? newResHerkunft.value : '';
-      const land = newResCountry ? newResCountry.value : '';
       const anreise = newResAnreise ? newResAnreise.value : '';
       const abreise = newResAbreise ? newResAbreise.value : '';
       const arrangement = newResArrangement ? newResArrangement.value : '';
@@ -378,13 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasDog = newResDog ? (newResDog.checked ? 1 : 0) : 0;
 
       const originId = herkunft ? (parseInt(herkunft, 10) || 0) : 0;
-      const countryId = land ? (parseInt(land, 10) || 0) : 0;
       const arrangementId = arrangement ? (parseInt(arrangement, 10) || 0) : 0;
-
-      if (!countryId) {
-        alert('Bitte ein Land auswählen.');
-        return;
-      }
 
       const anreiseDate = anreise ? new Date(anreise) : null;
       const abreiseDate = abreise ? new Date(abreise) : null;
@@ -425,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           nachname, vorname,
           herkunft: originId,
-          country: countryId,
           anreise, abreise, arrangement: arrangementId,
           dz, betten, lager, sonder,
           bemerkung,
@@ -444,9 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newResLager) newResLager.value = 0;
             if (newResSonder) newResSonder.value = 0;
             if (newResDog) newResDog.checked = false;
-            if (newResHerkunft) newResHerkunft.value = '';
-            if (newResCountry) newResCountry.value = '';
-            if (newResArrangement) newResArrangement.value = '';
             // Tabelle neu laden
             loadData();
           } else {
