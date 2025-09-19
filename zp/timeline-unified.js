@@ -4474,6 +4474,10 @@ class TimelineUnifiedRenderer {
 
         // Start batching for remaining components
         this.renderRoomsAreaOptimized(startDate, endDate); // Use optimized version
+
+        // Render ParentID relationship curves after room details are rendered
+        this.renderParentIdCurves(startDate, endDate, this.areas.rooms);
+
         this.renderHistogramAreaOptimized(startDate, endDate);
         this.renderSeparatorsOptimized();
 
@@ -5818,6 +5822,233 @@ class TimelineUnifiedRenderer {
         });
 
         this.ctx.restore();
+    }
+
+    renderParentIdCurves(startDate, endDate, area) {
+        if (!roomDetails || !Array.isArray(roomDetails)) {
+            return;
+        }
+
+        const debug = window.debugMode || false;
+
+        // Create a lookup map for all details by ID for faster parent lookup
+        const detailsById = {};
+        roomDetails.forEach(detail => {
+            const id = detail.id || detail.detail_id;
+            if (id) {
+                detailsById[id] = detail;
+            }
+            // Also add by detail_id for ParentID lookup
+            if (detail.detail_id) {
+                detailsById[detail.detail_id] = detail;
+            }
+        });
+
+        // Find all child details that have ParentID > 0
+        const childDetails = roomDetails.filter(detail =>
+            detail.ParentID &&
+            Number(detail.ParentID) > 0 &&
+            detailsById[detail.ParentID]
+        );
+
+        if (debug) {
+            console.log(`[ParentID Curves] Found ${childDetails.length} child details with valid ParentIDs`);
+        }
+
+        if (childDetails.length === 0) {
+            return;
+        }
+
+        this.ctx.save();
+
+        // Set style for the curves
+        this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange color
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+
+        const startX = this.sidebarWidth - this.scrollX;
+        const visibleRooms = this.getVisibleRooms();
+
+        childDetails.forEach(childDetail => {
+            const parentDetail = detailsById[childDetail.ParentID];
+            if (!parentDetail) return;
+
+            // Find coordinates for both parent and child bars
+            const parentCoords = this.getDetailBarCoordinates(parentDetail, startDate, startX, visibleRooms);
+            const childCoords = this.getDetailBarCoordinates(childDetail, startDate, startX, visibleRooms);
+
+            if (!parentCoords || !childCoords) {
+                if (debug) {
+                    console.log(`[ParentID Curves] Skipping curve - coordinates not found for child ${childDetail.id} -> parent ${parentDetail.id}`);
+                }
+                return;
+            }
+
+            // Draw extended curve with horizontal segments from right end of parent to left start of child
+            const startPointX = parentCoords.x + parentCoords.width; // Right end of parent
+            const startPointY = parentCoords.y + (parentCoords.height / 2); // Middle of parent bar
+
+            const endPointX = childCoords.x; // Left start of child
+            const endPointY = childCoords.y + (childCoords.height / 2); // Middle of child bar
+
+            // Calculate quarter day length for horizontal segments
+            const quarterDay = this.DAY_WIDTH / 4;
+
+            // Define intermediate points for extended curve
+            const horizontalStartX = startPointX + quarterDay; // First horizontal segment end
+            const horizontalEndX = endPointX - quarterDay; // Second horizontal segment start
+
+            // Control points for very smooth horizontal transitions
+            const horizontalDistance = Math.abs(horizontalEndX - horizontalStartX);
+            const controlDistance = Math.min(horizontalDistance / 1.5, quarterDay * 3); // Much larger distance for very smooth curve
+
+            // First control point: continue horizontally to the RIGHT from start point
+            const cp1X = horizontalStartX + controlDistance;
+            const cp1Y = startPointY;
+
+            // Second control point: come horizontally from the LEFT to end point  
+            const cp2X = horizontalEndX - controlDistance;
+            const cp2Y = endPointY;
+
+            // Draw the extended curve path
+            this.ctx.beginPath();
+            this.ctx.moveTo(startPointX, startPointY);
+
+            // First horizontal segment
+            this.ctx.lineTo(horizontalStartX, startPointY);
+
+            // Curved middle section with very smooth horizontal tangents
+            this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, horizontalEndX, endPointY);
+
+            // Final horizontal segment
+            this.ctx.lineTo(endPointX, endPointY);
+
+            this.ctx.stroke();
+
+            if (debug) {
+                console.log(`[ParentID Curves] Drew curve from child ${childDetail.id} to parent ${parentDetail.id}`);
+            }
+        });
+
+        this.ctx.restore();
+        if (debug && childDetails.length > 0) {
+            console.log(`[ParentID Curves] Render complete - drew ${childDetails.length} curves`);
+        }
+    }
+
+    getDetailBarCoordinates(detail, startDate, startX, visibleRooms) {
+        // Find which room this detail belongs to
+        const roomData = visibleRooms.find(({ room }) =>
+            room.id === detail.room_id ||
+            String(room.id) === String(detail.room_id) ||
+            Number(room.id) === Number(detail.room_id)
+        );
+
+        if (!roomData) {
+            return null;
+        }
+
+        const { room, yOffset } = roomData;
+
+        // Calculate temporal coordinates
+        const checkinDate = new Date(detail.start);
+        checkinDate.setHours(12, 0, 0, 0);
+        const checkoutDate = new Date(detail.end);
+        checkoutDate.setHours(12, 0, 0, 0);
+
+        const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+        const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        const x = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+        const width = (duration - 0.02) * this.DAY_WIDTH;
+
+        // Check if bar is visible
+        if (x + width <= this.sidebarWidth || x >= this.canvas.width) {
+            return null;
+        }
+
+        // Calculate stack level - we need to replicate the stacking logic
+        const roomReservations = roomDetails.filter(rd =>
+            rd.room_id === room.id ||
+            String(rd.room_id) === String(room.id) ||
+            Number(rd.room_id) === Number(room.id)
+        );
+
+        const positionedReservations = roomReservations.map(rd => {
+            const checkin = new Date(rd.start);
+            checkin.setHours(12, 0, 0, 0);
+            const checkout = new Date(rd.end);
+            checkout.setHours(12, 0, 0, 0);
+
+            const rdStartOffset = (checkin.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+            const rdDuration = (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60 * 24);
+
+            return {
+                ...rd,
+                left: startX + (rdStartOffset + 0.01) * this.DAY_WIDTH,
+                width: (rdDuration - 0.02) * this.DAY_WIDTH,
+                startOffset: rdStartOffset,
+                stackLevel: 0
+            };
+        }).sort((a, b) => a.startOffset - b.startOffset);
+
+        // Calculate stacking
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+        positionedReservations.forEach((reservation, index) => {
+            let stackLevel = 0;
+            let placed = false;
+
+            while (!placed) {
+                let canPlaceHere = true;
+
+                for (let i = 0; i < index; i++) {
+                    const other = positionedReservations[i];
+                    if (other.stackLevel === stackLevel) {
+                        const reservationEnd = reservation.left + reservation.width;
+                        const otherEnd = other.left + other.width;
+
+                        if (!(reservationEnd <= other.left + OVERLAP_TOLERANCE ||
+                            reservation.left >= otherEnd - OVERLAP_TOLERANCE)) {
+                            canPlaceHere = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (canPlaceHere) {
+                    reservation.stackLevel = stackLevel;
+                    placed = true;
+                } else {
+                    stackLevel++;
+                }
+
+                if (stackLevel > 15) {
+                    reservation.stackLevel = stackLevel;
+                    placed = true;
+                }
+            }
+        });
+
+        // Find our specific detail
+        const targetReservation = positionedReservations.find(pr =>
+            (pr.id && pr.id === detail.id) ||
+            (pr.detail_id && pr.detail_id === detail.detail_id) ||
+            (pr.start === detail.start && pr.end === detail.end && pr.room_id === detail.room_id)
+        );
+
+        if (!targetReservation) {
+            return null;
+        }
+
+        const baseRoomY = this.areas.rooms.y - this.roomsScrollY + yOffset;
+        const stackY = baseRoomY + 1 + (targetReservation.stackLevel * (this.ROOM_BAR_HEIGHT + 2));
+
+        return {
+            x: x,
+            y: stackY,
+            width: width,
+            height: this.ROOM_BAR_HEIGHT
+        };
     }
 
     renderVerticalGridLines(startDate, endDate) {

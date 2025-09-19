@@ -752,6 +752,7 @@
                             has_dog: detailData.has_dog || false,
                             capacity: detailData.capacity || 1,
                             arrangement_label: detailData.arrangement || detailData.arrangement_kbez || '',
+                            ParentID: detailData.ParentID || item.ParentID || 0,
                             data: {
                                 ...detailData,
                                 detail_id: detailId,
@@ -759,7 +760,8 @@
                                 room_id: roomId,
                                 arr_id: detailData.arr_id || item.arr_id || null,
                                 av_id: detailData.av_id || item.av_id || null,
-                                caption
+                                caption,
+                                ParentID: detailData.ParentID || item.ParentID || 0
                             }
                         };
                     });

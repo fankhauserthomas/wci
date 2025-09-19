@@ -75,6 +75,7 @@ try {
             rd.col as color,
             rd.hund,
             rd.arr as detail_arr,
+            rd.ParentID,
             z.caption as zimmer_name,
             z.kapazitaet as zimmer_capacity,
             z.sort as zimmer_sort,
@@ -305,7 +306,8 @@ try {
                 'arrangement' => $detail['arrangement_kbez'],
                 'has_dog' => (bool)$detail['hund'],
                 'color' => $detail['color'] ?? '#3498db',
-                'caption' => $detail['caption']
+                'caption' => $detail['caption'],
+                'ParentID' => $detail['ParentID'] ?? 0
             ]
         ];
         
