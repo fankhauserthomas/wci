@@ -246,37 +246,9 @@ class TimelineConfigManager {
     }
 
     updatePreview() {
-        const preview = document.getElementById('preview-mini');
-        const header = document.getElementById('preview-header');
-        const sidebar = document.getElementById('preview-sidebar');
-        const master = document.getElementById('preview-master');
-        const rooms = document.getElementById('preview-rooms');
-        const histogram = document.getElementById('preview-histogram');
-
-        // Header
-        header.style.backgroundColor = this.currentConfig.header.bg;
-        header.style.color = this.currentConfig.header.text;
-        header.style.fontSize = (this.currentConfig.header.fontSize * 0.8) + 'px';
-
-        // Sidebar
-        sidebar.style.backgroundColor = this.currentConfig.sidebar.bg;
-        sidebar.style.color = this.currentConfig.sidebar.text;
-        sidebar.style.fontSize = (this.currentConfig.sidebar.fontSize * 0.7) + 'px';
-
-        // Master
-        master.style.backgroundColor = this.currentConfig.master.bg;
-        master.style.color = this.currentConfig.master.text;
-        master.style.fontSize = (this.currentConfig.master.fontSize * 0.8) + 'px';
-
-        // Rooms
-        rooms.style.backgroundColor = this.currentConfig.room.bg;
-        rooms.style.color = this.currentConfig.room.text;
-        rooms.style.fontSize = (this.currentConfig.room.fontSize * 0.8) + 'px';
-
-        // Histogram
-        histogram.style.backgroundColor = this.currentConfig.histogram.bg;
-        histogram.style.color = this.currentConfig.histogram.text;
-        histogram.style.fontSize = (this.currentConfig.histogram.fontSize * 0.8) + 'px';
+        // Preview section was removed from the interface
+        // This function is kept for compatibility but no longer updates preview elements
+        console.log('Preview update skipped - preview section removed');
     }
 
     loadCurrentValues() {

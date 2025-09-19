@@ -424,6 +424,33 @@
 
         // Initialisierung
         document.addEventListener('DOMContentLoaded', () => {
+            // Message listener für Konfigurationsupdates
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'updateMetric') {
+                    console.log('Received config update:', event.data);
+
+                    if (event.data.metric === 'menu-size' && timelineRenderer) {
+                        const menuSize = event.data.value;
+                        console.log('Updating menu size to:', menuSize);
+
+                        // Update the radial menu size
+                        if (timelineRenderer.updateMenuSize) {
+                            timelineRenderer.updateMenuSize(menuSize);
+                        } else {
+                            // Fallback: update the global constant and force re-render
+                            window.TIMELINE_RADIAL_MENU_SIZE = menuSize;
+                            const radialMenu = document.getElementById('timeline-radial-menu');
+                            if (radialMenu) {
+                                radialMenu.style.width = `${menuSize}px`;
+                                radialMenu.style.height = `${menuSize}px`;
+                                radialMenu.style.marginLeft = `-${menuSize / 2}px`;
+                                radialMenu.style.marginTop = `-${menuSize / 2}px`;
+                            }
+                        }
+                    }
+                }
+            });
+
             // Prüfe auf Theme-Updates (wenn von Konfiguration zurückgekehrt)
             window.addEventListener('focus', () => {
                 if (timelineRenderer && timelineRenderer.refreshThemeConfiguration) {
@@ -440,6 +467,18 @@
                 loadRealData().catch(error => {
                     console.error('Auto-load failed:', error);
                 });
+
+                // Load saved menu size after timeline is ready
+                setTimeout(() => {
+                    const savedMenuSize = localStorage.getItem('timeline_menu_size');
+                    if (savedMenuSize && timelineRenderer) {
+                        const menuSize = parseInt(savedMenuSize, 10);
+                        if (menuSize >= 120 && menuSize <= 320) {
+                            console.log('Loading saved menu size:', menuSize);
+                            timelineRenderer.updateMenuSize(menuSize);
+                        }
+                    }
+                }, 500);
             }, 100); // 100ms Verzögerung
         });
     </script>

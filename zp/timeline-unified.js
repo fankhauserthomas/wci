@@ -1206,12 +1206,16 @@ class TimelineUnifiedRenderer {
         ];
 
         const base = captionSources.find(value => typeof value === 'string' && value.trim().length > 0);
-        const label = base ? base.trim() : 'Reservierung';
+        let label = base ? base.trim() : 'Reservierung';
+
+        // Verhindere doppeltes Anhängen der Anzahl
+        // Prüfe ob bereits eine Anzahl am Anfang steht (z.B. "4 Mueller Hans")
+        const hasNumberPrefix = /^\d+\s/.test(label);
 
         const rawCapacity = detail.capacity ?? detail.data?.capacity ?? detail.data?.anz;
         const capacity = rawCapacity !== undefined && rawCapacity !== null ? Number(rawCapacity) : null;
 
-        if (Number.isFinite(capacity)) {
+        if (Number.isFinite(capacity) && !hasNumberPrefix) {
             return `${capacity} ${label}`;
         }
 
@@ -2682,14 +2686,14 @@ class TimelineUnifiedRenderer {
 
     getCommandOptions() {
         return [
-            { label: 'Daten', command: 'dataset', fill: '#6c5ce7' },
             { label: 'Teilen', command: 'share', fill: '#0984e3' },
-            { label: 'Split', command: 'split', fill: '#e17055' },
-            { label: 'Label', command: 'label', fill: '#00cec9' },
+            { label: 'Splitten', command: 'split', fill: '#e17055' },
+            { label: 'Bezeichnung', command: 'label', fill: '#00cec9' },
+            { label: 'Notiz', command: 'note', fill: '#fdcb6e' },
             { label: 'Hund', command: 'dog', fill: '#b2bec3', textColor: '#2d3436' },
-            { label: 'Alle', command: 'delete_all', fill: '#d63031' },
-            { label: 'Del', command: 'delete', fill: '#ad1457' },
-            { label: 'Cmd', command: 'future', fill: '#636e72' }
+            { label: 'Löschen', command: 'delete', fill: '#ad1457' },
+            { label: 'Alle löschen', command: 'delete_all', fill: '#d63031' },
+            { label: 'Datensatz', command: 'dataset', fill: '#6c5ce7' }
         ];
     }
 
@@ -2881,11 +2885,133 @@ class TimelineUnifiedRenderer {
     handleRadialCommandSelection(option, detail) {
         this.radialMenu.hide();
         if (!option) return;
-        const label = option.label || option.command || 'Aktion';
-        if (window.alert) {
-            window.alert(`Die Funktion "${label}" ist noch in Vorbereitung.`);
+
+        const command = option.command;
+        const label = option.label || command || 'Aktion';
+
+        switch (command) {
+            case 'note':
+                this.handleNoteCommand(detail);
+                break;
+            case 'share':
+                this.handleShareCommand(detail);
+                break;
+            case 'split':
+                this.handleSplitCommand(detail);
+                break;
+            case 'label':
+                this.handleLabelCommand(detail);
+                break;
+            case 'dog':
+                this.handleDogCommand(detail);
+                break;
+            case 'delete':
+                this.handleDeleteCommand(detail);
+                break;
+            case 'delete_all':
+                this.handleDeleteAllCommand(detail);
+                break;
+            case 'dataset':
+                this.handleDatasetCommand(detail);
+                break;
+            default:
+                if (window.alert) {
+                    window.alert(`Die Funktion "${label}" ist noch in Vorbereitung.`);
+                }
+                console.info('Radial-Kommando (noch nicht implementiert):', option, detail);
         }
-        console.info('Radial-Kommando (noch nicht implementiert):', option, detail);
+    }
+
+    handleNoteCommand(detail) {
+        const currentNote = detail?.data?.note || detail?.note || '';
+        const newNote = prompt('Notiz eingeben:', currentNote);
+        if (newNote !== null) {
+            if (!detail.data) detail.data = {};
+            detail.data.note = newNote;
+            detail.note = newNote;
+            this.invalidateCache();
+            this.renderFrame();
+        }
+    }
+
+    handleShareCommand(detail) {
+        if (window.alert) {
+            window.alert('Teilen-Funktion ist noch in Vorbereitung.');
+        }
+    }
+
+    handleSplitCommand(detail) {
+        if (window.alert) {
+            window.alert('Splitten-Funktion ist noch in Vorbereitung.');
+        }
+    }
+
+    handleLabelCommand(detail) {
+        const currentLabel = detail?.caption || detail?.data?.caption || detail?.guest_name || '';
+        const newLabel = prompt('Bezeichnung eingeben:', currentLabel);
+        if (newLabel !== null) {
+            detail.caption = newLabel;
+            if (!detail.data) detail.data = {};
+            detail.data.caption = newLabel;
+            this.invalidateCache();
+            this.renderFrame();
+        }
+    }
+
+    handleDogCommand(detail) {
+        const currentDog = detail?.data?.dog || detail?.dog || false;
+        const newDog = confirm(`Hund ${currentDog ? 'entfernen' : 'hinzufügen'}?`);
+        if (!detail.data) detail.data = {};
+        detail.data.dog = currentDog ? false : newDog;
+        detail.dog = detail.data.dog;
+        this.invalidateCache();
+        this.renderFrame();
+    }
+
+    handleDeleteCommand(detail) {
+        if (confirm('Diese Reservierung löschen?')) {
+            // Reservierung aus roomDetails entfernen
+            const index = roomDetails.findIndex(item => item === detail);
+            if (index >= 0) {
+                roomDetails.splice(index, 1);
+                this.invalidateCache();
+                this.renderFrame();
+            }
+        }
+    }
+
+    handleDeleteAllCommand(detail) {
+        if (confirm('ALLE Reservierungen dieses Gastes löschen?')) {
+            const guestName = detail?.guest_name || detail?.name;
+            if (guestName) {
+                // Alle Reservierungen mit gleichem Gast-Namen entfernen
+                for (let i = roomDetails.length - 1; i >= 0; i--) {
+                    const item = roomDetails[i];
+                    if (item.guest_name === guestName || item.name === guestName) {
+                        roomDetails.splice(i, 1);
+                    }
+                }
+                this.invalidateCache();
+                this.renderFrame();
+            }
+        }
+    }
+
+    handleDatasetCommand(detail) {
+        // Zeige Detail-Informationen zur Reservierung
+        const info = [
+            `ID: ${detail.id || 'N/A'}`,
+            `Gast: ${detail.guest_name || detail.name || 'N/A'}`,
+            `Zimmer: ${detail.room_id || 'N/A'}`,
+            `Von: ${detail.start || 'N/A'}`,
+            `Bis: ${detail.end || 'N/A'}`,
+            `Kapazität: ${detail.capacity || detail.data?.capacity || 'N/A'}`,
+            `Notiz: ${detail.note || detail.data?.note || 'Keine'}`
+        ].join('\n');
+
+        if (window.alert) {
+            window.alert(info);
+        }
     }
 
     findReservationAt(mouseX, mouseY) {
@@ -5880,6 +6006,55 @@ class TimelineUnifiedRenderer {
         this.endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY));
 
         this.render();
+    }
+
+    updateMenuSize(newSize) {
+        if (!newSize || newSize < 120 || newSize > 320) {
+            console.warn('Invalid menu size:', newSize);
+            return;
+        }
+
+        console.log('Updating radial menu size to:', newSize);
+
+        // Update the global size variable if it exists
+        if (typeof window.TIMELINE_RADIAL_MENU_SIZE !== 'undefined') {
+            window.TIMELINE_RADIAL_MENU_SIZE = newSize;
+        }
+
+        // Update the DOM element size
+        const radialRoot = document.getElementById('timeline-radial-menu');
+        if (radialRoot) {
+            radialRoot.style.width = `${newSize}px`;
+            radialRoot.style.height = `${newSize}px`;
+            radialRoot.style.marginLeft = `-${newSize / 2}px`;
+            radialRoot.style.marginTop = `-${newSize / 2}px`;
+
+            // Update the radial menu instance if it exists
+            if (this.radialMenu) {
+                this.radialMenu.size = newSize;
+                this.radialMenu.center = { x: newSize / 2, y: newSize / 2 };
+
+                // Recalculate radial menu geometry
+                const computedCenter = Math.max(16, newSize * 0.12);
+                const availableRadius = Math.max(20, (newSize / 2) - computedCenter);
+                const gapCount = Math.max(0, this.radialMenu.maxRings - 1);
+                let ringGap = 1;
+                let ringThickness = (availableRadius - gapCount * ringGap) / this.radialMenu.maxRings;
+                if (ringThickness < 12) {
+                    ringGap = Math.max(0, ringGap * 0.5);
+                    ringThickness = (availableRadius - gapCount * ringGap) / this.radialMenu.maxRings;
+                }
+
+                this.radialMenu.centerRadius = computedCenter;
+                this.radialMenu.ringGap = ringGap;
+                this.radialMenu.ringThickness = Math.max(10, ringThickness);
+
+                // Force re-render of radial menu if it's currently visible
+                if (this.radialMenu.isOpen) {
+                    this.radialMenu.hide();
+                }
+            }
+        }
     }
 }
 
