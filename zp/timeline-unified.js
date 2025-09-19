@@ -325,6 +325,8 @@ class TimelineRadialMenu {
 
 
 class TimelineUnifiedRenderer {
+    static instance = null; // Statische Referenz zur aktuellen Instanz
+    
     constructor(containerSelector) {
         this.container = document.querySelector(containerSelector);
         this.canvas = null;
@@ -338,6 +340,9 @@ class TimelineUnifiedRenderer {
         this.mouseX = 0;
         this.mouseY = 0;
         this.hoveredReservation = null;
+        
+        // Setze statische Referenz auf diese Instanz
+        TimelineUnifiedRenderer.instance = this;
 
         // Config-Button Tracking
         this.isConfigButtonHovered = false;
@@ -3042,20 +3047,71 @@ class TimelineUnifiedRenderer {
         this.renderFrame();
     }
 
-    handleDeleteCommand(detail) {
-        if (confirm('Diese Reservierung löschen?')) {
-            // Reservierung aus roomDetails entfernen
-            const index = roomDetails.findIndex(item => item === detail);
-            if (index >= 0) {
-                roomDetails.splice(index, 1);
-                this.invalidateCache();
-                this.renderFrame();
+    async handleDeleteCommand(detail) {
+        // Verwende modale Bestätigung anstatt confirm()
+        const shouldDelete = await showConfirmationModal(
+            'Reservierung löschen',
+            'Möchten Sie diese Reservierung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+            'Löschen',
+            'Abbrechen'
+        );
+        
+        if (shouldDelete) {
+            // Detail-ID aus dem Detail-Objekt extrahieren
+            const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
+            
+            if (!detailId) {
+                console.error('Keine Detail-ID gefunden:', detail);
+                alert('Fehler: Keine gültige Detail-ID gefunden');
+                return;
             }
+
+            // AJAX-Aufruf zur API für das Löschen aus der Datenbank
+            fetch('/wci/reservierungen/api/deleteReservationDetail.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    detailId: detailId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Detail-Datensatz erfolgreich gelöscht:', data.deletedDetail);
+                    
+                    // Lokale Daten aus roomDetails entfernen
+                    const index = roomDetails.findIndex(item => item === detail);
+                    if (index >= 0) {
+                        roomDetails.splice(index, 1);
+                    }
+                    
+                    // Einfacher Page-Reload für saubere Aktualisierung
+                    window.location.reload();
+                    
+                } else {
+                    console.error('Fehler beim Löschen:', data.error);
+                    alert('Fehler beim Löschen: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Netzwerkfehler beim Löschen:', error);
+                alert('Netzwerkfehler beim Löschen: ' + error.message);
+            });
         }
     }
 
-    handleDeleteAllCommand(detail) {
-        if (confirm('ALLE Reservierungen dieses Gastes löschen?')) {
+    async handleDeleteAllCommand(detail) {
+        // Verwende modale Bestätigung anstatt confirm()
+        const shouldDelete = await showConfirmationModal(
+            'ALLE Reservierungen löschen',
+            'Möchten Sie ALLE Reservierungen dieses Gastes wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+            'ALLE Löschen',
+            'Abbrechen'
+        );
+        
+        if (shouldDelete) {
             const guestName = detail?.guest_name || detail?.name;
             if (guestName) {
                 // Alle Reservierungen mit gleichem Gast-Namen entfernen
@@ -3065,8 +3121,8 @@ class TimelineUnifiedRenderer {
                         roomDetails.splice(i, 1);
                     }
                 }
-                this.invalidateCache();
-                this.renderFrame();
+                // Einfacher Page-Reload für saubere Aktualisierung
+                window.location.reload();
             }
         }
     }

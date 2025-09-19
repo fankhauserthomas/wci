@@ -97,12 +97,124 @@
             cursor: pointer;
             pointer-events: auto;
         }
+
+        /* Modal Dialog Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-dialog {
+            background: #2c2c2c;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: modalSlideIn 0.2s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-header {
+            color: #f5f5f5;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .modal-header .icon {
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
+        .modal-body {
+            color: #cccccc;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-button-cancel {
+            background: #555;
+            color: #f5f5f5;
+        }
+
+        .modal-button-cancel:hover {
+            background: #666;
+        }
+
+        .modal-button-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-button-danger:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 
 <body>
     <div class="main-areas-container"></div>
     <div id="timeline-radial-menu" class="radial-menu"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <span class="icon">⚠️</span>
+                <span id="modal-title">Bestätigung erforderlich</span>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">Sind Sie sicher, dass Sie diese Aktion ausführen möchten?</p>
+            </div>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
+                <button id="modal-confirm" class="modal-button modal-button-danger">Löschen</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <script src="timeline-unified.js"></script>
@@ -117,6 +229,55 @@
         window.histogramSource = [];
 
         // ===== FUNCTION DEFINITIONS (moved to top for onclick availability) =====
+
+        // Modal Confirmation Function
+        function showConfirmationModal(title, message, confirmText = 'Bestätigen', cancelText = 'Abbrechen') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmation-modal');
+                const modalTitle = document.getElementById('modal-title');
+                const modalMessage = document.getElementById('modal-message');
+                const modalCancel = document.getElementById('modal-cancel');
+                const modalConfirm = document.getElementById('modal-confirm');
+
+                // Set content
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                modalCancel.textContent = cancelText;
+                modalConfirm.textContent = confirmText;
+
+                // Show modal
+                modal.classList.add('active');
+
+                // Handle button clicks
+                const onCancel = () => {
+                    modal.classList.remove('active');
+                    resolve(false);
+                    cleanup();
+                };
+
+                const onConfirm = () => {
+                    modal.classList.remove('active');
+                    resolve(true);
+                    cleanup();
+                };
+
+                const cleanup = () => {
+                    modalCancel.removeEventListener('click', onCancel);
+                    modalConfirm.removeEventListener('click', onConfirm);
+                    modal.removeEventListener('click', onOverlayClick);
+                };
+
+                const onOverlayClick = (e) => {
+                    if (e.target === modal) {
+                        onCancel();
+                    }
+                };
+
+                modalCancel.addEventListener('click', onCancel);
+                modalConfirm.addEventListener('click', onConfirm);
+                modal.addEventListener('click', onOverlayClick);
+            });
+        }
 
         // Echte Daten laden (API-Integration)
         async function loadRealData() {
