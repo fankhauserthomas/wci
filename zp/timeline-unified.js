@@ -227,6 +227,8 @@ class TimelineRadialMenu {
         const svgNS = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(svgNS, 'svg');
         svg.setAttribute('viewBox', `0 0 ${this.size} ${this.size}`);
+        svg.style.width = `${this.size}px`;
+        svg.style.height = `${this.size}px`;
 
         ringConfigurations.forEach(ring => this.renderRing(svg, ring));
         svg.appendChild(this.createCenterButton());
@@ -261,6 +263,63 @@ class TimelineRadialMenu {
 
     isVisible() {
         return this.isOpen;
+    }
+
+    updateSize(newSize) {
+        if (!newSize || newSize < 120 || newSize > 320) return;
+
+        // Store current state if menu is open
+        const wasOpen = this.isOpen;
+        const currentDetail = this.activeDetail;
+        const currentX = wasOpen ? parseInt(this.root.style.left) : 0;
+        const currentY = wasOpen ? parseInt(this.root.style.top) : 0;
+        let currentRings = [];
+
+        // If menu is open, extract current ring configurations from DOM
+        if (wasOpen && this.root) {
+            const svg = this.root.querySelector('svg');
+            if (svg) {
+                // We'll store the ring data differently - let's just close and remember to reopen
+                this.storedRingData = {
+                    detail: currentDetail,
+                    x: currentX,
+                    y: currentY
+                };
+            }
+        }
+
+        // Update internal properties
+        this.size = newSize;
+        this.center = { x: this.size / 2, y: this.size / 2 };
+
+        // Recalculate geometry
+        const computedCenter = Math.max(16, this.size * 0.12);
+        const availableRadius = Math.max(20, (this.size / 2) - computedCenter);
+        const gapCount = Math.max(0, this.maxRings - 1);
+        let ringGap = 1;
+        let ringThickness = (availableRadius - gapCount * ringGap) / this.maxRings;
+        if (ringThickness < 12) {
+            ringGap = Math.max(0, ringGap * 0.5);
+            ringThickness = (availableRadius - gapCount * ringGap) / this.maxRings;
+        }
+
+        this.centerRadius = computedCenter;
+        this.ringGap = ringGap;
+        this.ringThickness = Math.max(10, ringThickness);
+
+        // If menu was open, hide it for now
+        if (wasOpen) {
+            this.hide();
+        }
+    }
+
+    // Method to re-render with stored data if available
+    restoreIfNeeded(ringConfigurations = []) {
+        if (this.storedRingData) {
+            const data = this.storedRingData;
+            this.storedRingData = null;
+            this.show(data.detail, data.x, data.y, ringConfigurations);
+        }
     }
 }
 
@@ -415,15 +474,30 @@ class TimelineUnifiedRenderer {
         this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
 
         const radialRoot = document.getElementById('timeline-radial-menu');
+
+        // Load saved menu size from localStorage
+        let menuSize = TIMELINE_RADIAL_MENU_SIZE; // Default fallback
+        try {
+            const savedMenuSize = localStorage.getItem('timeline_menu_size');
+            if (savedMenuSize) {
+                const parsedSize = parseInt(savedMenuSize, 10);
+                if (parsedSize >= 120 && parsedSize <= 320) {
+                    menuSize = parsedSize;
+                }
+            }
+        } catch (error) {
+            console.warn('Could not load saved menu size:', error);
+        }
+
         if (radialRoot) {
-            radialRoot.style.width = `${TIMELINE_RADIAL_MENU_SIZE}px`;
-            radialRoot.style.height = `${TIMELINE_RADIAL_MENU_SIZE}px`;
-            radialRoot.style.marginLeft = `-${TIMELINE_RADIAL_MENU_SIZE / 2}px`;
-            radialRoot.style.marginTop = `-${TIMELINE_RADIAL_MENU_SIZE / 2}px`;
+            radialRoot.style.width = `${menuSize}px`;
+            radialRoot.style.height = `${menuSize}px`;
+            radialRoot.style.marginLeft = `-${menuSize / 2}px`;
+            radialRoot.style.marginTop = `-${menuSize / 2}px`;
         }
 
         this.radialMenu = new TimelineRadialMenu(radialRoot, {
-            size: TIMELINE_RADIAL_MENU_SIZE,
+            size: menuSize,
             onClose: () => {
                 this.radialMenu?.hide();
             },
@@ -6014,8 +6088,6 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        console.log('Updating radial menu size to:', newSize);
-
         // Update the global size variable if it exists
         if (typeof window.TIMELINE_RADIAL_MENU_SIZE !== 'undefined') {
             window.TIMELINE_RADIAL_MENU_SIZE = newSize;
@@ -6030,29 +6102,8 @@ class TimelineUnifiedRenderer {
             radialRoot.style.marginTop = `-${newSize / 2}px`;
 
             // Update the radial menu instance if it exists
-            if (this.radialMenu) {
-                this.radialMenu.size = newSize;
-                this.radialMenu.center = { x: newSize / 2, y: newSize / 2 };
-
-                // Recalculate radial menu geometry
-                const computedCenter = Math.max(16, newSize * 0.12);
-                const availableRadius = Math.max(20, (newSize / 2) - computedCenter);
-                const gapCount = Math.max(0, this.radialMenu.maxRings - 1);
-                let ringGap = 1;
-                let ringThickness = (availableRadius - gapCount * ringGap) / this.radialMenu.maxRings;
-                if (ringThickness < 12) {
-                    ringGap = Math.max(0, ringGap * 0.5);
-                    ringThickness = (availableRadius - gapCount * ringGap) / this.radialMenu.maxRings;
-                }
-
-                this.radialMenu.centerRadius = computedCenter;
-                this.radialMenu.ringGap = ringGap;
-                this.radialMenu.ringThickness = Math.max(10, ringThickness);
-
-                // Force re-render of radial menu if it's currently visible
-                if (this.radialMenu.isOpen) {
-                    this.radialMenu.hide();
-                }
+            if (this.radialMenu && this.radialMenu.updateSize) {
+                this.radialMenu.updateSize(newSize);
             }
         }
     }

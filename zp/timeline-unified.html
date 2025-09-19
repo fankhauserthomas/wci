@@ -60,10 +60,7 @@
 
         .radial-menu {
             position: absolute;
-            width: 220px;
-            height: 220px;
-            margin-left: -110px;
-            margin-top: -110px;
+            /* width and height set dynamically by JavaScript */
             pointer-events: none;
             z-index: 9999;
             display: none;
@@ -74,8 +71,7 @@
         }
 
         .radial-menu svg {
-            width: 220px;
-            height: 220px;
+            /* width and height set dynamically by JavaScript */
             filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
         }
 
@@ -467,18 +463,6 @@
                 loadRealData().catch(error => {
                     console.error('Auto-load failed:', error);
                 });
-
-                // Load saved menu size after timeline is ready
-                setTimeout(() => {
-                    const savedMenuSize = localStorage.getItem('timeline_menu_size');
-                    if (savedMenuSize && timelineRenderer) {
-                        const menuSize = parseInt(savedMenuSize, 10);
-                        if (menuSize >= 120 && menuSize <= 320) {
-                            console.log('Loading saved menu size:', menuSize);
-                            timelineRenderer.updateMenuSize(menuSize);
-                        }
-                    }
-                }, 500);
             }, 100); // 100ms Verzögerung
         });
     </script>
