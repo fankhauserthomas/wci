@@ -2979,7 +2979,7 @@ class TimelineUnifiedRenderer {
                 this.handleSplitCommand(detail);
                 break;
             case 'label':
-                this.handleLabelCommand(detail);
+                this.handleDesignationCommand(detail);
                 break;
             case 'dog':
                 this.handleDogCommand(detail);
@@ -3022,18 +3022,6 @@ class TimelineUnifiedRenderer {
     handleSplitCommand(detail) {
         if (window.alert) {
             window.alert('Splitten-Funktion ist noch in Vorbereitung.');
-        }
-    }
-
-    handleLabelCommand(detail) {
-        const currentLabel = detail?.caption || detail?.data?.caption || detail?.guest_name || '';
-        const newLabel = prompt('Bezeichnung eingeben:', currentLabel);
-        if (newLabel !== null) {
-            detail.caption = newLabel;
-            if (!detail.data) detail.data = {};
-            detail.data.caption = newLabel;
-            this.invalidateCache();
-            this.renderFrame();
         }
     }
 
@@ -3114,7 +3102,7 @@ class TimelineUnifiedRenderer {
         if (shouldDelete) {
             // Reservierungs-ID aus dem Detail-Objekt extrahieren
             const resId = detail.data?.res_id || detail.res_id || detail.resid;
-            
+
             if (!resId) {
                 console.error('Keine Reservierungs-ID gefunden:', detail);
                 alert('Fehler: Keine gültige Reservierungs-ID gefunden');
@@ -3131,34 +3119,138 @@ class TimelineUnifiedRenderer {
                     resId: resId
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Alle Detail-Datensätze erfolgreich gelöscht:', data.deletedDetails);
-                    console.log(`${data.deletedCount} Datensätze für Reservierung ${data.resId} gelöscht`);
-                    
-                    // Lokale Daten aus roomDetails entfernen (alle mit gleicher resid)
-                    for (let i = roomDetails.length - 1; i >= 0; i--) {
-                        const item = roomDetails[i];
-                        const itemResId = item.data?.res_id || item.res_id || item.resid;
-                        if (itemResId == resId) {
-                            roomDetails.splice(i, 1);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Alle Detail-Datensätze erfolgreich gelöscht:', data.deletedDetails);
+                        console.log(`${data.deletedCount} Datensätze für Reservierung ${data.resId} gelöscht`);
+
+                        // Lokale Daten aus roomDetails entfernen (alle mit gleicher resid)
+                        for (let i = roomDetails.length - 1; i >= 0; i--) {
+                            const item = roomDetails[i];
+                            const itemResId = item.data?.res_id || item.res_id || item.resid;
+                            if (itemResId == resId) {
+                                roomDetails.splice(i, 1);
+                            }
                         }
+
+                        // Einfacher Page-Reload für saubere Aktualisierung
+                        window.location.reload();
+
+                    } else {
+                        console.error('Fehler beim Löschen aller Details:', data.error);
+                        alert('Fehler beim Löschen: ' + data.error);
                     }
-                    
-                    // Einfacher Page-Reload für saubere Aktualisierung
-                    window.location.reload();
-                    
-                } else {
-                    console.error('Fehler beim Löschen aller Details:', data.error);
-                    alert('Fehler beim Löschen: ' + data.error);
+                })
+                .catch(error => {
+                    console.error('Netzwerkfehler beim Löschen aller Details:', error);
+                    alert('Netzwerkfehler beim Löschen: ' + error.message);
+                });
+        }
+    }
+
+    async handleDesignationCommand(detail) {
+        // Detail-ID und aktuelle Bezeichnung extrahieren
+        const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
+        const currentDesignation = detail.data?.caption || detail.caption || detail.bez || '';
+        const resId = detail.data?.res_id || detail.res_id || detail.resid;
+
+        if (!detailId) {
+            console.error('Keine Detail-ID gefunden:', detail);
+            alert('Fehler: Keine gültige Detail-ID gefunden');
+            return;
+        }
+
+        // Prüfe ob es mehrere Detail-Datensätze mit gleicher resid gibt
+        const sameResDetails = roomDetails.filter(item => {
+            const itemResId = item.data?.res_id || item.res_id || item.resid;
+            return itemResId == resId;
+        });
+        const hasMultipleDetails = sameResDetails.length > 1;
+
+        // Zeige Bezeichnungs-Modal
+        const result = await showDesignationModal(currentDesignation, hasMultipleDetails);
+
+        if (result === null) {
+            // Benutzer hat abgebrochen
+            return;
+        }
+
+        // AJAX-Aufruf zur API für das Aktualisieren der Bezeichnung
+        const requestData = {
+            detailId: detailId,
+            designation: result.designation,
+            updateAll: result.updateAll
+        };
+
+        console.log('Sende API-Request:', requestData);
+
+        fetch('/wci/reservierungen/api/updateReservationDesignation.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+            .then(response => {
+                console.log('API Response Status:', response.status);
+                console.log('API Response Headers:', response.headers.get('content-type'));
+
+                // Lese Response als Text für Debug, auch bei Fehlern
+                return response.text().then(responseText => {
+                    console.log('Raw API Response:', responseText);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}\nResponse: ${responseText.substring(0, 500)}`);
+                    }
+
+                    return responseText;
+                });
+            })
+            .then(responseText => {
+                try {
+                    const data = JSON.parse(responseText);
+                    if (data.success) {
+                        console.log('Bezeichnung erfolgreich aktualisiert:', data);
+
+                        // Lokale Daten aktualisieren
+                        if (result.updateAll) {
+                            // Alle Detail-Datensätze mit gleicher resid aktualisieren
+                            roomDetails.forEach(item => {
+                                const itemResId = item.data?.res_id || item.res_id || item.resid;
+                                if (itemResId == resId) {
+                                    if (item.data) {
+                                        item.data.caption = result.designation;
+                                    }
+                                    item.caption = result.designation;
+                                    item.bez = result.designation;
+                                }
+                            });
+                        } else {
+                            // Nur den spezifischen Detail-Datensatz aktualisieren
+                            if (detail.data) {
+                                detail.data.caption = result.designation;
+                            }
+                            detail.caption = result.designation;
+                            detail.bez = result.designation;
+                        }
+
+                        // Einfacher Page-Reload für saubere Aktualisierung
+                        window.location.reload();
+
+                    } else {
+                        console.error('Fehler beim Aktualisieren der Bezeichnung:', data.error);
+                        alert('Fehler beim Aktualisieren: ' + data.error);
+                    }
+                } catch (parseError) {
+                    console.error('JSON Parse Error:', parseError);
+                    alert('Ungültige API-Antwort: ' + responseText.substring(0, 200));
                 }
             })
             .catch(error => {
-                console.error('Netzwerkfehler beim Löschen aller Details:', error);
-                alert('Netzwerkfehler beim Löschen: ' + error.message);
+                console.error('Netzwerkfehler beim Aktualisieren der Bezeichnung:', error);
+                alert('Netzwerkfehler beim Aktualisieren: ' + error.message);
             });
-        }
     }
 
     handleDatasetCommand(detail) {

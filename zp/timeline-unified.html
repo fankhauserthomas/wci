@@ -193,6 +193,158 @@
         .modal-button-danger:hover {
             background: #c82333;
         }
+
+        .modal-button-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .modal-button-primary:hover {
+            background: #0056b3;
+        }
+
+        /* Input Modal Styles */
+        .modal-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #f5f5f5;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .modal-checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            color: #cccccc;
+        }
+
+        .modal-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: #007bff;
+        }
+
+        .modal-checkbox-label {
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* Debug Console Styles */
+        .debug-console {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 400px;
+            height: 300px;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            border-bottom: none;
+            border-right: none;
+            box-shadow: -4px -4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+        }
+
+        .debug-console.active {
+            display: flex;
+        }
+
+        .debug-console-header {
+            background: #333;
+            color: #f5f5f5;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #555;
+        }
+
+        .debug-console-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .debug-console-btn {
+            background: #555;
+            color: #f5f5f5;
+            border: none;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .debug-console-btn:hover {
+            background: #666;
+        }
+
+        .debug-console-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .debug-log-entry {
+            margin-bottom: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .debug-log-timestamp {
+            color: #888;
+        }
+
+        .debug-log-level-info {
+            color: #5bc0de;
+        }
+
+        .debug-log-level-warn {
+            color: #f0ad4e;
+        }
+
+        .debug-log-level-error {
+            color: #d9534f;
+        }
+
+        .debug-log-level-success {
+            color: #5cb85c;
+        }
+
+        /* Debug Toggle Button */
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #333;
+            color: #f5f5f5;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 9999;
+            font-family: 'Courier New', monospace;
+        }
+
+        .debug-toggle:hover {
+            background: #444;
+        }
     </style>
 </head>
 
@@ -216,6 +368,52 @@
             </div>
         </div>
     </div>
+
+    <!-- Designation Edit Modal -->
+    <div id="designation-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <span class="icon">✏️</span>
+                <span>Bezeichnung bearbeiten</span>
+            </div>
+            <div class="modal-body">
+                <label for="designation-input"
+                    style="color: #cccccc; font-size: 14px; display: block; margin-bottom: 8px;">
+                    Neue Bezeichnung:
+                </label>
+                <input type="text" id="designation-input" class="modal-input" placeholder="Bezeichnung eingeben...">
+
+                <div id="designation-multiple-options" class="modal-checkbox-group" style="display: none;">
+                    <input type="checkbox" id="designation-update-all" class="modal-checkbox">
+                    <label for="designation-update-all" class="modal-checkbox-label">
+                        Alle Zimmer-Zuweisungen dieser Reservierung aktualisieren
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="designation-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
+                <button id="designation-save" class="modal-button modal-button-primary">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Console -->
+    <div id="debug-console" class="debug-console">
+        <div class="debug-console-header">
+            <span>🐛 Debug Console</span>
+            <div class="debug-console-controls">
+                <button id="debug-clear" class="debug-console-btn">Clear</button>
+                <button id="debug-export" class="debug-console-btn">Export</button>
+                <button id="debug-close" class="debug-console-btn">✕</button>
+            </div>
+        </div>
+        <div id="debug-console-content" class="debug-console-content">
+            <!-- Debug logs will appear here -->
+        </div>
+    </div>
+
+    <!-- Debug Toggle Button -->
+    <button id="debug-toggle" class="debug-toggle">Debug Console</button>
 
     <!-- Scripts -->
     <script src="timeline-unified.js"></script>
@@ -278,6 +476,220 @@
                 modalConfirm.addEventListener('click', onConfirm);
                 modal.addEventListener('click', onOverlayClick);
             });
+        }
+
+        // Designation Edit Modal Function
+        function showDesignationModal(currentDesignation, hasMultipleDetails = false) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('designation-modal');
+                const designationInput = document.getElementById('designation-input');
+                const designationCancel = document.getElementById('designation-cancel');
+                const designationSave = document.getElementById('designation-save');
+                const multipleOptions = document.getElementById('designation-multiple-options');
+                const updateAllCheckbox = document.getElementById('designation-update-all');
+
+                // Set current designation
+                designationInput.value = currentDesignation || '';
+
+                // Show/hide multiple options based on whether there are multiple details
+                if (hasMultipleDetails) {
+                    multipleOptions.style.display = 'flex';
+                    updateAllCheckbox.checked = false; // Default: nur der betreffende Balken
+                } else {
+                    multipleOptions.style.display = 'none';
+                }
+
+                // Show modal
+                modal.classList.add('active');
+                designationInput.focus();
+                designationInput.select();
+
+                // Handle button clicks
+                const onCancel = () => {
+                    modal.classList.remove('active');
+                    resolve(null);
+                    cleanup();
+                };
+
+                const onSave = () => {
+                    const newDesignation = designationInput.value.trim();
+                    const updateAll = hasMultipleDetails ? updateAllCheckbox.checked : false;
+
+                    modal.classList.remove('active');
+                    resolve({
+                        designation: newDesignation,
+                        updateAll: updateAll
+                    });
+                    cleanup();
+                };
+
+                const onKeyPress = (e) => {
+                    if (e.key === 'Enter') {
+                        onSave();
+                    } else if (e.key === 'Escape') {
+                        onCancel();
+                    }
+                };
+
+                const cleanup = () => {
+                    designationCancel.removeEventListener('click', onCancel);
+                    designationSave.removeEventListener('click', onSave);
+                    designationInput.removeEventListener('keydown', onKeyPress);
+                    modal.removeEventListener('click', onOverlayClick);
+                };
+
+                const onOverlayClick = (e) => {
+                    if (e.target === modal) {
+                        onCancel();
+                    }
+                };
+
+                designationCancel.addEventListener('click', onCancel);
+                designationSave.addEventListener('click', onSave);
+                designationInput.addEventListener('keydown', onKeyPress);
+                modal.addEventListener('click', onOverlayClick);
+            });
+        }
+
+        // Debug Console Functions
+        const DebugConsole = {
+            logs: [],
+            isVisible: false,
+
+            init() {
+                const toggle = document.getElementById('debug-toggle');
+                const console = document.getElementById('debug-console');
+                const clearBtn = document.getElementById('debug-clear');
+                const exportBtn = document.getElementById('debug-export');
+                const closeBtn = document.getElementById('debug-close');
+
+                toggle.addEventListener('click', () => this.toggle());
+                clearBtn.addEventListener('click', () => this.clear());
+                exportBtn.addEventListener('click', () => this.export());
+                closeBtn.addEventListener('click', () => this.hide());
+
+                // Intercept console methods
+                this.interceptConsole();
+            },
+
+            toggle() {
+                if (this.isVisible) {
+                    this.hide();
+                } else {
+                    this.show();
+                }
+            },
+
+            show() {
+                document.getElementById('debug-console').classList.add('active');
+                this.isVisible = true;
+                this.scrollToBottom();
+            },
+
+            hide() {
+                document.getElementById('debug-console').classList.remove('active');
+                this.isVisible = false;
+            },
+
+            clear() {
+                this.logs = [];
+                document.getElementById('debug-console-content').innerHTML = '';
+            },
+
+            export() {
+                const content = this.logs.map(log =>
+                    `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`
+                ).join('\n');
+
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `timeline-debug-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
+            log(level, ...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+
+                const logEntry = { timestamp, level, message };
+                this.logs.push(logEntry);
+
+                // Limit logs to last 100 entries
+                if (this.logs.length > 100) {
+                    this.logs.shift();
+                }
+
+                this.render(logEntry);
+            },
+
+            render(logEntry) {
+                const content = document.getElementById('debug-console-content');
+                const entry = document.createElement('div');
+                entry.className = 'debug-log-entry';
+
+                entry.innerHTML = `<span class="debug-log-timestamp">[${logEntry.timestamp}]</span> <span class="debug-log-level-${logEntry.level}">${logEntry.level.toUpperCase()}:</span> ${logEntry.message}`;
+
+                content.appendChild(entry);
+                this.scrollToBottom();
+            },
+
+            scrollToBottom() {
+                const content = document.getElementById('debug-console-content');
+                content.scrollTop = content.scrollHeight;
+            },
+
+            interceptConsole() {
+                const originalMethods = {
+                    log: console.log,
+                    info: console.info,
+                    warn: console.warn,
+                    error: console.error
+                };
+
+                console.log = (...args) => {
+                    originalMethods.log(...args);
+                    this.log('info', ...args);
+                };
+
+                console.info = (...args) => {
+                    originalMethods.info(...args);
+                    this.log('info', ...args);
+                };
+
+                console.warn = (...args) => {
+                    originalMethods.warn(...args);
+                    this.log('warn', ...args);
+                };
+
+                console.error = (...args) => {
+                    originalMethods.error(...args);
+                    this.log('error', ...args);
+                };
+
+                // Custom debug method
+                console.debug = (...args) => {
+                    originalMethods.log(...args);
+                    this.log('info', ...args);
+                };
+
+                // Custom success method
+                console.success = (...args) => {
+                    originalMethods.log(...args);
+                    this.log('success', ...args);
+                };
+            }
+        };
+
+        // Initialize Debug Console when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => DebugConsole.init());
+        } else {
+            DebugConsole.init();
         }
 
         // Echte Daten laden (API-Integration)
