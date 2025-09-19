@@ -3017,15 +3017,15 @@ class TimelineUnifiedRenderer {
         // Detail-ID und aktuelle Anzahl extrahieren
         const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
         const currentCapacity = detail.capacity || detail.data?.capacity || detail.data?.anz || 1;
-        
+
         if (!detailId) {
             return;
         }
-        
+
         if (currentCapacity <= 1) {
             return;
         }
-        
+
         // Bestätigung anfordern
         const shouldSplit = await showConfirmationModal(
             'Detail teilen',
@@ -3033,18 +3033,18 @@ class TimelineUnifiedRenderer {
             'Teilen',
             'Abbrechen'
         );
-        
+
         if (!shouldSplit) {
             return;
         }
-        
+
         // AJAX-Aufruf zur API für das Teilen
         const requestData = {
             detailId: detailId
         };
-        
+
         console.log('Sende Split-Request:', requestData);
-        
+
         fetch('/wci/reservierungen/api/splitReservationDetail.php', {
             method: 'POST',
             headers: {
@@ -3052,64 +3052,172 @@ class TimelineUnifiedRenderer {
             },
             body: JSON.stringify(requestData)
         })
-        .then(response => {
-            console.log('Split API Response Status:', response.status);
-            return response.text().then(responseText => {
-                try {
-                    return JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('Parse error:', parseError);
-                    console.error('Raw response:', responseText);
-                    throw new Error('Ungültige JSON-Antwort vom Server');
-                }
-            });
-        })
-        .then(data => {
-            console.log('Split API Response:', data);
-            
-            if (data.success) {
-                // Erfolgreich geteilt - aktualisiere lokale Daten
-                // Original Detail auf Anzahl 1 setzen
-                detail.capacity = 1;
-                if (detail.data) {
-                    detail.data.capacity = 1;
-                    detail.data.anz = 1;
-                }
-                
-                // Neues Detail zur lokalen Liste hinzufügen
-                const newDetail = {
-                    ...detail,
-                    id: `room_detail_${data.newDetailId}`,
-                    detail_id: data.newDetailId,
-                    capacity: data.newAnzahl,
-                    data: {
-                        ...detail.data,
+            .then(response => {
+                console.log('Split API Response Status:', response.status);
+                return response.text().then(responseText => {
+                    try {
+                        return JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Parse error:', parseError);
+                        console.error('Raw response:', responseText);
+                        throw new Error('Ungültige JSON-Antwort vom Server');
+                    }
+                });
+            })
+            .then(data => {
+                console.log('Split API Response:', data);
+
+                if (data.success) {
+                    // Erfolgreich geteilt - aktualisiere lokale Daten
+                    // Original Detail auf Anzahl 1 setzen
+                    detail.capacity = 1;
+                    if (detail.data) {
+                        detail.data.capacity = 1;
+                        detail.data.anz = 1;
+                    }
+
+                    // Neues Detail zur lokalen Liste hinzufügen
+                    const newDetail = {
+                        ...detail,
+                        id: `room_detail_${data.newDetailId}`,
                         detail_id: data.newDetailId,
                         capacity: data.newAnzahl,
-                        anz: data.newAnzahl
+                        data: {
+                            ...detail.data,
+                            detail_id: data.newDetailId,
+                            capacity: data.newAnzahl,
+                            anz: data.newAnzahl
+                        }
+                    };
+
+                    // Zur globalen roomDetails Liste hinzufügen
+                    if (typeof roomDetails !== 'undefined' && Array.isArray(roomDetails)) {
+                        roomDetails.push(newDetail);
                     }
-                };
-                
-                // Zur globalen roomDetails Liste hinzufügen
-                if (typeof roomDetails !== 'undefined' && Array.isArray(roomDetails)) {
-                    roomDetails.push(newDetail);
+
+                    // Cache invalidieren und neu rendern
+                    this.invalidateStackingCache(detail.room_id);
+                    this.markDataDirty();
+                    this.render();
                 }
-                
-                // Cache invalidieren und neu rendern
-                this.invalidateStackingCache(detail.room_id);
-                this.markDataDirty();
-                this.render();
-            }
-        })
-        .catch(error => {
-            console.error('Netzwerkfehler beim Teilen:', error);
-        });
+            })
+            .catch(error => {
+                console.error('Netzwerkfehler beim Teilen:', error);
+            });
     }
 
     handleSplitCommand(detail) {
-        if (window.alert) {
-            window.alert('Splitten-Funktion ist noch in Vorbereitung.');
+        // Detail-ID extrahieren
+        const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
+
+        if (!detailId) {
+            return;
         }
+
+        // Letzte Mausposition für Split-Datum verwenden
+        const splitDate = this.calculateDateFromMousePosition();
+        if (!splitDate) {
+            return;
+        }
+
+        // AJAX-Aufruf zur API für das Splitten
+        const requestData = {
+            detailId: detailId,
+            splitDate: splitDate
+        };
+
+        console.log('Sende Split-By-Date-Request:', requestData);
+
+        fetch('/wci/reservierungen/api/splitReservationByDate.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+            .then(response => {
+                console.log('Split-By-Date API Response Status:', response.status);
+                return response.text().then(responseText => {
+                    try {
+                        return JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Parse error:', parseError);
+                        console.error('Raw response:', responseText);
+                        throw new Error('Ungültige JSON-Antwort vom Server');
+                    }
+                });
+            })
+            .then(data => {
+                console.log('Split-By-Date API Response:', data);
+
+                if (data.success) {
+                    // Erfolgreich gesplittet - aktualisiere lokale Daten
+                    // WICHTIG: Ursprüngliches end-Datum vor Änderung speichern
+                    const originalEndDate = new Date(detail.end);
+
+                    // Original Detail: bis-Datum auf Split-Datum aktualisieren
+                    const splitEndDate = new Date(data.splitDate);
+                    detail.end = splitEndDate;
+                    if (detail.data) {
+                        detail.data.end = splitEndDate;
+                    }
+
+                    // Neues Detail zur lokalen Liste hinzufügen
+                    const newDetail = {
+                        ...detail,
+                        id: `room_detail_${data.newDetailId}`,
+                        detail_id: data.newDetailId,
+                        start: new Date(data.splitDate),
+                        end: originalEndDate,  // ← KORREKT: ursprüngliches end-Datum verwenden
+                        ParentID: detailId,
+                        data: {
+                            ...detail.data,
+                            detail_id: data.newDetailId,
+                            start: new Date(data.splitDate),
+                            end: originalEndDate,  // ← KORREKT: ursprüngliches end-Datum verwenden
+                            ParentID: detailId
+                        }
+                    };
+
+                    // Zur globalen roomDetails Liste hinzufügen
+                    if (typeof roomDetails !== 'undefined' && Array.isArray(roomDetails)) {
+                        roomDetails.push(newDetail);
+                    }
+
+                    // Cache invalidieren und neu rendern
+                    this.invalidateStackingCache(detail.room_id);
+                    this.markDataDirty();
+                    this.render();
+                }
+            })
+            .catch(error => {
+                console.error('Netzwerkfehler beim Splitten:', error);
+            });
+    }
+
+    calculateDateFromMousePosition() {
+        // Verwende die letzte bekannte Mausposition
+        if (!this.mouseX || this.mouseX < this.sidebarWidth) {
+            return null;
+        }
+
+        // Berechne das Datum basierend auf der Mausposition
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
+
+        const startX = this.sidebarWidth - this.scrollX;
+        const relativeX = this.mouseX - startX;
+        const dayOffset = relativeX / this.DAY_WIDTH;
+
+        const splitDate = new Date(startDate.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
+
+        // Format als YYYY-MM-DD
+        const year = splitDate.getFullYear();
+        const month = String(splitDate.getMonth() + 1).padStart(2, '0');
+        const day = String(splitDate.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
     }
 
     handleDogCommand(detail) {
