@@ -3013,10 +3013,97 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    handleShareCommand(detail) {
-        if (window.alert) {
-            window.alert('Teilen-Funktion ist noch in Vorbereitung.');
+    async handleShareCommand(detail) {
+        // Detail-ID und aktuelle Anzahl extrahieren
+        const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
+        const currentCapacity = detail.capacity || detail.data?.capacity || detail.data?.anz || 1;
+        
+        if (!detailId) {
+            return;
         }
+        
+        if (currentCapacity <= 1) {
+            return;
+        }
+        
+        // Bestätigung anfordern
+        const shouldSplit = await showConfirmationModal(
+            'Detail teilen',
+            'Balken aufteilen?',
+            'Teilen',
+            'Abbrechen'
+        );
+        
+        if (!shouldSplit) {
+            return;
+        }
+        
+        // AJAX-Aufruf zur API für das Teilen
+        const requestData = {
+            detailId: detailId
+        };
+        
+        console.log('Sende Split-Request:', requestData);
+        
+        fetch('/wci/reservierungen/api/splitReservationDetail.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            console.log('Split API Response Status:', response.status);
+            return response.text().then(responseText => {
+                try {
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Parse error:', parseError);
+                    console.error('Raw response:', responseText);
+                    throw new Error('Ungültige JSON-Antwort vom Server');
+                }
+            });
+        })
+        .then(data => {
+            console.log('Split API Response:', data);
+            
+            if (data.success) {
+                // Erfolgreich geteilt - aktualisiere lokale Daten
+                // Original Detail auf Anzahl 1 setzen
+                detail.capacity = 1;
+                if (detail.data) {
+                    detail.data.capacity = 1;
+                    detail.data.anz = 1;
+                }
+                
+                // Neues Detail zur lokalen Liste hinzufügen
+                const newDetail = {
+                    ...detail,
+                    id: `room_detail_${data.newDetailId}`,
+                    detail_id: data.newDetailId,
+                    capacity: data.newAnzahl,
+                    data: {
+                        ...detail.data,
+                        detail_id: data.newDetailId,
+                        capacity: data.newAnzahl,
+                        anz: data.newAnzahl
+                    }
+                };
+                
+                // Zur globalen roomDetails Liste hinzufügen
+                if (typeof roomDetails !== 'undefined' && Array.isArray(roomDetails)) {
+                    roomDetails.push(newDetail);
+                }
+                
+                // Cache invalidieren und neu rendern
+                this.invalidateStackingCache(detail.room_id);
+                this.markDataDirty();
+                this.render();
+            }
+        })
+        .catch(error => {
+            console.error('Netzwerkfehler beim Teilen:', error);
+        });
     }
 
     handleSplitCommand(detail) {
