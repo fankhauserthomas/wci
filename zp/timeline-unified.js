@@ -326,7 +326,7 @@ class TimelineRadialMenu {
 
 class TimelineUnifiedRenderer {
     static instance = null; // Statische Referenz zur aktuellen Instanz
-    
+
     constructor(containerSelector) {
         this.container = document.querySelector(containerSelector);
         this.canvas = null;
@@ -340,7 +340,7 @@ class TimelineUnifiedRenderer {
         this.mouseX = 0;
         this.mouseY = 0;
         this.hoveredReservation = null;
-        
+
         // Setze statische Referenz auf diese Instanz
         TimelineUnifiedRenderer.instance = this;
 
@@ -3055,11 +3055,11 @@ class TimelineUnifiedRenderer {
             'Löschen',
             'Abbrechen'
         );
-        
+
         if (shouldDelete) {
             // Detail-ID aus dem Detail-Objekt extrahieren
             const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
-            
+
             if (!detailId) {
                 console.error('Keine Detail-ID gefunden:', detail);
                 alert('Fehler: Keine gültige Detail-ID gefunden');
@@ -3076,54 +3076,88 @@ class TimelineUnifiedRenderer {
                     detailId: detailId
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Detail-Datensatz erfolgreich gelöscht:', data.deletedDetail);
-                    
-                    // Lokale Daten aus roomDetails entfernen
-                    const index = roomDetails.findIndex(item => item === detail);
-                    if (index >= 0) {
-                        roomDetails.splice(index, 1);
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Detail-Datensatz erfolgreich gelöscht:', data.deletedDetail);
+
+                        // Lokale Daten aus roomDetails entfernen
+                        const index = roomDetails.findIndex(item => item === detail);
+                        if (index >= 0) {
+                            roomDetails.splice(index, 1);
+                        }
+
+                        // Einfacher Page-Reload für saubere Aktualisierung
+                        window.location.reload();
+
+                    } else {
+                        console.error('Fehler beim Löschen:', data.error);
+                        alert('Fehler beim Löschen: ' + data.error);
                     }
-                    
-                    // Einfacher Page-Reload für saubere Aktualisierung
-                    window.location.reload();
-                    
-                } else {
-                    console.error('Fehler beim Löschen:', data.error);
-                    alert('Fehler beim Löschen: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Netzwerkfehler beim Löschen:', error);
-                alert('Netzwerkfehler beim Löschen: ' + error.message);
-            });
+                })
+                .catch(error => {
+                    console.error('Netzwerkfehler beim Löschen:', error);
+                    alert('Netzwerkfehler beim Löschen: ' + error.message);
+                });
         }
     }
 
     async handleDeleteAllCommand(detail) {
         // Verwende modale Bestätigung anstatt confirm()
         const shouldDelete = await showConfirmationModal(
-            'ALLE Reservierungen löschen',
-            'Möchten Sie ALLE Reservierungen dieses Gastes wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+            'Alle Zimmer-Zuweisungen löschen',
+            'Möchten Sie ALLE Zimmer-Zuweisungen dieser Reservierung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
             'ALLE Löschen',
             'Abbrechen'
         );
-        
+
         if (shouldDelete) {
-            const guestName = detail?.guest_name || detail?.name;
-            if (guestName) {
-                // Alle Reservierungen mit gleichem Gast-Namen entfernen
-                for (let i = roomDetails.length - 1; i >= 0; i--) {
-                    const item = roomDetails[i];
-                    if (item.guest_name === guestName || item.name === guestName) {
-                        roomDetails.splice(i, 1);
-                    }
-                }
-                // Einfacher Page-Reload für saubere Aktualisierung
-                window.location.reload();
+            // Reservierungs-ID aus dem Detail-Objekt extrahieren
+            const resId = detail.data?.res_id || detail.res_id || detail.resid;
+            
+            if (!resId) {
+                console.error('Keine Reservierungs-ID gefunden:', detail);
+                alert('Fehler: Keine gültige Reservierungs-ID gefunden');
+                return;
             }
+
+            // AJAX-Aufruf zur API für das Löschen aller Details aus der Datenbank
+            fetch('/wci/reservierungen/api/deleteReservationAllDetails.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    resId: resId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Alle Detail-Datensätze erfolgreich gelöscht:', data.deletedDetails);
+                    console.log(`${data.deletedCount} Datensätze für Reservierung ${data.resId} gelöscht`);
+                    
+                    // Lokale Daten aus roomDetails entfernen (alle mit gleicher resid)
+                    for (let i = roomDetails.length - 1; i >= 0; i--) {
+                        const item = roomDetails[i];
+                        const itemResId = item.data?.res_id || item.res_id || item.resid;
+                        if (itemResId == resId) {
+                            roomDetails.splice(i, 1);
+                        }
+                    }
+                    
+                    // Einfacher Page-Reload für saubere Aktualisierung
+                    window.location.reload();
+                    
+                } else {
+                    console.error('Fehler beim Löschen aller Details:', data.error);
+                    alert('Fehler beim Löschen: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Netzwerkfehler beim Löschen aller Details:', error);
+                alert('Netzwerkfehler beim Löschen: ' + error.message);
+            });
         }
     }
 
