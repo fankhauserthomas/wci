@@ -3341,13 +3341,48 @@ class TimelineUnifiedRenderer {
     }
 
     handleDogCommand(detail) {
-        const currentDog = detail?.data?.dog || detail?.dog || false;
-        const newDog = confirm(`Hund ${currentDog ? 'entfernen' : 'hinzufügen'}?`);
+        // Aktuellen Hund-Status ermitteln
+        const currentDog = detail?.has_dog || detail?.hund || (detail.data && detail.data.has_dog) || false;
+        const newDog = !currentDog; // Toggle ohne Rückfrage
+
+        // Lokale Darstellung sofort aktualisieren
+        detail.has_dog = newDog;
+        detail.hund = newDog;
         if (!detail.data) detail.data = {};
-        detail.data.dog = currentDog ? false : newDog;
-        detail.dog = detail.data.dog;
+        detail.data.has_dog = newDog;
+        detail.data.hund = newDog;
+
+        // Detail-Identifiers extrahieren
+        const identifiers = this.extractDetailIdentifiers(detail);
+        if (!identifiers.detailId) {
+            console.error('Keine Detail-ID gefunden für Hund-Toggle:', detail);
+            return;
+        }
+
+        // Stacking-Cache invalidieren und neu rendern
         this.invalidateStackingCache();
+        this.markDataDirty();
         this.render();
+
+        // Datenbank aktualisieren
+        this.persistRoomDetailAttributes({
+            scope: 'detail',
+            detail_id: identifiers.detailId,
+            res_id: identifiers.resId,
+            updates: { hund: newDog ? 1 : 0 }
+        }, () => {
+            // Rollback bei Fehler
+            detail.has_dog = currentDog;
+            detail.hund = currentDog;
+            if (detail.data) {
+                detail.data.has_dog = currentDog;
+                detail.data.hund = currentDog;
+            }
+            this.invalidateStackingCache();
+            this.markDataDirty();
+            this.render();
+            console.error('Fehler beim Aktualisieren des Hund-Status in der Datenbank');
+        });
     }
 
     async handleDeleteCommand(detail) {
@@ -6753,11 +6788,13 @@ class TimelineUnifiedRenderer {
             const circleDiameter = hasCircle ? Math.max(12, Math.min(renderHeight - 4, 18)) : 0;
             const circlePadding = hasCircle ? circleDiameter + 6 : 0;
 
+            // Schriftposition NICHT wegen Hund verschieben
             const availableWidth = renderWidth - 8 - circlePadding;
             if (availableWidth > 0) {
                 const truncated = this.truncateTextToWidth(text, availableWidth);
                 const textY = renderY + (renderHeight / 2) + (dynamicFontSize / 3);
-                this.ctx.fillText(truncated, renderX + 3, textY);
+                const textX = renderX + 3; // Text an normaler Position
+                this.ctx.fillText(truncated, textX, textY);
             }
 
             if (hasCircle && renderWidth > circleDiameter + 10) {
@@ -6782,6 +6819,82 @@ class TimelineUnifiedRenderer {
                 this.ctx.fillText(arrangementLetter, circleX, circleY + 0.5);
                 this.ctx.textAlign = 'left';
                 this.ctx.textBaseline = 'alphabetic';
+            }
+        }
+
+        // Hund-SVG für Hund-Reservierungen (NACH dem Text, damit Text im Vordergrund ist)
+        if ((detail.has_dog || detail.hund || (detail.data && detail.data.has_dog)) && renderWidth > 15) {
+            const svgHeight = renderHeight * 2; // Doppelt so groß wie Balkenhöhe
+            const svgWidth = svgHeight; // Quadratisches Seitenverhältnis
+            const svgX = renderX - (svgWidth * 0.75); // Noch weiter nach links
+            const svgY = renderY + (renderHeight - svgHeight) / 2; // Vertikal zentriert
+
+            // Fade-Effekt: Weiß zu Braun zyklisch in 2 Sekunden
+            const currentTime = Date.now();
+            const fadeCycle = 2000; // 2 Sekunden Zyklus
+            const fadePhase = (currentTime % fadeCycle) / fadeCycle;
+
+            // Interpolation zwischen Weiß (#ffffff) und Braun (#8b4513)
+            const whiteR = 255, whiteG = 255, whiteB = 255;
+            const brownR = 139, brownG = 69, brownB = 19;
+
+            const t = (Math.sin(fadePhase * Math.PI * 2) + 1) / 2; // 0 bis 1
+            const r = Math.round(whiteR + (brownR - whiteR) * t);
+            const g = Math.round(whiteG + (brownG - whiteG) * t);
+            const b = Math.round(whiteB + (brownB - whiteB) * t);
+            const fadeColor = `rgb(${r}, ${g}, ${b})`;
+
+            this.ctx.save();
+
+            // SVG laden und rendern (mit Caching)
+            if (!this._dogSvgImage) {
+                this._dogSvgImage = new Image();
+                this._dogSvgImage.onload = () => {
+                    // Neuzeichnen wenn SVG geladen ist
+                    this.render();
+                };
+                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
+            }
+
+            if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
+                // SVG als Maske verwenden und mit Fade-Farbe füllen
+                this.ctx.save();
+
+                // Temporäres Canvas für Masking erstellen
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = svgWidth;
+                tempCanvas.height = svgHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // SVG auf temporäres Canvas zeichnen
+                tempCtx.drawImage(this._dogSvgImage, 0, 0, svgWidth, svgHeight);
+
+                // Fade-Farbe mit SVG als Maske anwenden
+                tempCtx.globalCompositeOperation = 'source-in';
+                tempCtx.fillStyle = fadeColor;
+                tempCtx.fillRect(0, 0, svgWidth, svgHeight);
+
+                // Ergebnis auf Haupt-Canvas zeichnen
+                this.ctx.drawImage(tempCanvas, svgX, svgY);
+
+                this.ctx.restore();
+            } else {
+                // Fallback: Einfacher farbiger Kreis während SVG lädt
+                this.ctx.fillStyle = fadeColor;
+                this.ctx.beginPath();
+                this.ctx.arc(svgX + svgWidth / 2, svgY + svgHeight / 2, svgWidth / 3, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            this.ctx.restore();
+
+            // Kontinuierliches Neuzeichnen für Fade-Effekt
+            if (!this._fadeAnimationScheduled) {
+                this._fadeAnimationScheduled = true;
+                requestAnimationFrame(() => {
+                    this._fadeAnimationScheduled = false;
+                    this.render();
+                });
             }
         }
 

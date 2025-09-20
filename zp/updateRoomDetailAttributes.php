@@ -114,6 +114,14 @@ try {
         }
     }
 
+    // Handle hund field for dog reservations
+    if (array_key_exists('hund', $updates)) {
+        $hund = (int)$updates['hund']; // Convert to integer (0 or 1)
+        $setParts[] = 'hund = ?';
+        $bindTypes .= 'i';
+        $bindValues[] = $hund;
+    }
+
     if (empty($setParts)) {
         throw new InvalidArgumentException('Keine gültigen Felder für Update angegeben.');
     }
