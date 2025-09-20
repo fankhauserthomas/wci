@@ -64,10 +64,21 @@
             pointer-events: none;
             z-index: 9999;
             display: none;
+            transform: rotate(-360deg) scale(0.05);
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                opacity 0.5s ease-out;
         }
 
         .radial-menu.active {
             display: block;
+            transform: rotate(0deg) scale(1);
+            opacity: 1;
+        }
+
+        .radial-menu.hiding {
+            transform: rotate(360deg) scale(0.05);
+            opacity: 0;
         }
 
         .radial-menu svg {
@@ -273,6 +284,66 @@
             cursor: pointer;
         }
 
+        /* Dataset Modal Styles */
+        .dataset-section {
+            margin-bottom: 24px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 16px;
+            background: #2a2a2a;
+        }
+
+        .dataset-section-title {
+            color: #f5f5f5;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dataset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .dataset-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dataset-field label {
+            color: #cccccc;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .dataset-field input,
+        .dataset-field textarea {
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #f5f5f5;
+            font-size: 14px;
+        }
+
+        .dataset-field input:focus,
+        .dataset-field textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .dataset-field input:read-only {
+            background: #333;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+
         /* Debug Console Styles */
         .debug-console {
             position: fixed;
@@ -455,6 +526,143 @@
                 <button id="notes-clear" class="modal-button modal-button-secondary"
                     style="display: none;">Löschen</button>
                 <button id="notes-save" class="modal-button modal-button-primary">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dataset Edit Modal -->
+    <div id="dataset-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 900px; width: 95vw;">
+            <div class="modal-header">
+                <span class="icon">📋</span>
+                <span>AV-Res Stammdaten bearbeiten</span>
+                <div id="dataset-av-indicator"
+                    style="display: none; margin-left: auto; background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    AV-Reservierung (av_id: <span id="dataset-av-id-display"></span>)
+                </div>
+            </div>
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+
+                <!-- Grunddaten -->
+                <div class="dataset-section">
+                    <h3 class="dataset-section-title">📋 Grunddaten</h3>
+                    <div class="dataset-grid">
+                        <div class="dataset-field">
+                            <label for="dataset-av-id">AV-ID:</label>
+                            <input type="text" id="dataset-av-id" class="modal-input" readonly>
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-storno">Storno:</label>
+                            <select id="dataset-storno" class="modal-input">
+                                <option value="0">Aktiv</option>
+                                <option value="1">Storniert</option>
+                            </select>
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-hund">Hund:</label>
+                            <select id="dataset-hund" class="modal-input">
+                                <option value="0">Nein</option>
+                                <option value="1">Ja</option>
+                            </select>
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-arr">Arrangement:</label>
+                            <select id="dataset-arr" class="modal-input">
+                                <option value="">Kein Arrangement</option>
+                                <!-- Wird dynamisch befüllt -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aufenthaltsdaten -->
+                <div class="dataset-section">
+                    <h3 class="dataset-section-title">🏨 Aufenthaltsdaten</h3>
+                    <div class="dataset-grid">
+                        <div class="dataset-field">
+                            <label for="dataset-anreise">Anreise:</label>
+                            <input type="date" id="dataset-anreise" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-abreise">Abreise:</label>
+                            <input type="date" id="dataset-abreise" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-lager">Lager:</label>
+                            <input type="number" id="dataset-lager" class="modal-input" min="0">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-betten">Betten:</label>
+                            <input type="number" id="dataset-betten" class="modal-input" min="0">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-dz">Doppelzimmer:</label>
+                            <input type="number" id="dataset-dz" class="modal-input" min="0">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-sonder">Sonderwünsche:</label>
+                            <input type="number" id="dataset-sonder" class="modal-input" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gästeinformationen -->
+                <div class="dataset-section">
+                    <h3 class="dataset-section-title">👤 Gästeinformationen</h3>
+                    <div class="dataset-grid">
+                        <div class="dataset-field">
+                            <label for="dataset-vorname">Vorname:</label>
+                            <input type="text" id="dataset-vorname" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-nachname">Nachname:</label>
+                            <input type="text" id="dataset-nachname" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-email">E-Mail:</label>
+                            <input type="email" id="dataset-email" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-handy">Handy:</label>
+                            <input type="tel" id="dataset-handy" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-email-date">Email-Datum:</label>
+                            <input type="text" id="dataset-email-date" class="modal-input" placeholder="dd.mm.yyyy">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-origin">Herkunft:</label>
+                            <select id="dataset-origin" class="modal-input">
+                                <option value="">Keine Herkunft</option>
+                                <!-- Wird dynamisch befüllt -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zusatzinformationen -->
+                <div class="dataset-section">
+                    <h3 class="dataset-section-title">ℹ️ Zusatzinformationen</h3>
+                    <div class="dataset-grid">
+                        <div class="dataset-field">
+                            <label for="dataset-gruppe">Gruppenname:</label>
+                            <input type="text" id="dataset-gruppe" class="modal-input">
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-bem">Bemerkungen (allgemein):</label>
+                            <textarea id="dataset-bem" class="modal-input" rows="3"></textarea>
+                        </div>
+                        <div class="dataset-field">
+                            <label for="dataset-bem-av">Bemerkungen (AV):</label>
+                            <textarea id="dataset-bem-av" class="modal-input" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-actions">
+                <button id="dataset-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
+                <button id="dataset-save" class="modal-button modal-button-primary">Speichern</button>
             </div>
         </div>
     </div>
@@ -694,6 +902,629 @@
                 notesTextarea.addEventListener('input', updateCharCount);
                 modal.addEventListener('click', onOverlayClick);
             });
+        }
+
+        // Dataset Modal Function
+        function showDatasetModal(detail) {
+            return new Promise(async (resolve) => {
+                const modal = document.getElementById('dataset-modal');
+                const cancelBtn = document.getElementById('dataset-cancel');
+                const saveBtn = document.getElementById('dataset-save');
+                const avIndicator = document.getElementById('dataset-av-indicator');
+                const avIdDisplay = document.getElementById('dataset-av-id-display');
+
+                // Extract AV_Res data - diese Daten müssen von der API kommen
+                const avResId = detail.data?.res_id || detail.res_id || detail.resid;
+
+                if (!avResId) {
+                    alert('Fehler: Keine AV-Res ID gefunden');
+                    resolve(null);
+                    return;
+                }
+
+                try {
+                    // Lade AV_Res Daten von der API
+                    const response = await fetch(`getAVReservationData.php?av_res_id=${avResId}`);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Non-JSON response:', text);
+                        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+                    }
+
+                    const avResData = await response.json();
+
+                    if (!avResData.success) {
+                        throw new Error(avResData.message || 'Fehler beim Laden der AV-Res Daten');
+                    }
+
+                    const data = avResData.data;
+                    const isAVReservation = (data.av_id || 0) > 0;
+
+                    // Zeige AV-Indikator
+                    if (isAVReservation) {
+                        avIndicator.style.display = 'block';
+                        avIdDisplay.textContent = data.av_id;
+                    } else {
+                        avIndicator.style.display = 'none';
+                    }
+
+                    // Populate Grunddaten
+                    document.getElementById('dataset-av-id').value = data.av_id || '';
+                    document.getElementById('dataset-storno').value = data.storno || 0;
+                    document.getElementById('dataset-hund').value = data.hund || 0;
+
+                    // Populate Aufenthaltsdaten
+                    document.getElementById('dataset-anreise').value = formatDateForInput(data.anreise);
+                    document.getElementById('dataset-abreise').value = formatDateForInput(data.abreise);
+                    document.getElementById('dataset-lager').value = data.lager || 0;
+                    document.getElementById('dataset-betten').value = data.betten || 0;
+                    document.getElementById('dataset-dz').value = data.dz || 0;
+                    document.getElementById('dataset-sonder').value = data.sonder || 0;
+
+                    // Populate Gästeinformationen
+                    document.getElementById('dataset-vorname').value = data.vorname || '';
+                    document.getElementById('dataset-nachname').value = data.nachname || '';
+                    document.getElementById('dataset-email').value = data.email || '';
+                    document.getElementById('dataset-handy').value = data.handy || '';
+                    document.getElementById('dataset-email-date').value = formatEmailDateForInput(data.email_date);
+
+                    // Populate Zusatzinformationen
+                    document.getElementById('dataset-gruppe').value = data.gruppe || '';
+                    document.getElementById('dataset-bem').value = data.bem || '';
+                    document.getElementById('dataset-bem-av').value = data.bem_av || '';
+
+                    // Lade Dropdown-Daten und setze Werte
+                    await loadArrangementDropdown(data.arr);
+                    await loadOriginDropdown(data.origin);
+
+                    // Setze Editierbarkeit basierend auf AV-Status
+                    setFieldsEditability(isAVReservation);
+
+                    // Helper-Funktionen
+                    function formatDateForInput(dateStr) {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return date.toISOString().split('T')[0];
+                    }
+
+                    function formatDateTimeForInput(dateStr) {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+                    }
+
+                    function formatEmailDateForInput(dateStr) {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        return `${day}.${month}.${year}`;
+                    }
+
+                    function setFieldsEditability(isAV) {
+                        const avProtectedFields = [
+                            'dataset-anreise', 'dataset-abreise', 'dataset-lager', 'dataset-betten',
+                            'dataset-dz', 'dataset-sonder', 'dataset-gruppe', 'dataset-bem-av',
+                            'dataset-vorname', 'dataset-nachname', 'dataset-handy', 'dataset-email',
+                            'dataset-storno'
+                        ];
+
+                        avProtectedFields.forEach(fieldId => {
+                            const field = document.getElementById(fieldId);
+                            if (isAV) {
+                                field.style.background = '#2a4a2a';
+                                field.style.borderColor = '#27ae60';
+                                field.title = 'Gesichert - Änderungen werden in AV übernommen';
+                            } else {
+                                field.style.background = '#1a1a1a';
+                                field.style.borderColor = '#555';
+                                field.title = '';
+                            }
+                        });
+
+                        // Immer editierbare Felder
+                        const alwaysEditableFields = [
+                            'dataset-bem', 'dataset-arr', 'dataset-hund', 'dataset-origin'
+                        ];
+
+                        alwaysEditableFields.forEach(fieldId => {
+                            const field = document.getElementById(fieldId);
+                            field.style.background = '#1a1a1a';
+                            field.style.borderColor = '#007bff';
+                            field.title = 'Immer editierbar';
+                        });
+                    }
+
+                    async function loadArrangementDropdown(selectedValue) {
+                        try {
+                            const response = await fetch('getArrangements.php');
+                            const arrangements = await response.json();
+                            const select = document.getElementById('dataset-arr');
+
+                            select.innerHTML = '<option value="">Kein Arrangement</option>';
+
+                            if (arrangements.success && arrangements.data) {
+                                arrangements.data.forEach(arr => {
+                                    const option = document.createElement('option');
+                                    option.value = arr.ID;
+                                    option.textContent = arr.kbez;
+                                    if (arr.ID == selectedValue) option.selected = true;
+                                    select.appendChild(option);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Arrangements:', error);
+                        }
+                    }
+
+                    async function loadCountryDropdown(selectedValue) {
+                        try {
+                            const response = await fetch('getCountries.php');
+                            const countries = await response.json();
+                            const select = document.getElementById('dataset-country');
+
+                            select.innerHTML = '<option value="">Kein Land</option>';
+
+                            if (countries.success && countries.data) {
+                                countries.data.forEach(country => {
+                                    const option = document.createElement('option');
+                                    option.value = country.id;
+                                    option.textContent = country.country;
+                                    if (country.id == selectedValue) option.selected = true;
+                                    select.appendChild(option);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Länder:', error);
+                        }
+                    }
+
+                    async function loadOriginDropdown(selectedValue) {
+                        try {
+                            const response = await fetch('getOrigins.php');
+                            const origins = await response.json();
+                            const select = document.getElementById('dataset-origin');
+
+                            select.innerHTML = '<option value="">Keine Herkunft</option>';
+
+                            if (origins.success && origins.data) {
+                                // Sortiere nach sort-Feld
+                                origins.data.sort((a, b) => (a.sort || 0) - (b.sort || 0));
+
+                                origins.data.forEach(origin => {
+                                    const option = document.createElement('option');
+                                    option.value = origin.ID;
+                                    option.textContent = origin.country;
+                                    if (origin.ID == selectedValue) option.selected = true;
+                                    select.appendChild(option);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Herkünfte:', error);
+                        }
+                    }
+
+                    // Show modal
+                    modal.classList.add('active');
+
+                    // Event handlers
+                    const onCancel = () => {
+                        cleanup();
+                        modal.classList.remove('active');
+                        resolve(null);
+                    };
+
+                    const onSave = () => {
+                        // Sammle alle Formulardaten
+                        const formData = {
+                            av_res_id: avResId,
+                            av_id: data.av_id,
+                            isAVReservation: isAVReservation,
+
+                            // Original-Daten für Vergleich
+                            originalData: data,
+
+                            // Grunddaten
+                            storno: parseInt(document.getElementById('dataset-storno').value) || 0,
+                            hund: parseInt(document.getElementById('dataset-hund').value) || 0,
+                            arr: parseInt(document.getElementById('dataset-arr').value) || null,
+
+                            // Aufenthaltsdaten
+                            anreise: document.getElementById('dataset-anreise').value,
+                            abreise: document.getElementById('dataset-abreise').value,
+                            lager: parseInt(document.getElementById('dataset-lager').value) || 0,
+                            betten: parseInt(document.getElementById('dataset-betten').value) || 0,
+                            dz: parseInt(document.getElementById('dataset-dz').value) || 0,
+                            sonder: parseInt(document.getElementById('dataset-sonder').value) || 0,
+
+                            // Gästeinformationen
+                            vorname: document.getElementById('dataset-vorname').value.trim(),
+                            nachname: document.getElementById('dataset-nachname').value.trim(),
+                            email: document.getElementById('dataset-email').value.trim(),
+                            handy: document.getElementById('dataset-handy').value.trim(),
+                            origin: parseInt(document.getElementById('dataset-origin').value) || null,
+
+                            // Zusatzinformationen
+                            gruppe: document.getElementById('dataset-gruppe').value.trim(),
+                            bem: document.getElementById('dataset-bem').value.trim(),
+                            bem_av: document.getElementById('dataset-bem-av').value.trim()
+                        };
+
+                        cleanup();
+                        modal.classList.remove('active');
+                        resolve(formData);
+                    };
+
+                    const onKeyPress = (e) => {
+                        if (e.key === 'Escape') {
+                            onCancel();
+                        }
+                    };
+
+                    const cleanup = () => {
+                        cancelBtn.removeEventListener('click', onCancel);
+                        saveBtn.removeEventListener('click', onSave);
+                        document.removeEventListener('keydown', onKeyPress);
+                        modal.removeEventListener('click', onOverlayClick);
+                    };
+
+                    const onOverlayClick = (e) => {
+                        if (e.target === modal) {
+                            onCancel();
+                        }
+                    };
+
+                    cancelBtn.addEventListener('click', onCancel);
+                    saveBtn.addEventListener('click', onSave);
+                    document.addEventListener('keydown', onKeyPress);
+                    modal.addEventListener('click', onOverlayClick);
+
+                } catch (error) {
+                    console.error('Fehler beim Laden der AV-Res Daten:', error);
+
+                    // Fallback: Verwende Dummy-Daten für Demo
+                    console.warn('Using fallback dummy data for AV_Res');
+                    const avResData = {
+                        success: true,
+                        data: {
+                            av_id: 0,
+                            anreise: detail.start || '2025-09-20',
+                            abreise: detail.end || '2025-09-22',
+                            lager: 1,
+                            betten: 2,
+                            dz: 0,
+                            sonder: 0,
+                            vorname: 'Demo',
+                            nachname: 'Gast',
+                            email: 'demo@example.com',
+                            handy: '+43 123 456789',
+                            email_date: null,
+                            gruppe: 'Test Gruppe',
+                            bem: 'Testbemerkung',
+                            bem_av: '',
+                            storno: 0,
+                            arr: null,
+                            country_id: null,
+                            origin: null,
+                            hund: detail.data?.hund || 0
+                        }
+                    };
+
+                    // Continue with fallback data
+                    const data = avResData.data;
+                    const isAVReservation = (data.av_id || 0) > 0;
+
+                    // Helper-Funktionen definieren BEVOR sie verwendet werden
+                    function formatDateForInput(dateStr) {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return date.toISOString().split('T')[0];
+                    }
+
+                    function formatDateTimeForInput(dateStr) {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return date.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+                    }
+
+                    function setFieldsEditability(isAV) {
+                        const avProtectedFields = [
+                            'dataset-anreise', 'dataset-abreise', 'dataset-lager', 'dataset-betten',
+                            'dataset-dz', 'dataset-sonder', 'dataset-gruppe', 'dataset-bem-av',
+                            'dataset-vorname', 'dataset-nachname', 'dataset-handy', 'dataset-email',
+                            'dataset-storno'
+                        ];
+
+                        avProtectedFields.forEach(fieldId => {
+                            const field = document.getElementById(fieldId);
+                            if (isAV) {
+                                field.style.background = '#2a4a2a';
+                                field.style.borderColor = '#27ae60';
+                                field.title = 'Gesichert - Änderungen werden in AV übernommen';
+                            } else {
+                                field.style.background = '#1a1a1a';
+                                field.style.borderColor = '#555';
+                                field.title = '';
+                            }
+                        });
+
+                        // Immer editierbare Felder
+                        const alwaysEditableFields = [
+                            'dataset-bem', 'dataset-arr', 'dataset-hund', 'dataset-origin'
+                        ];
+
+                        alwaysEditableFields.forEach(fieldId => {
+                            const field = document.getElementById(fieldId);
+                            field.style.background = '#1a1a1a';
+                            field.style.borderColor = '#007bff';
+                            field.title = 'Immer editierbar';
+                        });
+                    }
+
+                    async function loadArrangementDropdown(selectedValue) {
+                        try {
+                            const select = document.getElementById('dataset-arr');
+                            select.innerHTML = '<option value="">Kein Arrangement</option>';
+                            // Fallback: Nur Dummy-Optionen
+                            const dummyArrangements = [
+                                { ID: 1, kbez: 'Standard' },
+                                { ID: 2, kbez: 'Halbpension' },
+                                { ID: 3, kbez: 'Vollpension' }
+                            ];
+                            dummyArrangements.forEach(arr => {
+                                const option = document.createElement('option');
+                                option.value = arr.ID;
+                                option.textContent = arr.kbez;
+                                if (arr.ID == selectedValue) option.selected = true;
+                                select.appendChild(option);
+                            });
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Arrangements:', error);
+                        }
+                    }
+
+                    async function loadCountryDropdown(selectedValue) {
+                        try {
+                            const select = document.getElementById('dataset-country');
+                            select.innerHTML = '<option value="">Kein Land</option>';
+                            // Fallback: Nur Dummy-Optionen
+                            const dummyCountries = [
+                                { id: 1, country: 'Deutschland' },
+                                { id: 2, country: 'Österreich' },
+                                { id: 3, country: 'Schweiz' }
+                            ];
+                            dummyCountries.forEach(country => {
+                                const option = document.createElement('option');
+                                option.value = country.id;
+                                option.textContent = country.country;
+                                if (country.id == selectedValue) option.selected = true;
+                                select.appendChild(option);
+                            });
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Länder:', error);
+                        }
+                    }
+
+                    async function loadOriginDropdown(selectedValue) {
+                        try {
+                            const select = document.getElementById('dataset-origin');
+                            select.innerHTML = '<option value="">Keine Herkunft</option>';
+                            // Fallback: Nur Dummy-Optionen
+                            const dummyOrigins = [
+                                { ID: 1, country: 'Online' },
+                                { ID: 2, country: 'Telefon' },
+                                { ID: 3, country: 'Email' }
+                            ];
+                            dummyOrigins.forEach(origin => {
+                                const option = document.createElement('option');
+                                option.value = origin.ID;
+                                option.textContent = origin.country;
+                                if (origin.ID == selectedValue) option.selected = true;
+                                select.appendChild(option);
+                            });
+                        } catch (error) {
+                            console.error('Fehler beim Laden der Herkünfte:', error);
+                        }
+                    }
+
+                    // Zeige AV-Indikator
+                    if (isAVReservation) {
+                        avIndicator.style.display = 'block';
+                        avIdDisplay.textContent = data.av_id;
+                    } else {
+                        avIndicator.style.display = 'none';
+                    }
+
+                    // Populate Grunddaten
+                    document.getElementById('dataset-av-id').value = data.av_id || '';
+                    document.getElementById('dataset-storno').value = data.storno || 0;
+                    document.getElementById('dataset-hund').value = data.hund || 0;
+
+                    // Populate Aufenthaltsdaten
+                    document.getElementById('dataset-anreise').value = formatDateForInput(data.anreise);
+                    document.getElementById('dataset-abreise').value = formatDateForInput(data.abreise);
+                    document.getElementById('dataset-lager').value = data.lager || 0;
+                    document.getElementById('dataset-betten').value = data.betten || 0;
+                    document.getElementById('dataset-dz').value = data.dz || 0;
+                    document.getElementById('dataset-sonder').value = data.sonder || 0;
+
+                    // Populate Gästeinformationen
+                    document.getElementById('dataset-vorname').value = data.vorname || '';
+                    document.getElementById('dataset-nachname').value = data.nachname || '';
+                    document.getElementById('dataset-email').value = data.email || '';
+                    document.getElementById('dataset-handy').value = data.handy || '';
+                    document.getElementById('dataset-email-date').value = formatEmailDateForInput(data.email_date);
+
+                    // Populate Zusatzinformationen
+                    document.getElementById('dataset-gruppe').value = data.gruppe || '';
+                    document.getElementById('dataset-bem').value = data.bem || '';
+                    document.getElementById('dataset-bem-av').value = data.bem_av || '';
+
+                    // Lade Dropdown-Daten und setze Werte
+                    await loadArrangementDropdown(data.arr);
+                    await loadOriginDropdown(data.origin);
+
+                    // Setze Editierbarkeit basierend auf AV-Status
+                    setFieldsEditability(isAVReservation);
+
+                    // Show modal
+                    modal.classList.add('active');
+
+                    // Event handlers
+                    const onCancel = () => {
+                        cleanup();
+                        modal.classList.remove('active');
+                        resolve(null);
+                    };
+
+                    const onSave = () => {
+                        // Sammle alle Formulardaten für Fallback
+                        const formData = {
+                            av_res_id: avResId,
+                            av_id: data.av_id,
+                            isAVReservation: isAVReservation,
+
+                            // Grunddaten
+                            storno: parseInt(document.getElementById('dataset-storno').value) || 0,
+                            hund: parseInt(document.getElementById('dataset-hund').value) || 0,
+                            arr: parseInt(document.getElementById('dataset-arr').value) || null,
+
+                            // Aufenthaltsdaten
+                            anreise: document.getElementById('dataset-anreise').value,
+                            abreise: document.getElementById('dataset-abreise').value,
+                            lager: parseInt(document.getElementById('dataset-lager').value) || 0,
+                            betten: parseInt(document.getElementById('dataset-betten').value) || 0,
+                            dz: parseInt(document.getElementById('dataset-dz').value) || 0,
+                            sonder: parseInt(document.getElementById('dataset-sonder').value) || 0,
+
+                            // Gästeinformationen
+                            vorname: document.getElementById('dataset-vorname').value.trim(),
+                            nachname: document.getElementById('dataset-nachname').value.trim(),
+                            email: document.getElementById('dataset-email').value.trim(),
+                            handy: document.getElementById('dataset-handy').value.trim(),
+                            origin: parseInt(document.getElementById('dataset-origin').value) || null,
+
+                            // Zusatzinformationen
+                            gruppe: document.getElementById('dataset-gruppe').value.trim(),
+                            bem: document.getElementById('dataset-bem').value.trim(),
+                            bem_av: document.getElementById('dataset-bem-av').value.trim()
+                        };
+
+                        cleanup();
+                        modal.classList.remove('active');
+                        resolve(formData);
+                    };
+
+                    const onKeyPress = (e) => {
+                        if (e.key === 'Escape') {
+                            onCancel();
+                        }
+                    };
+
+                    const cleanup = () => {
+                        cancelBtn.removeEventListener('click', onCancel);
+                        saveBtn.removeEventListener('click', onSave);
+                        document.removeEventListener('keydown', onKeyPress);
+                        modal.removeEventListener('click', onOverlayClick);
+                    };
+
+                    const onOverlayClick = (e) => {
+                        if (e.target === modal) {
+                            onCancel();
+                        }
+                    };
+
+                    cancelBtn.addEventListener('click', onCancel);
+                    saveBtn.addEventListener('click', onSave);
+                    document.addEventListener('keydown', onKeyPress);
+                    modal.addEventListener('click', onOverlayClick);
+                }
+            });
+        }
+
+        // Dataset command handler
+        async function handleDatasetCommand(detail) {
+            try {
+                const result = await showDatasetModal(detail);
+                if (result) {
+                    // Update AV_Res data via API
+                    const response = await fetch('updateReservationMasterData.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(result)
+                    });
+
+                    const updateResult = await response.json();
+
+                    if (updateResult.success) {
+                        showToast('AV-Res Daten erfolgreich aktualisiert', 'success');
+
+                        // Aktualisiere lokale Daten wenn verfügbar
+                        if (detail.data) {
+                            Object.assign(detail.data, result);
+                        }
+
+                        // Re-render um Änderungen anzuzeigen
+                        if (timelineRenderer) {
+                            timelineRenderer.render();
+                        }
+
+                        // Spezielle Behandlung für Hund-Änderungen
+                        if (result.hund !== undefined) {
+                            // Aktualisiere auch AV_ResDet.hund für visuellen Effekt
+                            await updateDetailHundStatus(detail, result.hund);
+                        }
+                    } else {
+                        throw new Error(updateResult.message || 'Unbekannter Fehler beim Speichern');
+                    }
+                } else {
+                    console.log('Dataset modal cancelled');
+                }
+            } catch (error) {
+                console.error('Error in handleDatasetCommand:', error);
+                showToast('Fehler beim Aktualisieren der Daten: ' + error.message, 'error');
+            }
+        }
+
+        // Helper function für Hund-Status Update
+        async function updateDetailHundStatus(detail, hundStatus) {
+            try {
+                const detailUpdateData = {
+                    id: detail.id,
+                    hund: hundStatus ? 1 : 0
+                };
+
+                const response = await fetch('updateRoomDetailAttributes.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(detailUpdateData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update local data
+                    if (detail.data) {
+                        detail.data.hund = hundStatus ? 1 : 0;
+                    }
+                    console.log('Detail hund status synchronized with AV_Res');
+                } else {
+                    console.warn('Failed to sync detail hund status:', result.message);
+                }
+            } catch (error) {
+                console.error('Error syncing detail hund status:', error);
+            }
         }
 
         // Debug Console Functions

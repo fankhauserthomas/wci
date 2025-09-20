@@ -253,18 +253,38 @@ class TimelineRadialMenu {
 
         this.root.style.left = `${targetX}px`;
         this.root.style.top = `${targetY}px`;
-        this.root.classList.add('active');
+
+        // Animation: Zeige das Menü sofort für Animation
+        this.root.style.display = 'block';
         this.root.style.pointerEvents = 'auto';
+
+        // Force reflow für korrekte Animation
+        this.root.offsetHeight;
+
+        // Trigger Animation
+        this.root.classList.add('active');
         this.isOpen = true;
     }
 
     hide() {
-        if (!this.root) return;
+        if (!this.root || !this.isOpen) return;
+
+        // Animation: Erst hiding-Klasse hinzufügen
         this.root.classList.remove('active');
-        this.root.style.pointerEvents = 'none';
+        this.root.classList.add('hiding');
+
+        // Nach Animation ausblenden
+        setTimeout(() => {
+            if (this.root) {
+                this.root.classList.remove('hiding');
+                this.root.style.display = 'none';
+                this.root.style.pointerEvents = 'none';
+                this.clear();
+            }
+        }, 500); // 0.5 Sekunden warten
+
         this.isOpen = false;
         this.activeDetail = null;
-        this.clear();
     }
 
     isVisible() {
@@ -3603,20 +3623,331 @@ class TimelineUnifiedRenderer {
             });
     }
 
-    handleDatasetCommand(detail) {
-        // Zeige Detail-Informationen zur Reservierung
-        const info = [
-            `ID: ${detail.id || 'N/A'}`,
-            `Gast: ${detail.guest_name || detail.name || 'N/A'}`,
-            `Zimmer: ${detail.room_id || 'N/A'}`,
-            `Von: ${detail.start || 'N/A'}`,
-            `Bis: ${detail.end || 'N/A'}`,
-            `Kapazität: ${detail.capacity || detail.data?.capacity || 'N/A'}`,
-            `Notiz: ${detail.note || detail.data?.note || 'Keine'}`
-        ].join('\n');
+    async handleDatasetCommand(detail) {
+        try {
+            // Zeige Dataset-Modal
+            const formData = await showDatasetModal(detail);
 
-        if (window.alert) {
-            window.alert(info);
+            if (formData === null) {
+                // Benutzer hat abgebrochen
+                return;
+            }
+
+            console.log('📋 Dataset-Formular-Daten:', formData);
+
+            // 🚨 CACHE-BUSTER: 2025-09-20-19:43 - Debug erweitert!
+            // Debug: Änderungserkennung
+            if (formData.originalData) {
+                console.log('🔍 Original-Daten für Vergleich:', formData.originalData);
+                console.log('🔍 AV-Reservierung:', formData.isAVReservation);
+                console.log('🔍 Formular-Bemerkungen:', formData.bem);
+                console.log('🔍 Original-Bemerkungen:', formData.originalData.bem);
+                console.log('🔍 Formular-Vorname:', formData.vorname);
+                console.log('🔍 Original-Vorname:', formData.originalData.vorname);
+                console.log('🔍 Formular-Nachname:', formData.nachname);
+                console.log('🔍 Original-Nachname:', formData.originalData.nachname);
+                console.log('🔍 Formular-Origin:', formData.origin);
+                console.log('🔍 Original-Origin:', formData.originalData.origin);
+                console.log('🔍 Formular-Arrangement:', formData.arr);
+                console.log('🔍 Original-Arrangement:', formData.originalData.arr);
+
+                // ALLE Formular-Felder anzeigen
+                console.log('🔍 ALLE Formular-Daten:');
+                Object.keys(formData).forEach(key => {
+                    if (key !== 'originalData') {
+                        console.log(`  ${key}: "${formData[key]}"`);
+                    }
+                });
+
+                // ALLE Original-Felder anzeigen
+                console.log('🔍 ALLE Original-Daten:');
+                Object.keys(formData.originalData).forEach(key => {
+                    console.log(`  ${key}: "${formData.originalData[key]}"`);
+                });
+            }
+
+            // Wenn es eine AV-Reservierung ist, zusätzliche Validierung
+            if (formData.isAVReservation) {
+                const confirmUpdate = await showConfirmationModal(
+                    'AV-Reservierung aktualisieren',
+                    'Sie bearbeiten eine AV-Reservierung. Änderungen werden in der AV-Datenbank gespeichert. Fortfahren?',
+                    'Aktualisieren',
+                    'Abbrechen'
+                );
+
+                if (!confirmUpdate) {
+                    return;
+                }
+            }
+
+            // Extrahiere korrekte AV-Res ID: AV_ResDet.resid = AV_Res.id
+            const avResId = detail.data?.res_id || detail.res_id || detail.resid;
+
+            if (!avResId) {
+                console.error('Keine AV-Res ID (resid) gefunden für Dataset-Update:', detail);
+                alert('Fehler: Keine gültige AV-Res ID gefunden');
+                return;
+            }
+
+            console.log('📋 Verwende AV-Res ID:', avResId, 'für Datensatz-Update');
+
+            // Bereite Update-Payload vor - verwende av_res_id statt res_id
+            const updatePayload = {
+                scope: 'av_reservation', // Spezifischer Scope für AV-Res Updates
+                av_res_id: avResId, // AV_Res.id (entspricht AV_ResDet.resid)
+                updates: {}
+            };
+
+            // Spezielle Updates für AV-Reservierungen mit korrekten AV_Res Feldnamen
+            if (formData.isAVReservation) {
+                const orig = formData.originalData; // Verwende die ursprünglichen API-Daten
+
+                // Bemerkungen
+                if (formData.bem !== (orig?.bem || '')) {
+                    updatePayload.updates.bem = formData.bem;
+                }
+
+                // Datum für Anreise (YYYY-MM-DD)
+                const origAnreise = orig?.anreise ? new Date(orig.anreise).toISOString().split('T')[0] : '';
+                if (formData.anreise !== origAnreise) {
+                    updatePayload.updates.anreise = formData.anreise;
+                }
+
+                // Datum für Abreise (YYYY-MM-DD)
+                const origAbreise = orig?.abreise ? new Date(orig.abreise).toISOString().split('T')[0] : '';
+                if (formData.abreise !== origAbreise) {
+                    updatePayload.updates.abreise = formData.abreise;
+                }
+
+                // Anzahl Personen und Betten
+                if (formData.lager !== (orig?.lager || 0)) {
+                    updatePayload.updates.lager = formData.lager;
+                }
+                if (formData.betten !== (orig?.betten || 0)) {
+                    updatePayload.updates.betten = formData.betten;
+                }
+                if (formData.dz !== (orig?.dz || 0)) {
+                    updatePayload.updates.dz = formData.dz;
+                }
+                if (formData.sonder !== (orig?.sonder || 0)) {
+                    updatePayload.updates.sonder = formData.sonder;
+                }
+
+                // Personendaten (Mapping von formData zu AV_Res Feldnamen)
+                if (formData.vorname !== (orig?.vorname || '')) {
+                    updatePayload.updates.vname = formData.vorname;
+                }
+                if (formData.nachname !== (orig?.nachname || '')) {
+                    updatePayload.updates.name = formData.nachname;
+                }
+                if (formData.email !== (orig?.email || '')) {
+                    updatePayload.updates.mail = formData.email;
+                }
+                if (formData.handy !== (orig?.handy || '')) {
+                    updatePayload.updates.handy = formData.handy;
+                }
+
+                // Gruppen- und weitere Daten
+                if (formData.gruppe !== (orig?.gruppe || '')) {
+                    updatePayload.updates.gruppenname = formData.gruppe;
+                }
+                if (formData.bem_av !== (orig?.bem_av || '')) {
+                    updatePayload.updates.bem_av = formData.bem_av;
+                }
+
+                // Herkunft und Arrangement
+                if (formData.origin !== (orig?.origin || null)) {
+                    updatePayload.updates.herkunft = formData.origin;
+                }
+                if (formData.arr !== (orig?.arr || null)) {
+                    updatePayload.updates.arrangement = formData.arr;
+                }
+
+                // Status-Felder
+                if (formData.storno !== (orig?.storno || 0)) {
+                    updatePayload.updates.storno = formData.storno;
+                }
+                if (formData.hund !== (orig?.hund || 0)) {
+                    updatePayload.updates.hund = formData.hund;
+                }
+            } else {
+                // Für Nicht-AV-Reservierungen: Erweiterte editierbare Felder
+                const orig = formData.originalData;
+
+                // Bemerkungen
+                if (formData.bem !== (orig?.bem || '')) {
+                    updatePayload.updates.bem = formData.bem;
+                }
+
+                // Herkunft und Arrangement (immer editierbar)
+                if (formData.origin !== (orig?.origin || null)) {
+                    updatePayload.updates.herkunft = formData.origin;
+                }
+                if (formData.arr !== (orig?.arr || null)) {
+                    updatePayload.updates.arrangement = formData.arr;
+                }
+
+                // Hund (immer editierbar)
+                if (formData.hund !== (orig?.hund || 0)) {
+                    updatePayload.updates.hund = formData.hund;
+                }
+
+                // Personendaten (auch bei normalen Reservierungen editierbar)
+                if (formData.vorname !== (orig?.vorname || '')) {
+                    updatePayload.updates.vname = formData.vorname;
+                }
+                if (formData.nachname !== (orig?.nachname || '')) {
+                    updatePayload.updates.name = formData.nachname;
+                }
+                if (formData.email !== (orig?.email || '')) {
+                    updatePayload.updates.mail = formData.email;
+                }
+                if (formData.handy !== (orig?.handy || '')) {
+                    updatePayload.updates.handy = formData.handy;
+                }
+
+                // Gruppendaten
+                if (formData.gruppe !== (orig?.gruppe || '')) {
+                    updatePayload.updates.gruppenname = formData.gruppe;
+                }
+
+                // Aufenthaltsdaten (auch bei normalen Reservierungen editierbar)
+                const origAnreise = orig?.anreise ? new Date(orig.anreise).toISOString().split('T')[0] : '';
+                if (formData.anreise !== origAnreise) {
+                    updatePayload.updates.anreise = formData.anreise;
+                }
+
+                const origAbreise = orig?.abreise ? new Date(orig.abreise).toISOString().split('T')[0] : '';
+                if (formData.abreise !== origAbreise) {
+                    updatePayload.updates.abreise = formData.abreise;
+                }
+
+                if (formData.lager !== (orig?.lager || 0)) {
+                    updatePayload.updates.lager = formData.lager;
+                }
+                if (formData.betten !== (orig?.betten || 0)) {
+                    updatePayload.updates.betten = formData.betten;
+                }
+                if (formData.dz !== (orig?.dz || 0)) {
+                    updatePayload.updates.dz = formData.dz;
+                }
+                if (formData.sonder !== (orig?.sonder || 0)) {
+                    updatePayload.updates.sonder = formData.sonder;
+                }
+            }
+
+            // Wenn keine Änderungen, beenden
+            if (Object.keys(updatePayload.updates).length === 0) {
+                console.log('✅ Keine Änderungen erkannt');
+                return;
+            }
+
+            console.log('� Erkannte Änderungen:', Object.keys(updatePayload.updates));
+            console.log('�🔄 Sende Dataset-Update:', updatePayload);
+
+            // Lokale Darstellung sofort aktualisieren
+            this.updateLocalDetailData(detail, formData);
+            this.markDataDirty();
+            this.render();
+
+            // API-Aufruf für Dataset-Update
+            fetch('updateReservationMasterData.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatePayload)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        console.log('✅ Dataset erfolgreich aktualisiert');
+
+                        // Optional: Daten neu laden für vollständige Synchronisation
+                        if (formData.isAVReservation) {
+                            console.log('🔄 Lade Daten neu wegen AV-Update');
+                            // Hier könnte ein Reload der Daten erfolgen
+                        }
+                    } else {
+                        throw new Error(data.message || 'Unbekannter Fehler beim Dataset-Update');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Fehler beim Dataset-Update:', error);
+
+                    // Rollback der lokalen Änderungen bei Fehler
+                    this.rollbackLocalDetailData(detail);
+                    this.markDataDirty();
+                    this.render();
+
+                    alert('Fehler beim Speichern der Stammdaten: ' + error.message);
+                });
+
+        } catch (error) {
+            console.error('❌ Fehler in handleDatasetCommand:', error);
+            alert('Ein unerwarteter Fehler ist aufgetreten: ' + error.message);
+        }
+    }
+
+    // Helper-Methoden für Dataset-Update
+    formatDateForDB(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toISOString().split('T')[0];
+    }
+
+    updateLocalDetailData(detail, formData) {
+        // Sichere aktuelle Daten für Rollback
+        detail._backupData = JSON.parse(JSON.stringify(detail.data || {}));
+
+        if (!detail.data) detail.data = {};
+
+        // Update lokale Daten
+        if (formData.firstname) detail.data.firstname = formData.firstname;
+        if (formData.lastname) {
+            detail.data.lastname = formData.lastname;
+            detail.guest_name = formData.lastname; // Auch Haupt-Property aktualisieren
+        }
+        if (formData.email) detail.data.email = formData.email;
+        if (formData.phone) detail.data.handy = formData.phone;
+        if (formData.group) detail.data.gruppenname = formData.group;
+        if (formData.notes) detail.data.notes = formData.notes;
+
+        // Datumsbereich aktualisieren
+        if (formData.checkin) {
+            const newStart = new Date(formData.checkin + 'T12:00:00');
+            detail.start = newStart;
+            detail.data.start = newStart.toISOString();
+        }
+        if (formData.checkout) {
+            const newEnd = new Date(formData.checkout + 'T12:00:00');
+            detail.end = newEnd;
+            detail.data.end = newEnd.toISOString();
+        }
+
+        // Kapazität aktualisieren
+        if (formData.guests) {
+            detail.capacity = formData.guests;
+            detail.data.capacity = formData.guests;
+            detail.data.anz = formData.guests;
+        }
+    }
+
+    rollbackLocalDetailData(detail) {
+        if (detail._backupData) {
+            detail.data = detail._backupData;
+            delete detail._backupData;
+
+            // Auch Haupt-Properties zurücksetzen
+            if (detail.data.lastname) detail.guest_name = detail.data.lastname;
+            if (detail.data.start) detail.start = new Date(detail.data.start);
+            if (detail.data.end) detail.end = new Date(detail.data.end);
+            if (detail.data.capacity) detail.capacity = detail.data.capacity;
         }
     }
 
@@ -7449,3 +7780,4 @@ class TimelineUnifiedRenderer {
 
 // Export
 window.TimelineUnifiedRenderer = TimelineUnifiedRenderer;
+// Cache Buster Sat Sep 20 07:45:50 PM CEST 2025
