@@ -2748,14 +2748,14 @@ class TimelineUnifiedRenderer {
 
     getColorPaletteOptions(detail) {
         const palette = [
-            { label: 'Std', value: detail?.color || detail?.data?.color || '#3498db' },
-            { label: 'Blau', value: '#1f78ff' },
-            { label: 'Grün', value: '#27ae60' },
-            { label: 'Rot', value: '#c0392b' },
-            { label: 'Orange', value: '#e67e22' },
-            { label: 'Vio', value: '#8e44ad' },
-            { label: 'Cyan', value: '#16a085' },
-            { label: 'Grau', value: '#7f8c8d', textColor: '#ffffff' }
+            { label: '', value: detail?.color || detail?.data?.color || '#3498db' },
+            { label: '', value: '#1f78ff' },
+            { label: '', value: '#27ae60' },
+            { label: '', value: '#c0392b' },
+            { label: '', value: '#e67e22' },
+            { label: '', value: '#8e44ad' },
+            { label: '', value: '#16a085' },
+            { label: '', value: '#7f8c8d', textColor: '#ffffff' }
         ];
 
         const seen = new Set();
