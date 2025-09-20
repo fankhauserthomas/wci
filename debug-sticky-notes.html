@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Debug Sticky Notes Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .note-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .note-text {
+            background: #f0f0f0;
+            padding: 5px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Debug Sticky Notes Data</h1>
+    <div id="debug-output"></div>
+
+    <script>
+        // Load the data and check for notes
+        fetch('zp/getZimmerplanData.php')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Full data:', data);
+
+                const output = document.getElementById('debug-output');
+
+                // The response contains roomDetails array
+                const roomDetails = data.roomDetails || [];
+
+                // Check if data has notes
+                const detailsWithNotes = roomDetails.filter(detail =>
+                    detail.note && detail.note.trim() !== ''
+                );
+
+                output.innerHTML = `
+                <h2>Total details: ${roomDetails.length}</h2>
+                <h2>Details with notes: ${detailsWithNotes.length}</h2>
+                <h3>Note details:</h3>
+                <ul>
+                    ${detailsWithNotes.map(detail => `
+                        <li>
+                            ID: ${detail.detail_id} <br>
+                            Room: ${detail.zimID} <br>
+                            Note: "${detail.note}" <br>
+                            dx: ${detail.dx}, dy: ${detail.dy} <br>
+                            Start: ${detail.von} <br>
+                            End: ${detail.bis}
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('debug-output').innerHTML = `<p>Error: ${error}</p>`;
+            });
+    </script>
+</body>
+
+</html>
+
+<script>
+    // Load the timeline script to access roomDetails
+    const script = document.createElement('script');
+    script.src = '/wci/zp/timeline-unified.js';
+    script.onload = function () {
+        // Wait a bit for data to load
+        setTimeout(() => {
+            checkNotesData();
+        }, 1000);
+    };
+    document.head.appendChild(script);
+
+    function checkNotesData() {
+        const container = document.getElementById('notes-container');
+
+        if (typeof roomDetails === 'undefined') {
+            container.innerHTML = '<p style="color: red;">roomDetails not loaded yet</p>';
+            return;
+        }
+
+        const notesFound = [];
+        roomDetails.forEach(detail => {
+            if (detail.note && detail.note.trim() !== '') {
+                notesFound.push(detail);
+            }
+        });
+
+        if (notesFound.length === 0) {
+            container.innerHTML = '<p>No notes found in roomDetails array</p>';
+            return;
+        }
+
+        let html = `<h2>Found ${notesFound.length} notes in roomDetails:</h2>`;
+        notesFound.forEach(detail => {
+            html += `
+                    <div class="note-item">
+                        <strong>Detail ID:</strong> ${detail.id || detail.ID || 'unknown'}<br>
+                        <strong>Room ID:</strong> ${detail.room_id || detail.zimID || 'unknown'}<br>
+                        <strong>DX:</strong> ${detail.dx || 0}<br>
+                        <strong>DY:</strong> ${detail.dy || 0}<br>
+                        <div class="note-text"><strong>Note:</strong> ${detail.note}</div>
+                    </div>
+                `;
+        });
+
+        container.innerHTML = html;
+    }
+</script>
+</body>
+
+</html>

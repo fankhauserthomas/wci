@@ -1,0 +1,1 @@
+window.debugStickyNotes = true;

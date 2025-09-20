@@ -7,6 +7,12 @@ let histogramSourceData = typeof window !== 'undefined' && window.histogramSourc
 if (typeof window !== 'undefined') {
     window.arrangementsCatalog = arrangementsCatalog;
     window.histogramSource = histogramSourceData;
+
+    // Initialize debug mode from sessionStorage
+    if (sessionStorage.getItem('debugStickyNotes') === 'true') {
+        window.debugStickyNotes = true;
+        console.log('🔧 Sticky Notes Debug Mode ENABLED');
+    }
 }
 let DAY_WIDTH = 120;
 const VERTICAL_GAP = 1;
@@ -363,7 +369,29 @@ class TimelineUnifiedRenderer {
         this.dragTargetRoom = null;
         this.lastDragRender = 0; // Für Performance-Throttling
 
-        // Ghost-Balken für Drag-Feedback
+        // Drag & Drop für Sticky Notes
+        this.isDraggingStickyNote = false;
+        this.draggedStickyNote = null;
+        this.stickyNoteDragStartX = 0;
+        this.stickyNoteDragStartY = 0;
+        this.stickyNoteOffsetX = 0;
+        this.stickyNoteOffsetY = 0;
+        this.stickyNoteBounds = []; // Array of sticky note bounds for click detection
+
+        // Animation properties for smooth sticky note movement
+        this.stickyNoteAnimationFrame = null;
+        this.animatingNotes = new Map(); // detail_id -> {startTime, startX, startY, targetX, targetY, duration}
+
+        // Ghost rectangle for sticky note dragging preview
+        this.stickyNoteGhost = null; // {x, y, width, height, visible}
+
+        // Collection of sticky notes to render on top (Z-order)
+        this.stickyNotesQueue = []; // Array of {barX, barY, barWidth, barHeight, detail}
+
+        // Performance optimization for sticky notes
+        this.stickyNotesCache = new Map(); // Cache rendered sticky notes
+        this.lastStickyNotesRender = 0; // Timestamp of last sticky notes render
+        this.stickyNotesRenderThreshold = 100; // Only re-render sticky notes every 100ms        // Ghost-Balken für Drag-Feedback
         this.ghostBar = null; // { x, y, width, height, room, mode, visible }
         this.pixelGhostFrame = null; // Pixelgenauer Rahmen der mit Maus mitfährt
 
@@ -2237,12 +2265,20 @@ class TimelineUnifiedRenderer {
         document.addEventListener('mousemove', (e) => {
             // Optimiertes Throttling für alle Drag-Operationen
             const now = Date.now();
-            if (now - this.lastDragRender < 16) return; // 60 FPS für alle Drags - optimiert
+            // Disable throttling for sticky note dragging for live feedback
+            const skipThrottling = this.isDraggingStickyNote;
+            if (!skipThrottling && now - this.lastDragRender < 16) return; // 60 FPS für andere Drags
             this.lastDragRender = now;
 
             if (this.isDraggingReservation) {
                 this.handleReservationDrag(e);
                 this.scheduleRender('drag');
+            }
+            // Sticky note dragging
+            else if (this.isDraggingStickyNote) {
+                this.handleStickyNoteDrag(e);
+                // Force immediate render for live dragging feedback
+                this.lastDragRender = 0; // Reset throttling for sticky notes
             }
             // Separator-Dragging über document für bessere UX
             else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
@@ -2262,6 +2298,10 @@ class TimelineUnifiedRenderer {
             if (this.isDraggingReservation) {
                 this.finishReservationDrag();
                 this.scheduleRender('drag_end');
+            }
+            // Sticky note drag end
+            else if (this.isDraggingStickyNote) {
+                this.endStickyNoteDrag();
             }
             // Separator-MouseUp über document
             else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
@@ -2557,6 +2597,15 @@ class TimelineUnifiedRenderer {
 
         // Reservierung Drag & Drop nur wenn im Rooms-Bereich
         if (mouseY >= this.areas.rooms.y && mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            // Check for sticky note click first (higher priority than reservation drag)
+            const stickyNote = this.findStickyNoteAt(mouseX, mouseY);
+            if (stickyNote) {
+                this.startStickyNoteDrag(stickyNote, mouseX, mouseY, e);
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
             const reservation = this.findReservationAt(mouseX, mouseY);
 
             if (reservation) {
@@ -3001,15 +3050,86 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    handleNoteCommand(detail) {
+    async handleNoteCommand(detail) {
+        console.log('🔍 handleNoteCommand called with detail:', detail);
         const currentNote = detail?.data?.note || detail?.note || '';
-        const newNote = prompt('Notiz eingeben:', currentNote);
-        if (newNote !== null) {
+        console.log('🔍 Current note:', currentNote);
+
+        const newNote = await showNotesModal(currentNote);
+        console.log('🔍 New note from modal:', newNote);
+
+        if (newNote !== null) { // User didn't cancel
+            console.log('🔍 Updating note, detail_id:', detail.detail_id || detail.id);
+
             if (!detail.data) detail.data = {};
             detail.data.note = newNote;
             detail.note = newNote;
-            this.invalidateCache();
-            this.renderFrame();
+
+            // Update database with new note
+            try {
+                const response = await fetch('updateRoomDetailAttributes.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        detail_id: detail.detail_id || detail.id,
+                        updates: {
+                            note: newNote
+                        }
+                    })
+                });
+
+                console.log('🔍 Response status:', response.status);
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Note updated successfully:', result);
+
+                    // Update all instances of this detail in the global data
+                    const detailId = detail.detail_id || detail.id;
+
+                    // Update in roomDetails global variable
+                    if (typeof roomDetails !== 'undefined' && Array.isArray(roomDetails)) {
+                        roomDetails.forEach(roomDetail => {
+                            if (roomDetail.detail_id === detailId || roomDetail.id === detailId) {
+                                roomDetail.note = newNote;
+                                if (roomDetail.data) roomDetail.data.note = newNote;
+                            }
+                        });
+                    }
+
+                    // Update in reservations global variable
+                    if (typeof reservations !== 'undefined' && Array.isArray(reservations)) {
+                        reservations.forEach(reservation => {
+                            if (reservation.detail_id === detailId || reservation.id === detailId) {
+                                reservation.note = newNote;
+                                if (reservation.data) reservation.data.note = newNote;
+                            }
+                        });
+                    }
+
+                    // Update local instance
+                    detail.note = newNote;
+                    if (detail.data) detail.data.note = newNote;
+
+                    // Force complete cache invalidation and re-render
+                    this.invalidateStackingCache();
+
+                    // Clear sticky notes cache to force re-render with new data
+                    this.stickyNotesCache.clear();
+                    this.lastStickyNotesRender = 0;
+
+                    this.render();
+
+                    console.log('✅ Note updated in all data structures and re-rendered');
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Failed to update note:', response.statusText, errorText);
+                }
+            } catch (error) {
+                console.error('❌ Error updating note:', error);
+            }
         }
     }
 
@@ -3226,8 +3346,8 @@ class TimelineUnifiedRenderer {
         if (!detail.data) detail.data = {};
         detail.data.dog = currentDog ? false : newDog;
         detail.dog = detail.data.dog;
-        this.invalidateCache();
-        this.renderFrame();
+        this.invalidateStackingCache();
+        this.render();
     }
 
     async handleDeleteCommand(detail) {
@@ -4607,6 +4727,13 @@ class TimelineUnifiedRenderer {
         // Phase 3: Start batch operations for optimized rendering
         this.startBatch();
 
+        // Clear sticky notes queue for this render cycle
+        this.stickyNotesQueue = [];
+        this.stickyNoteBounds = [];
+
+        // Force sticky notes re-render on scroll or zoom
+        this.lastStickyNotesRender = 0;
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (reservations.length === 0) {
@@ -4684,6 +4811,12 @@ class TimelineUnifiedRenderer {
 
         // Pixel-precise ghost frame - rendered last for immediate mouse feedback
         this.renderPixelGhostFrame();
+
+        // Sticky note ghost rectangle for dragging preview
+        this.renderStickyNoteGhost();
+
+        // Render all sticky notes on top (highest Z-order)
+        this.renderAllStickyNotes();
 
         // Phase 3: Performance monitoring end
         const renderEnd = performance.now();
@@ -5813,6 +5946,9 @@ class TimelineUnifiedRenderer {
     }
 
     renderRoomsAreaOptimized(startDate, endDate) {
+        // Clear sticky note bounds for new render cycle
+        this.stickyNoteBounds = [];
+
         const area = this.areas.rooms;
         const startX = this.sidebarWidth - this.scrollX;
         const startY = area.y - this.roomsScrollY;
@@ -5975,6 +6111,30 @@ class TimelineUnifiedRenderer {
                 const isHovered = this.isReservationHovered(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT);
 
                 this.renderRoomReservationBar(reservation.left, stackY, reservation.width, this.ROOM_BAR_HEIGHT, reservation, isHovered);
+
+                // Queue sticky note for top-level rendering (Z-order)
+                if (reservation.note && reservation.note.trim() !== '') {
+                    const noteData = {
+                        barX: reservation.left,
+                        barY: stackY,
+                        barWidth: reservation.width,
+                        barHeight: this.ROOM_BAR_HEIGHT,
+                        detail: reservation
+                    };
+
+                    this.stickyNotesQueue.push(noteData);
+
+                    // Cache the note data for performance optimization
+                    const detailId = reservation.id || reservation.detail_id;
+                    if (detailId) {
+                        this.stickyNotesCache.set(detailId, {
+                            barX: reservation.left,
+                            barY: stackY,
+                            barWidth: reservation.width,
+                            barHeight: this.ROOM_BAR_HEIGHT
+                        });
+                    }
+                }
 
                 if (isHovered) {
                     this.hoveredReservation = reservation;
@@ -6642,6 +6802,310 @@ class TimelineUnifiedRenderer {
         this.ctx.closePath();
     }
 
+    // Render sticky note for reservation detail with note text
+    renderStickyNote(barX, barY, barWidth, barHeight, detail) {
+        // Debug logging - check all note-related fields
+        if (window.debugStickyNotes) {
+            console.log('renderStickyNote called for detail:', {
+                id: detail.detail_id || detail.id,
+                note: detail.note,
+                dx: detail.dx,
+                dy: detail.dy,
+                allKeys: Object.keys(detail)
+            });
+        }
+
+        // Skip if no note text
+        if (!detail.note || detail.note.trim() === '') {
+            return;
+        }
+
+        if (window.debugStickyNotes) {
+            console.log('🟡 RENDERING STICKY NOTE:', detail.note, 'at dx:', detail.dx, 'dy:', detail.dy);
+        }
+
+        // Get dx, dy offsets (default to 0 if not set)
+        const dx = parseFloat(detail.dx) || 0;
+        const dy = -(parseFloat(detail.dy) || 0); // Fix: multiply dy by -1
+
+        // Calculate sticky note position relative to bar end
+        const barEndX = barX + barWidth;
+        const barCenterY = barY + (barHeight / 2);
+
+        const noteX = barEndX + dx;
+        const noteY = barCenterY + dy;
+
+        // Sticky note dimensions
+        const noteWidth = 120;
+        const noteHeight = 80;
+        const cornerRadius = 4;
+
+        // Check if this sticky note is being dragged or animated
+        const isDragging = this.isDraggingStickyNote &&
+            this.draggedStickyNote &&
+            this.draggedStickyNote.detail_id === (detail.detail_id || detail.id);
+
+        const detailId = detail.detail_id || detail.id;
+        const animation = this.animatingNotes.get(detailId);
+        let scale = 1.0;
+        let animationProgress = 0;
+
+        // Calculate animation scale for smooth transitions
+        if (animation) {
+            const elapsed = Date.now() - animation.startTime;
+            animationProgress = Math.min(elapsed / animation.duration, 1);
+
+            if (animation.type === 'dragStart') {
+                // Small scale up when starting drag
+                scale = 1.0 + (0.1 * Math.sin(animationProgress * Math.PI));
+            } else if (animation.type === 'dragEnd') {
+                // Quick scale down when ending drag
+                scale = 1.05 * (1 - animationProgress) + 1.0 * animationProgress;
+            }
+
+            // Remove completed animations
+            if (animationProgress >= 1) {
+                this.animatingNotes.delete(detailId);
+            } else {
+                // Schedule next frame for smooth animation
+                requestAnimationFrame(() => this.render());
+            }
+        }
+
+        // Additional scale for dragging state
+        if (isDragging) {
+            scale *= 1.05; // Slightly larger when dragging
+        }
+
+        this.ctx.save();
+
+        // ALWAYS render sticky notes on top - force highest Z-order
+        this.ctx.globalCompositeOperation = 'source-over';
+
+        // Apply scale transformation for animations
+        if (scale !== 1.0) {
+            const centerX = noteX + noteWidth / 2;
+            const centerY = noteY + noteHeight / 2;
+            this.ctx.translate(centerX, centerY);
+            this.ctx.scale(scale, scale);
+            this.ctx.translate(-centerX, -centerY);
+        }
+
+        // Enhanced shadow for all sticky notes (stronger when dragging)
+        if (isDragging) {
+            this.ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowOffsetX = 3;
+            this.ctx.shadowOffsetY = 3;
+        } else {
+            this.ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.shadowOffsetX = 1;
+            this.ctx.shadowOffsetY = 1;
+        }
+
+        // Draw arrow from bar end to sticky note
+        this.ctx.strokeStyle = '#666';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([2, 2]); // Dashed line
+        this.ctx.beginPath();
+        this.ctx.moveTo(barEndX, barCenterY);
+        this.ctx.lineTo(noteX, noteY);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]); // Reset dash
+
+        // Draw sticky note background (semi-transparent yellow, more opaque when dragging)
+        this.ctx.fillStyle = isDragging ? 'rgba(255, 215, 0, 0.95)' : 'rgba(255, 255, 153, 0.85)';
+        this.ctx.strokeStyle = isDragging ? '#ff6b35' : '#e6e600';
+        this.ctx.lineWidth = isDragging ? 3 : 1;
+
+        // Add glow effect when dragging
+        if (isDragging) {
+            this.ctx.shadowColor = 'rgba(255, 215, 0, 0.5)';
+            this.ctx.shadowBlur = 12;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+        }
+
+        // Rounded rectangle for sticky note
+        this.ctx.beginPath();
+        this.ctx.moveTo(noteX + cornerRadius, noteY);
+        this.ctx.lineTo(noteX + noteWidth - cornerRadius, noteY);
+        this.ctx.quadraticCurveTo(noteX + noteWidth, noteY, noteX + noteWidth, noteY + cornerRadius);
+        this.ctx.lineTo(noteX + noteWidth, noteY + noteHeight - cornerRadius);
+        this.ctx.quadraticCurveTo(noteX + noteWidth, noteY + noteHeight, noteX + noteWidth - cornerRadius, noteY + noteHeight);
+        this.ctx.lineTo(noteX + cornerRadius, noteY + noteHeight);
+        this.ctx.quadraticCurveTo(noteX, noteY + noteHeight, noteX, noteY + noteHeight - cornerRadius);
+        this.ctx.lineTo(noteX, noteY + cornerRadius);
+        this.ctx.quadraticCurveTo(noteX, noteY, noteX + cornerRadius, noteY);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Draw folded corner effect (small triangle in top-right)
+        const foldSize = 12;
+        this.ctx.fillStyle = 'rgba(230, 230, 0, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.moveTo(noteX + noteWidth - foldSize, noteY);
+        this.ctx.lineTo(noteX + noteWidth, noteY + foldSize);
+        this.ctx.lineTo(noteX + noteWidth, noteY);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw note text
+        this.ctx.fillStyle = '#333';
+        this.ctx.font = '11px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'top';
+
+        // Word wrap text within sticky note
+        const maxLineWidth = noteWidth - 16; // Padding
+        const lineHeight = 14;
+        const maxLines = Math.floor((noteHeight - 16) / lineHeight);
+
+        const words = detail.note.trim().split(/\s+/);
+        const lines = [];
+        let currentLine = '';
+
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const textWidth = this.ctx.measureText(testLine).width;
+
+            if (textWidth <= maxLineWidth) {
+                currentLine = testLine;
+            } else {
+                if (currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    // Word is too long, truncate it
+                    lines.push(word.substring(0, 15) + '...');
+                    currentLine = '';
+                }
+
+                if (lines.length >= maxLines) {
+                    break;
+                }
+            }
+        }
+
+        if (currentLine && lines.length < maxLines) {
+            lines.push(currentLine);
+        }
+
+        // Draw the text lines
+        lines.forEach((line, index) => {
+            this.ctx.fillText(line, noteX + 8, noteY + 8 + (index * lineHeight));
+        });
+
+        // Store sticky note bounds for click detection
+        if (!this.stickyNoteBounds) {
+            this.stickyNoteBounds = [];
+        }
+
+        this.stickyNoteBounds.push({
+            detail_id: detail.detail_id || detail.id,
+            detail: detail,
+            x: noteX,
+            y: noteY,
+            width: noteWidth,
+            height: noteHeight,
+            barEndX: barEndX,
+            barCenterY: barCenterY
+        });
+
+        this.ctx.restore();
+    }
+
+    // Render ghost rectangle during sticky note dragging
+    renderStickyNoteGhost() {
+        if (!this.stickyNoteGhost || !this.stickyNoteGhost.visible) {
+            return;
+        }
+
+        const ghost = this.stickyNoteGhost;
+        const cornerRadius = 4;
+
+        this.ctx.save();
+
+        // Semi-transparent ghost with dashed border
+        this.ctx.globalAlpha = 0.4;
+        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+        this.ctx.strokeStyle = 'rgba(255, 100, 50, 0.8)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]); // Dashed border for ghost effect
+
+        // Draw rounded rectangle for ghost
+        this.ctx.beginPath();
+        this.ctx.moveTo(ghost.x + cornerRadius, ghost.y);
+        this.ctx.lineTo(ghost.x + ghost.width - cornerRadius, ghost.y);
+        this.ctx.quadraticCurveTo(ghost.x + ghost.width, ghost.y, ghost.x + ghost.width, ghost.y + cornerRadius);
+        this.ctx.lineTo(ghost.x + ghost.width, ghost.y + ghost.height - cornerRadius);
+        this.ctx.quadraticCurveTo(ghost.x + ghost.width, ghost.y + ghost.height, ghost.x + ghost.width - cornerRadius, ghost.y + ghost.height);
+        this.ctx.lineTo(ghost.x + cornerRadius, ghost.y + ghost.height);
+        this.ctx.quadraticCurveTo(ghost.x, ghost.y + ghost.height, ghost.x, ghost.y + ghost.height - cornerRadius);
+        this.ctx.lineTo(ghost.x, ghost.y + cornerRadius);
+        this.ctx.quadraticCurveTo(ghost.x, ghost.y, ghost.x + cornerRadius, ghost.y);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Reset line dash
+        this.ctx.setLineDash([]);
+
+        this.ctx.restore();
+    }
+
+    // Render all queued sticky notes on top (highest Z-order)
+    renderAllStickyNotes() {
+        if (!this.stickyNotesQueue || this.stickyNotesQueue.length === 0) {
+            return;
+        }
+
+        const now = performance.now();
+
+        // Performance optimization: Only re-render sticky notes if enough time has passed
+        // or if we're dragging (which needs immediate updates)
+        const shouldThrottle = !this.isDraggingStickyNote &&
+            (now - this.lastStickyNotesRender < this.stickyNotesRenderThreshold);
+
+        if (shouldThrottle) {
+            // Use cached version if available and recent
+            if (this.stickyNotesCache.size > 0) {
+                this.renderCachedStickyNotes();
+                return;
+            }
+        }
+
+        // Update render timestamp
+        this.lastStickyNotesRender = now;
+
+        // Only log when actually rendering (not using cache)
+        if (window.debugStickyNotes) {
+            console.log(`🎯 Rendering ${this.stickyNotesQueue.length} sticky notes on top layer`);
+        }
+
+        // Clear cache and render fresh
+        this.stickyNotesCache.clear();
+
+        // Render each sticky note with maximum Z-order priority
+        this.stickyNotesQueue.forEach(noteData => {
+            this.renderStickyNote(noteData.barX, noteData.barY, noteData.barWidth, noteData.barHeight, noteData.detail);
+        });
+    }
+
+    // Render cached sticky notes without re-calculation
+    renderCachedStickyNotes() {
+        // Simply re-use the last rendered sticky notes positions
+        // This is much faster for hover events that don't affect sticky notes
+        for (const [detailId, cachedData] of this.stickyNotesCache) {
+            const detail = this.stickyNotesQueue.find(q => q.detail.id === detailId || q.detail.detail_id === detailId);
+            if (detail) {
+                this.renderStickyNote(cachedData.barX, cachedData.barY, cachedData.barWidth, cachedData.barHeight, detail.detail);
+            }
+        }
+    }
+
     lightenColor(color, percent) {
         const num = parseInt(color.replace("#", ""), 16);
         const amt = Math.round(2.55 * percent);
@@ -6714,6 +7178,159 @@ class TimelineUnifiedRenderer {
                 this.radialMenu.updateSize(newSize);
             }
         }
+    }
+
+    // Find sticky note at mouse position
+    findStickyNoteAt(mouseX, mouseY) {
+        if (!this.stickyNoteBounds || this.stickyNoteBounds.length === 0) {
+            return null;
+        }
+
+        // Check each sticky note bounds
+        for (const stickyNote of this.stickyNoteBounds) {
+            if (mouseX >= stickyNote.x && mouseX <= stickyNote.x + stickyNote.width &&
+                mouseY >= stickyNote.y && mouseY <= stickyNote.y + stickyNote.height) {
+                return stickyNote;
+            }
+        }
+        return null;
+    }
+
+    // Start dragging a sticky note with animation
+    startStickyNoteDrag(stickyNote, mouseX, mouseY, e) {
+        this.isDraggingStickyNote = true;
+        this.draggedStickyNote = stickyNote;
+        this.stickyNoteDragStartX = mouseX;
+        this.stickyNoteDragStartY = mouseY;
+
+        // Store initial offset from mouse to sticky note corner
+        this.stickyNoteOffsetX = mouseX - stickyNote.x;
+        this.stickyNoteOffsetY = mouseY - stickyNote.y;
+
+        // Initialize ghost rectangle
+        this.stickyNoteGhost = {
+            x: stickyNote.x,
+            y: stickyNote.y,
+            width: 120,
+            height: 80,
+            visible: true
+        };
+
+        // Add small scale animation when starting drag
+        const detailId = stickyNote.detail_id;
+        this.animatingNotes.set(detailId, {
+            startTime: Date.now(),
+            type: 'dragStart',
+            duration: 200 // 200ms animation
+        });
+
+        console.log('🔄 Starting sticky note drag with ghost rectangle:', stickyNote.detail_id);
+        this.render(); // Re-render to show dragging state
+    }
+
+    // Handle sticky note dragging with direct mouse following
+    handleStickyNoteDrag(e) {
+        if (!this.isDraggingStickyNote || !this.draggedStickyNote) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate ghost rectangle position (follows mouse exactly)
+        const ghostX = mouseX - this.stickyNoteOffsetX;
+        const ghostY = mouseY - this.stickyNoteOffsetY;
+
+        // Update ghost rectangle for pixelgenau mouse following
+        this.stickyNoteGhost = {
+            x: ghostX,
+            y: ghostY,
+            width: 120, // Same as sticky note width
+            height: 80, // Same as sticky note height
+            visible: true
+        };
+
+        // Update sticky note position (can be slightly delayed for performance)
+        this.draggedStickyNote.x = ghostX;
+        this.draggedStickyNote.y = ghostY;
+
+        // Force immediate render for live dragging - bypass normal scheduling
+        this.renderImmediate();
+    }
+
+    // Immediate render without throttling for live drag feedback
+    renderImmediate() {
+        this.lastRenderTime = 0; // Reset render throttling
+        this.render();
+    }
+
+    // End sticky note drag and save position
+    async endStickyNoteDrag() {
+        if (!this.isDraggingStickyNote || !this.draggedStickyNote) return;
+
+        const stickyNote = this.draggedStickyNote;
+        const detail = stickyNote.detail;
+
+        // Calculate new dx/dy relative to bar end
+        const newDx = stickyNote.x - stickyNote.barEndX;
+        const newDy = -(stickyNote.y - stickyNote.barCenterY); // Fix: negate dy for database
+
+        console.log('💾 Saving sticky note position:', {
+            detail_id: detail.detail_id || detail.id,
+            oldDx: detail.dx,
+            oldDy: detail.dy,
+            newDx: newDx,
+            newDy: newDy
+        });
+
+        try {
+            // Save to database
+            const response = await fetch('updateRoomDetailAttributes.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    detail_id: detail.detail_id || detail.id,
+                    updates: {
+                        dx: Math.round(newDx),
+                        dy: Math.round(newDy)
+                    }
+                })
+            });
+
+            if (response.ok) {
+                // Update local data
+                detail.dx = newDx;
+                detail.dy = newDy;
+                console.log('✅ Sticky note position saved successfully');
+            } else {
+                console.error('❌ Failed to save sticky note position:', response.statusText);
+            }
+        } catch (error) {
+            console.error('❌ Error saving sticky note position:', error);
+        }
+
+        // Clean up drag state
+        this.isDraggingStickyNote = false;
+        this.draggedStickyNote = null;
+        this.stickyNoteDragStartX = 0;
+        this.stickyNoteDragStartY = 0;
+        this.stickyNoteOffsetX = 0;
+        this.stickyNoteOffsetY = 0;
+
+        // Hide ghost rectangle
+        this.stickyNoteGhost = null;
+
+        // Add completion animation
+        const detailId = detail.detail_id || detail.id;
+        this.animatingNotes.set(detailId, {
+            startTime: Date.now(),
+            type: 'dragEnd',
+            duration: 150 // Quick snap-back animation
+        });
+
+        // Final render
+        this.render();
     }
 }
 

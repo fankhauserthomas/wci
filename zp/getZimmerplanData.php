@@ -76,6 +76,9 @@ try {
             rd.hund,
             rd.arr as detail_arr,
             rd.ParentID,
+            rd.note,
+            rd.dx,
+            rd.dy,
             z.caption as zimmer_name,
             z.kapazitaet as zimmer_capacity,
             z.sort as zimmer_sort,
@@ -307,7 +310,10 @@ try {
                 'has_dog' => (bool)$detail['hund'],
                 'color' => $detail['color'] ?? '#3498db',
                 'caption' => $detail['caption'],
-                'ParentID' => $detail['ParentID'] ?? 0
+                'ParentID' => $detail['ParentID'] ?? 0,
+                'note' => $detail['note'] ?? '',
+                'dx' => $detail['dx'] ?? 0,
+                'dy' => $detail['dy'] ?? 0
             ]
         ];
         

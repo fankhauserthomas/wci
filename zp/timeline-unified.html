@@ -220,6 +220,40 @@
             border-color: #007bff;
         }
 
+        .modal-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: #f5f5f5;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 16px;
+        }
+
+        .modal-textarea:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.25);
+        }
+
+        .modal-textarea::placeholder {
+            color: #888;
+        }
+
+        .modal-button-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+
+        .modal-button-secondary:hover {
+            background: #5a6268;
+        }
+
         .modal-checkbox-group {
             display: flex;
             align-items: center;
@@ -397,6 +431,34 @@
         </div>
     </div>
 
+    <!-- Notes Edit Modal -->
+    <div id="notes-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <span>Notiz</span>
+            </div>
+            <div class="modal-body">
+                <label for="notes-textarea"
+                    style="color: #cccccc; font-size: 14px; display: block; margin-bottom: 8px;">
+                    Notiz-Text:
+                </label>
+                <textarea id="notes-textarea" class="modal-textarea" placeholder="Ihre Notiz hier eingeben..."
+                    rows="4"></textarea>
+
+                <div class="modal-char-counter"
+                    style="text-align: right; color: #999; font-size: 11px; margin-top: -8px; margin-bottom: 8px;">
+                    <span id="notes-char-count">0</span> Zeichen
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="notes-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
+                <button id="notes-clear" class="modal-button modal-button-secondary"
+                    style="display: none;">Löschen</button>
+                <button id="notes-save" class="modal-button modal-button-primary">Speichern</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Debug Console -->
     <div id="debug-console" class="debug-console">
         <div class="debug-console-header">
@@ -547,6 +609,89 @@
                 designationCancel.addEventListener('click', onCancel);
                 designationSave.addEventListener('click', onSave);
                 designationInput.addEventListener('keydown', onKeyPress);
+                modal.addEventListener('click', onOverlayClick);
+            });
+        }
+
+        // Notes Edit Modal Function
+        function showNotesModal(currentNote = '') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('notes-modal');
+                const notesTextarea = document.getElementById('notes-textarea');
+                const notesCancel = document.getElementById('notes-cancel');
+                const notesClear = document.getElementById('notes-clear');
+                const notesSave = document.getElementById('notes-save');
+                const charCount = document.getElementById('notes-char-count');
+
+                // Update character counter
+                const updateCharCount = () => {
+                    charCount.textContent = notesTextarea.value.length;
+                };
+
+                // Set current value
+                notesTextarea.value = currentNote;
+                updateCharCount();
+
+                // Show/hide clear button based on current note
+                if (currentNote && currentNote.trim() !== '') {
+                    notesClear.style.display = 'inline-block';
+                } else {
+                    notesClear.style.display = 'none';
+                }
+
+                // Show modal
+                modal.classList.add('active');
+                notesTextarea.focus();
+                notesTextarea.select();
+
+                // Event handlers
+                const onCancel = () => {
+                    cleanup();
+                    modal.classList.remove('active');
+                    resolve(null);
+                };
+
+                const onSave = () => {
+                    const newNote = notesTextarea.value.trim();
+                    cleanup();
+                    modal.classList.remove('active');
+                    resolve(newNote);
+                };
+
+                const onClear = () => {
+                    cleanup();
+                    modal.classList.remove('active');
+                    resolve(''); // Empty string to clear the note
+                };
+
+                const onKeyPress = (e) => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        onSave();
+                    } else if (e.key === 'Escape') {
+                        onCancel();
+                    }
+                };
+
+                const cleanup = () => {
+                    notesCancel.removeEventListener('click', onCancel);
+                    notesClear.removeEventListener('click', onClear);
+                    notesSave.removeEventListener('click', onSave);
+                    notesTextarea.removeEventListener('keydown', onKeyPress);
+                    notesTextarea.removeEventListener('input', updateCharCount);
+                    modal.removeEventListener('click', onOverlayClick);
+                };
+
+                const onOverlayClick = (e) => {
+                    if (e.target === modal) {
+                        onCancel();
+                    }
+                };
+
+                notesCancel.addEventListener('click', onCancel);
+                notesClear.addEventListener('click', onClear);
+                notesSave.addEventListener('click', onSave);
+                notesTextarea.addEventListener('keydown', onKeyPress);
+                notesTextarea.addEventListener('input', updateCharCount);
                 modal.addEventListener('click', onOverlayClick);
             });
         }
@@ -753,6 +898,9 @@
                             capacity: detailData.capacity || 1,
                             arrangement_label: detailData.arrangement || detailData.arrangement_kbez || '',
                             ParentID: detailData.ParentID || item.ParentID || 0,
+                            note: detailData.note || '',
+                            dx: detailData.dx || 0,
+                            dy: detailData.dy || 0,
                             data: {
                                 ...detailData,
                                 detail_id: detailId,

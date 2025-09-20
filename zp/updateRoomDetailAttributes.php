@@ -87,6 +87,33 @@ try {
         $bindValues[] = $amount;
     }
 
+    // Handle dx and dy fields for sticky notes
+    if (array_key_exists('dx', $updates)) {
+        $dx = (int)$updates['dx'];
+        $setParts[] = 'dx = ?';
+        $bindTypes .= 'i';
+        $bindValues[] = $dx;
+    }
+
+    if (array_key_exists('dy', $updates)) {
+        $dy = (int)$updates['dy'];
+        $setParts[] = 'dy = ?';
+        $bindTypes .= 'i';
+        $bindValues[] = $dy;
+    }
+
+    // Handle note field for sticky notes
+    if (array_key_exists('note', $updates)) {
+        $note = trim($updates['note']);
+        if ($note === '') {
+            $setParts[] = 'note = NULL';
+        } else {
+            $setParts[] = 'note = ?';
+            $bindTypes .= 's';
+            $bindValues[] = $note;
+        }
+    }
+
     if (empty($setParts)) {
         throw new InvalidArgumentException('Keine gültigen Felder für Update angegeben.');
     }

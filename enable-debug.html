@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Enable Sticky Notes Debug</title>
+</head>
+
+<body>
+    <h1>Enable Sticky Notes Debug</h1>
+    <button onclick="enableDebug()">Enable Debug Mode</button>
+    <p>This will enable console logging for sticky notes in the timeline.</p>
+
+    <script>
+        function enableDebug() {
+            // Set debug flag in sessionStorage
+            sessionStorage.setItem('debugStickyNotes', 'true');
+            window.debugStickyNotes = true;
+
+            // Also set it globally for immediate use
+            if (window.parent && window.parent.debugStickyNotes !== undefined) {
+                window.parent.debugStickyNotes = true;
+            }
+
+            alert('Debug mode enabled! Open the timeline and check the console.');
+        }
+
+        // Auto-enable debug if in sessionStorage
+        if (sessionStorage.getItem('debugStickyNotes') === 'true') {
+            window.debugStickyNotes = true;
+        }
+    </script>
+</body>
+
+</html>

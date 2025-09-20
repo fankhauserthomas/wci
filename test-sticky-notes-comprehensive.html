@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sticky Notes Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .info {
+            color: blue;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Sticky Notes Implementation Test</h1>
+
+    <div class="test-section">
+        <h2>Step 1: Enable Debug Mode</h2>
+        <button onclick="enableDebug()">Enable Debug Mode</button>
+        <p id="debug-status">Debug mode: <span id="debug-flag">Not enabled</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 2: Test Data Loading</h2>
+        <button onclick="testDataLoading()">Test Data Loading</button>
+        <div id="data-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 3: Open Timeline</h2>
+        <button onclick="openTimeline()">Open Timeline in New Tab</button>
+        <p>After opening timeline, check the browser console for sticky note debug messages.</p>
+    </div>
+
+    <script>
+        function enableDebug() {
+            sessionStorage.setItem('debugStickyNotes', 'true');
+            window.debugStickyNotes = true;
+            document.getElementById('debug-flag').textContent = 'Enabled';
+            document.getElementById('debug-flag').className = 'success';
+            console.log('🔧 Debug mode enabled');
+        }
+
+        function testDataLoading() {
+            const resultsDiv = document.getElementById('data-results');
+            resultsDiv.innerHTML = '<p>Loading data...</p>';
+
+            fetch('zp/getZimmerplanData.php')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Data loaded:', data);
+
+                    const roomDetails = data.roomDetails || [];
+                    const notesCount = roomDetails.filter(d => d.note && d.note.trim() !== '').length;
+
+                    resultsDiv.innerHTML = `
+                    <p class="success">✅ Data loaded successfully</p>
+                    <p>Total room details: ${roomDetails.length}</p>
+                    <p>Details with notes: ${notesCount}</p>
+                    ${notesCount > 0 ? `
+                        <h3>Sample notes:</h3>
+                        <ul>
+                            ${roomDetails.filter(d => d.note && d.note.trim() !== '').slice(0, 3).map(d =>
+                        `<li>ID ${d.detail_id}: "${d.note}" (dx: ${d.dx}, dy: ${d.dy})</li>`
+                    ).join('')}
+                        </ul>
+                    ` : '<p class="error">❌ No notes found in data</p>'}
+                `;
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    resultsDiv.innerHTML = `<p class="error">❌ Error loading data: ${error}</p>`;
+                });
+        }
+
+        function openTimeline() {
+            window.open('zp/timeline-unified.html', '_blank');
+        }
+
+        // Auto-check debug status on load
+        if (sessionStorage.getItem('debugStickyNotes') === 'true') {
+            document.getElementById('debug-flag').textContent = 'Enabled';
+            document.getElementById('debug-flag').className = 'success';
+            window.debugStickyNotes = true;
+        }
+    </script>
+</body>
+
+</html>
