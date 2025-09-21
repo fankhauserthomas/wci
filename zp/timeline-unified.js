@@ -42,6 +42,8 @@ class TimelineRadialMenu {
 
         this.centerRadius = computedCenter;
         this.ringGap = ringGap;
+        // Einheitlicher Radius des Zentrumskreises (wird auch für Ring-Start verwendet)
+        this.centerButtonRadius = Math.max(12, Math.round((this.centerRadius - 4) * 2 / 3));
         this.ringThickness = Math.max(10, ringThickness);
 
         if (this.root) {
@@ -90,7 +92,8 @@ class TimelineRadialMenu {
         const circle = document.createElementNS(svgNS, 'circle');
         circle.setAttribute('cx', this.center.x);
         circle.setAttribute('cy', this.center.y);
-        circle.setAttribute('r', Math.max(16, this.centerRadius - 4));
+        // Innerer Kreis-Radius entspricht dem gespeicherten centerButtonRadius
+        circle.setAttribute('r', this.centerButtonRadius);
         circle.setAttribute('fill', '#313131');
         circle.setAttribute('class', 'center-button');
 
@@ -101,7 +104,8 @@ class TimelineRadialMenu {
         });
 
         const line1 = document.createElementNS(svgNS, 'line');
-        const crossRadius = Math.max(8, (this.centerRadius - 8));
+        // X im Zentrum skaliert relativ zum Zentrumskreis
+        const crossRadius = Math.max(6, Math.round(this.centerButtonRadius * 0.6));
         line1.setAttribute('x1', this.center.x - crossRadius);
         line1.setAttribute('y1', this.center.y - crossRadius);
         line1.setAttribute('x2', this.center.x + crossRadius);
@@ -216,11 +220,20 @@ class TimelineRadialMenu {
 
     getRingBounds(level) {
         const safeLevel = Math.max(0, level);
-        const innerRadius = this.centerRadius + safeLevel * (this.ringThickness + this.ringGap);
-        return {
-            innerRadius,
-            outerRadius: innerRadius + this.ringThickness
-        };
+        const base = this.centerButtonRadius;
+        const step = this.ringThickness + this.ringGap;
+
+        // First ring starts at centerButtonRadius and is thicker (fills one full step)
+        if (safeLevel === 0) {
+            const innerRadius = base;
+            const outerRadius = innerRadius + step; // thicker first ring to remove gap to next
+            return { innerRadius, outerRadius };
+        }
+
+        // Subsequent rings: start after first ring (no extra gap between 1 and 2)
+        const innerRadius = base + safeLevel * step;
+        const outerRadius = innerRadius + this.ringThickness;
+        return { innerRadius, outerRadius };
     }
 
     show(detail, clientX, clientY, ringConfigurations = []) {
@@ -2767,8 +2780,9 @@ class TimelineUnifiedRenderer {
     }
 
     getColorPaletteOptions(detail) {
+        // Fixed palette only; do not inject current detail color to avoid extra segments
         const palette = [
-            { label: '', value: detail?.color || detail?.data?.color || '#3498db' },
+            { label: '', value: '#3498db' },
             { label: '', value: '#1f78ff' },
             { label: '', value: '#27ae60' },
             { label: '', value: '#c0392b' },
@@ -2819,9 +2833,10 @@ class TimelineUnifiedRenderer {
     }
 
     getCapacityOptions(detail) {
+        const minOption = 1;
         const maxOption = 10;
         const options = [];
-        for (let value = 0; value <= maxOption; value++) {
+        for (let value = minOption; value <= maxOption; value++) {
             options.push({
                 label: String(value),
                 value,

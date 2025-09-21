@@ -207,30 +207,7 @@
             color: #666;
         }
 
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-            gap: 8px;
-        }
-
-        .metric-item {
-            text-align: center;
-            padding: 6px 8px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .metric-item label {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 3px;
-        }
-
-        .metric-item input {
-            width: 100%;
-            font-size: 11px;
-        }
+        /* Hinweis: Kompakte Metrics-Grid Styles folgen weiter unten und ersetzen diese Basiskonfiguration. */
 
         .action-buttons {
             display: flex;
@@ -717,8 +694,8 @@
                                 <h3>Layout Settings</h3>
                                 <div class="config-item">
                                     <label>Day Width:</label>
-                                    <input type="range" id="day-width" min="60" max="150" value="90">
-                                    <span id="day-width-value">90px</span>
+                                    <!-- Entfernt: Doppelter Regler (ID-Konflikt) wurde bereits im Abschnitt Anzeige-Einstellungen definiert. -->
+                                    <!-- Der Day-Width-Regler ist oben unter Anzeige-Einstellungen vorhanden. Dieser doppelte Block wurde entfernt, um doppelte IDs zu vermeiden. -->
                                 </div>
                             </div>
                         </div>

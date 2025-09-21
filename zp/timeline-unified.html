@@ -6,6 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timeline Unified - Single Canvas Rendering</title>
     <style>
+        :root {
+            /* Unified modal color system (keine visuellen Änderungen, nur zentralisierte Variablen) */
+            --modal-overlay-bg: rgba(0, 0, 0, 0.7);
+            --modal-bg: #2c2c2c;
+            --modal-border: #555;
+            --modal-header-color: #f5f5f5;
+            --modal-body-color: #cccccc;
+            --modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --modal-input-bg: #1a1a1a;
+            --modal-input-border: #555;
+            --modal-input-color: #f5f5f5;
+            --modal-input-focus: #007bff;
+            --modal-textarea-focus-shadow: rgba(255, 215, 0, 0.25);
+            --modal-btn-cancel-bg: #555;
+            --modal-btn-cancel-bg-hover: #666;
+            --modal-btn-danger-bg: #dc3545;
+            --modal-btn-danger-bg-hover: #c82333;
+            --modal-btn-primary-bg: #007bff;
+            --modal-btn-primary-bg-hover: #0056b3;
+            --modal-btn-secondary-bg: #6c757d;
+            --modal-btn-secondary-bg-hover: #5a6268;
+            --modal-checkbox-accent: #007bff;
+            --dataset-section-bg: #2a2a2a;
+            --dataset-section-border: #444;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -64,7 +90,8 @@
             pointer-events: none;
             z-index: 9999;
             display: none;
-            transform: rotate(-360deg) scale(0.05);
+            /* Start slightly rotated so the show animation rotates +360° to final +90° */
+            transform: rotate(-270deg) scale(0.05);
             opacity: 0;
             transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
                 opacity 0.5s ease-out;
@@ -72,12 +99,14 @@
 
         .radial-menu.active {
             display: block;
-            transform: rotate(0deg) scale(1);
+            /* Final resting orientation rotated +90° clockwise */
+            transform: rotate(90deg) scale(1);
             opacity: 1;
         }
 
         .radial-menu.hiding {
-            transform: rotate(360deg) scale(0.05);
+            /* Continue the rotation direction when hiding */
+            transform: rotate(450deg) scale(0.05);
             opacity: 0;
         }
 
@@ -117,7 +146,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: var(--modal-overlay-bg);
             z-index: 10000;
             justify-content: center;
             align-items: center;
@@ -128,13 +157,13 @@
         }
 
         .modal-dialog {
-            background: #2c2c2c;
-            border: 1px solid #555;
+            background: var(--modal-bg);
+            border: 1px solid var(--modal-border);
             border-radius: 8px;
             padding: 24px;
             max-width: 400px;
             width: 90%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--modal-shadow);
             animation: modalSlideIn 0.2s ease-out;
         }
 
@@ -151,7 +180,7 @@
         }
 
         .modal-header {
-            color: #f5f5f5;
+            color: var(--modal-header-color);
             font-size: 18px;
             font-weight: 600;
             margin-bottom: 16px;
@@ -165,7 +194,7 @@
         }
 
         .modal-body {
-            color: #cccccc;
+            color: var(--modal-body-color);
             font-size: 14px;
             line-height: 1.5;
             margin-bottom: 24px;
@@ -188,56 +217,56 @@
         }
 
         .modal-button-cancel {
-            background: #555;
-            color: #f5f5f5;
+            background: var(--modal-btn-cancel-bg);
+            color: var(--modal-header-color);
         }
 
         .modal-button-cancel:hover {
-            background: #666;
+            background: var(--modal-btn-cancel-bg-hover);
         }
 
         .modal-button-danger {
-            background: #dc3545;
+            background: var(--modal-btn-danger-bg);
             color: white;
         }
 
         .modal-button-danger:hover {
-            background: #c82333;
+            background: var(--modal-btn-danger-bg-hover);
         }
 
         .modal-button-primary {
-            background: #007bff;
+            background: var(--modal-btn-primary-bg);
             color: white;
         }
 
         .modal-button-primary:hover {
-            background: #0056b3;
+            background: var(--modal-btn-primary-bg-hover);
         }
 
         /* Input Modal Styles */
         .modal-input {
             width: 100%;
             padding: 8px 12px;
-            border: 1px solid #555;
+            border: 1px solid var(--modal-input-border);
             border-radius: 4px;
-            background: #1a1a1a;
-            color: #f5f5f5;
+            background: var(--modal-input-bg);
+            color: var(--modal-input-color);
             font-size: 14px;
             margin-bottom: 16px;
         }
 
         .modal-input:focus {
             outline: none;
-            border-color: #007bff;
+            border-color: var(--modal-input-focus);
         }
 
         .modal-textarea {
             width: 100%;
             padding: 8px 12px;
-            border: 1px solid #555;
+            border: 1px solid var(--modal-input-border);
             border-radius: 4px;
-            background: #1a1a1a;
-            color: #f5f5f5;
+            background: var(--modal-input-bg);
+            color: var(--modal-input-color);
             font-size: 14px;
             font-family: inherit;
             resize: vertical;
@@ -248,7 +277,7 @@
         .modal-textarea:focus {
             outline: none;
             border-color: #ffd700;
-            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.25);
+            box-shadow: 0 0 0 2px var(--modal-textarea-focus-shadow);
         }
 
         .modal-textarea::placeholder {
@@ -256,13 +285,13 @@
         }
 
         .modal-button-secondary {
-            background: #6c757d;
+            background: var(--modal-btn-secondary-bg);
             color: white;
             border: none;
         }
 
         .modal-button-secondary:hover {
-            background: #5a6268;
+            background: var(--modal-btn-secondary-bg-hover);
         }
 
         .modal-checkbox-group {
@@ -276,7 +305,7 @@
         .modal-checkbox {
             width: 16px;
             height: 16px;
-            accent-color: #007bff;
+            accent-color: var(--modal-checkbox-accent);
         }
 
         .modal-checkbox-label {
@@ -287,10 +316,10 @@
         /* Dataset Modal Styles */
         .dataset-section {
             margin-bottom: 24px;
-            border: 1px solid #444;
+            border: 1px solid var(--dataset-section-border);
             border-radius: 6px;
             padding: 16px;
-            background: #2a2a2a;
+            background: var(--dataset-section-bg);
         }
 
         .dataset-section-title {
@@ -1172,19 +1201,11 @@
                         cancelBtn.removeEventListener('click', onCancel);
                         saveBtn.removeEventListener('click', onSave);
                         document.removeEventListener('keydown', onKeyPress);
-                        modal.removeEventListener('click', onOverlayClick);
-                    };
-
-                    const onOverlayClick = (e) => {
-                        if (e.target === modal) {
-                            onCancel();
-                        }
                     };
 
                     cancelBtn.addEventListener('click', onCancel);
                     saveBtn.addEventListener('click', onSave);
                     document.addEventListener('keydown', onKeyPress);
-                    modal.addEventListener('click', onOverlayClick);
 
                 } catch (error) {
                     console.error('Fehler beim Laden der AV-Res Daten:', error);
