@@ -89,9 +89,14 @@ Hinweis: In übergeordneten Ordnern existieren Debug-/Analyse-Skripte, die nicht
 - `timeline-config.html`:
   - Entfernt: doppelter "Day Width"-Regler im Abschnitt „Layout Settings“ (IDs `day-width`, `day-width-value`)
   - Kommentar ergänzt: Basismetrics-Styles werden durch kompakte Styles ersetzt
+  - Neu: Regler für „Wochen in der Vergangenheit“ (`weeks-past`) und „Wochen in der Zukunft“ (`weeks-future`) im Abschnitt Anzeige-Einstellungen. Werte werden live via `postMessage` an die Timeline übergeben.
 - `timeline-unified.html`:
   - CSS-Variablen `--modal-*` eingeführt und bestehende Modal-Styles darauf umgestellt
+  - Message-Listener erweitert: Reagiert nun auch auf `weeks-past`/`weeks-future` und rendert den neuen Datumsbereich ohne Reload. Initialer Datenabruf nutzt die gespeicherten Wochenwerte.
+  - Hinweis: Kein Abfangen von F5/Ctrl+R – standardmäßiges Browser-Reload bleibt unverändert.
 - `TIMELINE-CONFIG-ANALYSIS.md` hinzugefügt
+ - `timeline-config.js`: Persistiert `weeksPast`/`weeksFuture` in Cookie/localStorage; `selectTheme()` übernimmt diese Werte. `updateInputsFromConfig()` und `updateFromInputs()` binden die neuen Felder ein. Defaults ergänzt.
+ - `timeline-unified.js`: Theme-Defaults um `weeksPast`/`weeksFuture` erweitert; `addMissingDefaults()` ergänzt diese Felder; `render()` nutzt die konfigurierten Wochen statt fixen 14 Tagen/2 Jahren.
 
 ## Betriebshinweise
 - Keine DB-Migrationen nötig
@@ -101,4 +106,6 @@ Hinweis: In übergeordneten Ordnern existieren Debug-/Analyse-Skripte, die nicht
 ## Quick-Check
 - Öffnen: `timeline-unified.html` (Timeline) und `timeline-config.html` (Konfiguration)
 - Slider in Konfiguration ändern → `postMessage` an Timeline → Menügröße reagiert wie zuvor
+- Neue Regler „Wochen Vergangenheit/Zukunft“ ändern live den sichtbaren Datumsbereich. Für einen passenden Datenabruf empfiehlt sich „Anwenden & Schließen“ (neulädt Timeline mit den neuen Wochenwerten für den API-Zeitraum).
+ - Hinweis: F5/Ctrl+R werden nicht abgefangen; das Standard-Reload-Verhalten des Browsers bleibt bestehen.
 - Modals (Bestätigung, Bezeichnung, Notiz, Dataset) sehen unverändert aus, werden aber nun zentral über Variablen gestylt

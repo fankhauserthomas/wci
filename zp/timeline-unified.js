@@ -511,6 +511,9 @@ class TimelineUnifiedRenderer {
             lastDragPosition: { x: 0, y: 0, room: null }
         };
 
+        // Helper flag for initial scroll-to-today
+        this._scrolledToTodayOnce = false;
+
         // Touch-/Pointer-Unterstützung
         this.activePointerId = null;
         this.isTouchPanning = false;
@@ -602,6 +605,17 @@ class TimelineUnifiedRenderer {
         }
 
         this.init();
+    }
+
+    // Unified helper: compute timeline date range based on themeConfig weeksPast/weeksFuture
+    getTimelineDateRange() {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const weeksPast = this.themeConfig?.weeksPast ?? 2;
+        const weeksFuture = this.themeConfig?.weeksFuture ?? 104;
+        const startDate = new Date(now.getTime() - (weeksPast * 7 * MS_IN_DAY));
+        const endDate = new Date(now.getTime() + (weeksFuture * 7 * MS_IN_DAY));
+        return { now, startDate, endDate, weeksPast, weeksFuture };
     }
 
     loadFromCookie(name, defaultValue) {
@@ -1191,10 +1205,7 @@ class TimelineUnifiedRenderer {
     recalculateRoomHeights() {
         if (!window.rooms) return;
 
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
-        const endDate = new Date(now.getTime() + (60 * 24 * 60 * 60 * 1000));
+        const { startDate, endDate } = this.getTimelineDateRange();
 
         // Aktualisiere alle Zimmer-Höhen
         for (const room of rooms) {
@@ -1618,6 +1629,36 @@ class TimelineUnifiedRenderer {
         }
     }
 
+    // Heutigen Tag dezent hervorheben (hellgrau), analog Wochenende
+    shadeTodayColumn(area, startDate, endDate, options = {}) {
+        const fill = options.todayFill || 'rgba(200, 200, 200, 0.25)';
+        if (!fill) return;
+
+        const barWidth = options.barWidth !== undefined ? options.barWidth : this.DAY_WIDTH;
+        const xOffset = options.xOffset || 0;
+        const offsetY = options.offsetY !== undefined ? options.offsetY : area.y;
+        const height = options.height !== undefined ? options.height : area.height;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+        if (today < start || today > end) return;
+
+        const dayIndex = Math.floor((today.getTime() - start.getTime()) / MS_IN_DAY);
+        const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
+        if (x + barWidth <= this.sidebarWidth || x >= this.canvas.width) {
+            return;
+        }
+        this.ctx.save();
+        this.ctx.fillStyle = fill;
+        this.ctx.fillRect(x, offsetY, barWidth, height);
+        this.ctx.restore();
+    }
+
     renderRoomDayGridLines(startDate, endDate, area) {
         const startX = this.sidebarWidth - this.scrollX;
         const lineTop = area.y;
@@ -1815,7 +1856,9 @@ class TimelineUnifiedRenderer {
             master: { bg: '#2c3e50', bar: '#3498db', fontSize: 10, barHeight: 14 },
             room: { bg: '#2c3e50', bar: '#27ae60', fontSize: 10, barHeight: 16 },
             histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 },
-            dayWidth: 90
+            dayWidth: 90,
+            weeksPast: 2,
+            weeksFuture: 104
         };
     }
 
@@ -1827,7 +1870,9 @@ class TimelineUnifiedRenderer {
             master: { bg: '#2c3e50', bar: '#3498db', fontSize: 10, barHeight: 14 },
             room: { bg: '#2c3e50', bar: '#27ae60', fontSize: 10, barHeight: 16 },
             histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 },
-            dayWidth: 90
+            dayWidth: 90,
+            weeksPast: 2,
+            weeksFuture: 104
         };
 
         // Ergänze fehlende Eigenschaften
@@ -1836,6 +1881,10 @@ class TimelineUnifiedRenderer {
         for (const [section, sectionDefaults] of Object.entries(defaults)) {
             if (section === 'dayWidth') {
                 result.dayWidth = result.dayWidth || defaults.dayWidth;
+            } else if (section === 'weeksPast') {
+                result.weeksPast = result.weeksPast ?? defaults.weeksPast;
+            } else if (section === 'weeksFuture') {
+                result.weeksFuture = result.weeksFuture ?? defaults.weeksFuture;
             } else {
                 result[section] = { ...sectionDefaults, ...result[section] };
             }
@@ -3357,9 +3406,7 @@ class TimelineUnifiedRenderer {
         }
 
         // Berechne das Datum basierend auf der Mausposition
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)); // now - 2 weeks
+        const { startDate } = this.getTimelineDateRange();
 
         const startX = this.sidebarWidth - this.scrollX;
         const relativeX = this.mouseX - startX;
@@ -3972,10 +4019,8 @@ class TimelineUnifiedRenderer {
         const startY = this.areas.rooms.y - this.roomsScrollY;
         let currentYOffset = 0;
 
-        // Date range für Position-Berechnung
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        // Date range für Position-Berechnung (konfigurierbar)
+        const { startDate } = this.getTimelineDateRange();
 
         for (const room of rooms) {
             const baseRoomY = startY + currentYOffset;
@@ -4225,9 +4270,7 @@ class TimelineUnifiedRenderer {
     }
 
     updateReservationPosition(reservation) {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        const { startDate } = this.getTimelineDateRange();
 
         const checkinDate = new Date(reservation.start);
         checkinDate.setHours(12, 0, 0, 0);
@@ -4461,9 +4504,7 @@ class TimelineUnifiedRenderer {
     updateGhostBar(mouseX, mouseY, daysDelta) {
         if (!this.ghostBar || !this.draggedReservation) return;
 
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        const { startDate } = this.getTimelineDateRange();
         const startX = this.sidebarWidth - this.scrollX;
 
         // Berechne diskrete Werte basierend auf Drag-Modus
@@ -4816,9 +4857,7 @@ class TimelineUnifiedRenderer {
     }
 
     calculateDragStackingPreview(daysDelta, targetRoom) {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const startDate = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
+        const { startDate } = this.getTimelineDateRange();
 
         // Create temporary reservation position for preview
         let previewReservation = null;
@@ -5130,11 +5169,8 @@ class TimelineUnifiedRenderer {
         // Phase 3: Update viewport cache for intelligent culling
         this.updateViewportCache(this.scrollX, this.roomsScrollY);
 
-        // Neue Datums-Logik: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        const startDate = new Date(now.getTime() - (14 * MS_IN_DAY)); // now - 2 weeks
-        const endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY)); // now + 2 years
+        // Datums-Logik: konfigurierbare Wochen Vergangenheit/Zukunft (auf 0 Uhr fixiert)
+        const { now, startDate, endDate } = this.getTimelineDateRange();
 
         // Pre-calculate room heights for correct scrollbar sizing
         this.preCalculateRoomHeights(startDate, endDate);
@@ -5146,6 +5182,22 @@ class TimelineUnifiedRenderer {
         const scrollContentH = this.container.querySelector('.scroll-content-h');
         if (scrollContentH) {
             scrollContentH.style.width = timelineWidth + 'px';
+        }
+
+        // Beim ersten Render: Heute in die Seitenmitte scrollen
+        if (!this._scrolledToTodayOnce) {
+            const todayOffsetDays = Math.floor((now.getTime() - startDate.getTime()) / MS_IN_DAY);
+            const todayCenterX = (todayOffsetDays + 0.5) * this.DAY_WIDTH; // Mitte des heutigen Tages
+            const viewportWidth = this.canvas.width - this.sidebarWidth;
+            const desiredScrollX = Math.max(0, todayCenterX - viewportWidth / 2);
+
+            // Scrollbar-Elemente synchronisieren
+            if (this.horizontalTrack) {
+                this.horizontalTrack.scrollLeft = desiredScrollX;
+            }
+            this.scrollX = desiredScrollX;
+            this.updateViewportCache(this.scrollX, this.roomsScrollY);
+            this._scrolledToTodayOnce = true;
         }
 
         // Viewport Culling für bessere Performance - aber großzügiger für Sichtbarkeit
@@ -5585,6 +5637,7 @@ class TimelineUnifiedRenderer {
         this.ctx.clip();
 
         this.shadeWeekendColumns(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
+        this.shadeTodayColumn(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
 
         // Datum-Header mit Theme-Konfiguration
         this.ctx.fillStyle = this.themeConfig.header.text;
@@ -5638,6 +5691,7 @@ class TimelineUnifiedRenderer {
         this.ctx.clip();
 
         this.shadeWeekendColumns(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
+        this.shadeTodayColumn(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
 
         // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
         const reservationsToRender = reservations;
@@ -6479,6 +6533,7 @@ class TimelineUnifiedRenderer {
             this.ctx.restore();
 
             this.shadeWeekendColumns({ y: baseRoomY, height: roomHeight }, startDate, endDate, { barWidth: this.DAY_WIDTH, offsetY: baseRoomY, height: roomHeight });
+            this.shadeTodayColumn({ y: baseRoomY, height: roomHeight }, startDate, endDate, { barWidth: this.DAY_WIDTH, offsetY: baseRoomY, height: roomHeight });
 
             // Render Reservierungen - Ghost-Reservierungen werden NIEMALS sichtbar gerendert  
             sortedReservations.forEach(reservation => {
@@ -7604,11 +7659,10 @@ class TimelineUnifiedRenderer {
         this.invalidateStackingCache();
         this.markDataDirty();
 
-        // Verwende festen Datumsbereich: now - 2 weeks bis now + 2 years (auf 0 Uhr fixiert)
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Auf Mitternacht (0 Uhr) fixieren
-        this.startDate = new Date(now.getTime() - (14 * MS_IN_DAY));
-        this.endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY));
+        // Verwende konfigurierten Datumsbereich (auf 0 Uhr fixiert)
+        const { startDate, endDate } = this.getTimelineDateRange();
+        this.startDate = startDate;
+        this.endDate = endDate;
 
         this.render();
     }

@@ -154,6 +154,8 @@ class TimelineConfigManager {
         const currentRoomBarHeight = this.currentConfig.room?.barHeight || 16;
         const currentHistogramFontSize = this.currentConfig.histogram?.fontSize || 9;
         const currentDayWidth = this.currentConfig.dayWidth || 90;
+        const currentWeeksPast = this.currentConfig.weeksPast ?? 2;
+        const currentWeeksFuture = this.currentConfig.weeksFuture ?? 104;
 
         // Übernehme nur Farben vom Theme, behalte Layout-Einstellungen
         this.currentConfig = {
@@ -162,7 +164,9 @@ class TimelineConfigManager {
             master: { ...theme.config.master, fontSize: currentMasterFontSize, barHeight: currentMasterBarHeight },
             room: { ...theme.config.room, fontSize: currentRoomFontSize, barHeight: currentRoomBarHeight },
             histogram: { ...theme.config.histogram, fontSize: currentHistogramFontSize },
-            dayWidth: currentDayWidth
+            dayWidth: currentDayWidth,
+            weeksPast: currentWeeksPast,
+            weeksFuture: currentWeeksFuture
         };
 
         this.updateInputsFromConfig();
@@ -208,6 +212,16 @@ class TimelineConfigManager {
         // Day Width
         document.getElementById('day-width').value = this.currentConfig.dayWidth;
         document.getElementById('day-width-value').textContent = this.currentConfig.dayWidth + 'px';
+
+        // Weeks range
+        const wp = this.currentConfig.weeksPast ?? 2;
+        const wf = this.currentConfig.weeksFuture ?? 104;
+        const wpEl = document.getElementById('weeks-past');
+        const wpVal = document.getElementById('weeks-past-value');
+        const wfEl = document.getElementById('weeks-future');
+        const wfVal = document.getElementById('weeks-future-value');
+        if (wpEl && wpVal) { wpEl.value = wp; wpVal.textContent = String(wp); }
+        if (wfEl && wfVal) { wfEl.value = wf; wfVal.textContent = String(wf); }
     }
 
     updateFromInputs() {
@@ -241,6 +255,12 @@ class TimelineConfigManager {
 
         // Day Width
         this.currentConfig.dayWidth = parseInt(document.getElementById('day-width').value);
+
+        // Weeks range
+        const weeksPastEl = document.getElementById('weeks-past');
+        const weeksFutureEl = document.getElementById('weeks-future');
+        if (weeksPastEl) this.currentConfig.weeksPast = parseInt(weeksPastEl.value);
+        if (weeksFutureEl) this.currentConfig.weeksFuture = parseInt(weeksFutureEl.value);
 
         this.updatePreview();
     }
@@ -293,8 +313,9 @@ class TimelineConfigManager {
             }
         }
 
-        // Default: Professional Theme
-        return JSON.parse(JSON.stringify(this.themes.professional.config));
+        // Default: Professional Theme with layout defaults
+        const base = JSON.parse(JSON.stringify(this.themes.professional.config));
+        return { ...base, dayWidth: 90, weeksPast: 2, weeksFuture: 104 };
     }
 
     resetToDefaults() {
@@ -344,7 +365,9 @@ class TimelineConfigManager {
             master: { bg: '#2c3e50', bar: '#3498db', fontSize: 10, barHeight: 14 },
             room: { bg: '#2c3e50', bar: '#27ae60', fontSize: 10, barHeight: 16 },
             histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1', fontSize: 9 },
-            dayWidth: 90
+            dayWidth: 90,
+            weeksPast: 2,
+            weeksFuture: 104
         };
     }
 }

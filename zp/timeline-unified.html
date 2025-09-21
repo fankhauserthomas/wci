@@ -1696,9 +1696,10 @@
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
 
-                // Automatischer Datumsbereich: 14 Tage zurück bis 24 Monate voraus
-                const startDate = new Date(now.getTime() - (14 * MS_IN_DAY));
-                const endDate = new Date(now.getTime() + (2 * 365 * MS_IN_DAY));
+                // Datumsbereich aus Konfiguration (Cookie/LS) + Live-Overrides
+                const { past: weeksPast, future: weeksFuture } = getConfiguredWeeksRange();
+                const startDate = new Date(now.getTime() - (weeksPast * 7 * MS_IN_DAY));
+                const endDate = new Date(now.getTime() + (weeksFuture * 7 * MS_IN_DAY));
 
                 const startDateStr = startDate.toISOString().split('T')[0];
                 const endDateStr = endDate.toISOString().split('T')[0];
@@ -1994,9 +1995,53 @@
         // Globale Variablen für Kompatibilität
         let showDisposedReservations = true;
 
+        // Globale Hilfsfunktion: Konfiguration lesen (Cookie/localStorage) + Live-Overrides
+        function getConfiguredWeeksRange() {
+            // Live-Overrides bevorzugen (durch Konfig-Seite via postMessage)
+            const override = (window.timelineWeeksOverride || {});
+            let past = typeof override.past === 'number' ? override.past : undefined;
+            let future = typeof override.future === 'number' ? override.future : undefined;
+
+            // Aus Cookie lesen
+            try {
+                const cookieValue = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('timeline_config='))
+                    ?.split('=')[1];
+                if (cookieValue) {
+                    const cfg = JSON.parse(decodeURIComponent(cookieValue));
+                    if (typeof past !== 'number' && typeof cfg.weeksPast === 'number') past = cfg.weeksPast;
+                    if (typeof future !== 'number' && typeof cfg.weeksFuture === 'number') future = cfg.weeksFuture;
+                }
+            } catch (e) {
+                console.warn('Konfig aus Cookie konnte nicht gelesen werden:', e);
+            }
+
+            // Fallback: localStorage
+            try {
+                const ls = localStorage.getItem('timeline_config');
+                if (ls) {
+                    const cfg = JSON.parse(ls);
+                    if (typeof past !== 'number' && typeof cfg.weeksPast === 'number') past = cfg.weeksPast;
+                    if (typeof future !== 'number' && typeof cfg.weeksFuture === 'number') future = cfg.weeksFuture;
+                }
+            } catch (e) {
+                console.warn('Konfig aus localStorage konnte nicht gelesen werden:', e);
+            }
+
+            // Defaults + Begrenzungen
+            if (typeof past !== 'number' || isNaN(past)) past = 2;
+            if (typeof future !== 'number' || isNaN(future)) future = 104;
+            // clamp auf UI-Grenzen
+            past = Math.max(0, Math.min(52, past));
+            future = Math.max(4, Math.min(208, future));
+            return { past, future };
+        }
+
         // Initialisierung
         document.addEventListener('DOMContentLoaded', () => {
             // Message listener für Konfigurationsupdates
+
             window.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'updateMetric') {
                     console.log('Received config update:', event.data);
@@ -2019,6 +2064,27 @@
                                 radialMenu.style.marginTop = `-${menuSize / 2}px`;
                             }
                         }
+                    } else if ((event.data.metric === 'weeks-past' || event.data.metric === 'weeks-future')) {
+                        // Live-Overrides merken
+                        const val = parseFloat(event.data.value);
+                        window.timelineWeeksOverride = window.timelineWeeksOverride || {};
+                        if (event.data.metric === 'weeks-past') window.timelineWeeksOverride.past = val;
+                        if (event.data.metric === 'weeks-future') window.timelineWeeksOverride.future = val;
+
+                        // Renderer live updaten (sichtbarer Bereich)
+                        if (timelineRenderer) {
+                            if (!timelineRenderer.themeConfig) {
+                                timelineRenderer.themeConfig = {};
+                            }
+                            if (event.data.metric === 'weeks-past') {
+                                timelineRenderer.themeConfig.weeksPast = val;
+                            } else if (event.data.metric === 'weeks-future') {
+                                timelineRenderer.themeConfig.weeksFuture = val;
+                            }
+                            if (typeof timelineRenderer.scheduleRender === 'function') {
+                                timelineRenderer.scheduleRender('weeks_range_change');
+                            }
+                        }
                     }
                 }
             });
@@ -2029,6 +2095,8 @@
                     timelineRenderer.refreshThemeConfiguration();
                 }
             });
+
+            // Hinweis: Kein Abfangen von F5/Ctrl+R mehr – Browser-Reload bleibt Standardverhalten
 
             // Automatisch echte Daten laden beim Seitenaufruf
             setTimeout(() => {

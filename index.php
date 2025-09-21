@@ -1715,13 +1715,7 @@ if (!AuthManager::checkSession()) {
       }
     }
     
-    // Add keyboard shortcut for cache clearing (Ctrl+Shift+R)
-    document.addEventListener('keydown', function(e) {
-      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-        e.preventDefault();
-        clearBrowserCache();
-      }
-    });
+    // Hinweis: Kein globaler Tastatur-Shortcut mehr für Cache-Leerung – Standardbrowser-Verhalten beibehalten
   </script>
 </body>
 </html>

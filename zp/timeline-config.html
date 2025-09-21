@@ -575,6 +575,18 @@
                                 <input type="range" id="menu-size" min="120" max="320" value="220" step="20">
                                 <span id="menu-size-value">220px</span>
                             </div>
+
+                            <div class="metric-item">
+                                <label for="weeks-past">Wochen in der Vergangenheit:</label>
+                                <input type="range" id="weeks-past" min="0" max="52" value="2" step="1">
+                                <span id="weeks-past-value">2</span>
+                            </div>
+
+                            <div class="metric-item">
+                                <label for="weeks-future">Wochen in der Zukunft:</label>
+                                <input type="range" id="weeks-future" min="4" max="208" value="104" step="4">
+                                <span id="weeks-future-value">104</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -732,7 +744,7 @@
             // Metrics-Slider Event Listeners
             document.addEventListener('DOMContentLoaded', function () {
                 // Setup für alle Metrics-Slider
-                const metrics = ['font-size', 'bar-height', 'day-width', 'vertical-spacing', 'border-radius', 'opacity', 'menu-size'];
+                const metrics = ['font-size', 'bar-height', 'day-width', 'vertical-spacing', 'border-radius', 'opacity', 'menu-size', 'weeks-past', 'weeks-future'];
 
                 metrics.forEach(metric => {
                     const slider = document.getElementById(metric);
@@ -747,13 +759,15 @@
                             }
                         }
 
-                        // Initial value display
-                        valueSpan.textContent = slider.value + (metric === 'opacity' ? '' : 'px');
+                        // Initial value display (no unit for weeks and opacity)
+                        const noUnit = metric === 'opacity' || metric === 'weeks-past' || metric === 'weeks-future';
+                        valueSpan.textContent = slider.value + (noUnit ? '' : 'px');
 
                         // Update on change
                         slider.addEventListener('input', function () {
                             const value = this.value;
-                            valueSpan.textContent = value + (metric === 'opacity' ? '' : 'px');
+                            const noUnit = metric === 'opacity' || metric === 'weeks-past' || metric === 'weeks-future';
+                            valueSpan.textContent = value + (noUnit ? '' : 'px');
 
                             // Save menu-size to localStorage
                             if (metric === 'menu-size') {
