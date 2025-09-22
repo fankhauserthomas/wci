@@ -373,6 +373,103 @@
             cursor: not-allowed;
         }
 
+        /* Compact overrides for the dataset modal */
+        #dataset-modal .modal-dialog {
+            padding: 14px;
+            /* was 24px */
+            border-radius: 6px;
+            /* slightly tighter */
+        }
+
+        #dataset-modal .modal-header {
+            margin-bottom: 10px;
+            /* was 16px */
+            font-size: 16px;
+            /* was 18px */
+        }
+
+        #dataset-modal .modal-header .icon {
+            margin-right: 6px;
+            /* was 8px */
+            font-size: 18px;
+            /* was 20px */
+        }
+
+        #dataset-modal .modal-body {
+            margin-bottom: 12px;
+            /* was 24px */
+        }
+
+        #dataset-modal .modal-actions {
+            gap: 8px;
+            /* was 12px */
+        }
+
+        #dataset-modal .modal-button {
+            padding: 8px 14px;
+            /* was 10px 20px */
+            font-size: 13px;
+            /* was 14px */
+            border-radius: 5px;
+            /* was 6px */
+        }
+
+        #dataset-modal .modal-input,
+        #dataset-modal .modal-textarea,
+        #dataset-modal .dataset-field input,
+        #dataset-modal .dataset-field textarea {
+            padding: 6px 10px;
+            /* was 8px 12px */
+            margin-bottom: 10px;
+            /* was 16px */
+            font-size: 13px;
+            /* was 14px */
+        }
+
+        #dataset-modal .modal-textarea {
+            min-height: 64px;
+            /* was 80px */
+        }
+
+        #dataset-modal .modal-checkbox-group {
+            gap: 6px;
+            /* was 8px */
+            margin-bottom: 10px;
+            /* was 16px */
+        }
+
+        #dataset-modal .dataset-section {
+            margin-bottom: 12px;
+            /* was 24px */
+            padding: 10px;
+            /* was 16px */
+            border-radius: 5px;
+            /* was 6px */
+        }
+
+        #dataset-modal .dataset-section-title {
+            font-size: 14px;
+            /* was 16px */
+            margin-bottom: 10px;
+            /* was 16px */
+            gap: 6px;
+            /* was 8px */
+        }
+
+        #dataset-modal .dataset-grid {
+            gap: 10px;
+            /* was 16px */
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            /* a bit tighter */
+        }
+
+        #dataset-modal .dataset-field label {
+            font-size: 12px;
+            /* was 13px */
+            margin-bottom: 4px;
+            /* was 6px */
+        }
+
         /* Debug Console Styles */
         .debug-console {
             position: fixed;

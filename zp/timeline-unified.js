@@ -576,6 +576,9 @@ class TimelineUnifiedRenderer {
             onCommandSelect: (option, detail) => this.handleRadialCommandSelection(option, detail)
         });
 
+        // Create Master Bar Context Menu (DOM-based)
+        this.ensureMasterContextMenu();
+
         // DAY_WIDTH aus localStorage laden (überschreibt Theme-Wert)
         try {
             const savedDayWidth = localStorage.getItem('timeline_day_width');
@@ -2151,6 +2154,10 @@ class TimelineUnifiedRenderer {
 
             // Phase 2: Invalidate viewport-dependent caches on horizontal scroll
             this.invalidateStackingCache();
+            // Hide master context menu when scrolling horizontally
+            if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
+                this.hideMasterContextMenu();
+            }
             this.scheduleRender('scroll_h');
         });
 
@@ -2158,6 +2165,10 @@ class TimelineUnifiedRenderer {
         if (masterTrack) {
             masterTrack.addEventListener('scroll', (e) => {
                 this.masterScrollY = e.target.scrollTop;
+                // Hide master context menu when master band scrolls
+                if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
+                    this.hideMasterContextMenu();
+                }
                 this.scheduleRender('scroll_master');
             });
         }
@@ -2166,6 +2177,10 @@ class TimelineUnifiedRenderer {
         if (roomsTrack) {
             roomsTrack.addEventListener('scroll', (e) => {
                 this.roomsScrollY = e.target.scrollTop;
+                // Hide master context menu when rooms scrolls
+                if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
+                    this.hideMasterContextMenu();
+                }
                 this.scheduleRender('scroll_rooms');
             });
         }
@@ -2267,17 +2282,30 @@ class TimelineUnifiedRenderer {
         this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
 
         document.addEventListener('click', (event) => {
-            if (!this.radialMenu?.isVisible()) return;
-            const root = this.radialMenu.root;
-            if (!root) return;
-            if (!root.contains(event.target)) {
-                this.radialMenu.hide();
+            // Close radial menu if open and click outside
+            if (this.radialMenu?.isVisible()) {
+                const root = this.radialMenu.root;
+                if (root && !root.contains(event.target)) {
+                    this.radialMenu.hide();
+                }
+            }
+
+            // Close master context menu on outside click
+            if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
+                if (!this.masterMenuEl.contains(event.target)) {
+                    this.hideMasterContextMenu();
+                }
             }
         });
 
         window.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && this.radialMenu?.isVisible()) {
-                this.radialMenu.hide();
+            if (event.key === 'Escape') {
+                if (this.radialMenu?.isVisible()) {
+                    this.radialMenu.hide();
+                }
+                if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
+                    this.hideMasterContextMenu();
+                }
             }
         });
 
@@ -2714,43 +2742,298 @@ class TimelineUnifiedRenderer {
     }
 
     handleContextMenu(e) {
-        if (!this.canvas || !this.radialMenu) return;
+        if (!this.canvas) return;
 
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        if (mouseY < this.areas.rooms.y || mouseY > this.areas.rooms.y + this.areas.rooms.height) {
-            if (this.radialMenu.isVisible()) {
-                this.radialMenu.hide();
+        // If right-click happens on the top-left config button, ignore (default behavior elsewhere)
+        if (this.configButtonBounds) {
+            const b = this.configButtonBounds;
+            if (mouseX >= b.x && mouseX <= b.x + b.width && mouseY >= b.y && mouseY <= b.y + b.height) {
+                return;
             }
-            return;
         }
 
-        const hit = this.findReservationAt(mouseX, mouseY);
-        if (!hit) {
-            if (this.radialMenu.isVisible()) {
-                this.radialMenu.hide();
+        // 1) Master area context menu
+        if (mouseY >= this.areas.master.y && mouseY <= this.separatorY) {
+            const hitMaster = this.findMasterReservationAt(mouseX, mouseY);
+            if (hitMaster) {
+                e.preventDefault();
+                this.showMasterContextMenu(hitMaster, e.clientX, e.clientY);
+                // Also hide radial menu if it was open
+                if (this.radialMenu?.isVisible()) this.radialMenu.hide();
+                return;
+            } else {
+                // Clicked in master area but not on a bar -> hide menus
+                if (this.radialMenu?.isVisible()) this.radialMenu.hide();
+                if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+                e.preventDefault();
+                return;
             }
-            e.preventDefault();
-            return;
         }
 
-        const detail = this.resolveRoomDetail(hit);
-        if (!detail) {
-            console.warn('Radial-Menü: Detail konnte nicht aufgelöst werden', hit);
+        // 2) Rooms area radial menu
+        if (!this.radialMenu) return;
+        if (mouseY >= this.areas.rooms.y && mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            const hit = this.findReservationAt(mouseX, mouseY);
+            if (!hit) {
+                if (this.radialMenu.isVisible()) {
+                    this.radialMenu.hide();
+                }
+                e.preventDefault();
+                return;
+            }
+
+            const detail = this.resolveRoomDetail(hit);
+            if (!detail) {
+                console.warn('Radial-Menü: Detail konnte nicht aufgelöst werden', hit);
+                e.preventDefault();
+                return;
+            }
+
+            const rings = this.buildRadialRingConfigurations(detail);
+            if (!rings.length) {
+                e.preventDefault();
+                return;
+            }
+
             e.preventDefault();
-            return;
+            // Ensure master context menu is closed when opening radial
+            if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+            this.radialMenu.show(detail, e.clientX, e.clientY, rings);
+        } else {
+            // Outside of actionable areas: close menus and let default menu appear
+            if (this.radialMenu?.isVisible()) this.radialMenu.hide();
+            if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+        }
+    }
+
+    // Hit-test for master bars based on the same layout logic as renderMasterArea
+    findMasterReservationAt(mouseX, mouseY) {
+        const area = this.areas.master;
+        if (!area) return null;
+
+        // Only consider clicks inside the master drawing band
+        if (mouseX < this.sidebarWidth || mouseY < area.y || mouseY > this.separatorY) return null;
+
+        const { startDate, endDate } = this.getTimelineDateRange();
+        const startX = this.sidebarWidth - this.scrollX;
+        const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
+        const barHeight = this.themeConfig.master?.barHeight || 14;
+
+        // Build stack levels incrementally like in renderMasterArea
+        const stackLevels = [];
+        const sortedReservations = [...reservations].sort((a, b) =>
+            new Date(a.start).getTime() - new Date(b.start).getTime()
+        );
+
+        for (const reservation of sortedReservations) {
+            const checkinDate = new Date(reservation.start);
+            checkinDate.setHours(12, 0, 0, 0);
+            const checkoutDate = new Date(reservation.end);
+            checkoutDate.setHours(12, 0, 0, 0);
+
+            const startOffset = (checkinDate.getTime() - startDate.getTime()) / MS_IN_DAY;
+            const duration = (checkoutDate.getTime() - checkinDate.getTime()) / MS_IN_DAY;
+
+            const left = startX + (startOffset + 0.01) * this.DAY_WIDTH;
+            const width = (duration - 0.005) * this.DAY_WIDTH;
+
+            // Skip far outside viewport for performance (same heuristic as renderer)
+            const viewportLeft = this.scrollX - 1000;
+            const viewportRight = this.scrollX + this.canvas.width + 1000;
+            const absoluteLeft = this.sidebarWidth + (startOffset + 0.01) * this.DAY_WIDTH;
+            const absoluteRight = absoluteLeft + width;
+            if (absoluteRight < viewportLeft || absoluteLeft > viewportRight) {
+                continue;
+            }
+
+            // Determine stack level
+            let stackLevel = 0;
+            while (stackLevel < stackLevels.length && stackLevels[stackLevel] > left + OVERLAP_TOLERANCE) {
+                stackLevel++;
+            }
+            while (stackLevels.length <= stackLevel) stackLevels.push(0);
+            stackLevels[stackLevel] = left + width + 5;
+
+            const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
+
+            // Hit test
+            if (mouseX >= left && mouseX <= left + width && mouseY >= top && mouseY <= top + barHeight) {
+                // Enrich master hit object with AV-Res.id so downstream modals can resolve it reliably
+                // Prefer the canonical AV-Res.id from fullData.id (provided by API)
+                let avResId = undefined;
+                const fd = reservation.fullData || reservation.data || {};
+                if (fd && (fd.id !== undefined && fd.id !== null)) {
+                    avResId = fd.id;
+                }
+                // Fallbacks: direct props or parse from string id like "res_123"
+                if (avResId === undefined || avResId === null) {
+                    avResId = reservation.res_id ?? reservation.reservation_id ?? reservation.resid ?? null;
+                }
+                if ((avResId === undefined || avResId === null) && typeof reservation.id === 'string') {
+                    const m = reservation.id.match(/res_(\d+)/);
+                    if (m) avResId = Number(m[1]);
+                }
+
+                // Normalize to number when possible
+                const avResIdNum = (avResId !== undefined && avResId !== null && !Number.isNaN(Number(avResId)))
+                    ? Number(avResId)
+                    : avResId;
+
+                // Build a shallow copy and attach res_id in expected places
+                const enriched = { ...reservation };
+                // Top-level aliases expected by existing flows
+                if (avResIdNum !== undefined && avResIdNum !== null) {
+                    enriched.res_id = avResIdNum;
+                    enriched.reservation_id = enriched.reservation_id ?? avResIdNum;
+                    enriched.resid = enriched.resid ?? avResIdNum;
+                }
+                // Also expose a data object (modal checks detail.data?.res_id)
+                const dataObj = { ...(reservation.fullData || reservation.data || {}) };
+                if (avResIdNum !== undefined && avResIdNum !== null) {
+                    dataObj.res_id = avResIdNum;
+                }
+                enriched.data = dataObj;
+
+                return { ...enriched, left, width, top, barHeight, stackLevel };
+            }
         }
 
-        const rings = this.buildRadialRingConfigurations(detail);
-        if (!rings.length) {
-            e.preventDefault();
-            return;
-        }
+        return null;
+    }
 
-        e.preventDefault();
-        this.radialMenu.show(detail, e.clientX, e.clientY, rings);
+    // ===== Master Context Menu (DOM) =====
+    ensureMasterContextMenu() {
+        // Inject styles once
+        this.injectMasterContextMenuStyles();
+
+        if (!this.masterMenuEl) {
+            const el = document.createElement('div');
+            el.id = 'master-context-menu';
+            el.setAttribute('aria-hidden', 'true');
+            el.style.display = 'none';
+            el.innerHTML = `
+                <div class="mcm-card">
+                    <button class="mcm-item" data-action="dataset">Datensatz</button>
+                    <button class="mcm-item" data-action="to-room">in Zimmer</button>
+                    <button class="mcm-item" data-action="split">Aufteilen</button>
+                </div>
+            `;
+            document.body.appendChild(el);
+            this.masterMenuEl = el;
+
+            // Delegate click events
+            el.addEventListener('click', (evt) => {
+                const btn = evt.target.closest('.mcm-item');
+                if (!btn) return;
+                const action = btn.getAttribute('data-action');
+                const detail = this.masterMenuContext || null;
+                if (action === 'dataset') this.onMasterMenuDataset(detail);
+                if (action === 'to-room') this.onMasterMenuToRoom(detail);
+                if (action === 'split') this.onMasterMenuSplit(detail);
+                this.hideMasterContextMenu();
+                evt.preventDefault();
+                evt.stopPropagation();
+            });
+        }
+    }
+
+    injectMasterContextMenuStyles() {
+        if (document.getElementById('master-context-menu-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'master-context-menu-styles';
+        style.textContent = `
+            #master-context-menu {
+                position: fixed;
+                z-index: 9999;
+                left: 0; top: 0;
+                transform: translate(-50%, -50%);
+                user-select: none;
+            }
+            #master-context-menu .mcm-card {
+                background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+                border: 1px solid rgba(255,255,255,0.06);
+                box-shadow: 0 12px 28px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.2);
+                border-radius: 12px;
+                padding: 8px;
+                min-width: 180px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                backdrop-filter: blur(4px);
+            }
+            #master-context-menu .mcm-item {
+                appearance: none;
+                border: none;
+                background: linear-gradient(90deg, rgba(99,102,241,0.18), rgba(236,72,153,0.18));
+                color: #e5e7eb;
+                padding: 10px 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                text-align: left;
+                cursor: pointer;
+                transition: transform .06s ease, background .2s ease, box-shadow .2s ease;
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+            }
+            #master-context-menu .mcm-item:hover {
+                background: linear-gradient(90deg, rgba(99,102,241,0.35), rgba(236,72,153,0.35));
+                transform: translateY(-1px);
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15), 0 6px 14px rgba(99,102,241,0.18);
+            }
+            #master-context-menu .mcm-item:active {
+                transform: translateY(0);
+                background: linear-gradient(90deg, rgba(99,102,241,0.45), rgba(236,72,153,0.45));
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    showMasterContextMenu(detail, clientX, clientY) {
+        this.ensureMasterContextMenu();
+        if (!this.masterMenuEl) return;
+        this.masterMenuContext = detail;
+
+        // Position near cursor but keep fully in viewport
+        const menuRect = { width: 200, height: 140 };
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let x = clientX;
+        let y = clientY;
+        if (x + menuRect.width > vw) x = vw - menuRect.width - 8;
+        if (y + menuRect.height > vh) y = vh - menuRect.height - 8;
+
+        this.masterMenuEl.style.left = `${x}px`;
+        this.masterMenuEl.style.top = `${y}px`;
+        this.masterMenuEl.style.display = 'block';
+        this.masterMenuEl.setAttribute('aria-hidden', 'false');
+    }
+
+    hideMasterContextMenu() {
+        if (!this.masterMenuEl) return;
+        this.masterMenuEl.style.display = 'none';
+        this.masterMenuEl.setAttribute('aria-hidden', 'true');
+        this.masterMenuContext = null;
+    }
+
+    // Dummy handlers for requested actions
+    onMasterMenuDataset(detail) {
+        // Open the existing dataset modal flow
+        try {
+            // Ensure menu is closed before opening modal
+            this.hideMasterContextMenu();
+            this.handleDatasetCommand(detail);
+        } catch (err) {
+            console.error('Error opening dataset modal from master menu:', err);
+        }
+    }
+    onMasterMenuToRoom(detail) {
+        console.log('[MasterMenu] in Zimmer clicked', detail);
+    }
+    onMasterMenuSplit(detail) {
+        console.log('[MasterMenu] Aufteilen clicked', detail);
     }
 
     resolveRoomDetail(detail) {
@@ -3742,8 +4025,9 @@ class TimelineUnifiedRenderer {
                 }
             }
 
-            // Extrahiere korrekte AV-Res ID: AV_ResDet.resid = AV_Res.id
-            const avResId = detail.data?.res_id || detail.res_id || detail.resid;
+            // Extrahiere korrekte AV-Res ID (AV-Res.id), nicht av_id
+            const identifiers = this.extractDetailIdentifiers(detail);
+            const avResId = identifiers.resId || detail.res_id || detail.resid;
 
             if (!avResId) {
                 console.error('Keine AV-Res ID (resid) gefunden für Dataset-Update:', detail);
@@ -3751,7 +4035,7 @@ class TimelineUnifiedRenderer {
                 return;
             }
 
-            console.log('📋 Verwende AV-Res ID:', avResId, 'für Datensatz-Update');
+            console.log('📋 Verwende AV-Res ID (id):', avResId, 'für Datensatz-Update');
 
             // Bereite Update-Payload vor - verwende av_res_id statt res_id
             const updatePayload = {
