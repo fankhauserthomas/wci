@@ -6922,7 +6922,7 @@ class TimelineUnifiedRenderer {
     renderReservationBar(x, y, width, height, reservation, isHovered = false) {
         // Master-Bereich Balken werden normal gerendert (kein Glow hier)
 
-        const capacity = reservation.capacity || 1;
+        const capacity = reservation.capacity || reservation.data?.capacity || reservation.data?.anz || 1;
 
         // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
         let color = reservation.color ||
@@ -6961,12 +6961,10 @@ class TimelineUnifiedRenderer {
             this.ctx.font = `${this.themeConfig.master.fontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
-            // Enhanced caption format: trim(nachname & " " & vorname) & (total_capacity arrangement_name) + dog_symbol
+            // Name ermitteln (Nachname Vorname bevorzugt)
             let fullName = '';
             const nachname = reservation.nachname || '';
             const vorname = reservation.vorname || '';
-
-            // Build full name
             if (nachname && vorname) {
                 fullName = `${nachname} ${vorname}`;
             } else if (nachname) {
@@ -6974,63 +6972,122 @@ class TimelineUnifiedRenderer {
             } else if (vorname) {
                 fullName = vorname;
             } else {
-                fullName = reservation.name || '';
+                fullName = (reservation.name || reservation.guest_name || '').trim();
             }
             fullName = fullName.trim();
 
-            // Build capacity and arrangement part - FIX: Check multiple sources for arrangement
-            const totalCapacity = capacity || 1;
-            const arrangementName = reservation.arrangement_name ||
-                reservation.arr_kbez ||
-                reservation.arrangement ||
-                (reservation.data && reservation.data.arrangement) ||
-                '';
+            // Arrangement-Kreis am rechten Rand vorbereiten (Buchstabe und Farbe abhängig von av_id)
+            const arrangementRaw = (reservation.arrangement_name || reservation.arr_kbez || reservation.arrangement || reservation.data?.arrangement || '').trim();
+            const arrangementLetterMatch = arrangementRaw.match(/[A-Za-zÄÖÜäöü]/);
+            const arrangementLetter = arrangementLetterMatch ? arrangementLetterMatch[0].toUpperCase() : null;
+            const hasCircle = Boolean(arrangementLetter);
+            const circleDiameter = hasCircle ? Math.max(12, Math.min(height - 4, 18)) : 0;
+            const circlePadding = hasCircle ? circleDiameter + 6 : 0;
 
-            let capacityPart = `(${totalCapacity}`;
-            if (arrangementName) {
-                capacityPart += ` ${arrangementName}`;
-            }
-            capacityPart += ')';
+            // Strikt: AV-Res.av_id > 0 (Masterdaten aus AV-Res), einmal berechnen und überall verwenden
+            // av_id wird vom Loader im item.data belassen und als fullData auf das Master-Objekt gemappt
+            const avIdRawForMaster = (reservation.fullData && reservation.fullData.av_id)
+                ?? (reservation.data && reservation.data.av_id)
+                ?? reservation.av_id
+                ?? 0;
+            const avIdNumForMaster = Number(avIdRawForMaster);
+            const hasAvMaster = Number.isFinite(avIdNumForMaster) && avIdNumForMaster > 0;
 
-            // Add dog symbol if present
-            const dogSymbol = (reservation.has_dog || reservation.hund ||
-                (reservation.data && reservation.data.has_dog)) ? ' 🐕' : '';
+            // Text: Gesamtanzahl Personen vor Nachname und Vorname
+            let caption = `${capacity} ${fullName}`.trim();
 
-            // Calculate available width for text (minus padding)
-            const availableWidth = width - 8; // 4px padding on each side
-
-            // Measure full caption
-            let caption = `${fullName} ${capacityPart}${dogSymbol}`;
-            let textWidth = this.ctx.measureText(caption).width;
-
-            // If too wide, progressively trim the name
-            if (textWidth > availableWidth && fullName.length > 0) {
-                const minNameLength = 3; // Minimum characters to keep
-                let trimmedName = fullName;
-
-                while (textWidth > availableWidth && trimmedName.length > minNameLength) {
-                    // Remove last character and add ellipsis
-                    trimmedName = fullName.substring(0, trimmedName.length - 1);
-                    caption = `${trimmedName}… ${capacityPart}${dogSymbol}`;
-                    textWidth = this.ctx.measureText(caption).width;
-                }
-
-                // If still too wide, try just initials
-                if (textWidth > availableWidth && nachname && vorname) {
-                    const initials = `${nachname.charAt(0)}.${vorname.charAt(0)}.`;
-                    caption = `${initials} ${capacityPart}${dogSymbol}`;
-                    textWidth = this.ctx.measureText(caption).width;
-                }
-
-                // Last resort: just capacity and arrangement
-                if (textWidth > availableWidth) {
-                    caption = `${capacityPart}${dogSymbol}`;
-                }
+            // Platz für Text unter Berücksichtigung des Kreis-Indikators
+            const availableWidth = width - 8 - circlePadding;
+            if (availableWidth > 0) {
+                caption = this.truncateTextToWidth(caption, availableWidth);
+                const textY = y + (height / 2) + (this.themeConfig.master.fontSize / 3);
+                this.ctx.fillText(caption, x + 2, textY);
             }
 
-            // Vertikal zentrierter Text
-            const textY = y + (height / 2) + (this.themeConfig.master.fontSize / 3);
-            this.ctx.fillText(caption, x + 2, textY);
+            // Kreis rechts mit Buchstabe des Arrangements; Farbe grün wenn AV-Res.av_id vorhanden (>0 numerisch oder allgemein truthy)
+            if (hasCircle && width > circleDiameter + 10) {
+                const circleX = x + width - (circleDiameter / 2) - 3;
+                const circleY = y + height / 2;
+                // Kreisfarbe strikt anhand der bereits berechneten AV-Kennung
+                const circleFill = hasAvMaster ? '#2ecc71' : '#bdc3c7';
+                const circleStroke = hasAvMaster ? '#1e8449' : '#95a5a6';
+
+                this.ctx.beginPath();
+                this.ctx.fillStyle = circleFill;
+                this.ctx.strokeStyle = circleStroke;
+                this.ctx.lineWidth = 1;
+                this.ctx.arc(circleX, circleY, circleDiameter / 2, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.ctx.fillStyle = hasAvMaster ? '#ffffff' : '#2d3436';
+                this.ctx.font = `${Math.max(8, circleDiameter * 0.55)}px Arial`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(arrangementLetter, circleX, circleY + 0.5);
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'alphabetic';
+            }
+        }
+
+        // Hundesymbol vorne (links) mit Fade-Effekt, wenn AV-Res.hund=true
+        if ((reservation.has_dog || reservation.hund || reservation.data?.has_dog) && width > 12) {
+            const padding = Math.max(1, Math.floor(height * 0.1));
+            const svgHeight = Math.max(10, height - padding * 2);
+            const svgWidth = svgHeight;
+            // Icon vor dem Balken positionieren (vorne links), halb herausstehend
+            const svgX = x - svgWidth / 2;
+            const svgY = y + (height - svgHeight) / 2;
+
+            if (!this._dogSvgImage) {
+                this._dogSvgImage = new Image();
+                this._dogSvgImage.onload = () => this.render();
+                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
+            }
+
+            if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
+                const now = Date.now();
+                const cycle = 3000;
+                const phase = (now % cycle) / cycle; // 0..1
+                const t = (Math.sin(phase * Math.PI * 2) + 1) / 2; // 0..1 weich
+                const w = { r: 255, g: 255, b: 0 };
+                const b = { r: 139, g: 69, b: 19 };
+                const cr = Math.round(w.r + (b.r - w.r) * t);
+                const cg = Math.round(w.g + (b.g - w.g) * t);
+                const cb = Math.round(w.b + (b.b - w.b) * t);
+                const fadeColor = `rgb(${cr}, ${cg}, ${cb})`;
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = svgWidth;
+                tempCanvas.height = svgHeight;
+                const tctx = tempCanvas.getContext('2d');
+                tctx.drawImage(this._dogSvgImage, 0, 0, svgWidth, svgHeight);
+                tctx.globalCompositeOperation = 'source-in';
+                tctx.fillStyle = fadeColor;
+                tctx.fillRect(0, 0, svgWidth, svgHeight);
+
+                this.ctx.save();
+                // 50% Transparenz für Hundesymbol auf Master-Balken
+                this.ctx.globalAlpha = 0.5;
+                this.ctx.drawImage(tempCanvas, svgX, svgY);
+                this.ctx.restore();
+
+                if (!this._dogFadeAnimScheduled) {
+                    this._dogFadeAnimScheduled = true;
+                    requestAnimationFrame(() => {
+                        this._dogFadeAnimScheduled = false;
+                        this.render();
+                    });
+                }
+            } else {
+                // Fallback bis SVG geladen ist
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                this.ctx.beginPath();
+                this.ctx.arc(svgX + svgWidth / 2, svgY + svgHeight / 2, Math.min(svgWidth, svgHeight) / 3, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+            }
         }
     }
 
@@ -7178,9 +7235,7 @@ class TimelineUnifiedRenderer {
             this.ctx.textBaseline = 'alphabetic';
 
             let text = this.getDetailCaption(detail);
-            if (detail.has_dog) {
-                text = `${text} 🐕`;
-            }
+            // Hundesymbol nicht mehr an Bezeichnung anhängen
 
             const arrangementRaw = (detail.arrangement_label || detail.data?.arrangement || detail.data?.arrangement_kbez || '').trim();
             const arrangementLetterMatch = arrangementRaw.match(/[A-Za-zÄÖÜäöü]/);
@@ -7201,9 +7256,12 @@ class TimelineUnifiedRenderer {
             if (hasCircle && renderWidth > circleDiameter + 10) {
                 const circleX = renderX + renderWidth - (circleDiameter / 2) - 3;
                 const circleY = renderY + renderHeight / 2;
-                const avId = detail.av_id ?? detail.data?.av_id ?? 0;
-                const circleFill = avId > 0 ? '#2ecc71' : '#bdc3c7';
-                const circleStroke = avId > 0 ? '#1e8449' : '#95a5a6';
+                // Strikt: AV-Res.av_id > 0 (aus Join in den Room-Details)
+                const avIdRaw = (detail.data && detail.data.av_id) ?? detail.av_id ?? 0;
+                const avIdNum = Number(avIdRaw);
+                const hasAv = Number.isFinite(avIdNum) && avIdNum > 0;
+                const circleFill = hasAv ? '#2ecc71' : '#bdc3c7';
+                const circleStroke = hasAv ? '#1e8449' : '#95a5a6';
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = circleFill;
@@ -7213,7 +7271,7 @@ class TimelineUnifiedRenderer {
                 this.ctx.fill();
                 this.ctx.stroke();
 
-                this.ctx.fillStyle = avId > 0 ? '#ffffff' : '#2d3436';
+                this.ctx.fillStyle = hasAv ? '#ffffff' : '#2d3436';
                 this.ctx.font = `${Math.max(8, circleDiameter * 0.55)}px Arial`;
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
@@ -7223,79 +7281,67 @@ class TimelineUnifiedRenderer {
             }
         }
 
-        // Hund-SVG für Hund-Reservierungen (NACH dem Text, damit Text im Vordergrund ist)
-        if ((detail.has_dog || detail.hund || (detail.data && detail.data.has_dog)) && renderWidth > 15) {
-            const svgHeight = renderHeight * 2; // Doppelt so groß wie Balkenhöhe
-            const svgWidth = svgHeight; // Quadratisches Seitenverhältnis
-            const svgX = renderX - (svgWidth * 0.75); // Noch weiter nach links
-            const svgY = renderY + (renderHeight - svgHeight) / 2; // Vertikal zentriert
+        // Hund-SVG-Markierung: wenn Hund=true, Icon in Balkenhöhe anzeigen
+        if ((detail.has_dog || detail.hund || (detail.data && detail.data.has_dog)) && renderWidth > 12) {
+            const padding = Math.max(1, Math.floor(renderHeight * 0.1));
+            const svgHeight = Math.max(10, renderHeight - padding * 2); // exakte Balkenhöhe (mit etwas Innenabstand)
+            const svgWidth = svgHeight; // quadratisch
+            // Icon um halbe Balkenbreite nach links schieben
+            const svgX = renderX - svgWidth / 2;
+            const svgY = renderY + (renderHeight - svgHeight) / 2; // vertikal zentriert
 
-            // Fade-Effekt: Weiß zu Braun zyklisch in 2 Sekunden
-            const currentTime = Date.now();
-            const fadeCycle = 2000; // 2 Sekunden Zyklus
-            const fadePhase = (currentTime % fadeCycle) / fadeCycle;
-
-            // Interpolation zwischen Weiß (#ffffff) und Braun (#8b4513)
-            const whiteR = 255, whiteG = 255, whiteB = 255;
-            const brownR = 139, brownG = 69, brownB = 19;
-
-            const t = (Math.sin(fadePhase * Math.PI * 2) + 1) / 2; // 0 bis 1
-            const r = Math.round(whiteR + (brownR - whiteR) * t);
-            const g = Math.round(whiteG + (brownG - whiteG) * t);
-            const b = Math.round(whiteB + (brownB - whiteB) * t);
-            const fadeColor = `rgb(${r}, ${g}, ${b})`;
-
-            this.ctx.save();
-
-            // SVG laden und rendern (mit Caching)
+            // SVG laden und cachen
             if (!this._dogSvgImage) {
                 this._dogSvgImage = new Image();
-                this._dogSvgImage.onload = () => {
-                    // Neuzeichnen wenn SVG geladen ist
-                    this.render();
-                };
+                this._dogSvgImage.onload = () => this.render();
                 this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
             }
 
             if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
-                // SVG als Maske verwenden und mit Fade-Farbe füllen
-                this.ctx.save();
+                // Weiß↔Braun Fade-Farbe (2s Zyklus)
+                const now = Date.now();
+                const cycle = 3000;
+                const phase = (now % cycle) / cycle; // 0..1
+                const t = (Math.sin(phase * Math.PI * 2) + 1) / 2; // weich 0..1
+                const w = { r: 255, g: 255, b: 0 };
+                const b = { r: 139, g: 69, b: 19 };
+                const cr = Math.round(w.r + (b.r - w.r) * t);
+                const cg = Math.round(w.g + (b.g - w.g) * t);
+                const cb = Math.round(w.b + (b.b - w.b) * t);
+                const fadeColor = `rgb(${cr}, ${cg}, ${cb})`;
 
-                // Temporäres Canvas für Masking erstellen
+                // Masking auf temporärem Canvas, um SVG farbig zu füllen
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = svgWidth;
                 tempCanvas.height = svgHeight;
-                const tempCtx = tempCanvas.getContext('2d');
+                const tctx = tempCanvas.getContext('2d');
+                tctx.drawImage(this._dogSvgImage, 0, 0, svgWidth, svgHeight);
+                tctx.globalCompositeOperation = 'source-in';
+                tctx.fillStyle = fadeColor;
+                tctx.fillRect(0, 0, svgWidth, svgHeight);
 
-                // SVG auf temporäres Canvas zeichnen
-                tempCtx.drawImage(this._dogSvgImage, 0, 0, svgWidth, svgHeight);
-
-                // Fade-Farbe mit SVG als Maske anwenden
-                tempCtx.globalCompositeOperation = 'source-in';
-                tempCtx.fillStyle = fadeColor;
-                tempCtx.fillRect(0, 0, svgWidth, svgHeight);
-
-                // Ergebnis auf Haupt-Canvas zeichnen
+                // Ergebnis zeichnen
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.5;
                 this.ctx.drawImage(tempCanvas, svgX, svgY);
-
                 this.ctx.restore();
+
+                // Animation triggern (sanft)
+                if (!this._dogFadeAnimScheduled) {
+                    this._dogFadeAnimScheduled = true;
+                    requestAnimationFrame(() => {
+                        this._dogFadeAnimScheduled = false;
+                        this.render();
+                    });
+                }
             } else {
-                // Fallback: Einfacher farbiger Kreis während SVG lädt
-                this.ctx.fillStyle = fadeColor;
+                // Fallback: neutrale Platzhaltermarke, bis SVG lädt
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(0,0,0,0.25)';
                 this.ctx.beginPath();
-                this.ctx.arc(svgX + svgWidth / 2, svgY + svgHeight / 2, svgWidth / 3, 0, Math.PI * 2);
+                this.ctx.arc(svgX + svgWidth / 2, svgY + svgHeight / 2, Math.min(svgWidth, svgHeight) / 3, 0, Math.PI * 2);
                 this.ctx.fill();
-            }
-
-            this.ctx.restore();
-
-            // Kontinuierliches Neuzeichnen für Fade-Effekt
-            if (!this._fadeAnimationScheduled) {
-                this._fadeAnimationScheduled = true;
-                requestAnimationFrame(() => {
-                    this._fadeAnimationScheduled = false;
-                    this.render();
-                });
+                this.ctx.restore();
             }
         }
 
