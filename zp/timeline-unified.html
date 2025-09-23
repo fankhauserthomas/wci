@@ -881,6 +881,55 @@
             font-size: 11px;
         }
 
+        .assign-ablage-rooms {
+            background: #fffbeb;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+
+        .assign-ablage-rooms h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #92400e;
+            border-bottom: 1px solid #f59e0b;
+            padding-bottom: 4px;
+        }
+
+        .assign-ablage-room {
+            background: #fef3c7;
+            border: 1px solid #d97706;
+            border-radius: 4px;
+            padding: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .assign-ablage-room:hover {
+            background: #fde68a;
+            border-color: #b45309;
+        }
+
+        .assign-ablage-room.drop-target {
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+
+        .assign-ablage-room-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 2px;
+        }
+
+        .assign-ablage-room-meta {
+            font-size: 9px;
+            color: #a16207;
+        }
+
         @media (max-width: 1100px) {
             .assign-body {
                 flex-direction: column;
@@ -1247,6 +1296,9 @@
                     <div id="assignReservationInfo" class="assign-reservation-info">
                         <!-- Reservierungsdetails werden hier eingefügt -->
                     </div>
+                    <div id="assignAblageRooms" class="assign-ablage-rooms">
+                        <!-- Ablage-Zimmer werden hier eingefügt -->
+                    </div>
                     <div id="assignInfo" class="assign-info"></div>
                 </div>
                 <div class="assign-grid">
@@ -1308,6 +1360,73 @@
                 const data = detail && detail.data ? detail.data : detail.fullData || {};
                 const need = Number(data.betten || 0) + Number(data.dz || 0) + Number(data.sonder || 0) + Number(data.lager || 0);
                 return Math.max(0, need || Number(detail.capacity || 0) || 0);
+            }
+
+            function isAblageRoom(room) {
+                const caption = (room.caption || room.display_name || '').toLowerCase();
+                return caption.includes('ablage') || caption === 'ablage';
+            }
+
+            function renderAblageRooms(avail, perDay) {
+                const container = document.getElementById('assignAblageRooms');
+                if (!container) return;
+
+                const ablageRooms = (Array.isArray(window.rooms) ? window.rooms : []).filter(isAblageRoom);
+
+                if (ablageRooms.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                container.style.display = 'block';
+                container.innerHTML = '<h4>Ablage</h4>';
+
+                ablageRooms.forEach(room => {
+                    const roomElement = document.createElement('div');
+                    roomElement.className = 'assign-ablage-room';
+                    roomElement.dataset.roomId = room.id;
+
+                    const baseAvail = Number(avail.get(Number(room.id)) || 0);
+                    roomElement.dataset.available = String(baseAvail);
+
+                    let assigned = Number(current.draft[room.id] || 0);
+                    const roomTotalCap = Number(room.kapazitaet || room.capacity || 0);
+
+                    // Erstelle Titel und Meta-Info Elements
+                    const titleEl = document.createElement('div');
+                    titleEl.className = 'assign-ablage-room-title';
+                    titleEl.textContent = room.caption || room.display_name || ('Zimmer ' + room.id);
+
+                    const metaEl = document.createElement('div');
+                    metaEl.className = 'assign-ablage-room-meta';
+                    metaEl.textContent = `${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}`;
+
+                    roomElement.appendChild(titleEl);
+                    roomElement.appendChild(metaEl);
+
+                    container.appendChild(roomElement);
+                });
+            }
+
+            function updateAblageRoomCounts() {
+                // Aktualisiere nur die Anzeige der zugewiesenen Zahlen in Ablage-Zimmern
+                const container = document.getElementById('assignAblageRooms');
+                if (!container) return;
+
+                container.querySelectorAll('.assign-ablage-room').forEach(roomElement => {
+                    const roomId = roomElement.dataset.roomId;
+                    const baseAvail = Number(roomElement.dataset.available || 0);
+                    const assigned = Number(current.draft[roomId] || 0);
+
+                    // Finde das Zimmer-Objekt für die Kapazität
+                    const room = (Array.isArray(window.rooms) ? window.rooms : []).find(r => r.id == roomId);
+                    const roomTotalCap = room ? Number(room.kapazitaet || room.capacity || 0) : 0;
+
+                    const metaEl = roomElement.querySelector('.assign-ablage-room-meta');
+                    if (metaEl) {
+                        metaEl.textContent = `${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}`;
+                    }
+                });
             }
 
             function renderReservationInfo(detail) {
@@ -1581,7 +1700,10 @@
             }
 
             function renderGridWithAvailability(layout, frag, avail, perDay) {
-                // Zimmer direkt ins Grid, ohne äußere Zellen-Wrapper
+                // Zuerst Ablage-Zimmer im Sidebar rendern
+                renderAblageRooms(avail, perDay);
+
+                // Dann normale Zimmer ins Grid (ohne Ablage)
                 for (let y = 1; y <= layout.maxY; y++) {
                     for (let x = 1; x <= layout.maxX; x++) {
                         const group = layout.groups.get(`${x}_${y}`) || [];
@@ -1592,7 +1714,11 @@
                             frag.appendChild(empty);
                             continue;
                         }
-                        group.forEach(room => {
+
+                        // Filtere Ablage-Zimmer aus dem Grid
+                        const normalRooms = group.filter(room => !isAblageRoom(room));
+
+                        normalRooms.forEach(room => {
                             const roomWrap = document.createElement('div');
                             roomWrap.className = 'assign-room';
                             roomWrap.dataset.roomId = room.id;
@@ -1742,6 +1868,7 @@
                 token.textContent = String(r);
                 token.style.opacity = r > 0 ? '1' : '0.5';
                 token.style.pointerEvents = r > 0 ? 'auto' : 'none';
+
                 // Refresh disabled state on all rooms (based on latest remaining/assigned)
                 gridInner.querySelectorAll('.assign-room').forEach((wrap) => {
                     const roomId = Number(wrap.dataset.roomId || 0);
@@ -1750,6 +1877,9 @@
                     const addMax = Math.min(capAvail - assigned, r);
                     wrap.classList.toggle('disabled', addMax <= 0);
                 });
+
+                // Aktualisiere auch die Ablage-Zimmer Anzeige
+                updateAblageRoomCounts();
             }
 
             function open(detail) {
@@ -1867,7 +1997,8 @@
                 const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
 
                 const target = document.elementFromPoint(clientX, clientY);
-                const roomWrap = target && target.closest ? target.closest('.assign-room') : null;
+                // Suche sowohl normale Zimmer als auch Ablage-Zimmer
+                const roomWrap = target && target.closest ? target.closest('.assign-room, .assign-ablage-room') : null;
                 if (roomWrap) {
                     const roomId = Number(roomWrap.dataset.roomId);
                     const capAvail = Number(roomWrap.dataset.available || 0);
@@ -1883,7 +2014,7 @@
             function updateGhostContent(x, y) {
                 if (!drag || !drag.ghost) return;
                 const el = document.elementFromPoint(x, y);
-                const roomWrap = el && el.closest ? el.closest('.assign-room') : null;
+                const roomWrap = el && el.closest ? el.closest('.assign-room, .assign-ablage-room') : null;
                 if (roomWrap) {
                     const roomId = Number(roomWrap.dataset.roomId);
                     const capAvail = Number(roomWrap.dataset.available || 0);
@@ -1910,7 +2041,7 @@
             function highlightDrop(x, y) {
                 unhighlightAll();
                 const el = document.elementFromPoint(x, y);
-                const roomWrap = el && el.closest ? el.closest('.assign-room') : null;
+                const roomWrap = el && el.closest ? el.closest('.assign-room, .assign-ablage-room') : null;
                 if (!roomWrap) return;
                 const capAvail = Number(roomWrap.dataset.available || 0);
                 const roomId = Number(roomWrap.dataset.roomId || 0);
@@ -1920,7 +2051,10 @@
                     roomWrap.classList.add('drop-target');
                 }
             }
-            function unhighlightAll() { gridInner.querySelectorAll('.assign-room.drop-target').forEach(el => el.classList.remove('drop-target')); }
+            function unhighlightAll() {
+                gridInner.querySelectorAll('.assign-room.drop-target').forEach(el => el.classList.remove('drop-target'));
+                document.querySelectorAll('.assign-ablage-room.drop-target').forEach(el => el.classList.remove('drop-target'));
+            }
         })();
 
         // Modal Confirmation Function
