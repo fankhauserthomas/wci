@@ -478,6 +478,11 @@
             align-items: center;
             justify-content: center;
             z-index: 10000;
+            user-select: none;
+            /* Verhindert Text-Selektion im gesamten Modal */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         .assign-modal[open] {
@@ -505,69 +510,42 @@
             flex-direction: column;
         }
 
-        .assign-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-bottom: 1px solid #1f2937;
-            background: linear-gradient(180deg, #111827, #0f172a);
-        }
-
-        .assign-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        .assign-sub {
-            color: #9ca3af;
-            font-size: 12px;
-        }
-
         .assign-body {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 8px;
+            display: flex;
+            gap: 20px;
             padding: 8px;
-            overflow: auto;
+            height: 100%;
+            overflow: hidden;
         }
 
         .assign-grid {
+            flex: 1;
             background: #f9fafb;
             color: #111827;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 8px;
+            overflow-y: auto;
+            height: 100%;
+            max-height: 70vh;
         }
 
         .assign-grid-inner {
             display: grid;
-            gap: 6px;
-        }
-
-        .assign-cell {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 6px;
-            display: flex;
-            flex-direction: column;
             gap: 4px;
-            min-height: 56px;
-            position: relative;
         }
 
         .assign-room {
             background: #ffffff;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 4px 6px;
+            border-radius: 6px;
+            padding: 8px;
             display: flex;
             flex-direction: row;
             align-items: center;
             gap: 8px;
-            min-height: 32px;
+            min-height: 38px;
+            position: relative;
         }
 
         .assign-room.drop-target {
@@ -587,34 +565,89 @@
 
         .assign-room-title {
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            font-size: 11px;
+            flex-direction: row;
+            align-items: center;
+            font-size: 10px;
             font-weight: 600;
             min-width: 70px;
-            line-height: 1.2;
+            line-height: 1.1;
+            gap: 4px;
         }
 
         .assign-room-meta {
             color: #64748b;
-            font-size: 11px;
+            font-size: 9px;
+            font-weight: 400;
         }
 
-        /* Debug: per-day availability string under the bar */
+        /* Debug: per-day availability als farbkodierte Ovale */
         .assign-bar-debug {
             position: absolute;
             left: 6px;
-            top: calc(100% + 2px);
-            font-size: 10px;
-            color: #94a3b8;
-            white-space: nowrap;
+            bottom: 0px;
+            display: flex;
+            gap: 3px;
             pointer-events: none;
+        }
+
+        .assign-day-oval {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 14px;
+            border-radius: 7px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+            padding: 0 4px;
+        }
+
+        .assign-day-oval.full {
+            background: #16a34a;
+            /* Grün - volle Kapazität frei */
+        }
+
+        .assign-day-oval.empty {
+            background: #dc2626;
+            /* Rot - keine Kapazität frei */
+        }
+
+        .assign-day-oval.partial {
+            background: #ca8a04;
+            /* Gelb - teilweise frei */
+        }
+
+        /* Zimmer-Hintergrundfarben basierend auf Gesamtverfügbarkeit */
+        .assign-room.room-full-available {
+            background: #bbf7d0;
+            /* Dunkleres Hellgrün */
+            border-color: #16a34a;
+        }
+
+        .assign-room.room-no-available {
+            background: #fecaca;
+            /* Dunkleres Hellrot */
+            border-color: #dc2626;
+        }
+
+        .assign-room.room-partial-available {
+            background: #fef08a;
+            /* Dunkleres Hellgelb */
+            border-color: #ca8a04;
+        }
+
+        /* Leere Grid-Zellen */
+        .assign-empty-cell {
+            min-height: 38px;
+            background: transparent;
         }
 
         .assign-bar {
             position: relative;
-            height: 16px;
-            border-radius: 6px;
+            height: 32px;
+            border-radius: 4px;
             background: #eef2f7;
             border: 1px solid #dde3ea;
             cursor: ew-resize;
@@ -654,13 +687,21 @@
             border: 1px solid #cbd5e1;
             background: #fff;
             color: #0f172a;
-            padding: 2px 5px;
-            border-radius: 4px;
+            padding: 8px 16px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
+            font-size: 14px;
+            min-width: 100px;
+            height: 40px;
+        }
+
+        .assign-btn.small {
+            padding: 2px 5px;
             font-size: 11px;
             min-width: 20px;
             height: 20px;
+            border-radius: 4px;
         }
 
         .assign-btn:hover {
@@ -668,14 +709,16 @@
         }
 
         .assign-sidebar {
+            width: 280px;
+            flex-shrink: 0;
             background: #f9fafb;
             color: #111827;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
-            padding: 8px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
         }
 
         .assign-kpis {
@@ -717,9 +760,9 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
+            width: 90px;
             height: 36px;
-            border-radius: 999px;
+            border-radius: 8px;
             background: linear-gradient(180deg, #60a5fa, #3b82f6);
             color: #fff;
             font-weight: 800;
@@ -745,8 +788,30 @@
 
         .assign-actions {
             display: flex;
+            flex-direction: column;
             gap: 6px;
-            justify-content: flex-end;
+        }
+
+        .assign-actions .button-row-1 {
+            display: flex;
+            gap: 4px;
+        }
+
+        .assign-actions .button-row-2 {
+            display: flex;
+            justify-content: center;
+        }
+
+        .assign-actions .assign-btn {
+            flex: 1;
+            font-size: 11px;
+            padding: 6px 8px;
+            white-space: nowrap;
+        }
+
+        .assign-actions .button-row-2 .assign-btn {
+            flex: none;
+            min-width: 80px;
         }
 
         .assign-actions .primary {
@@ -761,9 +826,69 @@
             color: #fff;
         }
 
+        .assign-actions .reset {
+            background: linear-gradient(180deg, #f59e0b, #d97706);
+            border-color: #92400e;
+            color: #fff;
+        }
+
+        .assign-reservation-info {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .assign-reservation-info h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 4px;
+        }
+
+        .assign-reservation-info .info-row {
+            margin-bottom: 4px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .assign-reservation-info .info-label {
+            font-weight: 500;
+            color: #6b7280;
+            min-width: 60px;
+        }
+
+        .assign-reservation-info .info-value {
+            color: #111827;
+            flex: 1;
+        }
+
+        .assign-reservation-info .info-categories {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .assign-reservation-info .info-category {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
         @media (max-width: 1100px) {
             .assign-body {
-                grid-template-columns: 1fr
+                flex-direction: column;
+            }
+
+            .assign-sidebar {
+                width: 100%;
+                order: -1;
             }
         }
 
@@ -1094,19 +1219,10 @@
     <div id="assignModal" class="assign-modal" aria-hidden="true">
         <div class="assign-backdrop" data-close="assign"></div>
         <div class="assign-card" role="dialog" aria-modal="true" aria-labelledby="assignTitle">
-            <div class="assign-header">
-                <h3 id="assignTitle" class="assign-title">Zimmer zuweisen</h3>
-                <div id="assignSub" class="assign-sub"></div>
-                <div style="flex:1"></div>
-                <button class="assign-btn" data-close="assign">✖</button>
-            </div>
             <div class="assign-body">
-                <div class="assign-grid">
-                    <div id="assignGridInner" class="assign-grid-inner"></div>
-                </div>
                 <div class="assign-sidebar">
                     <div id="assignStock" class="assign-stock">
-                        <div>Füllstand</div>
+                        <div>zu Disponieren</div>
                         <div id="assignToken" class="assign-token" title="Ziehen, um 1 Einheit zuzuweisen">0</div>
                     </div>
                     <div class="assign-kpis">
@@ -1119,11 +1235,22 @@
                             <div id="kpiRemaining" class="value">0</div>
                         </div>
                     </div>
-                    <div id="assignInfo" class="assign-info"></div>
                     <div class="assign-actions">
-                        <button id="assignCancel" class="assign-btn">Abbrechen</button>
-                        <button id="assignSave" class="assign-btn primary">Speichern</button>
+                        <div class="button-row-1">
+                            <button id="assignReset" class="assign-btn reset">Reset</button>
+                            <button id="assignSave" class="assign-btn primary">Save</button>
+                        </div>
+                        <div class="button-row-2">
+                            <button id="assignCancel" class="assign-btn">Cancel</button>
+                        </div>
                     </div>
+                    <div id="assignReservationInfo" class="assign-reservation-info">
+                        <!-- Reservierungsdetails werden hier eingefügt -->
+                    </div>
+                    <div id="assignInfo" class="assign-info"></div>
+                </div>
+                <div class="assign-grid">
+                    <div id="assignGridInner" class="assign-grid-inner"></div>
                 </div>
             </div>
         </div>
@@ -1165,12 +1292,12 @@
         (function initRoomAssignController() {
             const modal = document.getElementById('assignModal');
             const gridInner = document.getElementById('assignGridInner');
-            const assignTitle = document.getElementById('assignTitle');
-            const assignSub = document.getElementById('assignSub');
+            const reservationInfo = document.getElementById('assignReservationInfo');
             const kpiAssigned = document.getElementById('kpiAssigned');
             const kpiRemaining = document.getElementById('kpiRemaining');
             const btnCancel = document.getElementById('assignCancel');
             const btnSave = document.getElementById('assignSave');
+            const btnReset = document.getElementById('assignReset');
             const token = document.getElementById('assignToken');
 
             let current = null; // { resId, start, end, required, days, draft:{[roomId]:count}, avail: Map(roomId->free) }
@@ -1181,6 +1308,88 @@
                 const data = detail && detail.data ? detail.data : detail.fullData || {};
                 const need = Number(data.betten || 0) + Number(data.dz || 0) + Number(data.sonder || 0) + Number(data.lager || 0);
                 return Math.max(0, need || Number(detail.capacity || 0) || 0);
+            }
+
+            function renderReservationInfo(detail) {
+                if (!detail || !reservationInfo) return;
+
+                // Debug: Schauen welche Daten verfügbar sind
+                console.log('🔍 Detail object:', detail);
+                console.log('🔍 Detail.data:', detail.data);
+                console.log('🔍 Detail.fullData:', detail.fullData);
+
+                // Combine all possible data sources
+                const combined = { ...detail, ...(detail.data || {}), ...(detail.fullData || {}) };
+                console.log('🔍 Combined data:', combined);
+
+                // Name handling - use direct properties first
+                let nachname = combined.nachname || combined.lastname || '';
+                let vorname = combined.vorname || combined.firstname || '';
+
+                // Fallback: try to split from various name fields
+                if (!nachname && !vorname) {
+                    const fullName = combined.name || combined.guest_name || combined.title || 'Unbekannt';
+                    const nameParts = fullName.split(' ');
+                    if (nameParts.length > 1) {
+                        nachname = nameParts[nameParts.length - 1]; // Last part as surname
+                        vorname = nameParts.slice(0, -1).join(' '); // Everything else as first name
+                    } else {
+                        nachname = nameParts[0] || '';
+                    }
+                }
+
+                // Format dates
+                const anreise = detail.start instanceof Date ? detail.start.toLocaleDateString('de-DE') : new Date(detail.start).toLocaleDateString('de-DE');
+                const abreise = detail.end instanceof Date ? detail.end.toLocaleDateString('de-DE') : new Date(detail.end).toLocaleDateString('de-DE');
+
+                // Categories - check capacity_details and direct properties
+                const categories = [];
+                const capacity_details = combined.capacity_details || {};
+
+                const dz = Number(combined.dz || capacity_details.dz || 0);
+                const betten = Number(combined.betten || capacity_details.betten || 0);
+                const lager = Number(combined.lager || capacity_details.lager || 0);
+                const sonder = Number(combined.sonder || capacity_details.sonder || 0);
+
+                if (dz > 0) categories.push(`${dz} DZ`);
+                if (betten > 0) categories.push(`${betten} Betten`);
+                if (lager > 0) categories.push(`${lager} Lager`);
+                if (sonder > 0) categories.push(`${sonder} Sonder`);
+
+                // If no specific categories found, show total capacity
+                if (categories.length === 0 && combined.capacity > 0) {
+                    categories.push(`${combined.capacity} Personen`);
+                }
+
+                const arrangement = combined.arr || combined.arrangement || combined.package || '';
+                const hund = Number(combined.hund || combined.dog || 0) > 0 ? 'Ja' : '';
+                const herkunft = combined.herkunft || combined.origin || combined.country || '';
+                const bemerkung = combined.bem || combined.bemerkung || combined.remark || combined.comment || '';
+                const bemerkungAV = combined.bem_av || combined.av_remark || '';
+
+                console.log('🔍 Extracted data:', {
+                    nachname, vorname, anreise, abreise, categories,
+                    arrangement, hund, herkunft, bemerkung, bemerkungAV,
+                    capacity_details, capacity: combined.capacity
+                });
+
+                let html = `<h4>Reservierung</h4>`;
+                html += `<div class="info-row"><span class="info-label">Name:</span><span class="info-value">${nachname} ${vorname}</span></div>`;
+                html += `<div class="info-row"><span class="info-label">Zeitraum:</span><span class="info-value">${anreise} → ${abreise}</span></div>`;
+
+                if (categories.length > 0) {
+                    html += `<div class="info-row"><span class="info-label">Bedarf:</span><div class="info-categories">`;
+                    categories.forEach(cat => html += `<span class="info-category">${cat}</span>`);
+                    html += `</div></div>`;
+                }
+
+                if (arrangement) html += `<div class="info-row"><span class="info-label">Arrangement:</span><span class="info-value">${arrangement}</span></div>`;
+                if (hund) html += `<div class="info-row"><span class="info-label">Hund:</span><span class="info-value">${hund}</span></div>`;
+                if (herkunft) html += `<div class="info-row"><span class="info-label">Herkunft:</span><span class="info-value">${herkunft}</span></div>`;
+                if (bemerkung) html += `<div class="info-row"><span class="info-label">Bemerkung:</span><span class="info-value">${bemerkung}</span></div>`;
+                if (bemerkungAV) html += `<div class="info-row"><span class="info-label">Bemerkung AV:</span><span class="info-value">${bemerkungAV}</span></div>`;
+
+                reservationInfo.innerHTML = html;
             }
 
             function daysBetween(start, end) {
@@ -1372,18 +1581,15 @@
             }
 
             function renderGridWithAvailability(layout, frag, avail, perDay) {
-                // Zellen in Raster-Reihenfolge
+                // Zimmer direkt ins Grid, ohne äußere Zellen-Wrapper
                 for (let y = 1; y <= layout.maxY; y++) {
                     for (let x = 1; x <= layout.maxX; x++) {
                         const group = layout.groups.get(`${x}_${y}`) || [];
-                        const cell = document.createElement('div');
-                        cell.className = 'assign-cell';
                         if (group.length === 0) {
+                            // Leere Zelle - einfacher Platzhalter
                             const empty = document.createElement('div');
-                            empty.className = 'assign-room-meta';
-                            empty.textContent = '—';
-                            cell.appendChild(empty);
-                            frag.appendChild(cell);
+                            empty.className = 'assign-empty-cell';
+                            frag.appendChild(empty);
                             continue;
                         }
                         group.forEach(room => {
@@ -1396,7 +1602,7 @@
                             const title = document.createElement('div');
                             title.className = 'assign-room-title';
                             const roomTotalCap = Number(room.kapazitaet || room.capacity || 0);
-                            title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span><br><span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+                            title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span> <span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
                             // Farb-Akzent links auf Basis der Zimmerfarbe (#RRGGBB oder #AARRGGBB)
                             if (room.col && typeof room.col === 'string') {
                                 let col = room.col.trim();
@@ -1415,15 +1621,52 @@
                             label.className = 'assign-bar-label';
                             const capLabel = document.createElement('div');
                             capLabel.style.position = 'absolute'; capLabel.style.right = '6px'; capLabel.style.top = '50%'; capLabel.style.transform = 'translateY(-50%)'; capLabel.style.color = '#475569'; capLabel.style.fontSize = '11px'; capLabel.style.pointerEvents = 'none';
-                            // Debug-Label: per-Tag freie Kapazitäten z.B. 0/0/1/2/2
+                            // Debug-Label: per-Tag freie Kapazitäten als farbkodierte Ovale
                             const debugLabel = document.createElement('div');
                             debugLabel.className = 'assign-bar-debug';
                             const perDayArr = perDay && perDay.get(Number(room.id));
-                            debugLabel.textContent = Array.isArray(perDayArr) && perDayArr.length ? perDayArr.join('/') : '';
+
+                            // Erstelle Ovale für jeden Tag
+                            if (Array.isArray(perDayArr) && perDayArr.length) {
+                                perDayArr.forEach((dayCapacity, index) => {
+                                    const oval = document.createElement('div');
+                                    oval.className = 'assign-day-oval';
+                                    oval.textContent = dayCapacity;
+
+                                    // Farbkodierung basierend auf Kapazität vs. Zimmerkapazität
+                                    if (dayCapacity === 0) {
+                                        oval.classList.add('empty');
+                                    } else if (dayCapacity >= roomTotalCap) {
+                                        oval.classList.add('full');
+                                    } else {
+                                        oval.classList.add('partial');
+                                    }
+
+                                    debugLabel.appendChild(oval);
+                                });
+                            }
+
+                            // Bestimme Zimmer-Hintergrundfarbe basierend auf Gesamtverfügbarkeit
+                            // Wende Farbklassen direkt auf roomWrap an
+                            if (Array.isArray(perDayArr) && perDayArr.length) {
+                                const minCapacity = Math.min(...perDayArr);
+                                const hasZeroDay = perDayArr.some(cap => cap === 0);
+
+                                if (hasZeroDay) {
+                                    // Sobald ein Tag 0 Kapazität hat, ist das Zimmer nicht nutzbar
+                                    roomWrap.classList.add('room-no-available');
+                                } else if (minCapacity >= roomTotalCap) {
+                                    // Alle Tage haben volle Kapazität frei
+                                    roomWrap.classList.add('room-full-available');
+                                } else {
+                                    // Teilweise verfügbar (aber kein Tag mit 0)
+                                    roomWrap.classList.add('room-partial-available');
+                                }
+                            }
                             const controls = document.createElement('div');
                             controls.className = 'assign-controls';
-                            const btnMinus = document.createElement('button'); btnMinus.className = 'assign-btn'; btnMinus.textContent = '−';
-                            const btnPlus = document.createElement('button'); btnPlus.className = 'assign-btn'; btnPlus.textContent = '+';
+                            const btnMinus = document.createElement('button'); btnMinus.className = 'assign-btn small'; btnMinus.textContent = '−';
+                            const btnPlus = document.createElement('button'); btnPlus.className = 'assign-btn small'; btnPlus.textContent = '+';
                             controls.appendChild(btnMinus); controls.appendChild(btnPlus);
 
                             const updateBar = () => {
@@ -1433,7 +1676,7 @@
                                 fill.style.width = `${pct * 100}%`;
                                 label.textContent = `${assigned}`;
                                 capLabel.textContent = `/${baseAvail}`;
-                                title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span><br><span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+                                title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span> <span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
                                 btnMinus.disabled = assigned <= 0;
                                 btnPlus.disabled = assigned >= maxAssignAbs;
                                 // Toggle disabled state for token drop if no additional capacity can be added now
@@ -1482,9 +1725,8 @@
                                 endTokenDrag();
                                 e.preventDefault();
                             });
-                            cell.appendChild(roomWrap);
+                            frag.appendChild(roomWrap);
                         });
-                        frag.appendChild(cell);
                     }
                 }
                 gridInner.appendChild(frag);
@@ -1518,13 +1760,14 @@
                 const required = computeRequired(detail);
                 const resId = detail.data?.res_id || detail.fullData?.res_id || detail.fullData?.id || detail.res_id || detail.id;
                 current = { resId, start, end, days: daysBetween(start, end), required, draft: {}, avail: new Map() };
-                assignTitle.textContent = `Zimmer zuweisen — ${titleName}`;
-                assignSub.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()} • Bedarf: ${required}`;
+
+                renderReservationInfo(detail);
                 renderGrid();
                 modal.setAttribute('open', '');
                 modal.setAttribute('aria-hidden', 'false');
-                // Token drag handlers
+                // Token drag handlers - sowohl Mouse als auch Touch Events für Tablet-Unterstützung
                 token.addEventListener('mousedown', onTokenDown);
+                token.addEventListener('touchstart', onTokenDown, { passive: false });
             }
 
             function close() {
@@ -1533,17 +1776,40 @@
                 current = null;
                 endTokenDrag();
                 token.removeEventListener('mousedown', onTokenDown);
+                token.removeEventListener('touchstart', onTokenDown);
             }
 
             // Wire close buttons/backdrop
             modal.addEventListener('click', (e) => { const t = e.target; if (t && t.dataset && t.dataset.close === 'assign') { close(); } });
+
+            // Verhindere Standard-Drag-Verhalten und Text-Selektion im Modal
+            modal.addEventListener('dragstart', (e) => e.preventDefault());
+            modal.addEventListener('selectstart', (e) => e.preventDefault());
+            modal.addEventListener('mousedown', (e) => {
+                // Nur verhindern wenn es nicht der Token oder ein Button ist
+                if (!e.target.closest('.assign-token') && !e.target.closest('button')) {
+                    e.preventDefault();
+                }
+            });
+
             btnCancel.addEventListener('click', close);
+            btnReset.addEventListener('click', () => {
+                if (!current) return;
+                // Zurücksetzen: Alle draft-Zuweisungen auf 0 setzen
+                for (const roomId in current.draft) {
+                    current.draft[roomId] = 0;
+                }
+                updateTotals();
+                renderGrid();
+                console.log('Zimmeraufteilung zurückgesetzt');
+            });
             btnSave.addEventListener('click', async () => {
                 if (!current || !current.resId) { console.warn('Keine ResID, kann nicht speichern'); close(); return; }
                 const payload = {
                     res_id: Number(current.resId),
-                    start: current.start.toISOString().slice(0, 10),
-                    end: current.end.toISOString().slice(0, 10),
+                    // Verwende lokales YYYY-MM-DD, um UTC-Verschiebungen zu vermeiden
+                    start: ymdLocal(current.start),
+                    end: ymdLocal(current.end),
                     assignments: current.draft
                 };
                 try {
@@ -1564,21 +1830,43 @@
             // ===== Token Dragging =====
             function onTokenDown(e) {
                 if (remaining() <= 0) return;
+
+                // Touch oder Mouse Event normalisieren
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
                 drag = { ghost: null, shiftKey: e.shiftKey };
-                createGhost(e.clientX, e.clientY);
+                createGhost(clientX, clientY);
+
+                // Sowohl Mouse- als auch Touch-Events hinzufügen
                 window.addEventListener('mousemove', onTokenMove);
+                window.addEventListener('touchmove', onTokenMove, { passive: false });
                 window.addEventListener('mouseup', onTokenUp, { once: true });
+                window.addEventListener('touchend', onTokenUp, { once: true });
+
                 e.preventDefault();
             }
             function onTokenMove(e) {
                 if (!drag) return;
-                moveGhost(e.clientX, e.clientY);
-                highlightDrop(e.clientX, e.clientY);
-                updateGhostContent(e.clientX, e.clientY);
+
+                // Touch oder Mouse Event normalisieren
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                moveGhost(clientX, clientY);
+                highlightDrop(clientX, clientY);
+                updateGhostContent(clientX, clientY);
+
+                e.preventDefault(); // Verhindert Scrolling beim Touch-Drag
             }
             function onTokenUp(e) {
                 if (!drag) return;
-                const target = document.elementFromPoint(e.clientX, e.clientY);
+
+                // Touch oder Mouse Event normalisieren
+                const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+                const target = document.elementFromPoint(clientX, clientY);
                 const roomWrap = target && target.closest ? target.closest('.assign-room') : null;
                 if (roomWrap) {
                     const roomId = Number(roomWrap.dataset.roomId);
@@ -1606,7 +1894,19 @@
                     drag.ghost.textContent = '?';
                 }
             }
-            function endTokenDrag() { if (!drag) return; if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost); unhighlightAll(); drag = null; }
+            function endTokenDrag() {
+                if (!drag) return;
+                if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+                unhighlightAll();
+
+                // Alle Event-Listener entfernen
+                window.removeEventListener('mousemove', onTokenMove);
+                window.removeEventListener('touchmove', onTokenMove);
+                window.removeEventListener('mouseup', onTokenUp);
+                window.removeEventListener('touchend', onTokenUp);
+
+                drag = null;
+            }
             function highlightDrop(x, y) {
                 unhighlightAll();
                 const el = document.elementFromPoint(x, y);
@@ -2568,13 +2868,15 @@
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
 
-                // Begrenze auf 1 Woche für bessere Performance
-                const startDate = new Date(now.getTime() - (7 * MS_IN_DAY)); // 1 Woche zurück
-                const endDate = new Date(now.getTime() + (7 * MS_IN_DAY));   // 1 Woche voraus
+                // Verwende konfigurierbare Wochenwerte aus timeline-config
+                const weekRange = getConfiguredWeeksRange();
+                const startDate = new Date(now.getTime() - (weekRange.past * 7 * MS_IN_DAY)); // Konfigurierbare Wochen zurück
+                const endDate = new Date(now.getTime() + (weekRange.future * 7 * MS_IN_DAY));   // Konfigurierbare Wochen voraus
 
                 const startDateStr = startDate.toISOString().split('T')[0];
                 const endDateStr = endDate.toISOString().split('T')[0];
 
+                console.log(`Konfigurierte Zeitspanne: ${weekRange.past} Wochen zurück, ${weekRange.future} Wochen voraus`);
                 console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
 
                 const roomsFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
@@ -2973,6 +3275,14 @@
                         window.timelineWeeksOverride = window.timelineWeeksOverride || {};
                         if (event.data.metric === 'weeks-past') window.timelineWeeksOverride.past = val;
                         if (event.data.metric === 'weeks-future') window.timelineWeeksOverride.future = val;
+
+                        // Daten neu laden, da sich der Zeitbereich geändert hat
+                        console.log(`Zeitbereich geändert: ${event.data.metric} = ${val}. Lade Daten neu...`);
+                        loadRealData().then(() => {
+                            console.log('Daten erfolgreich für neuen Zeitbereich geladen');
+                        }).catch(error => {
+                            console.error('Fehler beim Neuladen der Daten nach Zeitbereichs-Änderung:', error);
+                        });
 
                         // Renderer live updaten (sichtbarer Bereich)
                         if (timelineRenderer) {

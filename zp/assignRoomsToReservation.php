@@ -38,9 +38,29 @@ try {
     if (!$startDt || !$endDt) throw new InvalidArgumentException('start/end Format YYYY-MM-DD');
     if ($endDt <= $startDt) throw new InvalidArgumentException('end muss nach start liegen');
 
-    // Lade Zimmerkapazitäten in Map
+    // Lade ARR-Feld und Namensdaten aus dem Stammdatensatz
+    $arrValue = null;
+    $bezValue = '';
+    $masterStmt = $mysqli->prepare("SELECT arr, nachname, vorname FROM `AV-Res` WHERE id = ?");
+    if (!$masterStmt) throw new RuntimeException('Prepare master query failed: ' . $mysqli->error);
+    $masterStmt->bind_param('i', $resId);
+    if (!$masterStmt->execute()) throw new RuntimeException('Master query failed: ' . $masterStmt->error);
+    $masterResult = $masterStmt->get_result();
+    if ($masterRow = $masterResult->fetch_assoc()) {
+        $arrValue = $masterRow['arr'];
+        // Kombiniere nachname und vorname für bez Feld
+        $nachname = trim($masterRow['nachname'] ?? '');
+        $vorname = trim($masterRow['vorname'] ?? '');
+        $bezValue = trim($nachname . ' ' . $vorname);
+    }
+    $masterStmt->close();
+    
+    // Debug: Log ARR und BEZ values für Kontrolle
+    error_log("assignRoomsToReservation: Verwende ARR-Wert '$arrValue' und BEZ-Wert '$bezValue' für Reservation ID $resId");
+
+    // Lade Zimmerkapazitäten in Map (use only existing column 'kapazitaet')
     $roomCap = [];
-    $capRes = $mysqli->query("SELECT id, COALESCE(kapazitaet, capacity) AS cap FROM zp_zimmer");
+    $capRes = $mysqli->query("SELECT id, COALESCE(kapazitaet, 0) AS cap FROM zp_zimmer");
     if ($capRes) {
         while ($row = $capRes->fetch_assoc()) {
             $roomCap[(int)$row['id']] = max(0, (int)$row['cap']);
@@ -60,6 +80,9 @@ try {
     while ($row = $rs->fetch_assoc()) { $existing[] = $row; }
     $stmt->close();
 
+    // Start transaction for atomic update
+    $mysqli->begin_transaction();
+
     // Entferne bestehende Details für den Zeitraum (wir schreiben neu)
     $stmtDel = $mysqli->prepare("DELETE FROM AV_ResDet WHERE resid = ? AND bis > ? AND von < ?");
     if (!$stmtDel) throw new RuntimeException('Prepare delete failed: ' . $mysqli->error);
@@ -68,8 +91,12 @@ try {
     $stmtDel->close();
 
     // Validierung gegen Kapazitäten: Für jeden Raum die minimale freie Kapazität ermitteln
-    // Tagesweise Belegung im Zielzeitraum anderer Reservierungen laden
-    $stmtOther = $mysqli->prepare("SELECT zimID, von, bis, anz FROM AV_ResDet WHERE resid <> ? AND bis > ? AND von < ?");
+        // Tagesweise Belegung im Zielzeitraum anderer Reservierungen laden (storno ausschließen)
+        $stmtOther = $mysqli->prepare("SELECT rd.zimID, rd.von, rd.bis, rd.anz
+                                                                     FROM AV_ResDet rd
+                                                                     JOIN `AV-Res` r ON rd.resid = r.id
+                                                                     WHERE rd.resid <> ? AND rd.bis > ? AND rd.von < ?
+                                                                         AND IFNULL(r.storno, 0) = 0");
     if (!$stmtOther) throw new RuntimeException('Prepare other failed: ' . $mysqli->error);
     $stmtOther->bind_param('iss', $resId, $startParam, $endParam);
     if (!$stmtOther->execute()) throw new RuntimeException('Query other failed: ' . $stmtOther->error);
@@ -108,14 +135,14 @@ try {
     }
 
     // Speichern: Eine Zeile pro Raum (gesamter Zeitraum) mit anz = count
-    $ins = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimID, von, bis, anz, bez, col, hund, arr, tab, note, dx, dy, ParentID) VALUES (?, ?, ?, ?, ?, '', '#3498db', 0, NULL, 'local', '', 0, 0, 0)");
+    $ins = $mysqli->prepare("INSERT INTO AV_ResDet (resid, zimID, von, bis, anz, bez, col, hund, arr, tab, note, dx, dy, ParentID) VALUES (?, ?, ?, ?, ?, ?, '#3498db', 0, ?, 'local', '', 0, 0, 0)");
     if (!$ins) throw new RuntimeException('Prepare insert failed: ' . $mysqli->error);
 
     $inserted = 0;
     foreach ($assignments as $ridStr => $count){
         $rid = (int)$ridStr; $count = max(0, (int)$count);
         if ($count <= 0) continue;
-        if (!$ins->bind_param('iissi', $resId, $rid, $startParam, $endParam, $count)) {
+        if (!$ins->bind_param('iissisi', $resId, $rid, $startParam, $endParam, $count, $bezValue, $arrValue)) {
             throw new RuntimeException('Bind insert failed: ' . $ins->error);
         }
         if (!$ins->execute()) {
@@ -125,16 +152,29 @@ try {
     }
     $ins->close();
 
+    // Commit transaction on success
+    $mysqli->commit();
+
     // Optionale Auto-Sync
     if (function_exists('triggerAutoSync')) {
         triggerAutoSync('assign_rooms');
     }
 
-    echo json_encode([ 'success' => true, 'inserted' => $inserted ]);
+    echo json_encode([ 
+        'success' => true, 
+        'inserted' => $inserted,
+        'arr_value' => $arrValue,
+        'bez_value' => $bezValue,
+        'debug' => "ARR-Wert '$arrValue' und BEZ-Wert '$bezValue' aus Stammdatensatz für Reservation $resId verwendet"
+    ]);
 } catch (InvalidArgumentException $e) {
+    if ($mysqli && $mysqli->errno === 0) { /* no-op */ }
+    if ($mysqli && $mysqli->errno !== 0) { /* no-op */ }
+    if ($mysqli && $mysqli->thread_id) { $mysqli->rollback(); }
     http_response_code(400);
     echo json_encode([ 'success' => false, 'error' => $e->getMessage() ]);
 } catch (Exception $e) {
+    if (isset($mysqli) && $mysqli && $mysqli->thread_id) { $mysqli->rollback(); }
     http_response_code(500);
     echo json_encode([ 'success' => false, 'error' => $e->getMessage() ]);
 }
