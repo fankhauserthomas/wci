@@ -470,6 +470,303 @@
             /* was 6px */
         }
 
+        /* Room Assignment Modal */
+        .assign-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .assign-modal[open] {
+            display: flex;
+        }
+
+        .assign-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+        }
+
+        .assign-card {
+            position: relative;
+            z-index: 1;
+            width: min(1200px, 94vw);
+            max-height: 90vh;
+            background: #0f172a;
+            color: #e5e7eb;
+            border: 1px solid #1f2937;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .assign-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid #1f2937;
+            background: linear-gradient(180deg, #111827, #0f172a);
+        }
+
+        .assign-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .assign-sub {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .assign-body {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 8px;
+            padding: 8px;
+            overflow: auto;
+        }
+
+        .assign-grid {
+            background: #f9fafb;
+            color: #111827;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .assign-grid-inner {
+            display: grid;
+            gap: 6px;
+        }
+
+        .assign-cell {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 56px;
+            position: relative;
+        }
+
+        .assign-room {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 4px 6px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+        }
+
+        .assign-room.drop-target {
+            outline: 2px solid #60a5fa;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25) inset;
+        }
+
+        /* Disabled state for rooms that cannot accept more assignments (max <= 0) */
+        .assign-room.disabled {
+            opacity: 0.6;
+        }
+
+        .assign-room.disabled .assign-bar {
+            cursor: not-allowed;
+        }
+
+        .assign-room-title {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 70px;
+            line-height: 1.2;
+        }
+
+        .assign-room-meta {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        /* Debug: per-day availability string under the bar */
+        .assign-bar-debug {
+            position: absolute;
+            left: 6px;
+            top: calc(100% + 2px);
+            font-size: 10px;
+            color: #94a3b8;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .assign-bar {
+            position: relative;
+            height: 16px;
+            border-radius: 6px;
+            background: #eef2f7;
+            border: 1px solid #dde3ea;
+            cursor: ew-resize;
+            flex: 1;
+        }
+
+        .assign-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #b3d4fc, #6aa7f7);
+            border-radius: 8px;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+        }
+
+        .assign-bar-label {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #2c3e50;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+            pointer-events: none;
+            font-size: 11px;
+        }
+
+        .assign-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .assign-btn {
+            appearance: none;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #0f172a;
+            padding: 2px 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+            min-width: 20px;
+            height: 20px;
+        }
+
+        .assign-btn:hover {
+            background: #f8fafc;
+        }
+
+        .assign-sidebar {
+            background: #f9fafb;
+            color: #111827;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .assign-kpis {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .assign-kpi {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .assign-kpi .label {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .assign-kpi .value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .assign-stock {
+            background: #fff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .assign-token {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #60a5fa, #3b82f6);
+            color: #fff;
+            font-weight: 800;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+            border: 1px solid #1d4ed8;
+            font-size: 13px;
+        }
+
+        .assign-token:active {
+            cursor: grabbing;
+        }
+
+        .assign-ghost {
+            position: fixed;
+            z-index: 10001;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            opacity: 0.9;
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.25));
+        }
+
+        .assign-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .assign-actions .primary {
+            background: linear-gradient(180deg, #3b82f6, #2563eb);
+            border-color: #1d4ed8;
+            color: #fff;
+        }
+
+        .assign-actions .danger {
+            background: linear-gradient(180deg, #ef4444, #dc2626);
+            border-color: #b91c1c;
+            color: #fff;
+        }
+
+        @media (max-width: 1100px) {
+            .assign-body {
+                grid-template-columns: 1fr
+            }
+        }
+
         /* Debug Console Styles */
         .debug-console {
             position: fixed;
@@ -793,6 +1090,45 @@
         </div>
     </div>
 
+    <!-- Room Assignment Modal -->
+    <div id="assignModal" class="assign-modal" aria-hidden="true">
+        <div class="assign-backdrop" data-close="assign"></div>
+        <div class="assign-card" role="dialog" aria-modal="true" aria-labelledby="assignTitle">
+            <div class="assign-header">
+                <h3 id="assignTitle" class="assign-title">Zimmer zuweisen</h3>
+                <div id="assignSub" class="assign-sub"></div>
+                <div style="flex:1"></div>
+                <button class="assign-btn" data-close="assign">✖</button>
+            </div>
+            <div class="assign-body">
+                <div class="assign-grid">
+                    <div id="assignGridInner" class="assign-grid-inner"></div>
+                </div>
+                <div class="assign-sidebar">
+                    <div id="assignStock" class="assign-stock">
+                        <div>Füllstand</div>
+                        <div id="assignToken" class="assign-token" title="Ziehen, um 1 Einheit zuzuweisen">0</div>
+                    </div>
+                    <div class="assign-kpis">
+                        <div class="assign-kpi">
+                            <div class="label">Zugewiesen</div>
+                            <div id="kpiAssigned" class="value">0</div>
+                        </div>
+                        <div class="assign-kpi">
+                            <div class="label">Verfügbar</div>
+                            <div id="kpiRemaining" class="value">0</div>
+                        </div>
+                    </div>
+                    <div id="assignInfo" class="assign-info"></div>
+                    <div class="assign-actions">
+                        <button id="assignCancel" class="assign-btn">Abbrechen</button>
+                        <button id="assignSave" class="assign-btn primary">Speichern</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Debug Console -->
     <div id="debug-console" class="debug-console">
         <div class="debug-console-header">
@@ -824,6 +1160,468 @@
         window.histogramSource = [];
 
         // ===== FUNCTION DEFINITIONS (moved to top for onclick availability) =====
+
+        // ===== Room Assignment Modal Controller =====
+        (function initRoomAssignController() {
+            const modal = document.getElementById('assignModal');
+            const gridInner = document.getElementById('assignGridInner');
+            const assignTitle = document.getElementById('assignTitle');
+            const assignSub = document.getElementById('assignSub');
+            const kpiAssigned = document.getElementById('kpiAssigned');
+            const kpiRemaining = document.getElementById('kpiRemaining');
+            const btnCancel = document.getElementById('assignCancel');
+            const btnSave = document.getElementById('assignSave');
+            const token = document.getElementById('assignToken');
+
+            let current = null; // { resId, start, end, required, days, draft:{[roomId]:count}, avail: Map(roomId->free) }
+            let drag = null;   // token drag state
+
+            function computeRequired(detail) {
+                // Ermitteln benötigter Kapazität aus Reservierung (Betten/DZ/Sonder/Lager)
+                const data = detail && detail.data ? detail.data : detail.fullData || {};
+                const need = Number(data.betten || 0) + Number(data.dz || 0) + Number(data.sonder || 0) + Number(data.lager || 0);
+                return Math.max(0, need || Number(detail.capacity || 0) || 0);
+            }
+
+            function daysBetween(start, end) {
+                const ms = 24 * 3600 * 1000;
+                const a = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+                const b = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+                return Math.max(1, Math.round((b - a) / ms));
+            }
+
+            function layoutFromRooms(rooms) {
+                // Rastergröße aus Zimmereditor (px/py)
+                const maxX = Math.max(1, ...rooms.map(r => r.px || 1));
+                const maxY = Math.max(1, ...rooms.map(r => r.py || 1));
+                gridInner.style.gridTemplateColumns = `repeat(${maxX}, minmax(220px, 1fr))`;
+                const posKey = (r) => `${r.px || 1}_${r.py || 1}`;
+                const map = new Map();
+                rooms.forEach(r => { const k = posKey(r); if (!map.has(k)) map.set(k, []); map.get(k).push(r); });
+                return { maxX, maxY, groups: map };
+            }
+
+            // Lokales YYYY-MM-DD Format (vermeidet UTC-Verschiebungen)
+            function ymdLocal(d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const da = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${da}`;
+            }
+
+            // Verfügbarkeit je Zimmer für spezifischen Zeitraum berechnen
+            async function computeAvailabilityMap(start, end) {
+                const result = new Map();
+                if (!Array.isArray(window.rooms) || window.rooms.length === 0) return result;
+
+                // Berechne Verfügbarkeit für den spezifischen Zeitraum via API
+                const startStr = ymdLocal(start);
+                const endStr = ymdLocal(end);
+
+                try {
+                    // Tagesbasierte Verfügbarkeit: relevante Zahl ist die Belegung am Anreisetag (start)
+                    const response = await fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?calc=day&day=${startStr}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && Array.isArray(data.data)) {
+                            data.data.forEach(room => {
+                                const roomId = Number(room.id);
+                                const available = Math.max(0, Number(room.frei || 0));
+                                result.set(roomId, available);
+                            });
+                            return result;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Fehler beim Laden der Verfügbarkeit:', error);
+                }
+
+                // Fallback: verwende lokale Daten
+                window.rooms.forEach(room => {
+                    const roomId = Number(room.id);
+                    let available = 0;
+
+                    // Wenn getRooms.php schon 'frei' berechnet hat, verwende das
+                    if (typeof room.frei === 'number') {
+                        available = Math.max(0, room.frei);
+                    } else {
+                        // Fallback: eigene Berechnung (weniger präzise)
+                        const totalCap = Number(room.kapazitaet || room.capacity || 0);
+                        if (!totalCap) {
+                            available = 0;
+                        } else {
+                            const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                            const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+                            // Index roomDetails by room for speed
+                            const detailsByRoom = new Map();
+                            const details = Array.isArray(window.roomDetails) ? window.roomDetails : [];
+                            details.forEach(d => {
+                                const rid = Number(d.room_id);
+                                if (!rid) return;
+                                if (!detailsByRoom.has(rid)) detailsByRoom.set(rid, []);
+                                detailsByRoom.get(rid).push(d);
+                            });
+
+                            const dayKey = (dt) => Math.floor(new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime() / (24 * 3600 * 1000));
+                            const startKey = dayKey(startDate);
+                            const endKey = dayKey(endDate); // exclusive
+
+                            let minFree = totalCap;
+                            const list = detailsByRoom.get(roomId) || [];
+
+                            // Precompute detail span keys
+                            const spans = list.map(d => {
+                                const s = d.start instanceof Date ? d.start : new Date(d.start);
+                                const e = d.end instanceof Date ? d.end : new Date(d.end);
+                                const sk = dayKey(s);
+                                const ek = dayKey(e);
+                                return { sk, ek, cap: Number(d.capacity || d.data?.capacity || 0) || 0 };
+                            });
+
+                            for (let k = startKey; k < endKey; k++) {
+                                let used = 0;
+                                for (const sp of spans) {
+                                    if (k >= sp.sk && k < sp.ek) used += sp.cap;
+                                }
+                                const free = Math.max(0, totalCap - used);
+                                if (free < minFree) minFree = free;
+                                if (minFree === 0) break;
+                            }
+
+                            available = Math.max(0, minFree);
+                        }
+                    }
+
+                    result.set(roomId, available);
+                });
+
+                return result;
+            }
+
+            // Liste der Tage [start, end) als YYYY-MM-DD
+            function listDays(start, end) {
+                const out = [];
+                const d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                while (d < e) {
+                    out.push(ymdLocal(d));
+                    d.setDate(d.getDate() + 1);
+                }
+                return out;
+            }
+
+            // Debug: pro-Tag freie Kapazität laden (calc=day) und als Map<roomId, number[]> zurückgeben
+            async function computePerDayAvailability(start, end) {
+                const perDayMap = new Map();
+                const days = listDays(start, end);
+                if (days.length === 0) return perDayMap;
+                try {
+                    const requests = days.map(dayStr => fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?calc=day&day=${dayStr}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null));
+                    const results = await Promise.all(requests);
+                    results.forEach((res, idx) => {
+                        if (!res || !res.success || !Array.isArray(res.data)) return;
+                        res.data.forEach(room => {
+                            const rid = Number(room.id);
+                            const free = Math.max(0, Number(room.frei || 0));
+                            if (!perDayMap.has(rid)) perDayMap.set(rid, Array(days.length).fill(0));
+                            perDayMap.get(rid)[idx] = free;
+                        });
+                    });
+                } catch (e) {
+                    console.warn('Per-day availability load failed:', e);
+                }
+                return perDayMap;
+            }
+
+            function renderGrid() {
+                if (!current) return;
+                const layout = layoutFromRooms(rooms || []);
+                gridInner.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                // Berechne per-Tag Verfügbarkeit und leite daraus die Basis-Verfügbarkeit (Minimum über alle Nächte) ab
+                computePerDayAvailability(current.start, current.end)
+                    .then(perDay => {
+                        // Avail = Minimum der freien Plätze über alle Nächte je Zimmer
+                        const avail = new Map();
+                        const roomsList = Array.isArray(window.rooms) ? window.rooms : [];
+                        roomsList.forEach(r => {
+                            const rid = Number(r.id);
+                            const arr = perDay.get(rid);
+                            if (Array.isArray(arr) && arr.length) {
+                                const minFree = arr.reduce((m, v) => Math.min(m, Number(v) || 0), Number.POSITIVE_INFINITY);
+                                avail.set(rid, Number.isFinite(minFree) ? Math.max(0, minFree) : 0);
+                            } else {
+                                // Fallback: falls keine per-Tag-Daten, verwende ggf. bereits geliefertes 'frei' aus rooms
+                                const fallback = (typeof r.frei === 'number') ? Math.max(0, r.frei) : 0;
+                                avail.set(rid, fallback);
+                            }
+                        });
+                        current.avail = avail;
+                        renderGridWithAvailability(layout, frag, avail, perDay);
+                    })
+                    .catch(error => {
+                        console.warn('Fehler beim Laden der per-Tag-Verfügbarkeit:', error);
+                        const avail = new Map();
+                        const perDay = new Map();
+                        current.avail = avail;
+                        renderGridWithAvailability(layout, frag, avail, perDay);
+                    });
+            }
+
+            function renderGridWithAvailability(layout, frag, avail, perDay) {
+                // Zellen in Raster-Reihenfolge
+                for (let y = 1; y <= layout.maxY; y++) {
+                    for (let x = 1; x <= layout.maxX; x++) {
+                        const group = layout.groups.get(`${x}_${y}`) || [];
+                        const cell = document.createElement('div');
+                        cell.className = 'assign-cell';
+                        if (group.length === 0) {
+                            const empty = document.createElement('div');
+                            empty.className = 'assign-room-meta';
+                            empty.textContent = '—';
+                            cell.appendChild(empty);
+                            frag.appendChild(cell);
+                            continue;
+                        }
+                        group.forEach(room => {
+                            const roomWrap = document.createElement('div');
+                            roomWrap.className = 'assign-room';
+                            roomWrap.dataset.roomId = room.id;
+                            const baseAvail = Number(avail.get(Number(room.id)) || 0);
+                            roomWrap.dataset.available = String(baseAvail);
+                            let assigned = Number(current.draft[room.id] || 0);
+                            const title = document.createElement('div');
+                            title.className = 'assign-room-title';
+                            const roomTotalCap = Number(room.kapazitaet || room.capacity || 0);
+                            title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span><br><span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+                            // Farb-Akzent links auf Basis der Zimmerfarbe (#RRGGBB oder #AARRGGBB)
+                            if (room.col && typeof room.col === 'string') {
+                                let col = room.col.trim();
+                                if (col.startsWith('#') && col.length === 9) col = '#' + col.slice(3);
+                                if (/^#[0-9a-fA-F]{6}$/.test(col)) {
+                                    roomWrap.style.boxShadow = `inset 4px 0 0 ${col}`;
+                                }
+                            }
+
+                            const bar = document.createElement('div');
+                            bar.className = 'assign-bar';
+                            bar.style.flex = '1';
+                            const fill = document.createElement('div');
+                            fill.className = 'assign-bar-fill';
+                            const label = document.createElement('div');
+                            label.className = 'assign-bar-label';
+                            const capLabel = document.createElement('div');
+                            capLabel.style.position = 'absolute'; capLabel.style.right = '6px'; capLabel.style.top = '50%'; capLabel.style.transform = 'translateY(-50%)'; capLabel.style.color = '#475569'; capLabel.style.fontSize = '11px'; capLabel.style.pointerEvents = 'none';
+                            // Debug-Label: per-Tag freie Kapazitäten z.B. 0/0/1/2/2
+                            const debugLabel = document.createElement('div');
+                            debugLabel.className = 'assign-bar-debug';
+                            const perDayArr = perDay && perDay.get(Number(room.id));
+                            debugLabel.textContent = Array.isArray(perDayArr) && perDayArr.length ? perDayArr.join('/') : '';
+                            const controls = document.createElement('div');
+                            controls.className = 'assign-controls';
+                            const btnMinus = document.createElement('button'); btnMinus.className = 'assign-btn'; btnMinus.textContent = '−';
+                            const btnPlus = document.createElement('button'); btnPlus.className = 'assign-btn'; btnPlus.textContent = '+';
+                            controls.appendChild(btnMinus); controls.appendChild(btnPlus);
+
+                            const updateBar = () => {
+                                const maxAssignAbs = Math.min(baseAvail, remaining() + assigned);
+                                const denom = baseAvail > 0 ? baseAvail : 1;
+                                const pct = Math.max(0, Math.min(1, assigned / denom));
+                                fill.style.width = `${pct * 100}%`;
+                                label.textContent = `${assigned}`;
+                                capLabel.textContent = `/${baseAvail}`;
+                                title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span><br><span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+                                btnMinus.disabled = assigned <= 0;
+                                btnPlus.disabled = assigned >= maxAssignAbs;
+                                // Toggle disabled state for token drop if no additional capacity can be added now
+                                const dropAddMax = Math.min(baseAvail - assigned, remaining());
+                                roomWrap.classList.toggle('disabled', dropAddMax <= 0);
+                            };
+
+                            let barDrag = null;
+                            bar.addEventListener('mousedown', (e) => {
+                                const rect = bar.getBoundingClientRect();
+                                barDrag = { startX: e.clientX, rect, startAssigned: assigned };
+                                document.addEventListener('mousemove', onMove);
+                                document.addEventListener('mouseup', onUp, { once: true });
+                                e.preventDefault();
+                            });
+                            function onMove(e) {
+                                if (!barDrag) return;
+                                const dx = e.clientX - barDrag.startX;
+                                const rel = Math.max(0, Math.min(1, (e.clientX - barDrag.rect.left) / barDrag.rect.width));
+                                const maxAssignAbs = Math.min(baseAvail, remaining() + assigned);
+                                const next = Math.round(rel * baseAvail);
+                                const bounded = Math.max(0, Math.min(maxAssignAbs, next));
+                                if (bounded !== assigned) { current.draft[room.id] = bounded; updateTotals(); assigned = bounded; updateBar(); }
+                            }
+                            function onUp() { document.removeEventListener('mousemove', onMove); barDrag = null; }
+
+                            btnMinus.addEventListener('click', () => { if (assigned > 0) { current.draft[room.id] = assigned - 1; assigned--; updateTotals(); updateBar(); } });
+                            btnPlus.addEventListener('click', () => { const maxAssign = Math.min(baseAvail, remaining() + assigned); if (assigned < maxAssign) { current.draft[room.id] = assigned + 1; assigned++; updateTotals(); updateBar(); } });
+
+                            bar.appendChild(fill); bar.appendChild(label); bar.appendChild(capLabel); bar.appendChild(debugLabel);
+
+                            roomWrap.appendChild(title);
+                            roomWrap.appendChild(bar);
+                            roomWrap.appendChild(controls);
+                            // Initialize bar visuals and disabled state
+                            updateBar();
+                            // Drop target wiring
+                            roomWrap.addEventListener('mouseenter', () => { /* highlight handled globally during token drag */ });
+                            roomWrap.addEventListener('mouseleave', () => { roomWrap.classList.remove('drop-target'); });
+                            roomWrap.addEventListener('mouseup', (e) => {
+                                if (!drag) return; // only handle token drag drop here
+                                // Assign up to the maximum possible for this room across all nights
+                                const maxAdd = Math.min(baseAvail - assigned, remaining());
+                                const add = Math.max(0, Math.min(maxAdd, remaining()));
+                                if (add > 0) { current.draft[room.id] = (current.draft[room.id] || 0) + add; assigned += add; updateTotals(); updateBar(); }
+                                endTokenDrag();
+                                e.preventDefault();
+                            });
+                            cell.appendChild(roomWrap);
+                        });
+                        frag.appendChild(cell);
+                    }
+                }
+                gridInner.appendChild(frag);
+                updateTotals();
+            }
+
+            function sumAssigned() { return Object.values(current.draft).reduce((a, b) => a + (Number(b) || 0), 0); }
+            function remaining() { return Math.max(0, (current.required || 0) - sumAssigned()); }
+            function updateTotals() {
+                const a = sumAssigned(); const r = remaining();
+                kpiAssigned.textContent = String(a);
+                kpiRemaining.textContent = String(r);
+                token.textContent = String(r);
+                token.style.opacity = r > 0 ? '1' : '0.5';
+                token.style.pointerEvents = r > 0 ? 'auto' : 'none';
+                // Refresh disabled state on all rooms (based on latest remaining/assigned)
+                gridInner.querySelectorAll('.assign-room').forEach((wrap) => {
+                    const roomId = Number(wrap.dataset.roomId || 0);
+                    const capAvail = Number(wrap.dataset.available || 0);
+                    const assigned = Number(current && current.draft ? (current.draft[roomId] || 0) : 0);
+                    const addMax = Math.min(capAvail - assigned, r);
+                    wrap.classList.toggle('disabled', addMax <= 0);
+                });
+            }
+
+            function open(detail) {
+                if (!detail) return;
+                const titleName = detail.name || detail.fullData?.guest_name || 'Reservierung';
+                const start = detail.start instanceof Date ? detail.start : new Date(detail.start);
+                const end = detail.end instanceof Date ? detail.end : new Date(detail.end);
+                const required = computeRequired(detail);
+                const resId = detail.data?.res_id || detail.fullData?.res_id || detail.fullData?.id || detail.res_id || detail.id;
+                current = { resId, start, end, days: daysBetween(start, end), required, draft: {}, avail: new Map() };
+                assignTitle.textContent = `Zimmer zuweisen — ${titleName}`;
+                assignSub.textContent = `${start.toLocaleDateString()} → ${end.toLocaleDateString()} • Bedarf: ${required}`;
+                renderGrid();
+                modal.setAttribute('open', '');
+                modal.setAttribute('aria-hidden', 'false');
+                // Token drag handlers
+                token.addEventListener('mousedown', onTokenDown);
+            }
+
+            function close() {
+                modal.removeAttribute('open');
+                modal.setAttribute('aria-hidden', 'true');
+                current = null;
+                endTokenDrag();
+                token.removeEventListener('mousedown', onTokenDown);
+            }
+
+            // Wire close buttons/backdrop
+            modal.addEventListener('click', (e) => { const t = e.target; if (t && t.dataset && t.dataset.close === 'assign') { close(); } });
+            btnCancel.addEventListener('click', close);
+            btnSave.addEventListener('click', async () => {
+                if (!current || !current.resId) { console.warn('Keine ResID, kann nicht speichern'); close(); return; }
+                const payload = {
+                    res_id: Number(current.resId),
+                    start: current.start.toISOString().slice(0, 10),
+                    end: current.end.toISOString().slice(0, 10),
+                    assignments: current.draft
+                };
+                try {
+                    const resp = await fetch('http://192.168.15.14:8080/wci/zp/assignRoomsToReservation.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const data = await resp.json().catch(() => ({ success: false, error: 'Invalid JSON' }));
+                    if (!resp.ok || !data.success) { throw new Error(data.error || (`HTTP ${resp.status}`)); }
+                    console.success('Zuweisungen gespeichert.');
+                    close();
+                    if (typeof window.reloadTimelineData === 'function') { window.reloadTimelineData(); }
+                } catch (err) {
+                    console.error('Speichern fehlgeschlagen:', err);
+                    alert('Fehler beim Speichern: ' + err.message);
+                }
+            });
+
+            window.openRoomAssignModal = open;
+
+            // ===== Token Dragging =====
+            function onTokenDown(e) {
+                if (remaining() <= 0) return;
+                drag = { ghost: null, shiftKey: e.shiftKey };
+                createGhost(e.clientX, e.clientY);
+                window.addEventListener('mousemove', onTokenMove);
+                window.addEventListener('mouseup', onTokenUp, { once: true });
+                e.preventDefault();
+            }
+            function onTokenMove(e) {
+                if (!drag) return;
+                moveGhost(e.clientX, e.clientY);
+                highlightDrop(e.clientX, e.clientY);
+                updateGhostContent(e.clientX, e.clientY);
+            }
+            function onTokenUp(e) {
+                if (!drag) return;
+                const target = document.elementFromPoint(e.clientX, e.clientY);
+                const roomWrap = target && target.closest ? target.closest('.assign-room') : null;
+                if (roomWrap) {
+                    const roomId = Number(roomWrap.dataset.roomId);
+                    const capAvail = Number(roomWrap.dataset.available || 0);
+                    const assigned = Number(current.draft[roomId] || 0);
+                    const addMax = Math.min(capAvail - assigned, remaining());
+                    const add = Math.max(0, Math.min(addMax, remaining()));
+                    if (add > 0) { current.draft[roomId] = assigned + add; updateTotals(); renderGrid(); }
+                }
+                endTokenDrag();
+            }
+            function createGhost(x, y) { const g = document.createElement('div'); g.className = 'assign-ghost assign-token'; g.textContent = '?'; document.body.appendChild(g); drag.ghost = g; moveGhost(x, y); }
+            function moveGhost(x, y) { if (drag && drag.ghost) { drag.ghost.style.left = x + 'px'; drag.ghost.style.top = y + 'px'; } }
+            function updateGhostContent(x, y) {
+                if (!drag || !drag.ghost) return;
+                const el = document.elementFromPoint(x, y);
+                const roomWrap = el && el.closest ? el.closest('.assign-room') : null;
+                if (roomWrap) {
+                    const roomId = Number(roomWrap.dataset.roomId);
+                    const capAvail = Number(roomWrap.dataset.available || 0);
+                    const assigned = Number(current.draft[roomId] || 0);
+                    const addMax = Math.min(capAvail - assigned, remaining());
+                    drag.ghost.textContent = addMax > 0 ? String(addMax) : '0';
+                } else {
+                    drag.ghost.textContent = '?';
+                }
+            }
+            function endTokenDrag() { if (!drag) return; if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost); unhighlightAll(); drag = null; }
+            function highlightDrop(x, y) {
+                unhighlightAll();
+                const el = document.elementFromPoint(x, y);
+                const roomWrap = el && el.closest ? el.closest('.assign-room') : null;
+                if (!roomWrap) return;
+                const capAvail = Number(roomWrap.dataset.available || 0);
+                const roomId = Number(roomWrap.dataset.roomId || 0);
+                const alreadyAssigned = Number(current.draft[roomId] || 0);
+                const addMax = Math.min(capAvail - alreadyAssigned, remaining());
+                if (addMax > 0) {
+                    roomWrap.classList.add('drop-target');
+                }
+            }
+            function unhighlightAll() { gridInner.querySelectorAll('.assign-room.drop-target').forEach(el => el.classList.remove('drop-target')); }
+        })();
 
         // Modal Confirmation Function
         function showConfirmationModal(title, message, confirmText = 'Bestätigen', cancelText = 'Abbrechen') {
@@ -1050,7 +1848,7 @@
 
                 try {
                     // Lade AV_Res Daten von der API
-                    const response = await fetch(`getAVReservationData.php?av_res_id=${avResId}`);
+                    const response = await fetch(`http://192.168.15.14:8080/wci/zp/getAVReservationData.php?av_res_id=${avResId}`);
 
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1170,13 +1968,13 @@
 
                     async function loadArrangementDropdown(selectedValue) {
                         try {
-                            const response = await fetch('getArrangements.php');
+                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getArrangements.php');
                             const arrangements = await response.json();
                             const select = document.getElementById('dataset-arr');
-
                             select.innerHTML = '<option value="">Kein Arrangement</option>';
-
-                            if (arrangements.success && arrangements.data) {
+                            if (arrangements && arrangements.success && Array.isArray(arrangements.data)) {
+                                // Nach sort sortieren
+                                arrangements.data.sort((a, b) => (a.sort || 0) - (b.sort || 0));
                                 arrangements.data.forEach(arr => {
                                     const option = document.createElement('option');
                                     option.value = arr.ID;
@@ -1190,31 +1988,9 @@
                         }
                     }
 
-                    async function loadCountryDropdown(selectedValue) {
-                        try {
-                            const response = await fetch('getCountries.php');
-                            const countries = await response.json();
-                            const select = document.getElementById('dataset-country');
-
-                            select.innerHTML = '<option value="">Kein Land</option>';
-
-                            if (countries.success && countries.data) {
-                                countries.data.forEach(country => {
-                                    const option = document.createElement('option');
-                                    option.value = country.id;
-                                    option.textContent = country.country;
-                                    if (country.id == selectedValue) option.selected = true;
-                                    select.appendChild(option);
-                                });
-                            }
-                        } catch (error) {
-                            console.error('Fehler beim Laden der Länder:', error);
-                        }
-                    }
-
                     async function loadOriginDropdown(selectedValue) {
                         try {
-                            const response = await fetch('getOrigins.php');
+                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getOrigins.php');
                             const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
 
@@ -1432,21 +2208,20 @@
 
                     async function loadOriginDropdown(selectedValue) {
                         try {
+                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getOrigins.php');
+                            const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
                             select.innerHTML = '<option value="">Keine Herkunft</option>';
-                            // Fallback: Nur Dummy-Optionen
-                            const dummyOrigins = [
-                                { ID: 1, country: 'Online' },
-                                { ID: 2, country: 'Telefon' },
-                                { ID: 3, country: 'Email' }
-                            ];
-                            dummyOrigins.forEach(origin => {
-                                const option = document.createElement('option');
-                                option.value = origin.ID;
-                                option.textContent = origin.country;
-                                if (origin.ID == selectedValue) option.selected = true;
-                                select.appendChild(option);
-                            });
+                            if (origins && origins.success && Array.isArray(origins.data)) {
+                                origins.data.sort((a, b) => (a.sort || 0) - (b.sort || 0));
+                                origins.data.forEach(origin => {
+                                    const option = document.createElement('option');
+                                    option.value = origin.ID;
+                                    option.textContent = origin.country;
+                                    if (origin.ID == selectedValue) option.selected = true;
+                                    select.appendChild(option);
+                                });
+                            }
                         } catch (error) {
                             console.error('Fehler beim Laden der Herkünfte:', error);
                         }
@@ -1573,7 +2348,7 @@
                 const result = await showDatasetModal(detail);
                 if (result) {
                     // Update AV_Res data via API
-                    const response = await fetch('updateReservationMasterData.php', {
+                    const response = await fetch('http://192.168.15.14:8080/wci/zp/updateReservationMasterData.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1621,7 +2396,7 @@
                     hund: hundStatus ? 1 : 0
                 };
 
-                const response = await fetch('updateRoomDetailAttributes.php', {
+                const response = await fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetailAttributes.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1793,32 +2568,39 @@
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
 
-                // Datumsbereich aus Konfiguration (Cookie/LS) + Live-Overrides
-                const { past: weeksPast, future: weeksFuture } = getConfiguredWeeksRange();
-                const startDate = new Date(now.getTime() - (weeksPast * 7 * MS_IN_DAY));
-                const endDate = new Date(now.getTime() + (weeksFuture * 7 * MS_IN_DAY));
+                // Begrenze auf 1 Woche für bessere Performance
+                const startDate = new Date(now.getTime() - (7 * MS_IN_DAY)); // 1 Woche zurück
+                const endDate = new Date(now.getTime() + (7 * MS_IN_DAY));   // 1 Woche voraus
 
                 const startDateStr = startDate.toISOString().split('T')[0];
                 const endDateStr = endDate.toISOString().split('T')[0];
 
                 console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
 
-                const roomsFetchPromise = fetch('getRooms.php').catch(error => error);
-                const arrangementsFetchPromise = fetch('../get-arrangements.php').catch(error => error);
-                const histogramFetchPromise = fetch(`getHistogramSource.php?start=${startDateStr}&end=${endDateStr}`).catch(error => error);
+                const roomsFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
+                const arrangementsFetchPromise = fetch('http://192.168.15.14:8080/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
+                const histogramFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
 
-                const dataResponse = await fetch(`getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
+                console.log('Fetching main data...');
+                const dataResponse = await fetch(`http://192.168.15.14:8080/wci/zp/getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
+                console.log('Main data response:', dataResponse.status, dataResponse.statusText);
 
                 if (!dataResponse.ok) {
+                    const errorText = await dataResponse.text().catch(() => 'Unable to read error response');
+                    console.error('Main data response error:', errorText);
                     throw new Error(`Zimmerplan-API HTTP ${dataResponse.status}: ${dataResponse.statusText}`);
                 }
 
+                console.log('Parsing main data JSON...');
                 const result = await dataResponse.json();
+                console.log('Main data result:', result);
 
                 if (!result.success) {
+                    console.error('API returned error:', result.error);
                     throw new Error(result.error || 'API-Fehler');
                 }
 
+                console.log('Processing room details...');
                 const apiData = result.data || {};
 
                 const roomDetailsSource = Array.isArray(apiData.room_details) ? apiData.room_details : [];
@@ -1864,7 +2646,10 @@
                         };
                     });
 
+                console.log(`Processed ${roomDetails.length} room details`);
+
                 const timelineItems = Array.isArray(apiData.timeline_items) ? apiData.timeline_items : [];
+                console.log(`Processing ${timelineItems.length} timeline items...`);
                 reservations = timelineItems
                     .filter(item => item && item.content && item.start && item.end)
                     .filter(item => !(item.data && item.data.is_disposed))
@@ -1886,30 +2671,43 @@
                         };
                     });
 
+                console.log(`Processed ${reservations.length} reservations`);
+
+                console.log('Fetching rooms data...');
                 const roomsResponse = await roomsFetchPromise;
                 let roomsResult = null;
                 let roomsResponseStatus = null;
 
                 if (roomsResponse instanceof Response) {
                     roomsResponseStatus = `HTTP ${roomsResponse.status}: ${roomsResponse.statusText}`;
+                    console.log('Rooms response status:', roomsResponseStatus);
                     if (roomsResponse.ok) {
+                        console.log('Parsing rooms JSON...');
                         roomsResult = await roomsResponse.json();
+                        console.log('Rooms result:', roomsResult);
                     } else {
                         try {
                             roomsResult = await roomsResponse.json();
                         } catch (parseError) {
+                            console.error('Failed to parse rooms error response:', parseError);
                             // Falls keine JSON-Antwort geliefert wurde, ignorieren wir den Fehler
                         }
                     }
+                } else {
+                    console.error('Rooms fetch returned error:', roomsResponse);
                 }
 
                 if (roomsResult && roomsResult.success) {
+                    console.log('Using real rooms data');
                     rooms = Array.isArray(roomsResult.data) ? [...roomsResult.data] : [];
                     rooms.sort((a, b) => {
                         const sortA = a.sort !== undefined ? a.sort : a.id;
                         const sortB = b.sort !== undefined ? b.sort : b.id;
                         return sortA - sortB;
                     });
+                    console.log(`Loaded ${rooms.length} rooms`);
+                    // Für computeAvailabilityMap verfügbar machen
+                    window.rooms = rooms;
                 } else {
                     let statusInfo;
                     if (roomsResponse instanceof Response && roomsResponse.ok) {
@@ -1925,6 +2723,8 @@
                         { id: 2, caption: 'Zimmer 2', capacity: 4, display_name: 'Zimmer 2 (4P)' },
                         { id: 3, caption: 'Zimmer 3', capacity: 3, display_name: 'Zimmer 3 (3P)' }
                     ];
+                    // Für computeAvailabilityMap verfügbar machen
+                    window.rooms = rooms;
                 }
 
                 arrangementsCatalog = [];
@@ -1991,6 +2791,7 @@
                 console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
 
                 renderTimeline();
+                if (typeof window.DebugConsole !== 'undefined') console.success('Daten aktualisiert.');
 
             } catch (error) {
                 console.error('Fehler beim Laden der echten Daten:', error);
@@ -2005,6 +2806,11 @@
                 renderTimeline();
             }
         }
+
+        // Globale Reload-Funktion für externe Aufrufe (z.B. nach Speichern der Zuweisungen)
+        window.reloadTimelineData = async function () {
+            try { await loadRealData(); } catch (e) { console.error('Reload failed', e); }
+        };
 
         // API-Datum-Parser (kompatibel mit getZimmerplanData.php)
         function parseAPIDate(dateString) {
