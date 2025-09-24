@@ -110,8 +110,9 @@ if (!empty($normalZimmer)) {
         .main-content {
             display: flex;
             gap: 24px;
-            min-height: 100vh;
+            height: 100vh;
             padding: 24px;
+            overflow: hidden;
         }
 
         .sidebar {
@@ -119,6 +120,9 @@ if (!empty($normalZimmer)) {
             display: flex;
             flex-direction: column;
             gap: 16px;
+            flex-shrink: 0;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
         }
 
         .sidebar-section {
@@ -164,6 +168,22 @@ if (!empty($normalZimmer)) {
             touch-action: pan-x pan-y;
             -ms-touch-action: pan-x pan-y;
             scrollbar-gutter: stable both-edges;
+            overscroll-behavior: contain;
+        }
+
+        body.dragging-active .zimmerplan-container,
+        body.dragging-active .zimmerplan,
+        body.dragging-active .zimmer,
+        body.dragging-active .ablage-zimmer,
+        body.dragging-active .zimmer-content,
+        body.dragging-active .drag-placeholder {
+            touch-action: none;
+            -ms-touch-action: none;
+            overscroll-behavior: contain;
+        }
+
+        body.dragging-active {
+            overscroll-behavior-y: contain;
         }
 
         .zimmerplan-container.scroll-enabled {
@@ -295,7 +315,7 @@ if (!empty($normalZimmer)) {
             align-items: center;
             justify-content: center;
             text-align: center;
-            touch-action: manipulation;
+            touch-action: none;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -629,12 +649,23 @@ if (!empty($normalZimmer)) {
     let activePointerId = null;
     let ghostAnimationFrame = null;
     let ghostPendingPosition = null;
+    let dragDebugSequence = 0;
+    let pointerMoveLogCount = 0;
+    let dragStartTimestamp = 0;
+    let previousHtmlTouchAction = '';
+    let previousBodyTouchAction = '';
+    let previousHtmlOverscrollBehavior = '';
+    let previousBodyOverscrollBehavior = '';
+    let previousBodyOverflow = '';
+    let previousHtmlOverflow = '';
 
     const GRID_PADDING = 20;
     const MIN_CELL_WIDTH = 240;
     const MIN_CELL_HEIGHT = 70;
     const SCROLL_EDGE_THRESHOLD = 80;
     const SCROLL_EDGE_SPEED = 18;
+    const SCROLL_BOTTOM_BUFFER_TOUCH = 160;
+    const SCROLL_BOTTOM_BUFFER_DESKTOP = 80;
         
         // Reservation lookup und Cache für optimierte Kapazitätsprüfung
         let currentReservations = [];
@@ -650,20 +681,22 @@ if (!empty($normalZimmer)) {
             const rect = wrapper.getBoundingClientRect();
             const withinHorizontalBand = clientX >= rect.left - SCROLL_EDGE_THRESHOLD && clientX <= rect.right + SCROLL_EDGE_THRESHOLD;
             const withinVerticalBand = clientY >= rect.top - SCROLL_EDGE_THRESHOLD && clientY <= rect.bottom + SCROLL_EDGE_THRESHOLD;
+            const maxScrollLeft = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+            const maxScrollTop = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
 
             if (withinHorizontalBand) {
-                if (clientX - rect.left < SCROLL_EDGE_THRESHOLD) {
-                    wrapper.scrollLeft -= SCROLL_EDGE_SPEED;
-                } else if (rect.right - clientX < SCROLL_EDGE_THRESHOLD) {
-                    wrapper.scrollLeft += SCROLL_EDGE_SPEED;
+                if (clientX - rect.left < SCROLL_EDGE_THRESHOLD && wrapper.scrollLeft > 0) {
+                    wrapper.scrollLeft = Math.max(0, wrapper.scrollLeft - SCROLL_EDGE_SPEED);
+                } else if (rect.right - clientX < SCROLL_EDGE_THRESHOLD && wrapper.scrollLeft < maxScrollLeft) {
+                    wrapper.scrollLeft = Math.min(maxScrollLeft, wrapper.scrollLeft + SCROLL_EDGE_SPEED);
                 }
             }
 
             if (withinVerticalBand) {
-                if (clientY - rect.top < SCROLL_EDGE_THRESHOLD) {
-                    wrapper.scrollTop -= SCROLL_EDGE_SPEED;
-                } else if (rect.bottom - clientY < SCROLL_EDGE_THRESHOLD) {
-                    wrapper.scrollTop += SCROLL_EDGE_SPEED;
+                if (clientY - rect.top < SCROLL_EDGE_THRESHOLD && wrapper.scrollTop > 0) {
+                    wrapper.scrollTop = Math.max(0, wrapper.scrollTop - SCROLL_EDGE_SPEED);
+                } else if (rect.bottom - clientY < SCROLL_EDGE_THRESHOLD && wrapper.scrollTop < maxScrollTop) {
+                    wrapper.scrollTop = Math.min(maxScrollTop, wrapper.scrollTop + SCROLL_EDGE_SPEED);
                 }
             }
 
@@ -672,13 +705,87 @@ if (!empty($normalZimmer)) {
                 const scrollContainer = element.closest('.zimmer-content');
                 if (scrollContainer) {
                     const scrollRect = scrollContainer.getBoundingClientRect();
-                    if (clientY - scrollRect.top < SCROLL_EDGE_THRESHOLD) {
-                        scrollContainer.scrollTop -= SCROLL_EDGE_SPEED;
-                    } else if (scrollRect.bottom - clientY < SCROLL_EDGE_THRESHOLD) {
-                        scrollContainer.scrollTop += SCROLL_EDGE_SPEED;
+                    const maxInnerScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+                    if (clientY - scrollRect.top < SCROLL_EDGE_THRESHOLD && scrollContainer.scrollTop > 0) {
+                        scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - SCROLL_EDGE_SPEED);
+                    } else if (scrollRect.bottom - clientY < SCROLL_EDGE_THRESHOLD && scrollContainer.scrollTop < maxInnerScrollTop) {
+                        scrollContainer.scrollTop = Math.min(maxInnerScrollTop, scrollContainer.scrollTop + SCROLL_EDGE_SPEED);
                     }
                 }
             }
+        }
+
+        function buildPointerMetadata(event) {
+            if (!event) {
+                return {};
+            }
+
+            const baseTarget = event.target && typeof event.target.closest === 'function'
+                ? event.target.closest('.reservation-item, .zimmer, .ablage-zimmer') || event.target
+                : (event.target || null);
+            const targetClasses = baseTarget && baseTarget.classList ? Array.from(baseTarget.classList) : [];
+            return {
+                pointerId: event.pointerId,
+                pointerType: event.pointerType,
+                isPrimary: event.isPrimary,
+                button: event.button,
+                buttons: event.buttons,
+                pressure: event.pressure,
+                tangentialPressure: event.tangentialPressure,
+                tiltX: event.tiltX,
+                tiltY: event.tiltY,
+                twist: event.twist,
+                width: event.width,
+                height: event.height,
+                altitudeAngle: typeof event.altitudeAngle === 'number' ? event.altitudeAngle : undefined,
+                azimuthAngle: typeof event.azimuthAngle === 'number' ? event.azimuthAngle : undefined,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                pageX: event.pageX,
+                pageY: event.pageY,
+                movementX: event.movementX,
+                movementY: event.movementY,
+                timeStamp: Math.round(event.timeStamp),
+                cancelable: event.cancelable,
+                composed: event.composed,
+                targetTag: baseTarget ? baseTarget.tagName : null,
+                targetClasses
+            };
+        }
+
+        function gatherDragContext(element, draggingFlag) {
+            const container = document.querySelector('.zimmerplan-container');
+            const activeContent = lastTouchPoint
+                ? document.elementFromPoint(lastTouchPoint.x, lastTouchPoint.y)?.closest('.zimmer-content')
+                : null;
+            const dropTarget = lastTouchPoint
+                ? document.elementFromPoint(lastTouchPoint.x, lastTouchPoint.y)?.closest('.zimmer, .ablage-zimmer')
+                : null;
+            const elementHasCapture = element && typeof element.hasPointerCapture === 'function' && activePointerId !== null
+                ? element.hasPointerCapture(activePointerId)
+                : null;
+            const dragging = typeof draggingFlag === 'boolean' ? draggingFlag : false;
+
+            return {
+                dragSequence: dragDebugSequence,
+                isDragging: dragging,
+                activePointerId,
+                pointerMoveLogCount,
+                hasBodyDragClass: !!document.body?.classList.contains('dragging-active'),
+                containerTouchAction: container ? window.getComputedStyle(container).touchAction : null,
+                activeContentTouchAction: activeContent ? window.getComputedStyle(activeContent).touchAction : null,
+                elementTouchAction: element ? (element.style.touchAction || window.getComputedStyle(element).touchAction) : null,
+                dropTargetTouchAction: dropTarget ? window.getComputedStyle(dropTarget).touchAction : null,
+                dropTargetTag: dropTarget ? dropTarget.tagName : null,
+                dropTargetId: dropTarget ? dropTarget.dataset?.zimmerId || dropTarget.id || null : null,
+                wrapperScrollTop: container ? container.scrollTop : null,
+                wrapperScrollHeight: container ? container.scrollHeight : null,
+                elementHasCapture,
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }
+            };
         }
 
         function isTabletViewport() {
@@ -826,12 +933,18 @@ if (!empty($normalZimmer)) {
 
             const layoutWidth = (cellWidth * cols) + padding * 2;
             const layoutHeight = (cellHeight * rows) + padding * 2;
+            const isTouchLike = (document.body && document.body.classList.contains('tablet-mode'))
+                || (coarsePointerMedia && typeof coarsePointerMedia.matches === 'boolean' && coarsePointerMedia.matches)
+                || ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+            const scrollBuffer = isTouchLike ? SCROLL_BOTTOM_BUFFER_TOUCH : SCROLL_BOTTOM_BUFFER_DESKTOP;
+            const shouldAddScrollBuffer = layoutHeight >= (wrapperHeight - MIN_CELL_HEIGHT);
+            const effectiveLayoutHeight = shouldAddScrollBuffer ? layoutHeight + scrollBuffer : layoutHeight;
 
-            if (layoutWidth > wrapperWidth || layoutHeight > wrapperHeight) {
+            if (layoutWidth > wrapperWidth || effectiveLayoutHeight > wrapperHeight) {
                 container.style.width = layoutWidth + 'px';
-                container.style.height = layoutHeight + 'px';
+                container.style.height = effectiveLayoutHeight + 'px';
                 container.style.minWidth = layoutWidth + 'px';
-                container.style.minHeight = layoutHeight + 'px';
+                container.style.minHeight = effectiveLayoutHeight + 'px';
                 wrapper.classList.add('scroll-enabled');
             } else {
                 container.style.width = '100%';
@@ -844,6 +957,7 @@ if (!empty($normalZimmer)) {
             console.log('Grid Info:', gridInfo);
             console.log('Wrapper Size:', wrapperWidth, 'x', wrapperHeight);
             console.log('Cell Size:', cellWidth, 'x', cellHeight);
+            console.log('Scroll buffer:', shouldAddScrollBuffer ? scrollBuffer : 0);
 
             // Positioniere alle Zimmer
             document.querySelectorAll('.zimmer').forEach(zimmer => {
@@ -1312,6 +1426,52 @@ if (!empty($normalZimmer)) {
             const MOUSE_MOVE_THRESHOLD = 4;
             let currentPointerType = null;
             let autoScrollLoopId = null;
+            let activeDragOriginalTouchAction = null;
+            const suppressedTouchTargets = new Map();
+
+            function preventDefaultForActiveDrag(event) {
+                if (!event || !isDragging || !event.cancelable) {
+                    return false;
+                }
+                event.preventDefault();
+                return true;
+            }
+
+            function suppressTouchBehavior(element) {
+                if (!element || suppressedTouchTargets.has(element)) {
+                    return;
+                }
+
+                suppressedTouchTargets.set(element, {
+                    touchAction: element.style.touchAction || '',
+                    overscrollBehavior: element.style.overscrollBehavior || '',
+                    overscrollBehaviorY: element.style.overscrollBehaviorY || ''
+                });
+
+                element.style.touchAction = 'none';
+                if (typeof element.style.overscrollBehavior !== 'undefined') {
+                    element.style.overscrollBehavior = 'contain';
+                }
+                if (typeof element.style.overscrollBehaviorY !== 'undefined') {
+                    element.style.overscrollBehaviorY = 'contain';
+                }
+            }
+
+            function restoreSuppressedTouchBehavior() {
+                suppressedTouchTargets.forEach((previousStyles, element) => {
+                    if (!element) {
+                        return;
+                    }
+                    element.style.touchAction = previousStyles.touchAction;
+                    if (typeof element.style.overscrollBehavior !== 'undefined') {
+                        element.style.overscrollBehavior = previousStyles.overscrollBehavior;
+                    }
+                    if (typeof element.style.overscrollBehaviorY !== 'undefined') {
+                        element.style.overscrollBehaviorY = previousStyles.overscrollBehaviorY;
+                    }
+                });
+                suppressedTouchTargets.clear();
+            }
 
             function isPointerDragCandidate(event) {
                 const type = event.pointerType || '';
@@ -1372,22 +1532,46 @@ if (!empty($normalZimmer)) {
                 currentPointerType = null;
             }
 
+            document.addEventListener('touchstart', function(event) {
+                preventDefaultForActiveDrag(event);
+            }, { passive: false, capture: true });
+
+            document.addEventListener('touchmove', function(event) {
+                preventDefaultForActiveDrag(event);
+            }, { passive: false, capture: true });
+
             document.addEventListener('pointerdown', function(event) {
                 if (!isPointerDragCandidate(event)) {
+                    console.debug('[DRAG][pointerdown] ignored – not a drag-capable pointer', {
+                        pointerId: event.pointerId,
+                        pointerType: event.pointerType
+                    });
                     return;
                 }
 
                 if (isDragging) {
+                    console.debug('[DRAG][pointerdown] ignored – already dragging', {
+                        pointerId: event.pointerId,
+                        pointerType: event.pointerType
+                    });
                     return;
                 }
 
                 const target = event.target.closest('.reservation-item');
                 if (!target) {
+                    console.debug('[DRAG][pointerdown] ignored – target is not a reservation', {
+                        pointerId: event.pointerId,
+                        pointerType: event.pointerType
+                    });
                     return;
                 }
 
                 const pointerType = event.pointerType || (event instanceof MouseEvent ? 'mouse' : '');
                 if ((pointerType === 'mouse' || pointerType === '') && event.button !== undefined && event.button !== 0) {
+                    console.debug('[DRAG][pointerdown] ignored – non-primary mouse button', {
+                        pointerId: event.pointerId,
+                        button: event.button
+                    });
                     return;
                 }
 
@@ -1401,6 +1585,13 @@ if (!empty($normalZimmer)) {
                     y: event.clientY
                 };
                 lastTouchPoint = { ...touchStartPos };
+                const pointerMeta = buildPointerMetadata(event);
+                console.debug('[DRAG][pointerdown] registered candidate', {
+                    ...pointerMeta,
+                    reservationId: target.dataset.reservationId,
+                    dragSequencePreview: dragDebugSequence + 1,
+                    bodyHasDragClass: !!document.body?.classList.contains('dragging-active')
+                });
 
                 clearPendingTouchHold();
 
@@ -1432,6 +1623,14 @@ if (!empty($normalZimmer)) {
                     return;
                 }
                 if (activePointerId === null || event.pointerId !== activePointerId || !touchCurrentElement) {
+                    if (isDragging) {
+                        console.debug('[DRAG][pointermove] skipped – pointer mismatch', {
+                            eventPointerId: event.pointerId,
+                            activePointerId,
+                            hasTouchElement: !!touchCurrentElement,
+                            isDragging
+                        });
+                    }
                     return;
                 }
 
@@ -1443,6 +1642,13 @@ if (!empty($normalZimmer)) {
                     const threshold = currentPointerType === 'mouse' ? MOUSE_MOVE_THRESHOLD : TOUCH_MOVE_THRESHOLD;
                     if (deltaX > threshold || deltaY > threshold) {
                         touchMoved = true;
+                        console.debug('[DRAG][pointermove] movement threshold exceeded before drag start', {
+                            pointerType: currentPointerType,
+                            deltaX,
+                            deltaY,
+                            threshold,
+                            ...buildPointerMetadata(event)
+                        });
                         if (currentPointerType === 'mouse' && touchCurrentElement) {
                             startTouchDrag(touchCurrentElement);
                             event.preventDefault();
@@ -1453,8 +1659,25 @@ if (!empty($normalZimmer)) {
                     return;
                 }
 
-                event.preventDefault();
+                preventDefaultForActiveDrag(event);
                 startAutoScrollLoop();
+                pointerMoveLogCount += 1;
+                const pointerMeta = buildPointerMetadata(event);
+                const hasCapture = touchCurrentElement && typeof touchCurrentElement.hasPointerCapture === 'function'
+                    ? touchCurrentElement.hasPointerCapture(event.pointerId)
+                    : null;
+                const elapsedMs = dragStartTimestamp ? Math.round(performance.now() - dragStartTimestamp) : null;
+
+                console.debug('[DRAG][pointermove] active drag', {
+                    ...pointerMeta,
+                    ghost: !!dragGhost,
+                    placeholder: !!dragPlaceholder,
+                    dragSequence: dragDebugSequence,
+                    pointerMoveIndex: pointerMoveLogCount,
+                    elementHasCapture: hasCapture,
+                    elapsedMs,
+                    bodyHasDragClass: !!document.body?.classList.contains('dragging-active')
+                });
 
                 const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
                 const zimmer = elementBelow ? elementBelow.closest('.zimmer, .ablage-zimmer') : null;
@@ -1471,6 +1694,18 @@ if (!empty($normalZimmer)) {
                 if (!isPointerDragCandidate(event) || activePointerId === null || event.pointerId !== activePointerId) {
                     return;
                 }
+
+                console.debug('[DRAG][pointerup]', {
+                    ...buildPointerMetadata(event),
+                    isDragging,
+                    reservationId: touchCurrentElement?.dataset?.reservationId,
+                    dragSequence: dragDebugSequence,
+                    pointerMoves: pointerMoveLogCount,
+                    elapsedMs: dragStartTimestamp ? Math.round(performance.now() - dragStartTimestamp) : null,
+                    elementHasCapture: touchCurrentElement && typeof touchCurrentElement.hasPointerCapture === 'function'
+                        ? touchCurrentElement.hasPointerCapture(event.pointerId)
+                        : null
+                });
 
                 clearPendingTouchHold();
                 const pointerElement = touchCurrentElement;
@@ -1513,6 +1748,26 @@ if (!empty($normalZimmer)) {
                     return;
                 }
 
+                const pointerMeta = buildPointerMetadata(event);
+                const contextSnapshot = gatherDragContext(touchCurrentElement, isDragging);
+                console.warn('[DRAG][pointercancel]', {
+                    ...pointerMeta,
+                    isDragging,
+                    reservationId: touchCurrentElement?.dataset?.reservationId,
+                    dragSequence: dragDebugSequence,
+                    pointerMoves: pointerMoveLogCount,
+                    elapsedMs: dragStartTimestamp ? Math.round(performance.now() - dragStartTimestamp) : null,
+                    elementHasCapture: touchCurrentElement && typeof touchCurrentElement.hasPointerCapture === 'function'
+                        ? touchCurrentElement.hasPointerCapture(event.pointerId)
+                        : null
+                });
+                try {
+                    console.warn('[DRAG][pointercancel] context', contextSnapshot);
+                    console.warn('[DRAG][pointercancel] context JSON', JSON.stringify(contextSnapshot, null, 2));
+                } catch (jsonErr) {
+                    console.warn('[DRAG][pointercancel] context serialization failed', jsonErr);
+                }
+
                 clearPendingTouchHold();
                 const pointerElement = touchCurrentElement;
 
@@ -1550,10 +1805,19 @@ if (!empty($normalZimmer)) {
                 if (element && typeof element.setPointerCapture === 'function' && activePointerId !== null) {
                     try {
                         element.setPointerCapture(activePointerId);
+                        console.debug('[DRAG] pointer capture established', {
+                            pointerId: activePointerId,
+                            pointerType: currentPointerType,
+                            hasPointerCapture: element.hasPointerCapture(activePointerId)
+                        });
                     } catch (err) {
-                        // Ignorieren
+                        console.warn('[DRAG] pointer capture failed', err);
                     }
                 }
+
+                dragDebugSequence += 1;
+                pointerMoveLogCount = 0;
+                dragStartTimestamp = performance.now();
 
                 draggedElement = element;
                 draggedReservation = getCurrentReservationData(element);
@@ -1561,7 +1825,26 @@ if (!empty($normalZimmer)) {
                 isDragging = true;
                 if (document.body) {
                     document.body.classList.add('dragging-active');
+                    previousBodyTouchAction = document.body.style.touchAction || '';
+                    previousBodyOverscrollBehavior = document.body.style.overscrollBehaviorY || document.body.style.overscrollBehavior || '';
+                    previousBodyOverflow = document.body.style.overflow || '';
+                    document.body.style.touchAction = 'none';
+                    document.body.style.overscrollBehaviorY = 'contain';
+                    document.body.style.overscrollBehavior = 'contain';
+                    document.body.style.overflow = 'hidden';
                 }
+                const htmlElement = document.documentElement;
+                if (htmlElement) {
+                    previousHtmlTouchAction = htmlElement.style.touchAction || '';
+                    previousHtmlOverscrollBehavior = htmlElement.style.overscrollBehaviorY || htmlElement.style.overscrollBehavior || '';
+                    previousHtmlOverflow = htmlElement.style.overflow || '';
+                    htmlElement.style.touchAction = 'none';
+                    htmlElement.style.overscrollBehaviorY = 'contain';
+                    htmlElement.style.overscrollBehavior = 'contain';
+                    htmlElement.style.overflow = 'hidden';
+                }
+                activeDragOriginalTouchAction = element.style.touchAction || '';
+                element.style.touchAction = 'none';
                 const selection = window.getSelection ? window.getSelection() : null;
                 if (selection && typeof selection.removeAllRanges === 'function') {
                     selection.removeAllRanges();
@@ -1587,6 +1870,27 @@ if (!empty($normalZimmer)) {
                 } else {
                     console.log(`${dragLabel} gestartet`);
                 }
+                const plannerContainer = document.querySelector('.zimmerplan-container');
+                const plannerContent = element ? element.closest('.zimmer-content') : null;
+                const containerTouchAction = plannerContainer ? window.getComputedStyle(plannerContainer).touchAction : null;
+                const contentTouchAction = plannerContent ? window.getComputedStyle(plannerContent).touchAction : null;
+                const elementTouchAction = element ? window.getComputedStyle(element).touchAction : null;
+                console.debug('[DRAG] startTouchDrag state', {
+                    pointerId: activePointerId,
+                    pointerType: currentPointerType,
+                    reservationId: draggedReservation?.id,
+                    referencePoint,
+                    dragGhostOffset,
+                    dragSequence: dragDebugSequence,
+                    dragStartTimestamp: Math.round(dragStartTimestamp),
+                    bodyHasDragClass: !!document.body?.classList.contains('dragging-active'),
+                    containerTouchAction,
+                    contentTouchAction,
+                    elementTouchAction
+                });
+
+                // Unterdrücke Scroll-/Swipe-Aktionen auf allen relevanten Containern während des Drags
+                document.querySelectorAll('.zimmerplan-container, .zimmer-content').forEach(suppressTouchBehavior);
                 
                 // Platzhalter erstellen, damit Layout stabil bleibt
                 removeDragPlaceholder();
@@ -1601,6 +1905,7 @@ if (!empty($normalZimmer)) {
                     dragPlaceholder.style.margin = computed.margin;
                     dragPlaceholder.style.flex = computed.flex;
                     dragPlaceholder.style.display = computed.display;
+                    dragPlaceholder.style.touchAction = 'none';
                     parent.insertBefore(dragPlaceholder, element);
                 }
 
@@ -1657,14 +1962,36 @@ if (!empty($normalZimmer)) {
                     touchCurrentElement.style.boxShadow = '';
                     touchCurrentElement.classList.remove('dragging');
                     touchCurrentElement.classList.remove('drag-hidden');
+                    if (activeDragOriginalTouchAction !== null) {
+                        touchCurrentElement.style.touchAction = activeDragOriginalTouchAction;
+                        activeDragOriginalTouchAction = null;
+                    }
                 }
 
                 removeDragGhost();
                 removeDragPlaceholder();
                 stopAutoScrollLoop();
+                restoreSuppressedTouchBehavior();
                 if (document.body) {
                     document.body.classList.remove('dragging-active');
+                    document.body.style.touchAction = previousBodyTouchAction;
+                    document.body.style.overscrollBehaviorY = previousBodyOverscrollBehavior;
+                    document.body.style.overflow = previousBodyOverflow;
+                    document.body.style.overscrollBehavior = previousBodyOverscrollBehavior || '';
                 }
+                const htmlElement = document.documentElement;
+                if (htmlElement) {
+                    htmlElement.style.touchAction = previousHtmlTouchAction;
+                    htmlElement.style.overscrollBehaviorY = previousHtmlOverscrollBehavior;
+                    htmlElement.style.overflow = previousHtmlOverflow;
+                    htmlElement.style.overscrollBehavior = previousHtmlOverscrollBehavior || '';
+                }
+                previousBodyTouchAction = '';
+                previousBodyOverscrollBehavior = '';
+                previousHtmlTouchAction = '';
+                previousHtmlOverscrollBehavior = '';
+                previousBodyOverflow = '';
+                previousHtmlOverflow = '';
                 
                 // Reset für alle Zimmer
                 document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(zimmer => {
@@ -1677,7 +2004,19 @@ if (!empty($normalZimmer)) {
                 draggedReservation = null;
                 isDragging = false;
                 dragSourceContainer = null;
+                if (dragStartTimestamp) {
+                    const dragDuration = Math.round(performance.now() - dragStartTimestamp);
+                    console.debug('[DRAG] endTouchDrag metrics', {
+                        dragSequence: dragDebugSequence,
+                        pointerMoves: pointerMoveLogCount,
+                        durationMs: dragDuration
+                    });
+                }
+                dragStartTimestamp = 0;
+                pointerMoveLogCount = 0;
                 
+                console.debug('[DRAG] endTouchDrag cleanup complete');
+
                 // Alle Markierungen entfernen
                 clearRoomMarkings();
                 document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
