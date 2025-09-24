@@ -4,128 +4,133 @@ require_once dirname(__DIR__) . '/config.php';
 
 // MySQLi-Verbindung erstellen (wie im Rest der Anwendung)
 $mysqli = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
-if ($mysqli->connect_error) {
+if ($mysqli->connect_errno) {
     die('Datenbankverbindung fehlgeschlagen: ' . $mysqli->connect_error);
 }
+
 $mysqli->set_charset('utf8mb4');
 
-// Aktuelle Zimmer aus zp_zimmer Tabelle laden
-$zimmer = [];
-$minX = PHP_INT_MAX;
-$maxX = PHP_INT_MIN;
-$minY = PHP_INT_MAX;
-$maxY = PHP_INT_MIN;
-
-try {
-    $stmt = $mysqli->prepare("
-        SELECT id, caption, kapazitaet, kategorie, col, px, py, visible 
-        FROM zp_zimmer 
-        WHERE visible = 1 
-        ORDER BY caption
-    ");
-    
-    if ($stmt) {
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $rawZimmer = $result->fetch_all(MYSQLI_ASSOC);
-        
-        // Finde Min/Max X und Y Koordinaten
-        foreach ($rawZimmer as $z) {
-            $minX = min($minX, $z['px']);
-            $maxX = max($maxX, $z['px']);
-            $minY = min($minY, $z['py']);
-            $maxY = max($maxY, $z['py']);
-        }
-        
-        // Berechne Grid-Dimensionen
-        $gridCols = ($maxX - $minX + 1);
-        $gridRows = ($maxY - $minY + 1);
-        
-        // Diese Werte werden im JavaScript verwendet
-        $gridInfo = [
-            'minX' => $minX,
-            'maxX' => $maxX,
-            'minY' => $minY,
-            'maxY' => $maxY,
-            'cols' => $gridCols,
-            'rows' => $gridRows
-        ];
-        
-        $zimmer = $rawZimmer;
-        $stmt->close();
-    }
-} catch (Exception $e) {
-    error_log("Fehler beim Laden der Zimmer: " . $e->getMessage());
-    $zimmer = [];
-    $gridInfo = ['minX' => 1, 'maxX' => 1, 'minY' => 1, 'maxY' => 1, 'cols' => 1, 'rows' => 1];
+$currentDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $currentDate)) {
+    $currentDate = date('Y-m-d');
 }
 
-// Separate Ablage-Zimmer von normalen Zimmern
+$roomSql = "SELECT id, caption, kapazitaet, sort, visible, px, py, col
+            FROM zp_zimmer
+            WHERE visible = 1 OR LOWER(TRIM(caption)) = 'ablage'
+            ORDER BY sort ASC, caption ASC";
+$roomResult = $mysqli->query($roomSql);
+if (!$roomResult) {
+    die('Zimmerabfrage fehlgeschlagen: ' . $mysqli->error);
+}
+
 $normalZimmer = [];
 $ablageZimmer = [];
 
-foreach ($zimmer as $z) {
-    if (strtolower($z['caption']) === 'ablage' || strpos(strtolower($z['caption']), 'ablage') !== false) {
-        $ablageZimmer[] = $z;
-    } else {
-        $normalZimmer[] = $z;
+$gridBounds = [
+    'minX' => PHP_INT_MAX,
+    'maxX' => PHP_INT_MIN,
+    'minY' => PHP_INT_MAX,
+    'maxY' => PHP_INT_MIN,
+];
+
+while ($row = $roomResult->fetch_assoc()) {
+    $room = [
+        'id' => (int)$row['id'],
+        'caption' => $row['caption'],
+        'kapazitaet' => isset($row['kapazitaet']) ? (int)$row['kapazitaet'] : 0,
+        'sort' => isset($row['sort']) ? (int)$row['sort'] : 0,
+        'visible' => isset($row['visible']) ? (int)$row['visible'] : 0,
+        'px' => isset($row['px']) ? (int)$row['px'] : 0,
+        'py' => isset($row['py']) ? (int)$row['py'] : 0,
+        'col' => $row['col'],
+    ];
+
+    $isAblage = mb_strtolower(trim((string)$row['caption'])) === 'ablage';
+
+    if ($isAblage) {
+        $ablageZimmer[] = $room;
+        continue;
+    }
+
+    if ($room['visible']) {
+        $normalZimmer[] = $room;
+
+        $gridBounds['minX'] = min($gridBounds['minX'], $room['px']);
+        $gridBounds['maxX'] = max($gridBounds['maxX'], $room['px']);
+        $gridBounds['minY'] = min($gridBounds['minY'], $room['py']);
+        $gridBounds['maxY'] = max($gridBounds['maxY'], $room['py']);
     }
 }
 
-// Aktuelles Datum für Standardansicht
-$currentDate = date('Y-m-d');
+$gridInfo = [
+    'minX' => 0,
+    'maxX' => 0,
+    'minY' => 0,
+    'maxY' => 0,
+    'cols' => 1,
+    'rows' => 1,
+];
+
+if (!empty($normalZimmer)) {
+    $gridInfo['minX'] = $gridBounds['minX'] === PHP_INT_MAX ? 0 : $gridBounds['minX'];
+    $gridInfo['maxX'] = $gridBounds['maxX'] === PHP_INT_MIN ? $gridInfo['minX'] : $gridBounds['maxX'];
+    $gridInfo['minY'] = $gridBounds['minY'] === PHP_INT_MAX ? 0 : $gridBounds['minY'];
+    $gridInfo['maxY'] = $gridBounds['maxY'] === PHP_INT_MIN ? $gridInfo['minY'] : $gridBounds['maxY'];
+    $gridInfo['cols'] = max(1, $gridInfo['maxX'] - $gridInfo['minX'] + 1);
+    $gridInfo['rows'] = max(1, $gridInfo['maxY'] - $gridInfo['minY'] + 1);
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zimmerplan - Tagesansicht</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zimmerplan Tagesansicht</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
+        *, *::before, *::after {
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8fafc;
-            color: #1f2937;
-            height: 100vh;
-            display: flex;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+        html, body {
+            height: 100%;
         }
 
-        .header {
-            display: none;
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f1f5f9;
+            color: #1f2937;
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .main-content {
-            flex: 1;
             display: flex;
-            height: 100vh;
-            overflow: hidden;
+            gap: 24px;
+            min-height: 100vh;
+            padding: 24px;
         }
 
         .sidebar {
-            width: 280px;
-            background: #ffffff;
-            border-right: 1px solid #e5e7eb;
+            width: 300px;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            gap: 16px;
         }
 
         .sidebar-section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
             padding: 16px;
-            border-bottom: 1px solid #f3f4f6;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .sidebar-section + .sidebar-section {
+            margin-top: 8px;
         }
 
         .sidebar-section h3 {
@@ -147,13 +152,41 @@ $currentDate = date('Y-m-d');
             border-radius: 6px;
             font-size: 12px;
             width: 100%;
+            background: #ffffff;
+            color: inherit;
         }
 
         .zimmerplan-container {
             flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow: auto;
             background: #f9fafb;
+            touch-action: pan-x pan-y;
+            -ms-touch-action: pan-x pan-y;
+            scrollbar-gutter: stable both-edges;
+        }
+
+        .zimmerplan-container.scroll-enabled {
+            overflow: auto;
+        }
+
+        .zimmerplan-container.scroll-enabled::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .zimmerplan-container.scroll-enabled::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.45);
+            border-radius: 6px;
+        }
+
+        .zimmerplan-container.scroll-enabled::-webkit-scrollbar-track {
+            background: rgba(203, 213, 225, 0.35);
+        }
+
+        input, textarea, select, button {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         .zimmerplan {
@@ -164,6 +197,11 @@ $currentDate = date('Y-m-d');
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
+        }
+
+        .zimmer, .ablage-zimmer, .zimmer-content, .reservation-item {
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
         }
 
         .zimmer {
@@ -204,6 +242,13 @@ $currentDate = date('Y-m-d');
             flex-direction: column;
             justify-content: flex-start;
             flex-shrink: 0;
+        }
+
+        .zimmer,
+        .ablage-zimmer,
+        .zimmer-content,
+        .reservation-item {
+            -webkit-touch-callout: none;
         }
 
         .zimmer-header {
@@ -250,13 +295,50 @@ $currentDate = date('Y-m-d');
             align-items: center;
             justify-content: center;
             text-align: center;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .reservation-item.drag-hidden {
+            opacity: 0;
+        }
+
+        .drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.9;
+            transform: scale(1.05);
+            box-shadow: 0 12px 25px rgba(59, 130, 246, 0.35);
+            border-radius: 8px;
+            z-index: 100000;
+            transition: none !important;
+        }
+
+        .drag-placeholder {
+            border: 2px dashed #60a5fa;
+            border-radius: 6px;
+            background: rgba(191, 219, 254, 0.35);
+            box-sizing: border-box;
+        }
+
+        body.dragging-active {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            cursor: grabbing;
+        }
+
+        body.dragging-active .reservation-item,
+        body.dragging-active .zimmer,
+        body.dragging-active .ablage-zimmer {
+            cursor: grabbing !important;
         }
 
         /* 1 Reservierung - maximale Größe */
         .zimmer-content.count-1 .reservation-item {
             width: 100%;
             height: calc(100% - 4px);
-            max-height: calc(100vh / 8);
+            max-height: calc(100vh / 16);
             font-size: 11px;
             white-space: normal;
             word-wrap: break-word;
@@ -266,7 +348,7 @@ $currentDate = date('Y-m-d');
         .zimmer-content.count-2 .reservation-item {
             width: 50%;
             height: calc(100% - 4px);
-            max-height: calc(100vh / 8);
+            max-height: calc(100vh / 16);
             font-size: 10px;
         }
 
@@ -274,7 +356,7 @@ $currentDate = date('Y-m-d');
         .zimmer-content.count-3-plus .reservation-item {
             width: 50%;
             height: calc(50% - 2px);
-            max-height: calc(100vh / 16);
+            max-height: calc(100vh / 32);
             font-size: 9px;
         }
 
@@ -296,7 +378,7 @@ $currentDate = date('Y-m-d');
                 min-height: 55px; /* Größere Touch-Targets */
                 font-size: 14px;
                 padding: 10px 12px;
-                touch-action: none; /* Verhindert Browser-Zoom bei Touch */
+                touch-action: manipulation; /* Erlaubt Scrollen, blockiert Doppeltap-Zoom */
                 user-select: none;
             }
             
@@ -310,7 +392,7 @@ $currentDate = date('Y-m-d');
             
             .zimmer, .ablage-zimmer {
                 min-height: 85px; /* Größere Drop-Zonen */
-                touch-action: none;
+                touch-action: manipulation;
             }
             
             .drag-hover {
@@ -532,13 +614,27 @@ $currentDate = date('Y-m-d');
     </div>
 
     <script>
-        // Globale Variablen
-        let currentViewDate = '<?= $currentDate ?>';
-        let draggedElement = null;
-        let draggedReservation = null;
-        let rooms = <?= json_encode($normalZimmer) ?>;
-        let ablageRooms = <?= json_encode($ablageZimmer) ?>;
-        let gridInfo = <?= json_encode($gridInfo) ?>;
+    // Globale Variablen
+    let currentViewDate = '<?= $currentDate ?>';
+    let draggedElement = null;
+    let draggedReservation = null;
+    let rooms = <?= json_encode($normalZimmer) ?>;
+    let ablageRooms = <?= json_encode($ablageZimmer) ?>;
+    let gridInfo = <?= json_encode($gridInfo) ?>;
+    let dragGhost = null;
+    let dragPlaceholder = null;
+    let lastTouchPoint = null;
+    let dragSourceContainer = null;
+    let dragGhostOffset = { x: 0, y: 0 };
+    let activePointerId = null;
+    let ghostAnimationFrame = null;
+    let ghostPendingPosition = null;
+
+    const GRID_PADDING = 20;
+    const MIN_CELL_WIDTH = 240;
+    const MIN_CELL_HEIGHT = 70;
+    const SCROLL_EDGE_THRESHOLD = 80;
+    const SCROLL_EDGE_SPEED = 18;
         
         // Reservation lookup und Cache für optimierte Kapazitätsprüfung
         let currentReservations = [];
@@ -547,14 +643,153 @@ $currentDate = date('Y-m-d');
         let cacheMinDate = null; // Minimales Datum im Cache
         let cacheMaxDate = null; // Maximales Datum im Cache
         
+        function autoScrollDuringDrag(clientX, clientY) {
+            const wrapper = document.querySelector('.zimmerplan-container');
+            if (!wrapper) return;
+
+            const rect = wrapper.getBoundingClientRect();
+            const withinHorizontalBand = clientX >= rect.left - SCROLL_EDGE_THRESHOLD && clientX <= rect.right + SCROLL_EDGE_THRESHOLD;
+            const withinVerticalBand = clientY >= rect.top - SCROLL_EDGE_THRESHOLD && clientY <= rect.bottom + SCROLL_EDGE_THRESHOLD;
+
+            if (withinHorizontalBand) {
+                if (clientX - rect.left < SCROLL_EDGE_THRESHOLD) {
+                    wrapper.scrollLeft -= SCROLL_EDGE_SPEED;
+                } else if (rect.right - clientX < SCROLL_EDGE_THRESHOLD) {
+                    wrapper.scrollLeft += SCROLL_EDGE_SPEED;
+                }
+            }
+
+            if (withinVerticalBand) {
+                if (clientY - rect.top < SCROLL_EDGE_THRESHOLD) {
+                    wrapper.scrollTop -= SCROLL_EDGE_SPEED;
+                } else if (rect.bottom - clientY < SCROLL_EDGE_THRESHOLD) {
+                    wrapper.scrollTop += SCROLL_EDGE_SPEED;
+                }
+            }
+
+            const element = document.elementFromPoint(clientX, clientY);
+            if (element) {
+                const scrollContainer = element.closest('.zimmer-content');
+                if (scrollContainer) {
+                    const scrollRect = scrollContainer.getBoundingClientRect();
+                    if (clientY - scrollRect.top < SCROLL_EDGE_THRESHOLD) {
+                        scrollContainer.scrollTop -= SCROLL_EDGE_SPEED;
+                    } else if (scrollRect.bottom - clientY < SCROLL_EDGE_THRESHOLD) {
+                        scrollContainer.scrollTop += SCROLL_EDGE_SPEED;
+                    }
+                }
+            }
+        }
+
+        function isTabletViewport() {
+            const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+            const minSide = Math.min(window.innerWidth, window.innerHeight);
+            const maxSide = Math.max(window.innerWidth, window.innerHeight);
+            return coarsePointer && minSide >= 600 && maxSide <= 1600;
+        }
+
+        function removeDragGhost() {
+            if (dragGhost && dragGhost.parentNode) {
+                dragGhost.parentNode.removeChild(dragGhost);
+            }
+            dragGhost = null;
+            ghostPendingPosition = null;
+            if (ghostAnimationFrame !== null) {
+                cancelAnimationFrame(ghostAnimationFrame);
+                ghostAnimationFrame = null;
+            }
+        }
+
+        function removeDragPlaceholder() {
+            if (dragPlaceholder && dragPlaceholder.parentNode) {
+                dragPlaceholder.parentNode.removeChild(dragPlaceholder);
+            }
+            dragPlaceholder = null;
+        }
+
+        function updateGhostPosition(point, offsetX, offsetY) {
+            if (!dragGhost || !point) return;
+            if (typeof offsetX === 'number' && typeof offsetY === 'number') {
+                dragGhostOffset = { x: offsetX, y: offsetY };
+            }
+            ghostPendingPosition = {
+                x: point.x - dragGhostOffset.x,
+                y: point.y - dragGhostOffset.y
+            };
+
+            if (ghostAnimationFrame !== null) {
+                return;
+            }
+
+            ghostAnimationFrame = requestAnimationFrame(() => {
+                ghostAnimationFrame = null;
+                if (!dragGhost || !ghostPendingPosition) {
+                    return;
+                }
+                dragGhost.style.transform = `translate3d(${ghostPendingPosition.x}px, ${ghostPendingPosition.y}px, 0) scale(1.05)`;
+            });
+        }
+
+        function updateDeviceMode() {
+            const body = document.body;
+            if (!body) return;
+            const tablet = isTabletViewport();
+            body.classList.toggle('tablet-mode', tablet);
+
+            if (document.readyState === 'interactive' || document.readyState === 'complete') {
+                requestAnimationFrame(() => calculateRoomPositions());
+            }
+        }
+
+        function shouldSuppressContextMenu(event) {
+            if (!event) return false;
+            const target = event.target ? event.target.closest('.reservation-item, .zimmer, .ablage-zimmer') : null;
+            if (!target) return false;
+
+            if (document.body && document.body.classList.contains('tablet-mode')) {
+                return true;
+            }
+
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 1) {
+                const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+                if (coarse) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        const coarsePointerMedia = window.matchMedia('(pointer: coarse)');
+        if (coarsePointerMedia && typeof coarsePointerMedia.addEventListener === 'function') {
+            coarsePointerMedia.addEventListener('change', updateDeviceMode);
+        } else if (coarsePointerMedia && typeof coarsePointerMedia.addListener === 'function') {
+            // Safari iOS
+            coarsePointerMedia.addListener(updateDeviceMode);
+        }
+
+        document.addEventListener('contextmenu', function(event) {
+            if (shouldSuppressContextMenu(event)) {
+                event.preventDefault();
+            }
+        }, { passive: false, capture: true });
+
+        document.addEventListener('selectstart', function(event) {
+            if (shouldSuppressContextMenu(event)) {
+                event.preventDefault();
+            }
+        }, { passive: false, capture: true });
+
         // Initialisierung
         document.addEventListener('DOMContentLoaded', function() {
+            updateDeviceMode();
             calculateRoomPositions();
             initializeDragAndDrop();
             loadRoomData();
             
             // Neuberechnung bei Fenstergröße-Änderung
             window.addEventListener('resize', function() {
+                updateDeviceMode();
                 calculateRoomPositions();
                 // Alle Reservierungshöhen neu berechnen
                 document.querySelectorAll('.zimmer-content').forEach(container => {
@@ -565,30 +800,60 @@ $currentDate = date('Y-m-d');
 
         function calculateRoomPositions() {
             const container = document.querySelector('.zimmerplan');
-            if (!container) return;
-            
-            const containerRect = container.getBoundingClientRect();
-            const padding = 20;
-            const availableWidth = containerRect.width - (padding * 2);
-            const availableHeight = containerRect.height - (padding * 2);
-            
-            // Berechne Zellengröße basierend auf verfügbarem Platz
-            const cellWidth = Math.floor(availableWidth / gridInfo.cols);
-            const cellHeight = Math.floor(availableHeight / gridInfo.rows);
-            
+            const wrapper = document.querySelector('.zimmerplan-container');
+            if (!container || !wrapper || !gridInfo) {
+                return;
+            }
+
+            const cols = Number(gridInfo.cols || 0);
+            const rows = Number(gridInfo.rows || 0);
+            const minGridX = Number(gridInfo.minX || 0);
+            const minGridY = Number(gridInfo.minY || 0);
+
+            if (!cols || !rows) {
+                return;
+            }
+
+            const wrapperWidth = wrapper.clientWidth || wrapper.offsetWidth || container.offsetWidth;
+            const wrapperHeight = wrapper.clientHeight || wrapper.offsetHeight || container.offsetHeight;
+            const padding = GRID_PADDING;
+
+            let cellWidth = Math.floor((wrapperWidth - padding * 2) / cols);
+            let cellHeight = Math.floor((wrapperHeight - padding * 2) / rows);
+
+            cellWidth = Math.max(cellWidth, MIN_CELL_WIDTH);
+            cellHeight = Math.max(cellHeight, MIN_CELL_HEIGHT);
+
+            const layoutWidth = (cellWidth * cols) + padding * 2;
+            const layoutHeight = (cellHeight * rows) + padding * 2;
+
+            if (layoutWidth > wrapperWidth || layoutHeight > wrapperHeight) {
+                container.style.width = layoutWidth + 'px';
+                container.style.height = layoutHeight + 'px';
+                container.style.minWidth = layoutWidth + 'px';
+                container.style.minHeight = layoutHeight + 'px';
+                wrapper.classList.add('scroll-enabled');
+            } else {
+                container.style.width = '100%';
+                container.style.height = '100%';
+                container.style.minWidth = 'auto';
+                container.style.minHeight = 'auto';
+                wrapper.classList.remove('scroll-enabled');
+            }
+
             console.log('Grid Info:', gridInfo);
-            console.log('Container Size:', containerRect.width, 'x', containerRect.height);
+            console.log('Wrapper Size:', wrapperWidth, 'x', wrapperHeight);
             console.log('Cell Size:', cellWidth, 'x', cellHeight);
-            
+
             // Positioniere alle Zimmer
             document.querySelectorAll('.zimmer').forEach(zimmer => {
                 const gridX = parseInt(zimmer.dataset.gridX);
                 const gridY = parseInt(zimmer.dataset.gridY);
                 
                 // Berechne Position relativ zum minimalen Grid
-                const relativeX = gridX - gridInfo.minX;
-                const relativeY = gridY - gridInfo.minY;
-                
+                const relativeX = gridX - minGridX;
+                const relativeY = gridY - minGridY;
+
                 const left = padding + (relativeX * cellWidth);
                 const top = padding + (relativeY * cellHeight);
                 
@@ -904,7 +1169,6 @@ $currentDate = date('Y-m-d');
 
             const item = document.createElement('div');
             item.className = 'reservation-item';
-            item.draggable = true;
             item.dataset.reservationId = reservation.id;
             item.dataset.resid = reservation.resid;
             
@@ -1040,227 +1304,329 @@ $currentDate = date('Y-m-d');
             let isDragging = false;
             let touchStartPos = null;
             let touchCurrentElement = null;
-            
-            // 🖱️ DESKTOP: Standard Drag & Drop für Reservierungen
-            document.addEventListener('dragstart', function(e) {
-                if (e.target.classList.contains('reservation-item')) {
-                    draggedElement = e.target;
-                    draggedReservation = getCurrentReservationData(e.target);
-                    e.target.classList.add('dragging');
-                    isDragging = true;
-                    
-                    // Alle Zimmer auf Kapazität prüfen und markieren
-                    checkRoomCapacities(draggedReservation);
-                }
-            });
-
-            document.addEventListener('dragend', function(e) {
-                if (e.target.classList.contains('reservation-item')) {
-                    e.target.classList.remove('dragging');
-                    draggedElement = null;
-                    draggedReservation = null;
-                    isDragging = false;
-                    
-                    // Alle Markierungen und Hover-Effekte entfernen
-                    clearRoomMarkings();
-                    document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
-                        z.classList.remove('drag-hover');
-                    });
-                }
-            });
-
-            // Drop-Zonen für Zimmer
-            document.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                
-                // Live-Feedback: Hervorhebung des aktuellen Drop-Ziels
-                if (draggedReservation) {
-                    const zimmer = e.target.closest('.zimmer, .ablage-zimmer');
-                    if (zimmer) {
-                        // Entferne Hover-Effekte von allen anderen Zimmern
-                        document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
-                            z.classList.remove('drag-hover');
-                        });
-                        
-                        // Füge Hover-Effekt zum aktuellen Zimmer hinzu
-                        zimmer.classList.add('drag-hover');
-                    }
-                }
-            });
-
-            document.addEventListener('dragleave', function(e) {
-                const zimmer = e.target.closest('.zimmer, .ablage-zimmer');
-                if (zimmer && !zimmer.contains(e.relatedTarget)) {
-                    zimmer.classList.remove('drag-hover');
-                }
-            });
-
-            document.addEventListener('drop', async function(e) {
-                e.preventDefault();
-                await handleDrop(e, e.target);
-            });
-
-            // 📱 MOBILE: Verbesserte Touch-Events für mobile Geräte
-            let touchStartTime = 0;
             let touchHoldTimer = null;
+            let touchStartTime = 0;
             let touchMoved = false;
-            const TOUCH_HOLD_DURATION = 500; // 500ms für long press
-            const TOUCH_MOVE_THRESHOLD = 10; // 10px Bewegung erlaubt vor Drag-Start
+            const TOUCH_HOLD_DURATION = 300;
+            const TOUCH_MOVE_THRESHOLD = 12;
+            const MOUSE_MOVE_THRESHOLD = 4;
+            let currentPointerType = null;
+            let autoScrollLoopId = null;
 
-            document.addEventListener('touchstart', function(e) {
-                const target = e.target.closest('.reservation-item');
-                if (target && !isDragging) {
-                    touchCurrentElement = target;
-                    touchStartTime = Date.now();
-                    touchMoved = false;
-                    touchStartPos = {
-                        x: e.touches[0].clientX,
-                        y: e.touches[0].clientY
-                    };
-                    
-                    // Visueller Feedback für Touch-Start
+            function isPointerDragCandidate(event) {
+                const type = event.pointerType || '';
+                return type === 'touch' || type === 'pen' || type === 'mouse' || type === '';
+            }
+
+            function startAutoScrollLoop() {
+                if (autoScrollLoopId !== null) {
+                    return;
+                }
+                autoScrollLoopId = requestAnimationFrame(runAutoScrollStep);
+            }
+
+            function runAutoScrollStep() {
+                autoScrollLoopId = null;
+                if (!isDragging || !lastTouchPoint) {
+                    return;
+                }
+                autoScrollDuringDrag(lastTouchPoint.x, lastTouchPoint.y);
+                startAutoScrollLoop();
+            }
+
+            function stopAutoScrollLoop() {
+                if (autoScrollLoopId !== null) {
+                    cancelAnimationFrame(autoScrollLoopId);
+                    autoScrollLoopId = null;
+                }
+            }
+
+            function clearPendingTouchHold() {
+                if (touchHoldTimer) {
+                    clearTimeout(touchHoldTimer);
+                    touchHoldTimer = null;
+                }
+            }
+
+            function resetTouchPreview() {
+                if (touchCurrentElement) {
+                    touchCurrentElement.style.transform = '';
+                    touchCurrentElement.style.transition = '';
+                }
+            }
+
+            function abortTouchPreparation() {
+                const element = touchCurrentElement;
+                clearPendingTouchHold();
+                if (element) {
+                    element.style.transform = '';
+                    element.style.transition = '';
+                }
+                touchCurrentElement = null;
+                touchStartPos = null;
+                touchStartTime = 0;
+                touchMoved = false;
+                lastTouchPoint = null;
+                dragSourceContainer = null;
+                activePointerId = null;
+                currentPointerType = null;
+            }
+
+            document.addEventListener('pointerdown', function(event) {
+                if (!isPointerDragCandidate(event)) {
+                    return;
+                }
+
+                if (isDragging) {
+                    return;
+                }
+
+                const target = event.target.closest('.reservation-item');
+                if (!target) {
+                    return;
+                }
+
+                const pointerType = event.pointerType || (event instanceof MouseEvent ? 'mouse' : '');
+                if ((pointerType === 'mouse' || pointerType === '') && event.button !== undefined && event.button !== 0) {
+                    return;
+                }
+
+                currentPointerType = pointerType || 'mouse';
+                activePointerId = event.pointerId;
+                touchCurrentElement = target;
+                touchStartTime = Date.now();
+                touchMoved = false;
+                touchStartPos = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+                lastTouchPoint = { ...touchStartPos };
+
+                clearPendingTouchHold();
+
+                if (currentPointerType === 'mouse') {
+                    // Starte erst bei Bewegung
+                    target.style.transition = 'transform 0.1s ease';
+                } else {
                     target.style.transform = 'scale(0.98)';
                     target.style.transition = 'transform 0.1s ease';
-                    
-                    // Timer für Long Press Detection
+
                     touchHoldTimer = setTimeout(() => {
+                        touchHoldTimer = null;
                         if (touchCurrentElement && !touchMoved && !isDragging) {
-                            // Long Press erkannt - Drag starten
                             startTouchDrag(touchCurrentElement);
-                            
-                            // Haptic Feedback (falls unterstützt)
                             if (navigator.vibrate) {
-                                navigator.vibrate(50);
+                                navigator.vibrate(40);
                             }
                         }
                     }, TOUCH_HOLD_DURATION);
                 }
-            });
 
-            document.addEventListener('touchmove', function(e) {
-                if (touchCurrentElement) {
-                    const touch = e.touches[0];
-                    const deltaX = Math.abs(touch.clientX - touchStartPos.x);
-                    const deltaY = Math.abs(touch.clientY - touchStartPos.y);
-                    
-                    // Prüfe ob genug Bewegung für "touchMoved" Flag
-                    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+                if (currentPointerType === 'mouse') {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+
+            document.addEventListener('pointermove', function(event) {
+                if (!isPointerDragCandidate(event)) {
+                    return;
+                }
+                if (activePointerId === null || event.pointerId !== activePointerId || !touchCurrentElement) {
+                    return;
+                }
+
+                const deltaX = Math.abs(event.clientX - touchStartPos.x);
+                const deltaY = Math.abs(event.clientY - touchStartPos.y);
+                lastTouchPoint = { x: event.clientX, y: event.clientY };
+
+                if (!isDragging) {
+                    const threshold = currentPointerType === 'mouse' ? MOUSE_MOVE_THRESHOLD : TOUCH_MOVE_THRESHOLD;
+                    if (deltaX > threshold || deltaY > threshold) {
                         touchMoved = true;
-                        
-                        // Cancel long press timer wenn zu viel Bewegung vor Drag-Start
-                        if (!isDragging && touchHoldTimer) {
-                            clearTimeout(touchHoldTimer);
-                            touchHoldTimer = null;
-                            
-                            // Reset visual feedback
-                            if (touchCurrentElement) {
-                                touchCurrentElement.style.transform = '';
-                                touchCurrentElement.style.transition = '';
-                            }
+                        if (currentPointerType === 'mouse' && touchCurrentElement) {
+                            startTouchDrag(touchCurrentElement);
+                            event.preventDefault();
+                        } else {
+                            abortTouchPreparation();
                         }
                     }
-                    
-                    // Wenn Drag aktiv ist
-                    if (isDragging && touchCurrentElement) {
-                        e.preventDefault(); // Nur während aktivem Drag
-                        
-                        // Element unter dem Finger finden
-                        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-                        const zimmer = elementBelow ? elementBelow.closest('.zimmer, .ablage-zimmer') : null;
-                        
-                        // Hover-Effekte aktualisieren
-                        document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
-                            z.classList.remove('drag-hover');
-                        });
-                        
-                        if (zimmer) {
-                            zimmer.classList.add('drag-hover');
+                    return;
+                }
+
+                event.preventDefault();
+                startAutoScrollLoop();
+
+                const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+                const zimmer = elementBelow ? elementBelow.closest('.zimmer, .ablage-zimmer') : null;
+
+                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => z.classList.remove('drag-hover'));
+                if (zimmer) {
+                    zimmer.classList.add('drag-hover');
+                }
+
+                updateGhostPosition(lastTouchPoint);
+            }, { passive: false });
+
+            document.addEventListener('pointerup', async function(event) {
+                if (!isPointerDragCandidate(event) || activePointerId === null || event.pointerId !== activePointerId) {
+                    return;
+                }
+
+                clearPendingTouchHold();
+                const pointerElement = touchCurrentElement;
+                const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+
+                if (isDragging && pointerElement) {
+                    event.preventDefault();
+                    await handleDrop(event, elementBelow);
+                    if (pointerElement && typeof pointerElement.releasePointerCapture === 'function') {
+                        try {
+                            pointerElement.releasePointerCapture(event.pointerId);
+                        } catch (err) {
+                            // Ignorieren
                         }
-                        
-                        // Visuelles Feedback: Element folgt dem Finger
-                        touchCurrentElement.style.position = 'fixed';
-                        touchCurrentElement.style.left = (touch.clientX - 75) + 'px';
-                        touchCurrentElement.style.top = (touch.clientY - 30) + 'px';
-                        touchCurrentElement.style.zIndex = '9999';
-                        touchCurrentElement.style.pointerEvents = 'none';
-                        touchCurrentElement.style.opacity = '0.9';
-                        touchCurrentElement.style.transform = 'scale(1.1) rotate(3deg)';
-                        touchCurrentElement.style.transition = 'none';
                     }
-                }
-            });
-
-            document.addEventListener('touchend', async function(e) {
-                // Clear timers
-                if (touchHoldTimer) {
-                    clearTimeout(touchHoldTimer);
-                    touchHoldTimer = null;
-                }
-                
-                if (touchCurrentElement) {
-                    // Reset visual feedback wenn kein Drag aktiv war
-                    if (!isDragging) {
-                        touchCurrentElement.style.transform = '';
-                        touchCurrentElement.style.transition = '';
-                    }
-                    
-                    // Wenn Drag aktiv war
-                    if (isDragging) {
-                        e.preventDefault();
-                        
-                        // Element unter der letzten Touch-Position finden
-                        const touch = e.changedTouches[0];
-                        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-                        
-                        // Touch-Drag beenden
-                        endTouchDrag();
-                        
-                        // Drop verarbeiten
-                        await handleDrop(e, elementBelow);
-                        
-                        console.log('📱 Touch-Drop verarbeitet');
-                    }
-                }
-                
-                // Reset für nächsten Touch
-                touchCurrentElement = null;
-                touchStartPos = null;
-                touchMoved = false;
-                touchStartTime = 0;
-            });
-
-            // Touch Cancel (wichtig für Interruptions)
-            document.addEventListener('touchcancel', function(e) {
-                if (touchHoldTimer) {
-                    clearTimeout(touchHoldTimer);
-                    touchHoldTimer = null;
-                }
-                
-                if (isDragging && touchCurrentElement) {
                     endTouchDrag();
+                } else {
+                    resetTouchPreview();
+                    if (pointerElement && typeof pointerElement.releasePointerCapture === 'function') {
+                        try {
+                            pointerElement.releasePointerCapture(event.pointerId);
+                        } catch (err) {
+                            // Ignorieren
+                        }
+                    }
                 }
-                
-                // Reset
+
                 touchCurrentElement = null;
                 touchStartPos = null;
                 touchMoved = false;
                 touchStartTime = 0;
-            });
+                lastTouchPoint = null;
+                activePointerId = null;
+                currentPointerType = null;
+                stopAutoScrollLoop();
+            }, { passive: false });
+
+            document.addEventListener('pointercancel', function(event) {
+                if (!isPointerDragCandidate(event) || activePointerId === null || event.pointerId !== activePointerId) {
+                    return;
+                }
+
+                clearPendingTouchHold();
+                const pointerElement = touchCurrentElement;
+
+                if (isDragging && pointerElement) {
+                    if (typeof pointerElement.releasePointerCapture === 'function') {
+                        try {
+                            pointerElement.releasePointerCapture(event.pointerId);
+                        } catch (err) {}
+                    }
+                    endTouchDrag();
+                } else {
+                    resetTouchPreview();
+                    if (pointerElement && typeof pointerElement.releasePointerCapture === 'function') {
+                        try {
+                            pointerElement.releasePointerCapture(event.pointerId);
+                        } catch (err) {}
+                    }
+                }
+
+                touchCurrentElement = null;
+                touchStartPos = null;
+                touchMoved = false;
+                touchStartTime = 0;
+                lastTouchPoint = null;
+                activePointerId = null;
+                currentPointerType = null;
+                stopAutoScrollLoop();
+            }, { passive: false });
+
 
             // 🚀 GEMEINSAME FUNKTIONEN
             function startTouchDrag(element) {
+                clearPendingTouchHold();
+                resetTouchPreview();
+                if (element && typeof element.setPointerCapture === 'function' && activePointerId !== null) {
+                    try {
+                        element.setPointerCapture(activePointerId);
+                    } catch (err) {
+                        // Ignorieren
+                    }
+                }
+
                 draggedElement = element;
                 draggedReservation = getCurrentReservationData(element);
                 element.classList.add('dragging');
                 isDragging = true;
+                if (document.body) {
+                    document.body.classList.add('dragging-active');
+                }
+                const selection = window.getSelection ? window.getSelection() : null;
+                if (selection && typeof selection.removeAllRanges === 'function') {
+                    selection.removeAllRanges();
+                }
+                startAutoScrollLoop();
+
+                const referencePoint = lastTouchPoint || touchStartPos;
+                const elementRect = element.getBoundingClientRect();
+                if (referencePoint) {
+                    dragGhostOffset = {
+                        x: referencePoint.x - elementRect.left,
+                        y: referencePoint.y - elementRect.top
+                    };
+                } else {
+                    dragGhostOffset = {
+                        x: elementRect.width / 2,
+                        y: elementRect.height / 2
+                    };
+                }
+                const dragLabel = currentPointerType === 'mouse' ? '🖱️ Desktop-Drag' : '📱 Pointer-Drag';
+                if (draggedReservation && draggedReservation.name) {
+                    console.log(`${dragLabel} gestartet für: ${draggedReservation.name}`);
+                } else {
+                    console.log(`${dragLabel} gestartet`);
+                }
                 
-                console.log('📱 Touch-Drag gestartet für:', draggedReservation.name);
-                
-                // Verbesserte Drag-Styles für Mobile
-                element.style.transform = 'scale(1.1) rotate(3deg)';
-                element.style.transition = 'transform 0.2s ease';
-                element.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
-                element.style.zIndex = '1000';
+                // Platzhalter erstellen, damit Layout stabil bleibt
+                removeDragPlaceholder();
+                const parent = element.parentElement;
+                if (parent) {
+                    dragSourceContainer = parent;
+                    dragPlaceholder = document.createElement('div');
+                    dragPlaceholder.className = 'drag-placeholder';
+                    dragPlaceholder.style.width = element.offsetWidth + 'px';
+                    dragPlaceholder.style.height = element.offsetHeight + 'px';
+                    const computed = window.getComputedStyle(element);
+                    dragPlaceholder.style.margin = computed.margin;
+                    dragPlaceholder.style.flex = computed.flex;
+                    dragPlaceholder.style.display = computed.display;
+                    parent.insertBefore(dragPlaceholder, element);
+                }
+
+                element.classList.add('drag-hidden');
+                element.style.pointerEvents = 'none';
+                element.style.position = 'absolute';
+                element.style.left = '-9999px';
+                element.style.top = '-9999px';
+
+                // Ghost erstellen
+                removeDragGhost();
+                dragGhost = element.cloneNode(true);
+                dragGhost.classList.add('drag-ghost');
+                dragGhost.style.width = element.offsetWidth + 'px';
+                dragGhost.style.height = element.offsetHeight + 'px';
+                dragGhost.style.left = '0px';
+                dragGhost.style.top = '0px';
+                dragGhost.style.willChange = 'transform';
+                dragGhost.style.transform = 'translate3d(0, 0, 0) scale(1.05)';
+                dragGhost.style.transformOrigin = 'top left';
+                document.body.appendChild(dragGhost);
+                const ghostAnchor = referencePoint || {
+                    x: elementRect.left + elementRect.width / 2,
+                    y: elementRect.top + elementRect.height / 2
+                };
+                updateGhostPosition(ghostAnchor, dragGhostOffset.x, dragGhostOffset.y);
                 
                 // Kapazitätsprüfung und Zimmer-Markierung
                 checkRoomCapacities(draggedReservation);
@@ -1290,6 +1656,14 @@ $currentDate = date('Y-m-d');
                     touchCurrentElement.style.transition = '';
                     touchCurrentElement.style.boxShadow = '';
                     touchCurrentElement.classList.remove('dragging');
+                    touchCurrentElement.classList.remove('drag-hidden');
+                }
+
+                removeDragGhost();
+                removeDragPlaceholder();
+                stopAutoScrollLoop();
+                if (document.body) {
+                    document.body.classList.remove('dragging-active');
                 }
                 
                 // Reset für alle Zimmer
@@ -1302,6 +1676,7 @@ $currentDate = date('Y-m-d');
                 draggedElement = null;
                 draggedReservation = null;
                 isDragging = false;
+                dragSourceContainer = null;
                 
                 // Alle Markierungen entfernen
                 clearRoomMarkings();
@@ -1314,6 +1689,16 @@ $currentDate = date('Y-m-d');
                 const zimmer = targetElement ? targetElement.closest('.zimmer, .ablage-zimmer') : null;
                 if (zimmer && draggedElement && draggedReservation) {
                     const zimmerId = zimmer.dataset.zimmerId;
+                    const sourceZimmerElement = dragSourceContainer
+                        ? dragSourceContainer.closest('.zimmer, .ablage-zimmer')
+                        : draggedElement.closest('.zimmer, .ablage-zimmer');
+                    const sourceZimmerId = sourceZimmerElement ? sourceZimmerElement.dataset.zimmerId : null;
+
+                    if (sourceZimmerId && sourceZimmerId === zimmerId) {
+                        console.log(`🔁 Reservierung ${draggedReservation.id} im gleichen Zimmer ${zimmerId} abgelegt – keine Änderungen erforderlich.`);
+                        clearRoomMarkings();
+                        return;
+                    }
                     
                     // SONDERBEHANDLUNG FÜR ABLAGE-ZIMMER: Diese haben unbegrenzte Kapazität
                     const isAblageZimmer = zimmer.classList.contains('ablage-zimmer');
@@ -1337,13 +1722,15 @@ $currentDate = date('Y-m-d');
                     // Drop erlauben wenn Kapazität vorhanden (grün oder gelb) oder Ablage
                     // Nur "rot" (forbidden) blockiert das Drop bei normalen Zimmern
                     if (capacityStatus.allowed) {
-                        const sourceContainer = draggedElement.parentElement;
+                        const sourceContainer = dragSourceContainer || draggedElement.parentElement;
                         const targetContainer = zimmer.querySelector('.zimmer-content');
                         if (targetContainer) {
                             targetContainer.appendChild(draggedElement);
                             
                             // Layout-Klassen für beide Container aktualisieren
-                            updateRoomLayout(sourceContainer);
+                            if (sourceContainer) {
+                                updateRoomLayout(sourceContainer);
+                            }
                             updateRoomLayout(targetContainer);
                             
                             // Belegungszähler aktualisieren
@@ -1367,6 +1754,7 @@ $currentDate = date('Y-m-d');
                             
                             // 💾 Server-Update für Zimmerwechsel
                             updateReservationRoom(draggedReservation.id, zimmerId, isAblageZimmer);
+                            dragSourceContainer = targetContainer;
                         }
                     } else {
                         // Drop verweigert - nur bei echter Kapazitätsüberschreitung (nicht bei Ablage)
