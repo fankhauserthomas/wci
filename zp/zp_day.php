@@ -287,6 +287,77 @@ $currentDate = date('Y-m-d');
             cursor: grabbing;
             opacity: 0.7;
             transform: rotate(2deg);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 📱 Mobile Touch Improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .reservation-item {
+                min-height: 55px; /* Größere Touch-Targets */
+                font-size: 14px;
+                padding: 10px 12px;
+                touch-action: none; /* Verhindert Browser-Zoom bei Touch */
+                user-select: none;
+            }
+            
+            .reservation-item.dragging {
+                opacity: 0.9;
+                transform: scale(1.1) rotate(3deg);
+                box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.4);
+                border: 2px solid #3b82f6;
+                background: #ffffff !important;
+            }
+            
+            .zimmer, .ablage-zimmer {
+                min-height: 85px; /* Größere Drop-Zonen */
+                touch-action: none;
+            }
+            
+            .drag-hover {
+                background: #dbeafe !important;
+                border-color: #3b82f6 !important;
+                transform: scale(1.02);
+                transition: all 0.2s ease;
+                box-shadow: 0 6px 20px -3px rgba(59, 130, 246, 0.3);
+            }
+
+            /* Verbesserte Drop-Target Markierungen für Mobile */
+            .drop-target {
+                animation: mobilePulseGreen 1.5s infinite ease-in-out;
+            }
+            
+            .drop-target-warning {
+                animation: mobilePulseYellow 1.5s infinite ease-in-out;
+            }
+            
+            .drop-target-forbidden {
+                animation: mobilePulseRed 1.5s infinite ease-in-out;
+            }
+
+            /* Haptic-style Animationen für Mobile */
+            @keyframes mobilePulseGreen {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.1); }
+            }
+            
+            @keyframes mobilePulseYellow {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+                50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.1); }
+            }
+            
+            @keyframes mobilePulseRed {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.1); }
+            }
+        }
+
+        /* Touch-specific drag states */
+        .reservation-item[style*="position: fixed"] {
+            border-radius: 8px;
+            box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.5) !important;
+            background: #ffffff !important;
+            border: 2px solid #3b82f6 !important;
+            transform: scale(1.1) rotate(3deg) !important;
         }
 
         .ablage-zimmer {
@@ -966,13 +1037,17 @@ $currentDate = date('Y-m-d');
 
         function initializeDragAndDrop() {
             let draggedReservation = null;
+            let isDragging = false;
+            let touchStartPos = null;
+            let touchCurrentElement = null;
             
-            // Drag & Drop für Reservierungen
+            // 🖱️ DESKTOP: Standard Drag & Drop für Reservierungen
             document.addEventListener('dragstart', function(e) {
                 if (e.target.classList.contains('reservation-item')) {
                     draggedElement = e.target;
                     draggedReservation = getCurrentReservationData(e.target);
                     e.target.classList.add('dragging');
+                    isDragging = true;
                     
                     // Alle Zimmer auf Kapazität prüfen und markieren
                     checkRoomCapacities(draggedReservation);
@@ -984,6 +1059,7 @@ $currentDate = date('Y-m-d');
                     e.target.classList.remove('dragging');
                     draggedElement = null;
                     draggedReservation = null;
+                    isDragging = false;
                     
                     // Alle Markierungen und Hover-Effekte entfernen
                     clearRoomMarkings();
@@ -1021,7 +1097,221 @@ $currentDate = date('Y-m-d');
 
             document.addEventListener('drop', async function(e) {
                 e.preventDefault();
-                const zimmer = e.target.closest('.zimmer, .ablage-zimmer');
+                await handleDrop(e, e.target);
+            });
+
+            // 📱 MOBILE: Verbesserte Touch-Events für mobile Geräte
+            let touchStartTime = 0;
+            let touchHoldTimer = null;
+            let touchMoved = false;
+            const TOUCH_HOLD_DURATION = 500; // 500ms für long press
+            const TOUCH_MOVE_THRESHOLD = 10; // 10px Bewegung erlaubt vor Drag-Start
+
+            document.addEventListener('touchstart', function(e) {
+                const target = e.target.closest('.reservation-item');
+                if (target && !isDragging) {
+                    touchCurrentElement = target;
+                    touchStartTime = Date.now();
+                    touchMoved = false;
+                    touchStartPos = {
+                        x: e.touches[0].clientX,
+                        y: e.touches[0].clientY
+                    };
+                    
+                    // Visueller Feedback für Touch-Start
+                    target.style.transform = 'scale(0.98)';
+                    target.style.transition = 'transform 0.1s ease';
+                    
+                    // Timer für Long Press Detection
+                    touchHoldTimer = setTimeout(() => {
+                        if (touchCurrentElement && !touchMoved && !isDragging) {
+                            // Long Press erkannt - Drag starten
+                            startTouchDrag(touchCurrentElement);
+                            
+                            // Haptic Feedback (falls unterstützt)
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
+                        }
+                    }, TOUCH_HOLD_DURATION);
+                }
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (touchCurrentElement) {
+                    const touch = e.touches[0];
+                    const deltaX = Math.abs(touch.clientX - touchStartPos.x);
+                    const deltaY = Math.abs(touch.clientY - touchStartPos.y);
+                    
+                    // Prüfe ob genug Bewegung für "touchMoved" Flag
+                    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+                        touchMoved = true;
+                        
+                        // Cancel long press timer wenn zu viel Bewegung vor Drag-Start
+                        if (!isDragging && touchHoldTimer) {
+                            clearTimeout(touchHoldTimer);
+                            touchHoldTimer = null;
+                            
+                            // Reset visual feedback
+                            if (touchCurrentElement) {
+                                touchCurrentElement.style.transform = '';
+                                touchCurrentElement.style.transition = '';
+                            }
+                        }
+                    }
+                    
+                    // Wenn Drag aktiv ist
+                    if (isDragging && touchCurrentElement) {
+                        e.preventDefault(); // Nur während aktivem Drag
+                        
+                        // Element unter dem Finger finden
+                        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const zimmer = elementBelow ? elementBelow.closest('.zimmer, .ablage-zimmer') : null;
+                        
+                        // Hover-Effekte aktualisieren
+                        document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
+                            z.classList.remove('drag-hover');
+                        });
+                        
+                        if (zimmer) {
+                            zimmer.classList.add('drag-hover');
+                        }
+                        
+                        // Visuelles Feedback: Element folgt dem Finger
+                        touchCurrentElement.style.position = 'fixed';
+                        touchCurrentElement.style.left = (touch.clientX - 75) + 'px';
+                        touchCurrentElement.style.top = (touch.clientY - 30) + 'px';
+                        touchCurrentElement.style.zIndex = '9999';
+                        touchCurrentElement.style.pointerEvents = 'none';
+                        touchCurrentElement.style.opacity = '0.9';
+                        touchCurrentElement.style.transform = 'scale(1.1) rotate(3deg)';
+                        touchCurrentElement.style.transition = 'none';
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', async function(e) {
+                // Clear timers
+                if (touchHoldTimer) {
+                    clearTimeout(touchHoldTimer);
+                    touchHoldTimer = null;
+                }
+                
+                if (touchCurrentElement) {
+                    // Reset visual feedback wenn kein Drag aktiv war
+                    if (!isDragging) {
+                        touchCurrentElement.style.transform = '';
+                        touchCurrentElement.style.transition = '';
+                    }
+                    
+                    // Wenn Drag aktiv war
+                    if (isDragging) {
+                        e.preventDefault();
+                        
+                        // Element unter der letzten Touch-Position finden
+                        const touch = e.changedTouches[0];
+                        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                        
+                        // Touch-Drag beenden
+                        endTouchDrag();
+                        
+                        // Drop verarbeiten
+                        await handleDrop(e, elementBelow);
+                        
+                        console.log('📱 Touch-Drop verarbeitet');
+                    }
+                }
+                
+                // Reset für nächsten Touch
+                touchCurrentElement = null;
+                touchStartPos = null;
+                touchMoved = false;
+                touchStartTime = 0;
+            });
+
+            // Touch Cancel (wichtig für Interruptions)
+            document.addEventListener('touchcancel', function(e) {
+                if (touchHoldTimer) {
+                    clearTimeout(touchHoldTimer);
+                    touchHoldTimer = null;
+                }
+                
+                if (isDragging && touchCurrentElement) {
+                    endTouchDrag();
+                }
+                
+                // Reset
+                touchCurrentElement = null;
+                touchStartPos = null;
+                touchMoved = false;
+                touchStartTime = 0;
+            });
+
+            // 🚀 GEMEINSAME FUNKTIONEN
+            function startTouchDrag(element) {
+                draggedElement = element;
+                draggedReservation = getCurrentReservationData(element);
+                element.classList.add('dragging');
+                isDragging = true;
+                
+                console.log('📱 Touch-Drag gestartet für:', draggedReservation.name);
+                
+                // Verbesserte Drag-Styles für Mobile
+                element.style.transform = 'scale(1.1) rotate(3deg)';
+                element.style.transition = 'transform 0.2s ease';
+                element.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+                element.style.zIndex = '1000';
+                
+                // Kapazitätsprüfung und Zimmer-Markierung
+                checkRoomCapacities(draggedReservation);
+                
+                // Visuelles Feedback für verfügbare Drop-Zonen
+                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(zimmer => {
+                    zimmer.style.transition = 'all 0.2s ease';
+                    if (zimmer.classList.contains('drop-target') || 
+                        zimmer.classList.contains('drop-target-warning') || 
+                        zimmer.classList.contains('ablage-zimmer')) {
+                        zimmer.style.transform = 'scale(1.02)';
+                        zimmer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    }
+                });
+            }
+
+            function endTouchDrag() {
+                if (touchCurrentElement) {
+                    // Style-Reset für das bewegte Element
+                    touchCurrentElement.style.position = '';
+                    touchCurrentElement.style.left = '';
+                    touchCurrentElement.style.top = '';
+                    touchCurrentElement.style.zIndex = '';
+                    touchCurrentElement.style.pointerEvents = '';
+                    touchCurrentElement.style.opacity = '';
+                    touchCurrentElement.style.transform = '';
+                    touchCurrentElement.style.transition = '';
+                    touchCurrentElement.style.boxShadow = '';
+                    touchCurrentElement.classList.remove('dragging');
+                }
+                
+                // Reset für alle Zimmer
+                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(zimmer => {
+                    zimmer.style.transform = '';
+                    zimmer.style.boxShadow = '';
+                    zimmer.style.transition = '';
+                });
+                
+                draggedElement = null;
+                draggedReservation = null;
+                isDragging = false;
+                
+                // Alle Markierungen entfernen
+                clearRoomMarkings();
+                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
+                    z.classList.remove('drag-hover');
+                });
+            }
+
+            async function handleDrop(e, targetElement) {
+                const zimmer = targetElement ? targetElement.closest('.zimmer, .ablage-zimmer') : null;
                 if (zimmer && draggedElement && draggedReservation) {
                     const zimmerId = zimmer.dataset.zimmerId;
                     
@@ -1095,7 +1385,7 @@ $currentDate = date('Y-m-d');
                 
                 // Alle Drop-Targets zurücksetzen
                 clearRoomMarkings();
-            });
+            }
         }
 
         function getCurrentReservationData(element) {

@@ -229,6 +229,15 @@ if (!AuthManager::checkSession()) {
       color: white;
     }
     
+    .card-button.primary {
+      background: #3498db;
+      font-weight: 600;
+    }
+    
+    .card-button.primary:hover {
+      background: #2980b9;
+    }
+    
     .card-button.secondary {
       background: #95a5a6;
     }
@@ -813,9 +822,12 @@ if (!AuthManager::checkSession()) {
         <div class="drag-handle">⋮⋮</div>
         <h2 class="card-title">Zimmerplan</h2>
         <p class="card-description">
-          Zeitliche Darstellung der Reservierungen.
+          Zeitliche und grafische Darstellung der Reservierungen mit Drag & Drop-Zimmerwechsel.
         </p>
-        <a href="zp/timeline-unified.html" class="card-button">Zimmerplan öffnen</a>
+        <div class="card-buttons">
+          <a href="zp/zp_day.php" class="card-button primary">📋 Grafischer Zimmerplan</a>
+          <a href="zp/timeline-unified.html" class="card-button secondary">📊 Timeline-Ansicht</a>
+        </div>
       </div>
 
       <div class="dashboard-card" draggable="true" data-card-id="system-tools">
