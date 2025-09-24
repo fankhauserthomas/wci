@@ -81,6 +81,15 @@ if (!empty($normalZimmer)) {
     $gridInfo['rows'] = max(1, $gridInfo['maxY'] - $gridInfo['minY'] + 1);
 }
 
+$returnUrlRaw = isset($_GET['return']) ? $_GET['return'] : ($_SERVER['HTTP_REFERER'] ?? '../reservierungen.html');
+if (preg_match('~^https?://~i', $returnUrlRaw)) {
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $urlHost = parse_url($returnUrlRaw, PHP_URL_HOST);
+    if ($urlHost && $host && strcasecmp($urlHost, $host) !== 0) {
+        $returnUrlRaw = '../reservierungen.html';
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -246,11 +255,9 @@ if (!empty($normalZimmer)) {
         }
 
         .zimmer:hover .reservation-item {
-            font-size: 12px;
-            padding: 4px 6px;
-            white-space: normal;
+            padding: 8px 10px;
             height: auto;
-            min-height: 20px;
+            min-height: 32px;
         }
 
         .zimmer-sidebar {
@@ -273,7 +280,7 @@ if (!empty($normalZimmer)) {
 
         .zimmer-header {
             font-weight: 600;
-            font-size: 10px;
+            font-size: 13px;
             color: #374151;
             margin-bottom: 6px;
             line-height: 1.2;
@@ -281,7 +288,7 @@ if (!empty($normalZimmer)) {
         }
 
         .zimmer-info {
-            font-size: 9px;
+            font-size: 12px;
             color: #6b7280;
             line-height: 1.3;
         }
@@ -302,22 +309,39 @@ if (!empty($normalZimmer)) {
             background: #dbeafe;
             border: 1px solid #93c5fd;
             border-radius: 4px;
-            padding: 2px 4px;
-            font-size: 8px;
+            padding: 6px 8px;
+            font-size: 12px;
             cursor: grab;
             transition: all 0.2s ease;
             box-sizing: border-box;
-            line-height: 1.2;
+            line-height: 1.3;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
             justify-content: center;
-            text-align: center;
+            text-align: left;
+            gap: 2px;
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
+        }
+
+        .reservation-item .reservation-primary {
+            font-weight: 600;
+            width: 100%;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .reservation-item .reservation-meta {
+            font-size: 11px;
+            color: inherit;
+            opacity: 0.85;
+            width: 100%;
+            line-height: 1.2;
+            word-break: break-word;
         }
 
         .reservation-item.drag-hidden {
@@ -359,9 +383,6 @@ if (!empty($normalZimmer)) {
             width: 100%;
             height: calc(100% - 4px);
             max-height: calc(100vh / 16);
-            font-size: 11px;
-            white-space: normal;
-            word-wrap: break-word;
         }
 
         /* 2 Reservierungen - halbe Breite, volle Höhe */
@@ -369,7 +390,6 @@ if (!empty($normalZimmer)) {
             width: 50%;
             height: calc(100% - 4px);
             max-height: calc(100vh / 16);
-            font-size: 10px;
         }
 
         /* 3-4 Reservierungen - halbe Breite, halbe Höhe */
@@ -377,7 +397,6 @@ if (!empty($normalZimmer)) {
             width: 50%;
             height: calc(50% - 2px);
             max-height: calc(100vh / 32);
-            font-size: 9px;
         }
 
         .reservation-item:hover {
@@ -400,6 +419,10 @@ if (!empty($normalZimmer)) {
                 padding: 10px 12px;
                 touch-action: manipulation; /* Erlaubt Scrollen, blockiert Doppeltap-Zoom */
                 user-select: none;
+            }
+
+            .reservation-item .reservation-meta {
+                font-size: 12px;
             }
             
             .reservation-item.dragging {
@@ -574,19 +597,8 @@ if (!empty($normalZimmer)) {
                     <input type="date" id="view-date" class="date-input" value="<?= $currentDate ?>" onchange="loadRoomData()">
                     <button class="btn" onclick="loadToday()">Heute</button>
                     <button class="btn primary" onclick="loadRoomData()">Aktualisieren</button>
+                    <button class="btn" onclick="goBackToOrigin()">Zurück</button>
                 </div>
-                
-                <!-- Cache-Status anzeigen -->
-                <div id="cache-status" style="margin-top: 10px; padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 11px; color: #6b7280;">
-                    <div id="cache-info">Cache: nicht geladen</div>
-                </div>
-            </div>
-            
-            <div class="sidebar-section">
-                <h3>Menü</h3>
-                <button class="btn" onclick="showReservations()">Reservierungen</button>
-                <button class="btn" onclick="showSettings()">Einstellungen</button>
-                <button class="btn" onclick="showReports()">Berichte</button>
             </div>
 
             <?php if (!empty($ablageZimmer)): ?>
@@ -666,6 +678,54 @@ if (!empty($normalZimmer)) {
     const SCROLL_EDGE_SPEED = 18;
     const SCROLL_BOTTOM_BUFFER_TOUCH = 160;
     const SCROLL_BOTTOM_BUFFER_DESKTOP = 80;
+    const returnUrlTarget = <?= json_encode($returnUrlRaw, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value).replace(/[&<>"']/g, function(char) {
+                const entities = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                };
+                return entities[char] || char;
+            });
+        }
+
+        function buildReservationDisplay(reservation) {
+            const caption = (reservation.caption || '').trim();
+            const name = (reservation.name || '').trim();
+            const primaryRaw = caption || name || `Reservierung ${reservation.id}`;
+
+            let guestLabel = '';
+            if (reservation.anz !== undefined && reservation.anz !== null && reservation.anz !== '') {
+                const parsedGuests = parseInt(reservation.anz, 10);
+                if (!Number.isNaN(parsedGuests)) {
+                    guestLabel = `${parsedGuests} ${parsedGuests === 1 ? 'Gast' : 'Gäste'}`;
+                } else {
+                    guestLabel = String(reservation.anz).trim();
+                }
+            }
+
+            const metaParts = [];
+            if (guestLabel) {
+                metaParts.push(guestLabel);
+            }
+            if (reservation.arrangement) {
+                metaParts.push(String(reservation.arrangement).trim());
+            }
+
+            const metaRaw = metaParts.join(' • ');
+
+            return {
+                primary: escapeHtml(primaryRaw),
+                meta: metaRaw ? escapeHtml(metaRaw) : ''
+            };
+        }
         
         // Reservation lookup und Cache für optimierte Kapazitätsprüfung
         let currentReservations = [];
@@ -905,6 +965,16 @@ if (!empty($normalZimmer)) {
             });
         });
 
+        function goBackToOrigin() {
+            if (returnUrlTarget) {
+                window.location.href = returnUrlTarget;
+            } else if (document.referrer) {
+                window.location.href = document.referrer;
+            } else {
+                window.history.back();
+            }
+        }
+
         function calculateRoomPositions() {
             const container = document.querySelector('.zimmerplan');
             const wrapper = document.querySelector('.zimmerplan-container');
@@ -1086,9 +1156,6 @@ if (!empty($normalZimmer)) {
                                         // Cache-Gültigkeit setzen (5 Minuten)
                                         cacheValidUntil = Date.now() + (5 * 60 * 1000);
                                         
-                                        // Cache-Status in der UI anzeigen
-                                        updateCacheStatusDisplay();
-                                        
                                         console.log('⚡ Cache aktiv - Drag & Drop optimiert');
                                     }
                                 })
@@ -1097,10 +1164,8 @@ if (!empty($normalZimmer)) {
                                 });
                         } else {
                             console.log('📋 Kein erweiterte Cache nötig - nur Ein-Tages-Reservierungen');
-                            // Cache-Status für Ein-Tages-Reservierungen anzeigen
                             cacheMinDate = null;
                             cacheMaxDate = null;
-                            updateCacheStatusDisplay();
                         }
                         
                         // Filtere Reservierungen für aktuellen Tag (für Anzeige)
@@ -1216,31 +1281,6 @@ if (!empty($normalZimmer)) {
                    currentViewDate <= cacheMaxDate;
         }
 
-        // Cache-Status in der UI anzeigen
-        function updateCacheStatusDisplay() {
-            const cacheInfo = document.getElementById('cache-info');
-            if (!cacheInfo) return;
-            
-            if (cacheMinDate && cacheMaxDate) {
-                const totalReservations = reservationLookupCache.size;
-                const spanDays = Math.ceil((new Date(cacheMaxDate) - new Date(cacheMinDate)) / (1000*60*60*24));
-                const cacheSize = Math.round(JSON.stringify([...reservationLookupCache.values()]).length / 1024);
-                
-                cacheInfo.innerHTML = `
-                    <strong>Cache aktiv:</strong><br>
-                    📅 ${cacheMinDate} - ${cacheMaxDate}<br>
-                    📊 ${totalReservations} Reservierungen (${spanDays} Tage)<br>
-                    💾 ${cacheSize}KB Speicher
-                `;
-                cacheInfo.style.background = '#ecfdf5';
-                cacheInfo.style.color = '#065f46';
-            } else {
-                cacheInfo.innerHTML = 'Cache: nur Ein-Tages-Daten';
-                cacheInfo.style.background = '#fef3c7';
-                cacheInfo.style.color = '#92400e';
-            }
-        }
-
         function showLoadingIndicator() {
             // Einfacher Loading-Indikator
             document.querySelectorAll('.zimmer-content').forEach(container => {
@@ -1287,7 +1327,11 @@ if (!empty($normalZimmer)) {
             item.dataset.resid = reservation.resid;
             
             // Vollständige Reservierungsinfo als Tooltip basierend auf AV_ResDet Struktur
-            let tooltip = `${reservation.name}`;
+            const tooltipLabel = reservation.caption || reservation.name || `Reservierung ${reservation.id}`;
+            let tooltip = `${tooltipLabel}`;
+            if (reservation.name && reservation.caption && reservation.caption !== reservation.name) {
+                tooltip += `\nGast: ${reservation.name}`;
+            }
             if (reservation.von) tooltip += `\nVon: ${reservation.von}`;
             if (reservation.bis) tooltip += `\nBis: ${reservation.bis}`;
             if (reservation.anz) tooltip += `\nAnzahl: ${reservation.anz}`;
@@ -1297,8 +1341,9 @@ if (!empty($normalZimmer)) {
             
             item.title = tooltip;
             
-            // Anzeigename (gekürzt wenn nötig)
-            item.textContent = reservation.name;
+            const display = buildReservationDisplay(reservation);
+            item.innerHTML = `<span class="reservation-primary">${display.primary}</span>` +
+                (display.meta ? `<span class="reservation-meta">${display.meta}</span>` : '');
             
             // Status-basierte Farbgebung
             const statusColor = getReservationStatusColor(reservation);
@@ -2389,19 +2434,6 @@ if (!empty($normalZimmer)) {
             // notification.textContent = message;
             // document.body.appendChild(notification);
             // setTimeout(() => notification.remove(), 3000);
-        }
-
-        // Menü-Funktionen
-        function showReservations() {
-            window.location.href = '../reservierungen.html';
-        }
-
-        function showSettings() {
-            alert('Einstellungen - noch nicht implementiert');
-        }
-
-        function showReports() {
-            alert('Berichte - noch nicht implementiert');
         }
     </script>
 </body>

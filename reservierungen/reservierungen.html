@@ -674,7 +674,8 @@
         </div>
 
         <!-- Neue Reservierung Button -->
-        <button id="newReservationBtn" class="toggle-btn new-res">+ Neue Reservierung</button>
+        <button id="newReservationBtn" class="toggle-btn new-res">+ Reservierung</button>
+        <button id="openZimmerplanBtn" class="toggle-btn zp-link" type="button" title="Zimmerplan öffnen">ZP</button>
       </div>
 
       <!-- Progress Indicator rechts -->
@@ -982,6 +983,53 @@
     let isHpUpdateRunning = false;
     let lastHpUpdateTime = 0;
     const MIN_HP_UPDATE_INTERVAL = 1000; // Reduziert von 5000ms auf 1000ms für schnellere Updates
+
+    function getActiveReservationDate() {
+      const mode = localStorage.getItem('filterMode') || 'arrival-today';
+
+      if (mode === 'arrival-today') {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      if (mode === 'departure-tomorrow') {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toISOString().slice(0, 10);
+      }
+
+      const dateInput = document.getElementById('filterDate');
+      if (dateInput && dateInput.value) {
+        return dateInput.value;
+      }
+
+      const storedDate = localStorage.getItem('filterDate');
+      if (storedDate) {
+        return storedDate;
+      }
+
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function openZimmerplanForCurrentDate() {
+      const targetDate = getActiveReservationDate();
+      const returnParam = `${window.location.pathname}${window.location.search}`;
+      const targetUrl = `../zp/zp_day.php?date=${encodeURIComponent(targetDate)}&return=${encodeURIComponent(returnParam)}`;
+      window.location.href = targetUrl;
+    }
+
+    function bindZimmerplanButton() {
+      const button = document.getElementById('openZimmerplanBtn');
+      if (!button) {
+        return;
+      }
+      button.addEventListener('click', openZimmerplanForCurrentDate);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindZimmerplanButton);
+    } else {
+      bindZimmerplanButton();
+    }
 
     // Debounce-Funktion hinzufügen
     function debounce(func, wait) {

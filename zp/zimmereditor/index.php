@@ -808,7 +808,7 @@ if ($action === 'save') {
     });
     window.addEventListener('mouseup', (e)=> {
         if(dragInfo && state.geom && state.ghost){
-            const { offX, offY, cellW, cellH, maxX, maxY, a4W } = state.geom;
+            const { offX, offY, cellW, cellH, maxX, maxY, a4W, a4H } = state.geom;
             const cx = state.ghost.x + state.ghost.w/2;
             const cy = state.ghost.y + state.ghost.h/2;
             let ix = Math.floor((cx - offX)/cellW) + 1;
@@ -816,15 +816,24 @@ if ($action === 'save') {
             // Detect intent to extend columns: ghost reached right border (within tolerance)
             const ghostRight = state.ghost.x + state.ghost.w;
             const gridRight = offX + a4W;
-            const atRightBorder = (ghostRight >= gridRight - 2);
+            const gridBottom = offY + a4H;
+            const rightTolerance = Math.max(2, Math.round(cellW * 0.15));
+            const bottomTolerance = Math.max(2, Math.round(cellH * 0.15));
+            const atRightBorder = (ghostRight >= gridRight - rightTolerance);
+            const ghostBottom = state.ghost.y + state.ghost.h;
+            const atBottomBorder = (ghostBottom >= gridBottom - bottomTolerance);
             // Allow extending only by one column to avoid gaps
             if (atRightBorder && ix >= maxX) {
                 ix = maxX + 1;
             } else {
                 ix = Math.max(1, Math.min(maxX, ix));
             }
-            iy = Math.max(1, Math.min(maxY, iy));
-            try { console.debug('[Zimmereditor] drop', { from: { px: dragInfo.fromPX, py: dragInfo.fromPY }, to: { ix, iy }, maxX, atRightBorder }); } catch(_) {}
+            if (atBottomBorder && iy >= maxY) {
+                iy = maxY + 1;
+            } else {
+                iy = Math.max(1, Math.min(maxY, iy));
+            }
+            try { console.debug('[Zimmereditor] drop', { from: { px: dragInfo.fromPX, py: dragInfo.fromPY }, to: { ix, iy }, maxX, maxY, atRightBorder, atBottomBorder }); } catch(_) {}
             if(ix !== dragInfo.row.px || iy !== dragInfo.row.py){
                 dragInfo.row.px = ix; dragInfo.row.py = iy; state.dirty.updated.add(dragInfo.row.id);
             }
