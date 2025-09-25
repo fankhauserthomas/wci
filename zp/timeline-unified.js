@@ -537,6 +537,12 @@ class TimelineUnifiedRenderer {
         this.roomsById = new Map();
         this.roomCategoryCache = new Map();
 
+        // Kontextmenüs & Datumsstatus
+        this.dateMenuEl = null;
+        this.dateMenuHeader = null;
+        this.dateMenuContext = null;
+        this.currentRange = null;
+
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
         this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
@@ -2296,6 +2302,13 @@ class TimelineUnifiedRenderer {
                     this.hideMasterContextMenu();
                 }
             }
+
+            // Close date context menu on outside click
+            if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') {
+                if (!this.dateMenuEl.contains(event.target)) {
+                    this.hideDateContextMenu();
+                }
+            }
         });
 
         window.addEventListener('keydown', (event) => {
@@ -2305,6 +2318,9 @@ class TimelineUnifiedRenderer {
                 }
                 if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
                     this.hideMasterContextMenu();
+                }
+                if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') {
+                    this.hideDateContextMenu();
                 }
             }
         });
@@ -2756,6 +2772,25 @@ class TimelineUnifiedRenderer {
             }
         }
 
+        // Header-Bereich: Datums-spezifisches Kontextmenü
+        if (mouseY >= this.areas.header.y && mouseY <= this.areas.header.y + this.areas.header.height) {
+            if (mouseX >= this.sidebarWidth) {
+                const targetDate = this.resolveDateFromHeader(mouseX);
+                if (targetDate) {
+                    e.preventDefault();
+                    if (this.radialMenu?.isVisible()) this.radialMenu.hide();
+                    if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+                    this.showDateContextMenu(targetDate, e.clientX, e.clientY);
+                    return;
+                }
+            }
+
+            // Kein gültiges Datum getroffen -> vorhandenes Menü schließen
+            if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') {
+                this.hideDateContextMenu();
+            }
+        }
+
         // 1) Master area context menu
         if (mouseY >= this.areas.master.y && mouseY <= this.separatorY) {
             const hitMaster = this.findMasterReservationAt(mouseX, mouseY);
@@ -2764,11 +2799,13 @@ class TimelineUnifiedRenderer {
                 this.showMasterContextMenu(hitMaster, e.clientX, e.clientY);
                 // Also hide radial menu if it was open
                 if (this.radialMenu?.isVisible()) this.radialMenu.hide();
+                if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') this.hideDateContextMenu();
                 return;
             } else {
                 // Clicked in master area but not on a bar -> hide menus
                 if (this.radialMenu?.isVisible()) this.radialMenu.hide();
                 if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+                if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') this.hideDateContextMenu();
                 e.preventDefault();
                 return;
             }
@@ -2802,11 +2839,13 @@ class TimelineUnifiedRenderer {
             e.preventDefault();
             // Ensure master context menu is closed when opening radial
             if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+            if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') this.hideDateContextMenu();
             this.radialMenu.show(detail, e.clientX, e.clientY, rings);
         } else {
             // Outside of actionable areas: close menus and let default menu appear
             if (this.radialMenu?.isVisible()) this.radialMenu.hide();
             if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
+            if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') this.hideDateContextMenu();
         }
     }
 
@@ -2919,7 +2958,6 @@ class TimelineUnifiedRenderer {
                 <div class="mcm-card">
                     <button class="mcm-item" data-action="dataset">Datensatz</button>
                     <button class="mcm-item" data-action="to-room">in Zimmer</button>
-                    <button class="mcm-item" data-action="split">Aufteilen</button>
                 </div>
             `;
             document.body.appendChild(el);
@@ -2933,7 +2971,6 @@ class TimelineUnifiedRenderer {
                 const detail = this.masterMenuContext || null;
                 if (action === 'dataset') this.onMasterMenuDataset(detail);
                 if (action === 'to-room') this.onMasterMenuToRoom(detail);
-                if (action === 'split') this.onMasterMenuSplit(detail);
                 this.hideMasterContextMenu();
                 evt.preventDefault();
                 evt.stopPropagation();
@@ -2997,7 +3034,7 @@ class TimelineUnifiedRenderer {
         this.masterMenuContext = detail;
 
         // Position near cursor but keep fully in viewport
-        const menuRect = { width: 200, height: 140 };
+        const menuRect = { width: 200, height: 100 };
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         let x = clientX;
@@ -3045,8 +3082,221 @@ class TimelineUnifiedRenderer {
             console.error('Error opening room assignment modal:', err);
         }
     }
-    onMasterMenuSplit(detail) {
-        console.log('[MasterMenu] Aufteilen clicked', detail);
+
+    // ===== Date Context Menu (DOM) =====
+    resolveDateFromHeader(mouseX) {
+        if (!this.currentRange || !this.DAY_WIDTH) return null;
+        const { startDate, endDate } = this.currentRange;
+        if (!(startDate instanceof Date) || !(endDate instanceof Date)) return null;
+
+        const relativeX = mouseX + this.scrollX - this.sidebarWidth;
+        if (relativeX < 0) return null;
+        const dayOffset = Math.floor(relativeX / this.DAY_WIDTH);
+        if (dayOffset < 0) return null;
+
+        const target = new Date(startDate.getTime());
+        target.setDate(target.getDate() + dayOffset);
+        if (target.getTime() > endDate.getTime()) {
+            return null;
+        }
+        return target;
+    }
+
+    formatDateISO(date) {
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    formatDateLabel(date) {
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+        try {
+            return date.toLocaleDateString('de-DE', {
+                weekday: 'short',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        } catch (err) {
+            console.warn('Locale formatting failed, falling back to ISO:', err);
+            return this.formatDateISO(date);
+        }
+    }
+
+    ensureDateContextMenu() {
+        this.injectDateContextMenuStyles();
+        if (this.dateMenuEl) return;
+
+        const el = document.createElement('div');
+        el.id = 'timeline-date-menu';
+        el.setAttribute('aria-hidden', 'true');
+        el.style.display = 'none';
+        el.innerHTML = `
+            <div class="tdm-card">
+                <div class="tdm-date"></div>
+                <button class="tdm-item" data-action="roomplan">Zimmerplan</button>
+                <button class="tdm-item" data-action="guestreport">Berichte</button>
+            </div>
+        `;
+
+        document.body.appendChild(el);
+        this.dateMenuEl = el;
+        this.dateMenuHeader = el.querySelector('.tdm-date');
+
+        el.addEventListener('click', (evt) => {
+            const btn = evt.target.closest('.tdm-item');
+            if (!btn) return;
+            evt.preventDefault();
+            evt.stopPropagation();
+
+            const action = btn.getAttribute('data-action');
+            const contextDate = this.dateMenuContext ? new Date(this.dateMenuContext.getTime()) : null;
+
+            if (!contextDate) {
+                this.hideDateContextMenu();
+                return;
+            }
+
+            if (action === 'roomplan') {
+                this.onDateMenuRoomplan(contextDate);
+            } else if (action === 'guestreport') {
+                this.onDateMenuGuestreport(contextDate);
+            } else {
+                this.hideDateContextMenu();
+            }
+        });
+    }
+
+    injectDateContextMenuStyles() {
+        if (document.getElementById('timeline-date-menu-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'timeline-date-menu-styles';
+        style.textContent = `
+            #timeline-date-menu {
+                position: fixed;
+                z-index: 9999;
+                left: 0;
+                top: 0;
+                transform: translate(-50%, -50%);
+                user-select: none;
+            }
+            #timeline-date-menu .tdm-card {
+                min-width: 200px;
+                background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.92));
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
+                border-radius: 12px;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                backdrop-filter: blur(6px);
+            }
+            #timeline-date-menu .tdm-date {
+                font-size: 13px;
+                letter-spacing: 0.02em;
+                text-transform: uppercase;
+                color: #cbd5f5;
+                margin-bottom: 2px;
+            }
+            #timeline-date-menu .tdm-item {
+                appearance: none;
+                border: none;
+                background: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(59, 130, 246, 0.18));
+                color: #e2e8f0;
+                padding: 10px 12px;
+                border-radius: 8px;
+                font-size: 13px;
+                text-align: left;
+                cursor: pointer;
+                transition: transform .06s ease, background .18s ease, box-shadow .18s ease;
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+            }
+            #timeline-date-menu .tdm-item:hover {
+                background: linear-gradient(90deg, rgba(37, 99, 235, 0.42), rgba(59, 130, 246, 0.32));
+                transform: translateY(-1px);
+                box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14), 0 6px 14px rgba(59, 130, 246, 0.22);
+            }
+            #timeline-date-menu .tdm-item:active {
+                transform: translateY(0);
+                background: linear-gradient(90deg, rgba(37, 99, 235, 0.52), rgba(59, 130, 246, 0.42));
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    showDateContextMenu(date, clientX, clientY) {
+        this.ensureDateContextMenu();
+        if (!this.dateMenuEl) return;
+
+        this.dateMenuContext = new Date(date.getTime());
+        if (this.dateMenuHeader) {
+            this.dateMenuHeader.textContent = this.formatDateLabel(date);
+        }
+
+        // Display for measurement
+        this.dateMenuEl.style.display = 'block';
+        this.dateMenuEl.setAttribute('aria-hidden', 'false');
+        this.dateMenuEl.style.left = '-9999px';
+        this.dateMenuEl.style.top = '-9999px';
+
+        const menuRect = this.dateMenuEl.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let x = clientX;
+        let y = clientY;
+
+        if (x + menuRect.width > vw) {
+            x = Math.max(8, vw - menuRect.width - 8);
+        }
+        if (y + menuRect.height > vh) {
+            y = Math.max(8, vh - menuRect.height - 8);
+        }
+
+        this.dateMenuEl.style.left = `${x}px`;
+        this.dateMenuEl.style.top = `${y}px`;
+    }
+
+    hideDateContextMenu() {
+        if (!this.dateMenuEl) return;
+        if (document.activeElement && this.dateMenuEl.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (_) { }
+        }
+        this.dateMenuEl.style.display = 'none';
+        this.dateMenuEl.setAttribute('aria-hidden', 'true');
+        this.dateMenuContext = null;
+    }
+
+    onDateMenuRoomplan(date) {
+        this.hideDateContextMenu();
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+        const iso = this.formatDateISO(date);
+        if (!iso) return;
+
+        try {
+            const url = new URL('roomplan.php', window.location.href);
+            url.searchParams.set('date', iso);
+            window.open(url.toString(), '_blank', 'noopener=yes');
+        } catch (err) {
+            console.error('Konnte Zimmerplan-Seite nicht öffnen:', err);
+        }
+    }
+
+    onDateMenuGuestreport(date) {
+        this.hideDateContextMenu();
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+        const iso = this.formatDateISO(date);
+        if (!iso) return;
+
+        try {
+            const url = new URL('guestreport.php', window.location.href);
+            url.searchParams.set('date', iso);
+            window.open(url.toString(), '_blank', 'noopener=yes');
+        } catch (err) {
+            console.error('Konnte Gästereport-Seite nicht öffnen:', err);
+        }
     }
 
     resolveRoomDetail(detail) {
@@ -5468,6 +5718,12 @@ class TimelineUnifiedRenderer {
 
         // Datums-Logik: konfigurierbare Wochen Vergangenheit/Zukunft (auf 0 Uhr fixiert)
         const { now, startDate, endDate } = this.getTimelineDateRange();
+
+        this.currentRange = {
+            startDate: new Date(startDate.getTime()),
+            endDate: new Date(endDate.getTime()),
+            now: new Date(now.getTime())
+        };
 
         // Pre-calculate room heights for correct scrollbar sizing
         this.preCalculateRoomHeights(startDate, endDate);

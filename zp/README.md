@@ -31,6 +31,8 @@ Alle Oberflächen greifen auf gemeinsame PHP-APIs zu, die auf der lokalen MySQL-
 | `timeline-config.html` | Konfigurationsoberfläche für Themes, Layout-Metriken und Wochenbereich.
 | `timeline-config.js` | Persistenz der Konfiguration (Cookie + `localStorage`), `postMessage`-Brücke zur Timeline.
 | `zimmereditor/index.php` | CRUD-Oberfläche für `zp_zimmer` inkl. Farbwähler, Drag-Sortierung, Layout-Vorschau.
+| `roomplan.php` | Druckfreundliche Zimmerplan-Ansicht für einen Stichtag (Kontextmenü im Timeline-Header).
+| `guestreport.php` | Aufenthaltsübersicht (±7 Tage) inkl. Arrangements-Tabelle für die nächsten 14 Tage.
 | `api_*.php`, `get*.php`, `update*.php` | REST-ähnliche Endpunkte für Reservierungen, Zimmer, Arrangements, Attribute usw. (Details unten).
 | `assignRoomsToReservation.php` | Speichert Zuordnungen ganzer Aufenthalte zu Räumen mit Kapazitätsprüfung.
 | `README.md` | Diese Datei.
