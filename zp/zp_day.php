@@ -104,6 +104,7 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
 
         html, body {
             height: 100%;
+            min-height: 100%;
         }
 
         body {
@@ -114,23 +115,28 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             -webkit-font-smoothing: antialiased;
             user-select: none;
             -webkit-user-select: none;
+            min-height: 100vh;
+            min-height: 100dvh;
         }
 
         .main-content {
             display: flex;
-            gap: 24px;
+            gap: 16px;
             height: 100vh;
-            padding: 24px;
+            height: 100dvh;
+            min-height: 100vh;
+            padding: 16px;
             overflow: hidden;
         }
 
         .sidebar {
-            width: 300px;
+            width: 250px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             flex-shrink: 0;
-            max-height: calc(100vh - 48px);
+            max-height: calc(100vh - 32px);
+            max-height: calc(100dvh - 32px);
             overflow-y: auto;
         }
 
@@ -138,19 +144,19 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            padding: 16px;
+            padding: 12px;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
 
         .sidebar-section + .sidebar-section {
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
         .sidebar-section h3 {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             color: #374151;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .date-controls {
@@ -159,14 +165,53 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             gap: 8px;
         }
 
+        .date-selection-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .date-nav-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            color: #1f2937;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            padding: 0;
+        }
+
+        .date-nav-button:hover {
+            border-color: #94a3b8;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .date-nav-button:active {
+            transform: translateY(0);
+            box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.08);
+        }
+
         .date-input {
-            padding: 8px 12px;
+            padding: 12px 16px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 16px;
+            font-weight: 600;
             width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
             background: #ffffff;
             color: inherit;
+            min-height: 40px;
+            line-height: 1.2;
         }
 
         .zimmerplan-container {
@@ -300,7 +345,8 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             overflow-y: auto;
             display: flex;
             flex-wrap: wrap;
-            gap: 0;
+            row-gap: 0;
+            column-gap: 2px;
             align-content: flex-start;
         }
 
@@ -326,6 +372,35 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+        }
+
+        .reservation-item::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0) 70%);
+            pointer-events: none;
+            mix-blend-mode: screen;
+            opacity: 0.75;
+            border-radius: inherit;
+        }
+
+        .reservation-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 4px rgba(15, 23, 42, 0.25);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        @media (min-width: 900px) {
+            .zimmer-header {
+                padding-left: 4px;
+            }
         }
 
         .reservation-item .reservation-primary {
@@ -333,6 +408,13 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             width: 100%;
             line-height: 1.2;
             word-break: break-word;
+            font-size: 11px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 2.4em;
         }
 
         .reservation-item .reservation-meta {
@@ -342,6 +424,10 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             width: 100%;
             line-height: 1.2;
             word-break: break-word;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .reservation-item.drag-hidden {
@@ -380,30 +466,24 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
 
         /* 1 Reservierung - maximale Größe */
         .zimmer-content.count-1 .reservation-item {
-            width: 100%;
+            width: calc(100% - 3px);
             height: calc(100% - 4px);
             max-height: calc(100vh / 16);
         }
 
         /* 2 Reservierungen - halbe Breite, volle Höhe */
         .zimmer-content.count-2 .reservation-item {
-            width: 50%;
+            width: calc(50% - 3px);
             height: calc(100% - 4px);
             max-height: calc(100vh / 16);
         }
 
-        /* 3-4 Reservierungen - halbe Breite, halbe Höhe */
+        /* 3 oder mehr Reservierungen - drei pro Zeile */
         .zimmer-content.count-3-plus .reservation-item {
-            width: 50%;
-            height: calc(50% - 2px);
-            max-height: calc(100vh / 32);
+            width: calc(33.333% - 3px);
+            height: auto;
+            max-height: none;
         }
-
-        .reservation-item:hover {
-            background: #bfdbfe;
-            border-color: #60a5fa;
-        }
-
         .reservation-item.dragging {
             cursor: grabbing;
             opacity: 0.7;
@@ -488,22 +568,53 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
         .ablage-zimmer {
             background: #fef3c7;
             border: 1px solid #f59e0b;
-            border-radius: 6px;
-            padding: 0;
+            border-radius: 8px;
+            padding: 12px;
             margin-bottom: 8px;
             display: flex;
-            flex-direction: row;
-            min-height: 60px;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 220px;
         }
 
-        .ablage-zimmer .zimmer-sidebar {
-            width: 70px;
-            background: rgba(245, 158, 11, 0.1);
-            border-right: 1px solid #f59e0b;
+        .ablage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
 
-        .ablage-zimmer .zimmer-header {
+        .ablage-header .zimmer-header {
+            margin: 0;
             color: #92400e;
+            font-size: 13px;
+        }
+
+        .ablage-capacity {
+            font-size: 12px;
+            font-weight: 600;
+            color: #b45309;
+        }
+
+        .ablage-zimmer .zimmer-content {
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px dashed rgba(245, 158, 11, 0.35);
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1 1 auto;
+            min-height: 180px;
+            overflow-y: auto;
+            align-items: stretch;
+            align-content: stretch;
+        }
+
+        .ablage-zimmer .zimmer-content .reservation-item {
+            width: 100%;
+            height: auto !important;
+            max-height: none !important;
         }
 
         .drop-target {
@@ -576,9 +687,47 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             background: #2563eb;
         }
 
+        .sidebar-back {
+            margin-top: 4px;
+        }
+
+        .btn-back {
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+            background: linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #facc15 100%);
+            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.25);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn-back span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-back:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(217, 119, 6, 0.3);
+        }
+
+        .btn-back:active {
+            transform: translateY(0);
+            box-shadow: inset 0 2px 6px rgba(146, 64, 14, 0.35);
+        }
+
         @media (max-width: 1024px) {
             .sidebar {
-                width: 240px;
+                width: 220px;
             }
             
             .zimmerplan {
@@ -592,24 +741,23 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
     <div class="main-content">
         <div class="sidebar">
             <div class="sidebar-section">
-                <h3>Datum</h3>
                 <div class="date-controls">
-                    <input type="date" id="view-date" class="date-input" value="<?= $currentDate ?>" onchange="loadRoomData()">
+                    <div class="date-selection-row">
+                        <button class="date-nav-button" type="button" onclick="shiftViewDate(-1)" aria-label="Vorheriger Tag">&#x2039;</button>
+                        <input type="date" id="view-date" class="date-input" value="<?= $currentDate ?>" onchange="loadRoomData()">
+                        <button class="date-nav-button" type="button" onclick="shiftViewDate(1)" aria-label="Nächster Tag">&#x203A;</button>
+                    </div>
                     <button class="btn" onclick="loadToday()">Heute</button>
-                    <button class="btn primary" onclick="loadRoomData()">Aktualisieren</button>
-                    <button class="btn" onclick="goBackToOrigin()">Zurück</button>
                 </div>
             </div>
 
             <?php if (!empty($ablageZimmer)): ?>
             <div class="sidebar-section">
-                <h3>Ablage</h3>
                 <?php foreach ($ablageZimmer as $zimmer): ?>
                 <div class="ablage-zimmer" data-zimmer-id="<?= $zimmer['id'] ?>">
-                    <div class="zimmer-sidebar">
+                    <div class="ablage-header">
                         <div class="zimmer-header"><?= htmlspecialchars($zimmer['caption']) ?></div>
-                        <div class="zimmer-info">
-                            <?= $zimmer['kapazitaet'] ?><br>
+                        <div class="ablage-capacity">
                             <span id="occupancy-<?= $zimmer['id'] ?>">0/<?= $zimmer['kapazitaet'] ?></span>
                         </div>
                     </div>
@@ -620,6 +768,13 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
+
+            <div class="sidebar-section sidebar-back">
+                <button class="btn-back" type="button" onclick="goBackToOrigin()">
+                    <span aria-hidden="true">&#x2190;</span>
+                    <span>Zurück zur Übersicht</span>
+                </button>
+            </div>
         </div>
 
         <div class="zimmerplan-container">
@@ -632,7 +787,6 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
                     <div class="zimmer-sidebar">
                         <div class="zimmer-header"><?= htmlspecialchars($zimmer['caption']) ?></div>
                         <div class="zimmer-info">
-                            <?= $zimmer['kapazitaet'] ?><br>
                             <span id="occupancy-<?= $zimmer['id'] ?>">0/<?= $zimmer['kapazitaet'] ?></span>
                         </div>
                     </div>
@@ -672,6 +826,7 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
     let previousHtmlOverflow = '';
 
     const GRID_PADDING = 20;
+    const GRID_VERTICAL_GAP = 8;
     const MIN_CELL_WIDTH = 240;
     const MIN_CELL_HEIGHT = 70;
     const SCROLL_EDGE_THRESHOLD = 80;
@@ -695,6 +850,94 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
                 return entities[char] || char;
             });
         }
+
+        function parseISODate(value) {
+            if (!value) return null;
+            const match = /^\s*(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+            if (!match) return null;
+            const year = Number(match[1]);
+            const month = Number(match[2]);
+            const day = Number(match[3]);
+            if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+            return new Date(year, month - 1, day);
+        }
+
+        function addDays(baseDate, days) {
+            if (!(baseDate instanceof Date) || Number.isNaN(baseDate.getTime())) return null;
+            const copy = new Date(baseDate);
+            copy.setDate(copy.getDate() + days);
+            return copy;
+        }
+
+        function formatDateForInput(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function isSameCalendarDay(dateA, dateB) {
+            if (!(dateA instanceof Date) || !(dateB instanceof Date)) return false;
+            return dateA.getFullYear() === dateB.getFullYear() &&
+                dateA.getMonth() === dateB.getMonth() &&
+                dateA.getDate() === dateB.getDate();
+        }
+
+        function pickReservationDateValue(reservation, keys) {
+            if (!reservation || !Array.isArray(keys)) return null;
+            for (const key of keys) {
+                if (key in reservation && reservation[key]) {
+                    return reservation[key];
+                }
+            }
+            return null;
+        }
+
+        function normalizeReservationColor(hex) {
+            if (!hex) return '#dbeafe';
+            let value = String(hex).trim();
+            if (!value.startsWith('#')) value = '#' + value;
+            const three = /^#([0-9a-fA-F]{3})$/;
+            const four = /^#([0-9a-fA-F]{4})$/;
+            const six = /^#([0-9a-fA-F]{6})$/;
+            const eight = /^#([0-9a-fA-F]{8})$/;
+            if (three.test(value)) {
+                const m = three.exec(value)[1];
+                value = '#' + m[0] + m[0] + m[1] + m[1] + m[2] + m[2];
+            } else if (four.test(value)) {
+                const m = four.exec(value)[1];
+                value = '#' + m[1] + m[1] + m[2] + m[2] + m[3] + m[3];
+            } else if (eight.test(value)) {
+                value = '#' + value.slice(3);
+            }
+            if (six.test(value)) return value.toUpperCase();
+            return '#DBEAFE';
+        }
+
+        function darkenColor(hex, amount = 0.25) {
+            const normalized = normalizeReservationColor(hex);
+            const r = parseInt(normalized.slice(1, 3), 16);
+            const g = parseInt(normalized.slice(3, 5), 16);
+            const b = parseInt(normalized.slice(5, 7), 16);
+            const factor = Math.max(0, Math.min(1, 1 - amount));
+            const dr = Math.max(0, Math.min(255, Math.round(r * factor)));
+            const dg = Math.max(0, Math.min(255, Math.round(g * factor)));
+            const db = Math.max(0, Math.min(255, Math.round(b * factor)));
+            return ('#' + dr.toString(16).padStart(2, '0') + dg.toString(16).padStart(2, '0') + db.toString(16).padStart(2, '0')).toUpperCase();
+        }
+
+        function getContrastingTextColor(hex) {
+            const normalized = normalizeReservationColor(hex);
+            const r = parseInt(normalized.slice(1, 3), 16) / 255;
+            const g = parseInt(normalized.slice(3, 5), 16) / 255;
+            const b = parseInt(normalized.slice(5, 7), 16) / 255;
+            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            return luminance > 0.6 ? '#1f2937' : '#ffffff';
+        }
+
+        const reservationArrivalKeys = ['von', 'anreise', 'arrival', 'ankunft', 'arr_date', 'start'];
+        const reservationDepartureKeys = ['bis', 'abreise', 'departure', 'dep_date', 'ende', 'end'];
 
         function buildReservationDisplay(reservation) {
             const caption = (reservation.caption || '').trim();
@@ -1001,8 +1244,9 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             cellWidth = Math.max(cellWidth, MIN_CELL_WIDTH);
             cellHeight = Math.max(cellHeight, MIN_CELL_HEIGHT);
 
+            const totalCellHeight = cellHeight + GRID_VERTICAL_GAP;
             const layoutWidth = (cellWidth * cols) + padding * 2;
-            const layoutHeight = (cellHeight * rows) + padding * 2;
+            const layoutHeight = (totalCellHeight * rows) + padding * 2 - GRID_VERTICAL_GAP;
             const isTouchLike = (document.body && document.body.classList.contains('tablet-mode'))
                 || (coarsePointerMedia && typeof coarsePointerMedia.matches === 'boolean' && coarsePointerMedia.matches)
                 || ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
@@ -1039,13 +1283,22 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
                 const relativeY = gridY - minGridY;
 
                 const left = padding + (relativeX * cellWidth);
-                const top = padding + (relativeY * cellHeight);
+                const top = padding + (relativeY * totalCellHeight);
                 
                 zimmer.style.position = 'absolute';
                 zimmer.style.left = left + 'px';
                 zimmer.style.top = top + 'px';
                 zimmer.style.width = (cellWidth - 2) + 'px'; // 2px Abstand zwischen Zellen
-                zimmer.style.height = (cellHeight - 2) + 'px';
+
+                const borderCompensation = 4; // 2px Border oben und unten
+                let innerHeight;
+                if (isTouchLike) {
+                    innerHeight = Math.max(40, cellHeight - GRID_VERTICAL_GAP - 2);
+                } else {
+                    const desiredGap = 2;
+                    innerHeight = Math.max(40, (cellHeight + GRID_VERTICAL_GAP) - desiredGap - borderCompensation);
+                }
+                zimmer.style.height = innerHeight + 'px';
                 
                 // Setze Hintergrundfarbe aus Zimmerdefinition
                 applyRoomColor(zimmer);
@@ -1090,9 +1343,34 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
         }
 
         function loadToday() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('view-date').value = today;
+            const today = formatDateForInput(new Date());
+            const input = document.getElementById('view-date');
+            if (input) {
+                input.value = today;
+            }
             currentViewDate = today;
+            loadRoomData();
+        }
+
+        function shiftViewDate(offsetDays) {
+            const dateInput = document.getElementById('view-date');
+            if (!dateInput || typeof offsetDays !== 'number' || !Number.isFinite(offsetDays)) {
+                return;
+            }
+
+            const sourceDate = parseISODate(dateInput.value || currentViewDate);
+            if (!sourceDate) {
+                return;
+            }
+
+            const targetDate = addDays(sourceDate, offsetDays);
+            if (!targetDate || Number.isNaN(targetDate.getTime())) {
+                return;
+            }
+
+            const formatted = formatDateForInput(targetDate);
+            dateInput.value = formatted;
+            currentViewDate = formatted;
             loadRoomData();
         }
 
@@ -1104,7 +1382,7 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             showLoadingIndicator();
             
             // Schritt 1: Lade erst die Daten für den aktuellen Tag
-            fetch(`api_room_data.php?date=${currentViewDate}`)
+            return fetch(`api_room_data.php?date=${currentViewDate}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -1325,6 +1603,12 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             item.className = 'reservation-item';
             item.dataset.reservationId = reservation.id;
             item.dataset.resid = reservation.resid;
+            const guestCount = (() => {
+                const raw = reservation.anz ?? reservation.guests ?? reservation.gaste;
+                const parsed = parseInt(raw, 10);
+                return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+            })();
+            item.dataset.guestCount = String(guestCount);
             
             // Vollständige Reservierungsinfo als Tooltip basierend auf AV_ResDet Struktur
             const tooltipLabel = reservation.caption || reservation.name || `Reservierung ${reservation.id}`;
@@ -1344,12 +1628,36 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             const display = buildReservationDisplay(reservation);
             item.innerHTML = `<span class="reservation-primary">${display.primary}</span>` +
                 (display.meta ? `<span class="reservation-meta">${display.meta}</span>` : '');
-            
-            // Status-basierte Farbgebung
-            const statusColor = getReservationStatusColor(reservation);
-            item.style.backgroundColor = statusColor.bg;
-            item.style.color = statusColor.text;
-            item.style.borderColor = statusColor.border;
+
+            const baseColor = normalizeReservationColor(reservation.col || reservation.farbe || reservation.color);
+            const accentColor = darkenColor(baseColor, 0.35);
+            const textColor = getContrastingTextColor(baseColor);
+
+            const viewDate = parseISODate(currentViewDate);
+            const nextDate = addDays(viewDate, 1);
+            const arrivalValue = pickReservationDateValue(reservation, reservationArrivalKeys);
+            const departureValue = pickReservationDateValue(reservation, reservationDepartureKeys);
+            const arrivalDate = parseISODate(arrivalValue);
+            const departureDate = parseISODate(departureValue);
+            const hasArrivalAccent = arrivalDate && viewDate && isSameCalendarDay(arrivalDate, viewDate);
+            const hasDepartureAccent = departureDate && nextDate && isSameCalendarDay(departureDate, nextDate);
+
+            item.style.backgroundColor = baseColor;
+
+            if (hasArrivalAccent && hasDepartureAccent) {
+                item.style.background = `linear-gradient(90deg, ${accentColor} 0px, ${accentColor} 10px, ${baseColor} 10px calc(100% - 10px), ${accentColor} calc(100% - 10px), ${accentColor} 100%)`;
+            } else if (hasArrivalAccent) {
+                item.style.background = `linear-gradient(90deg, ${accentColor} 0px, ${accentColor} 10px, ${baseColor} 10px 100%)`;
+            } else if (hasDepartureAccent) {
+                item.style.background = `linear-gradient(90deg, ${baseColor} 0px, ${baseColor} calc(100% - 10px), ${accentColor} calc(100% - 10px), ${accentColor} 100%)`;
+            } else {
+                item.style.background = baseColor;
+            }
+
+            item.style.borderColor = accentColor;
+            item.style.color = textColor;
+            item.style.paddingLeft = hasArrivalAccent ? '16px' : '8px';
+            item.style.paddingRight = hasDepartureAccent ? '16px' : '8px';
             
             container.appendChild(item);
             
@@ -1357,67 +1665,23 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             updateRoomLayout(container);
         }
 
-        function getReservationStatusColor(reservation) {
-            const today = new Date(currentViewDate);
-            const vonDate = new Date(reservation.von);
-            const bisDate = new Date(reservation.bis);
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            // Berechne Nächte zwischen von und bis
-            const nights = Math.ceil((bisDate - vonDate) / (1000 * 60 * 60 * 24));
-            
-            // Gelb: Reist morgen ab UND war länger als eine Nacht da (OVERRIDE für alle anderen)
-            if (bisDate.toDateString() === tomorrow.toDateString() && nights > 1) {
-                return {
-                    bg: '#f59e0b',
-                    text: '#000000',
-                    border: '#d97706'
-                };
-            }
-            
-            // Orange: Kommt heute, reist morgen ab (1 Nacht)
-            if (vonDate.toDateString() === today.toDateString() && 
-                bisDate.toDateString() === tomorrow.toDateString()) {
-                return {
-                    bg: '#f97316',
-                    text: '#ffffff',
-                    border: '#ea580c'
-                };
-            }
-            
-            // Blau: Anreise heute und bleibt mindestens 2 Nächte
-            if (vonDate.toDateString() === today.toDateString() && nights >= 2) {
-                return {
-                    bg: '#3b82f6',
-                    text: '#ffffff',
-                    border: '#2563eb'
-                };
-            }
-            
-            // Grün: Bereits angereist und bleibt noch
-            if (vonDate < today && bisDate > tomorrow) {
-                return {
-                    bg: '#10b981',
-                    text: '#ffffff',
-                    border: '#059669'
-                };
-            }
-            
-            // Standard: Hellblau für andere Fälle
-            return {
-                bg: '#dbeafe',
-                text: '#1e40af',
-                border: '#93c5fd'
-            };
-        }
-
         function updateRoomLayout(container) {
-            const count = container.querySelectorAll('.reservation-item').length;
-            
-            // Alle Layout-Klassen entfernen
+            const isAblage = !!container.closest('.ablage-zimmer');
+            const items = Array.from(container.querySelectorAll('.reservation-item'));
+            const count = items.length;
+
+            // Bereinige vorherige Layout-Klassen
             container.classList.remove('count-1', 'count-2', 'count-3-plus');
-            
+
+            if (isAblage) {
+                items.forEach(item => {
+                    item.style.removeProperty('width');
+                    item.style.removeProperty('height');
+                    item.style.removeProperty('max-height');
+                });
+                return;
+            }
+
             // Entsprechende Klasse setzen
             if (count === 1) {
                 container.classList.add('count-1');
@@ -1426,7 +1690,14 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             } else if (count >= 3) {
                 container.classList.add('count-3-plus');
             }
-            
+
+            // Inline-Styles zurücksetzen bevor neue Höhe gesetzt wird
+            items.forEach(item => {
+                item.style.removeProperty('width');
+                item.style.removeProperty('height');
+                item.style.removeProperty('max-height');
+            });
+
             // Dynamische Höhenanpassung basierend auf Zimmergröße
             adjustReservationHeights(container);
         }
@@ -1436,23 +1707,23 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
             if (!zimmer) return;
             
             const zimmerRect = zimmer.getBoundingClientRect();
-            const sidebarWidth = 80; // Breite der zimmer-sidebar
-            const contentHeight = zimmerRect.height - 16; // Abzug für Padding
-            const count = container.querySelectorAll('.reservation-item').length;
-            
-            let itemHeight;
-            if (count === 1) {
-                itemHeight = contentHeight - 4;
-            } else if (count === 2) {
-                itemHeight = contentHeight - 4;
-            } else if (count >= 3) {
-                itemHeight = (contentHeight / 2) - 2;
+            const contentHeight = Math.max(20, zimmerRect.height - 16); // Abzug für Padding
+            const items = Array.from(container.querySelectorAll('.reservation-item'));
+            const count = items.length;
+            if (count === 0) return;
+
+            const rows = Math.max(1, Math.ceil(count / 3));
+            const rowGap = 0;
+            const availableHeight = Math.max(28, contentHeight - (rows - 1) * rowGap);
+            let computedHeight = (availableHeight / rows) - rowGap;
+            if (!Number.isFinite(computedHeight) || computedHeight <= 0) {
+                computedHeight = Math.max(32, availableHeight / rows);
             }
-            
-            // Maximale Höhe basierend auf Bildschirmhöhe begrenzen
-            const maxHeight = Math.min(itemHeight, window.innerHeight / 12);
-            
-            container.querySelectorAll('.reservation-item').forEach(item => {
+            computedHeight = Math.max(32, computedHeight);
+            const maxHeight = Math.min(computedHeight, window.innerHeight / 12);
+
+            items.forEach(item => {
+                item.style.height = computedHeight + 'px';
                 item.style.maxHeight = maxHeight + 'px';
                 item.style.overflow = 'hidden';
             });
@@ -2358,24 +2629,36 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
         }
 
         function updateOccupancyCounters() {
-            // Zähle Reservierungen in jedem Zimmer
-            rooms.forEach(room => {
+            const allRooms = [
+                ...(Array.isArray(rooms) ? rooms : []),
+                ...(Array.isArray(ablageRooms) ? ablageRooms : [])
+            ];
+
+            allRooms.forEach(room => {
+                if (!room || !room.id) return;
                 const container = document.getElementById(`zimmer-content-${room.id}`);
-                if (container) {
-                    const reservationCount = container.querySelectorAll('.reservation-item').length;
-                    const occupancyElement = document.getElementById(`occupancy-${room.id}`);
-                    if (occupancyElement) {
-                        occupancyElement.textContent = `${reservationCount}/${room.kapazitaet}`;
-                        
-                        // Farbe je nach Belegung
-                        if (reservationCount >= room.kapazitaet) {
-                            occupancyElement.style.color = '#dc2626'; // Rot wenn voll
-                        } else if (reservationCount >= room.kapazitaet * 0.8) {
-                            occupancyElement.style.color = '#f59e0b'; // Gelb wenn fast voll
-                        } else {
-                            occupancyElement.style.color = '#059669'; // Grün wenn Platz
-                        }
-                    }
+                const occupancyElement = document.getElementById(`occupancy-${room.id}`);
+                if (!container || !occupancyElement) return;
+
+                const items = Array.from(container.querySelectorAll('.reservation-item'));
+                const guestTotal = items.reduce((sum, item) => {
+                    const guests = parseInt(item.dataset.guestCount || item.dataset.guests || '1', 10);
+                    return sum + (Number.isFinite(guests) && guests > 0 ? guests : 1);
+                }, 0);
+
+                occupancyElement.textContent = `${guestTotal}/${room.kapazitaet}`;
+
+                if (!room.kapazitaet || room.kapazitaet <= 0) {
+                    occupancyElement.style.color = '#6b7280';
+                    return;
+                }
+
+                if (guestTotal >= room.kapazitaet) {
+                    occupancyElement.style.color = '#dc2626';
+                } else if (guestTotal >= room.kapazitaet * 0.8) {
+                    occupancyElement.style.color = '#f59e0b';
+                } else {
+                    occupancyElement.style.color = '#059669';
                 }
             });
         }
@@ -2405,6 +2688,23 @@ if (preg_match('~^https?://~i', $returnUrlRaw)) {
                     // Optionale Erfolgs-Benachrichtigung
                     if (!isAblage) {
                         showSuccessMessage(`Reservierung erfolgreich nach ${result.data.zimmer_name} verschoben`);
+                    }
+
+                    // Lokalen Zustand aktualisieren, damit Kapazitäten sofort korrekt sind
+                    const localReservation = currentReservations.find(r => r.id == reservationId);
+                    if (localReservation) {
+                        localReservation.zimmer_id = newZimmerId;
+                    }
+                    reservationLookupCache.clear();
+                    cacheValidUntil = null;
+                    cacheMinDate = null;
+                    cacheMaxDate = null;
+
+                    try {
+                        await loadRoomData();
+                        console.log('🔄 Zimmerplan nach Server-Update neu geladen');
+                    } catch (reloadError) {
+                        console.error('⚠️ Fehler beim Neuladen nach Server-Update:', reloadError);
                     }
                 } else {
                     console.error('❌ Server-Update fehlgeschlagen:', result.error);
