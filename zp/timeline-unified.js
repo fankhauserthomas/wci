@@ -539,13 +539,13 @@ class TimelineUnifiedRenderer {
 
         // Kontextmenüs & Datumsstatus
         this.dateMenuEl = null;
-        this.dateMenuHeader = null;
         this.dateMenuContext = null;
         this.currentRange = null;
 
         // Theme-Konfiguration laden
         this.themeConfig = this.loadThemeConfiguration();
-        this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
+        const themeDayWidth = typeof this.themeConfig.dayWidth === 'number' ? this.themeConfig.dayWidth : 90;
+        this.DAY_WIDTH = Math.max(40, Math.min(250, themeDayWidth));
         this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
 
         const radialRoot = document.getElementById('timeline-radial-menu');
@@ -590,7 +590,7 @@ class TimelineUnifiedRenderer {
             const savedDayWidth = localStorage.getItem('timeline_day_width');
             if (savedDayWidth) {
                 const dayWidth = parseInt(savedDayWidth, 10);
-                if (dayWidth >= 60 && dayWidth <= 150) {
+                if (dayWidth >= 40 && dayWidth <= 250) {
                     this.DAY_WIDTH = dayWidth;
                     console.log('DAY_WIDTH aus localStorage geladen:', this.DAY_WIDTH);
                 }
@@ -1889,7 +1889,12 @@ class TimelineUnifiedRenderer {
 
         for (const [section, sectionDefaults] of Object.entries(defaults)) {
             if (section === 'dayWidth') {
-                result.dayWidth = result.dayWidth || defaults.dayWidth;
+                const configured = Number(result.dayWidth);
+                if (Number.isFinite(configured)) {
+                    result.dayWidth = Math.max(40, Math.min(250, configured));
+                } else {
+                    result.dayWidth = defaults.dayWidth;
+                }
             } else if (section === 'weeksPast') {
                 result.weeksPast = result.weeksPast ?? defaults.weeksPast;
             } else if (section === 'weeksFuture') {
@@ -1904,7 +1909,8 @@ class TimelineUnifiedRenderer {
 
     refreshThemeConfiguration() {
         this.themeConfig = this.loadThemeConfiguration();
-        this.DAY_WIDTH = this.themeConfig.dayWidth || 90; // Verwende Theme-DAY_WIDTH
+        const themeDayWidth = typeof this.themeConfig.dayWidth === 'number' ? this.themeConfig.dayWidth : 90;
+        this.DAY_WIDTH = Math.max(40, Math.min(250, themeDayWidth));
 
         // Phase 2: Invalidate all caches when theme changes
         this.invalidateStackingCache(); // Clear all caches
@@ -2203,26 +2209,38 @@ class TimelineUnifiedRenderer {
             this.lastScrollRender = now;
 
             // DAY_WIDTH ändern wenn Maus über Header/Datum-Bereich
-            if (mouseY >= this.areas.header.y && mouseY < this.areas.header.y + this.areas.header.height && e.ctrlKey) {
-                // Ctrl + Mausrad über Datum = DAY_WIDTH ändern (60-150px)
-                const delta = e.deltaY > 0 ? 5 : -5; // Hoch = vergrößern, runter = verkleinern
-                const newDayWidth = Math.max(60, Math.min(150, this.DAY_WIDTH + delta));
+            if (mouseY >= this.areas.header.y && mouseY < this.areas.header.y + this.areas.header.height && !e.shiftKey) {
+                const delta = e.deltaY > 0 ? 5 : -5; // Scroll Richtung steuert Zoom
+                const targetDayWidth = Math.max(40, Math.min(250, this.DAY_WIDTH + delta));
 
-                if (newDayWidth !== this.DAY_WIDTH) {
-                    this.DAY_WIDTH = newDayWidth;
+                if (targetDayWidth !== this.DAY_WIDTH) {
+                    const startX = this.sidebarWidth - this.scrollX;
+                    const dayOffset = (mouseX - startX) / this.DAY_WIDTH;
 
-                    // In localStorage speichern
+                    this.DAY_WIDTH = targetDayWidth;
+
+                    const range = this.currentRange || this.getTimelineDateRange();
+                    const rangeDuration = Math.max(MS_IN_DAY, range.endDate.getTime() - range.startDate.getTime());
+                    const totalDays = Math.max(1, Math.ceil(rangeDuration / MS_IN_DAY));
+                    const viewportWidth = Math.max(1, this.canvas.width - this.sidebarWidth);
+                    let newScrollX = this.sidebarWidth + dayOffset * this.DAY_WIDTH - mouseX;
+                    const maxScroll = Math.max(0, totalDays * this.DAY_WIDTH - viewportWidth);
+                    newScrollX = Math.max(0, Math.min(maxScroll, newScrollX));
+
+                    if (this.horizontalTrack) {
+                        this.horizontalTrack.scrollLeft = newScrollX;
+                    }
+                    this.scrollX = newScrollX;
+                    this.updateViewportCache(this.scrollX, this.roomsScrollY);
+
                     try {
                         localStorage.setItem('timeline_day_width', this.DAY_WIDTH.toString());
                         console.log('DAY_WIDTH gespeichert:', this.DAY_WIDTH);
-                    } catch (e) {
-                        console.warn('DAY_WIDTH konnte nicht gespeichert werden:', e);
+                    } catch (error) {
+                        console.warn('DAY_WIDTH konnte nicht gespeichert werden:', error);
                     }
 
-                    // Zimmerbereich Cache invalidieren für korrekte Neuberechnung
                     this.invalidateStackingCache();
-
-                    // Neu rendern
                     this.scheduleRender('day_width_change');
                 }
                 return; // Kein weiteres Scrolling
@@ -2780,7 +2798,7 @@ class TimelineUnifiedRenderer {
                     e.preventDefault();
                     if (this.radialMenu?.isVisible()) this.radialMenu.hide();
                     if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') this.hideMasterContextMenu();
-                    this.showDateContextMenu(targetDate, e.clientX, e.clientY);
+                    this.showDateContextMenu(targetDate);
                     return;
                 }
             }
@@ -3135,15 +3153,14 @@ class TimelineUnifiedRenderer {
         el.style.display = 'none';
         el.innerHTML = `
             <div class="tdm-card">
-                <div class="tdm-date"></div>
                 <button class="tdm-item" data-action="roomplan">Zimmerplan</button>
+                <button class="tdm-item" data-action="dayplan">Tagesplan</button>
                 <button class="tdm-item" data-action="guestreport">Berichte</button>
             </div>
         `;
 
         document.body.appendChild(el);
         this.dateMenuEl = el;
-        this.dateMenuHeader = el.querySelector('.tdm-date');
 
         el.addEventListener('click', (evt) => {
             const btn = evt.target.closest('.tdm-item');
@@ -3161,6 +3178,8 @@ class TimelineUnifiedRenderer {
 
             if (action === 'roomplan') {
                 this.onDateMenuRoomplan(contextDate);
+            } else if (action === 'dayplan') {
+                this.onDateMenuDayplan(contextDate);
             } else if (action === 'guestreport') {
                 this.onDateMenuGuestreport(contextDate);
             } else {
@@ -3179,7 +3198,7 @@ class TimelineUnifiedRenderer {
                 z-index: 9999;
                 left: 0;
                 top: 0;
-                transform: translate(-50%, -50%);
+                transform: none;
                 user-select: none;
             }
             #timeline-date-menu .tdm-card {
@@ -3193,13 +3212,6 @@ class TimelineUnifiedRenderer {
                 flex-direction: column;
                 gap: 8px;
                 backdrop-filter: blur(6px);
-            }
-            #timeline-date-menu .tdm-date {
-                font-size: 13px;
-                letter-spacing: 0.02em;
-                text-transform: uppercase;
-                color: #cbd5f5;
-                margin-bottom: 2px;
             }
             #timeline-date-menu .tdm-item {
                 appearance: none;
@@ -3227,14 +3239,11 @@ class TimelineUnifiedRenderer {
         document.head.appendChild(style);
     }
 
-    showDateContextMenu(date, clientX, clientY) {
+    showDateContextMenu(date) {
         this.ensureDateContextMenu();
         if (!this.dateMenuEl) return;
 
         this.dateMenuContext = new Date(date.getTime());
-        if (this.dateMenuHeader) {
-            this.dateMenuHeader.textContent = this.formatDateLabel(date);
-        }
 
         // Display for measurement
         this.dateMenuEl.style.display = 'block';
@@ -3243,20 +3252,37 @@ class TimelineUnifiedRenderer {
         this.dateMenuEl.style.top = '-9999px';
 
         const menuRect = this.dateMenuEl.getBoundingClientRect();
+        const margin = 12;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        let x = clientX;
-        let y = clientY;
 
-        if (x + menuRect.width > vw) {
-            x = Math.max(8, vw - menuRect.width - 8);
-        }
-        if (y + menuRect.height > vh) {
-            y = Math.max(8, vh - menuRect.height - 8);
+        let headerBottom = margin;
+        let columnCenter = vw / 2;
+
+        if (this.canvas && this.areas?.header) {
+            const canvasRect = this.canvas.getBoundingClientRect();
+            headerBottom = canvasRect.top + this.areas.header.y + this.areas.header.height;
+
+            if (this.currentRange?.startDate instanceof Date && !Number.isNaN(this.currentRange.startDate.getTime())) {
+                const msPerDay = 86400000;
+                const diffDays = Math.round((date.getTime() - this.currentRange.startDate.getTime()) / msPerDay);
+                columnCenter = canvasRect.left + this.sidebarWidth - this.scrollX + (diffDays + 0.5) * this.DAY_WIDTH;
+            } else {
+                columnCenter = canvasRect.left + (canvasRect.width / 2);
+            }
         }
 
-        this.dateMenuEl.style.left = `${x}px`;
-        this.dateMenuEl.style.top = `${y}px`;
+        let left = columnCenter - menuRect.width / 2;
+        if (left < margin) left = margin;
+        if (left + menuRect.width > vw - margin) left = Math.max(margin, vw - menuRect.width - margin);
+
+        let top = headerBottom + 6;
+        if (top + menuRect.height > vh - margin) {
+            top = Math.max(headerBottom + 6, vh - menuRect.height - margin);
+        }
+
+        this.dateMenuEl.style.left = `${Math.round(left)}px`;
+        this.dateMenuEl.style.top = `${Math.round(top)}px`;
     }
 
     hideDateContextMenu() {
@@ -3281,6 +3307,22 @@ class TimelineUnifiedRenderer {
             window.open(url.toString(), '_blank', 'noopener=yes');
         } catch (err) {
             console.error('Konnte Zimmerplan-Seite nicht öffnen:', err);
+        }
+    }
+
+    onDateMenuDayplan(date) {
+        this.hideDateContextMenu();
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+        const iso = this.formatDateISO(date);
+        if (!iso) return;
+
+        try {
+            const url = new URL('zp_day.php', window.location.href);
+            url.searchParams.set('date', iso);
+            url.searchParams.set('return', window.location.href);
+            window.location.assign(url.toString());
+        } catch (err) {
+            console.error('Konnte Tagesplan-Seite nicht öffnen:', err);
         }
     }
 

@@ -209,10 +209,6 @@ class TimelineConfigManager {
         document.getElementById('histogram-font-size').value = this.currentConfig.histogram.fontSize;
         document.getElementById('histogram-font-size-value').textContent = this.currentConfig.histogram.fontSize + 'px';
 
-        // Day Width
-        document.getElementById('day-width').value = this.currentConfig.dayWidth;
-        document.getElementById('day-width-value').textContent = this.currentConfig.dayWidth + 'px';
-
         // Weeks range
         const wp = this.currentConfig.weeksPast ?? 2;
         const wf = this.currentConfig.weeksFuture ?? 104;
@@ -252,9 +248,6 @@ class TimelineConfigManager {
         this.currentConfig.histogram.bar = document.getElementById('histogram-bar').value;
         this.currentConfig.histogram.text = document.getElementById('histogram-text').value;
         this.currentConfig.histogram.fontSize = parseInt(document.getElementById('histogram-font-size').value);
-
-        // Day Width
-        this.currentConfig.dayWidth = parseInt(document.getElementById('day-width').value);
 
         // Weeks range
         const weeksPastEl = document.getElementById('weeks-past');

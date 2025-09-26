@@ -10,6 +10,56 @@ if ($mysqli->connect_errno) {
 
 $mysqli->set_charset('utf8mb4');
 
+$sanitizeHost = function ($host) {
+    $host = trim((string)$host);
+    if ($host === '') {
+        return '';
+    }
+    $host = strtolower($host);
+    if (strpos($host, ':') !== false) {
+        $host = explode(':', $host)[0];
+    }
+    return $host;
+};
+
+$sanitizeReturnUrl = function ($candidate, $fallback) use ($sanitizeHost) {
+    $candidate = trim((string)$candidate);
+    $candidate = str_replace(["\r", "\n"], '', $candidate);
+
+    if ($candidate === '') {
+        return $fallback;
+    }
+
+    if (preg_match('~^(https?:)?//~i', $candidate)) {
+        $parts = @parse_url($candidate);
+        if (!$parts || empty($parts['host'])) {
+            return $fallback;
+        }
+
+        $currentHost = $sanitizeHost($_SERVER['HTTP_HOST'] ?? '');
+        $candidateHost = $sanitizeHost($parts['host']);
+
+        if ($currentHost && $candidateHost && $candidateHost !== $currentHost) {
+            return $fallback;
+        }
+
+        $path = $parts['path'] ?? '/';
+        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+        $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+        return $path . $query . $fragment;
+    }
+
+    if (preg_match('~^[a-z][a-z0-9+.-]*:~i', $candidate)) {
+        return $fallback;
+    }
+
+    if (strpos($candidate, '../') === 0 || strpos($candidate, './') === 0 || strpos($candidate, '/') === 0) {
+        return $candidate;
+    }
+
+    return './' . ltrim($candidate, '/');
+};
+
 $currentDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $currentDate)) {
     $currentDate = date('Y-m-d');
@@ -81,14 +131,11 @@ if (!empty($normalZimmer)) {
     $gridInfo['rows'] = max(1, $gridInfo['maxY'] - $gridInfo['minY'] + 1);
 }
 
-$returnUrlRaw = isset($_GET['return']) ? $_GET['return'] : ($_SERVER['HTTP_REFERER'] ?? '../reservierungen.html');
-if (preg_match('~^https?://~i', $returnUrlRaw)) {
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $urlHost = parse_url($returnUrlRaw, PHP_URL_HOST);
-    if ($urlHost && $host && strcasecmp($urlHost, $host) !== 0) {
-        $returnUrlRaw = '../reservierungen.html';
-    }
-}
+$returnCandidate = isset($_GET['return']) && $_GET['return'] !== ''
+    ? rawurldecode((string)$_GET['return'])
+    : ($_SERVER['HTTP_REFERER'] ?? '');
+
+$returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
 
 ?>
 <!DOCTYPE html>

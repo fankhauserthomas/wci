@@ -165,6 +165,8 @@ try {
 
     $rooms = [];
     $roomsById = [];
+    $skipRoomIds = [];
+    $skipRoomCaptions = ['ablage'];
     $minPx = $minPy = PHP_INT_MAX;
     $maxPx = $maxPy = PHP_INT_MIN;
 
@@ -178,8 +180,15 @@ try {
             'py' => (int)($row['py'] ?? 1),
             'color' => $row['col'] ?? null,
         ];
-        $rooms[] = $entry;
         $roomsById[$roomId] = $entry;
+
+        $normalizedCaption = strtolower(trim((string)$entry['caption']));
+        if (in_array($normalizedCaption, $skipRoomCaptions, true)) {
+            $skipRoomIds[$roomId] = true;
+            continue;
+        }
+
+        $rooms[] = $entry;
 
         $minPx = min($minPx, $entry['px']);
         $maxPx = max($maxPx, $entry['px']);
@@ -210,6 +219,7 @@ try {
             rd.note             AS note,
             rd.dx               AS dx,
             rd.dy               AS dy,
+            rd.hund             AS has_dog,
             r.id                AS master_id,
             r.anreise           AS master_start,
             r.abreise           AS master_end,
@@ -296,12 +306,18 @@ try {
             'dx' => (int)($row['dx'] ?? 0),
             'dy' => (int)($row['dy'] ?? 0),
             'av_id' => (int)($row['av_id'] ?? 0),
+            'has_dog' => (int)($row['has_dog'] ?? 0) === 1,
         ];
 
         $details[] = $detail;
         if ($detail['id'] > 0) {
             $detailsById[$detail['id']] = $detail;
         }
+
+        if (isset($skipRoomIds[$roomId])) {
+            continue;
+        }
+
         $detailsByRoom[$roomId][] = $detail;
 
         // Update occupancy for offsets 0..7 (plan date + following 7 days)
@@ -338,13 +354,29 @@ try {
 
         $detailDisplays = [];
         $departingAll = !empty($activeDetails);
+        $preparedDetails = [];
 
         foreach ($activeDetails as $detail) {
             $linkMessage = getParentLinkMessage($detail, $planDate, $detailsById, $roomsById);
-            $departingAll = $departingAll && ($detail['end'] instanceof DateTimeImmutable)
-                && ($detail['end']->getTimestamp() === $planDatePlusOne->getTimestamp())
-                && $linkMessage === '';
+            $startsToday = $detail['start'] instanceof DateTimeImmutable
+                && $detail['start']->getTimestamp() === $planDate->getTimestamp();
+            $endsTomorrow = $detail['end'] instanceof DateTimeImmutable
+                && $detail['end']->getTimestamp() === $planDatePlusOne->getTimestamp();
+            $isDeparting = $endsTomorrow && $linkMessage === '';
 
+            $preparedDetails[] = [
+                'detail' => $detail,
+                'linkMessage' => $linkMessage,
+                'startsToday' => $startsToday,
+                'endsTomorrow' => $endsTomorrow,
+                'isDeparting' => $isDeparting,
+            ];
+
+            $departingAll = $departingAll && $isDeparting;
+        }
+
+        foreach ($preparedDetails as $item) {
+            $detail = $item['detail'];
             $labelBase = $detail['caption'] ?: ($detail['guest_name'] ?: 'Unbekannt');
             $guestCount = $detail['guest_count'];
             $totalHp = $detail['master_total_hp'];
@@ -362,19 +394,13 @@ try {
             }
             $detailText .= ')';
 
-            $startsToday = $detail['start'] instanceof DateTimeImmutable
-                && $detail['start']->getTimestamp() === $planDate->getTimestamp();
-            $endsTomorrow = $detail['end'] instanceof DateTimeImmutable
-                && $detail['end']->getTimestamp() === $planDatePlusOne->getTimestamp();
-            $showAbr = $endsTomorrow && $linkMessage === '';
-            $showSmallCircle = !$departingAll && $endsTomorrow && $linkMessage === '';
-
             $detailDisplays[] = [
                 'text' => $detailText,
-                'isArrival' => $startsToday,
-                'linkMessage' => $linkMessage,
-                'showAbr' => $showAbr,
-                'showSmallCircle' => $showSmallCircle,
+                'isArrival' => $item['startsToday'],
+                'linkMessage' => $item['linkMessage'],
+                'showAbr' => $item['isDeparting'],
+                'showSmallCircle' => (!$departingAll && $item['isDeparting']),
+                'hasDog' => !empty($detail['has_dog']),
             ];
         }
 
@@ -411,6 +437,8 @@ try {
         if (!class_exists('RoomplanPdf')) {
             class RoomplanPdf extends FPDF
             {
+                // Removed transparency handling
+
                 public function circleShape(float $x, float $y, float $r, string $style = 'D'): void
                 {
                     $this->ellipsePath($x, $y, $r, $r, $style);
@@ -448,6 +476,8 @@ try {
                         ($x + $rx) * $k, ($h - $y) * $k));
                     $this->_out($op);
                 }
+
+                // Removed transparency handling methods
             }
         }
 
@@ -479,6 +509,39 @@ try {
         $infoFontPt = 6.0;
         $statusFontPt = 6.0;
 
+        $dogIconPath = __DIR__ . '/../pic/DogProfile.png';
+        $dogIconAvailable = is_file($dogIconPath);
+        $dogIconRatio = 1.0;
+        if ($dogIconAvailable) {
+            $dogInfo = @getimagesize($dogIconPath);
+            if (!$dogInfo || empty($dogInfo[0]) || empty($dogInfo[1])) {
+                $dogIconAvailable = false;
+            } else {
+                $dogIconRatio = max(0.1, $dogInfo[0] / $dogInfo[1]);
+            }
+        }
+        $dogIconHeightMm = ptToMm($detailFontPt) * 1.5;
+        $dogIconWidthMm = $dogIconHeightMm * $dogIconRatio;
+        $dogIconBaselineAdjust = ptToMm($detailFontPt) * 0.35;
+
+        $leaveIconPath = __DIR__ . '/../pic/leave.png';
+        $leaveIconAvailable = is_file($leaveIconPath);
+        $leaveIconRatio = 1.0;
+        if ($leaveIconAvailable) {
+            $leaveInfo = @getimagesize($leaveIconPath);
+            if (!$leaveInfo || empty($leaveInfo[0]) || empty($leaveInfo[1])) {
+                $leaveIconAvailable = false;
+            } else {
+                $leaveIconRatio = max(0.1, $leaveInfo[0] / $leaveInfo[1]);
+            }
+        }
+        $leaveIconHeightLarge = $cellHeight * 0.9;
+        $leaveIconWidthLarge = $leaveIconHeightLarge * $leaveIconRatio;
+        $leaveIconHeightSmall = ptToMm($detailFontPt);
+        $leaveIconWidthSmall = $leaveIconHeightSmall * $leaveIconRatio;
+    $leaveIconBaselineAdjust = ptToMm($detailFontPt) * 0.2;
+    $leaveIconGapMm = 1.0;
+
         foreach ($roomSummaries as $summary) {
             $room = $summary['room'];
             $colIndex = $room['px'] - $minPx;
@@ -501,10 +564,18 @@ try {
             }
 
             if ($summary['departingAll']) {
-                $pdf->SetDrawColor(200, 0, 0);
-                $pdf->SetLineWidth(0.3);
                 $diameter = $cellHeight * 0.9;
-                $pdf->circleShape($x + ($diameter / 2), $y + ($cellHeight / 2), $diameter / 2);
+                if ($leaveIconAvailable) {
+                    $centerX = $x + ($diameter / 2);
+                    $centerY = $y + ($cellHeight / 2);
+                    $iconX = $centerX - ($leaveIconWidthLarge / 2);
+                    $iconY = $centerY - ($leaveIconHeightLarge / 2);
+                    $pdf->Image($leaveIconPath, $iconX, $iconY, $leaveIconWidthLarge, $leaveIconHeightLarge);
+                } else {
+                    $pdf->SetDrawColor(200, 0, 0);
+                    $pdf->SetLineWidth(0.3);
+                    $pdf->circleShape($x + ($diameter / 2), $y + ($cellHeight / 2), $diameter / 2);
+                }
             }
 
             $pdf->SetTextColor(...$titleColor);
@@ -542,8 +613,8 @@ try {
                 $detailLineY = $y + $cellHeight - 1.0;
                 $currentY = $detailLineY - 1.0;
                 $detailLineGap = ptToMm($detailFontPt) + 0.2;
-                $circleDiameter = ptToMm($detailFontPt);
                 $indentBase = 18.0;
+                $dogIconGapMm = 1.2;
                 $detailIndex = 0;
 
                 foreach ($summary['details'] as $detail) {
@@ -555,16 +626,32 @@ try {
                     }
                     $pdf->SetFont('Helvetica', '', $detailFontPt);
                     $detailX = $x + $indentX;
+                    if (!empty($detail['hasDog']) && $dogIconAvailable) {
+                        $iconX = $detailX;
+                        $iconY = $currentY - $dogIconHeightMm + $dogIconBaselineAdjust;
+                        $pdf->Image($dogIconPath, $iconX, $iconY, $dogIconWidthMm, $dogIconHeightMm);
+                        $detailX += $dogIconWidthMm + $dogIconGapMm;
+                    }
+                    if (!$summary['departingAll'] && $detail['showSmallCircle']) {
+                        if ($leaveIconAvailable) {
+                            $iconX = $detailX;
+                            $iconY = $currentY - $leaveIconHeightSmall + $leaveIconBaselineAdjust;
+                            $pdf->Image($leaveIconPath, $iconX, $iconY, $leaveIconWidthSmall, $leaveIconHeightSmall);
+                            $detailX += $leaveIconWidthSmall + $leaveIconGapMm;
+                        } else {
+                            $fallbackDiameter = $leaveIconHeightSmall;
+                            $centerX = $detailX + ($fallbackDiameter / 2);
+                            $centerY = $currentY - ($fallbackDiameter / 2) + $leaveIconBaselineAdjust;
+                            $pdf->SetDrawColor(200, 0, 0);
+                            $pdf->SetLineWidth(0.3);
+                            $pdf->circleShape($centerX, $centerY, $fallbackDiameter / 2);
+                            $detailX += $fallbackDiameter + $leaveIconGapMm;
+                        }
+                    }
                     $pdf->Text($detailX, $currentY, pdfEncode($detail['text']));
 
                     $textWidth = pdfStringWidth($pdf, $detail['text']);
                     $cursorX = $detailX + $textWidth;
-
-                    if (!$summary['departingAll'] && $detail['showSmallCircle']) {
-                        $pdf->SetDrawColor(200, 0, 0);
-                        $pdf->SetLineWidth(0.3);
-                        $pdf->circleShape($x + ($circleDiameter / 2), $currentY - ($circleDiameter / 2), $circleDiameter / 2);
-                    }
 
                     if ($detail['showAbr']) {
                         $pdf->SetTextColor(200, 0, 0);

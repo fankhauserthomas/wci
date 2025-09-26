@@ -546,11 +546,6 @@
                                 <span id="bar-height-value">25px</span>
                             </div>
 
-                            <div class="metric-item">
-                                <label for="day-width">Tagesbreite:</label>
-                                <input type="range" id="day-width" min="20" max="80" value="40" step="5">
-                                <span id="day-width-value">40px</span>
-                            </div>
 
                             <div class="metric-item">
                                 <label for="vertical-spacing">Zeilenabstand:</label>
@@ -706,8 +701,8 @@
                                 <h3>Layout Settings</h3>
                                 <div class="config-item">
                                     <label>Day Width:</label>
-                                    <!-- Entfernt: Doppelter Regler (ID-Konflikt) wurde bereits im Abschnitt Anzeige-Einstellungen definiert. -->
-                                    <!-- Der Day-Width-Regler ist oben unter Anzeige-Einstellungen vorhanden. Dieser doppelte Block wurde entfernt, um doppelte IDs zu vermeiden. -->
+                                    <small style="color: #666; font-size: 11px;">Konfiguration erfolgt direkt in der
+                                        Timeline.</small>
                                 </div>
                             </div>
                         </div>
@@ -746,7 +741,7 @@
             // Metrics-Slider Event Listeners
             document.addEventListener('DOMContentLoaded', function () {
                 // Setup für alle Metrics-Slider
-                const metrics = ['font-size', 'bar-height', 'day-width', 'vertical-spacing', 'border-radius', 'opacity', 'menu-size', 'weeks-past', 'weeks-future'];
+                const metrics = ['font-size', 'bar-height', 'vertical-spacing', 'border-radius', 'opacity', 'menu-size', 'weeks-past', 'weeks-future'];
 
                 metrics.forEach(metric => {
                     const slider = document.getElementById(metric);
