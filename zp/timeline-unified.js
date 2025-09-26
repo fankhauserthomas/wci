@@ -511,6 +511,11 @@ class TimelineUnifiedRenderer {
             lastDragPosition: { x: 0, y: 0, room: null }
         };
 
+        // Cached media assets
+        this._cautionImage = null;
+        this._cautionImageLoaded = false;
+        this._cautionImageError = false;
+
         // Helper flag for initial scroll-to-today
         this._scrolledToTodayOnce = false;
 
@@ -1288,6 +1293,31 @@ class TimelineUnifiedRenderer {
         return 'betten';
     }
 
+    getRoomCapacityValue(room) {
+        if (!room) {
+            return null;
+        }
+
+        const candidates = [
+            room.capacity,
+            room.max_capacity,
+            room.total_capacity,
+            room.data && room.data.capacity
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate === undefined || candidate === null) {
+                continue;
+            }
+            const numeric = Number(candidate);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                return numeric;
+            }
+        }
+
+        return null;
+    }
+
     getHistogramBarColor(count) {
         if (count > 50) return '#dc3545';
         if (count > 30) return '#ffc107';
@@ -1380,6 +1410,185 @@ class TimelineUnifiedRenderer {
         }
 
         return label;
+    }
+
+    getDetailCapacityValue(detail) {
+        if (!detail) {
+            return 0;
+        }
+
+        const candidates = [
+            detail._capacity,
+            detail.capacity,
+            detail.persons,
+            detail.person_count,
+            detail.data?.capacity,
+            detail.data?.anz,
+            detail.data?.persons,
+            detail.data?.person_count
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate === undefined || candidate === null) {
+                continue;
+            }
+            const numeric = Number(candidate);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                return numeric;
+            }
+        }
+
+        return 0;
+    }
+
+    calculateDailyRoomOccupancy(reservationsForRoom, startDate, endDate) {
+        const occupancyMap = new Map();
+
+        if (!Array.isArray(reservationsForRoom) || reservationsForRoom.length === 0) {
+            return occupancyMap;
+        }
+
+        const startTs = startDate?.getTime?.();
+        const endTs = endDate?.getTime?.();
+
+        if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs <= startTs) {
+            return occupancyMap;
+        }
+
+        const totalDays = Math.max(0, Math.ceil((endTs - startTs) / MS_IN_DAY) + 2);
+
+        reservationsForRoom.forEach(reservation => {
+            if (!reservation || reservation._isGhost) {
+                return;
+            }
+
+            const capacity = this.getDetailCapacityValue(reservation);
+            if (!Number.isFinite(capacity) || capacity <= 0) {
+                return;
+            }
+
+            const startValue = reservation.start ?? reservation.start_date ?? reservation.startDate;
+            const endValue = reservation.end ?? reservation.end_date ?? reservation.endDate;
+
+            if (!startValue || !endValue) {
+                return;
+            }
+
+            const startDateObj = new Date(startValue);
+            const endDateObj = new Date(endValue);
+            if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
+                return;
+            }
+
+            const startNorm = this.normalizeDateToNoon(startDateObj);
+            const endNorm = this.normalizeDateToNoon(endDateObj);
+
+            if (!Number.isFinite(startNorm) || !Number.isFinite(endNorm) || endNorm <= startNorm) {
+                return;
+            }
+
+            let startIndex = Math.floor((startNorm - startTs) / MS_IN_DAY);
+            let endIndex = Math.floor((endNorm - startTs) / MS_IN_DAY);
+
+            if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
+                return;
+            }
+
+            // Clamp to reasonable bounds within the visible range plus a small buffer
+            startIndex = Math.max(-2, Math.min(startIndex, totalDays));
+            endIndex = Math.max(-2, Math.min(endIndex, totalDays));
+
+            if (endIndex <= startIndex) {
+                return;
+            }
+
+            for (let day = startIndex; day < endIndex; day++) {
+                occupancyMap.set(day, (occupancyMap.get(day) || 0) + capacity);
+            }
+        });
+
+        return occupancyMap;
+    }
+
+    ensureCautionIcon() {
+        if (this._cautionImageError) {
+            return null;
+        }
+
+        if (!this._cautionImage) {
+            this._cautionImage = new Image();
+            this._cautionImageLoaded = false;
+            this._cautionImage.onerror = () => {
+                this._cautionImageError = true;
+                console.warn('Warnsymbol konnte nicht geladen werden:', this._cautionImage?.src);
+            };
+            this._cautionImage.onload = () => {
+                this._cautionImageLoaded = true;
+                this.scheduleRender('caution_icon_loaded');
+            };
+            this._cautionImage.src = 'http://192.168.15.14:8080/wci/pic/caution.svg';
+        }
+
+        if (this._cautionImageLoaded || (this._cautionImage.complete && this._cautionImage.naturalWidth > 0)) {
+            this._cautionImageLoaded = true;
+            return this._cautionImage;
+        }
+
+        return null;
+    }
+
+    renderOverCapacityIndicators(room, reservationsForRoom, startDate, endDate, baseRoomY, roomHeight) {
+        if (!room || !Array.isArray(reservationsForRoom) || reservationsForRoom.length === 0) {
+            return;
+        }
+
+        const roomCapacity = this.getRoomCapacityValue(room);
+        if (!Number.isFinite(roomCapacity) || roomCapacity <= 0) {
+            return;
+        }
+
+        const occupancyMap = this.calculateDailyRoomOccupancy(reservationsForRoom, startDate, endDate);
+        if (occupancyMap.size === 0) {
+            return;
+        }
+
+        const overCapacityDays = [];
+        occupancyMap.forEach((value, dayIndex) => {
+            if (value > roomCapacity) {
+                overCapacityDays.push({ dayIndex, occupancy: value });
+            }
+        });
+
+        if (overCapacityDays.length === 0) {
+            return;
+        }
+
+        const cautionIcon = this.ensureCautionIcon();
+        if (!cautionIcon) {
+            return;
+        }
+
+        const iconSize = Math.max(20, Math.min(28, Math.min(this.DAY_WIDTH - 4, this.ROOM_BAR_HEIGHT + 12)));
+        const roomsAreaTop = this.areas.rooms.y;
+        const roomsAreaBottom = roomsAreaTop + this.areas.rooms.height;
+        const centeredIconY = baseRoomY + (roomHeight - iconSize) / 2;
+        const iconYMax = Math.min(baseRoomY + roomHeight - iconSize, roomsAreaBottom - iconSize);
+        const iconY = Math.max(roomsAreaTop, Math.min(centeredIconY, iconYMax));
+        const startX = this.sidebarWidth - this.scrollX;
+
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.7;
+
+        overCapacityDays.forEach(({ dayIndex }) => {
+            const dayStartX = startX + ((dayIndex + 1) * this.DAY_WIDTH);
+            const iconX = dayStartX + (this.DAY_WIDTH - iconSize) / 2 - (this.DAY_WIDTH / 2);
+            if (iconX + iconSize < this.sidebarWidth || iconX > this.canvas.width) {
+                return;
+            }
+            this.ctx.drawImage(cautionIcon, iconX, iconY, iconSize, iconSize);
+        });
+
+        this.ctx.restore();
     }
 
     truncateTextToWidth(text, maxWidth) {
@@ -7586,6 +7795,8 @@ class TimelineUnifiedRenderer {
                 }
             });
 
+            this.renderOverCapacityIndicators(room, sortedReservations, startDate, endDate, baseRoomY, roomHeight);
+
             // Zimmer-Trennlinie
             this.ctx.save();
             this.ctx.strokeStyle = '#444';
@@ -7820,6 +8031,8 @@ class TimelineUnifiedRenderer {
                     this.hoveredReservation = reservation;
                 }
             });
+
+            this.renderOverCapacityIndicators(room, sortedReservations, startDate, endDate, baseRoomY, roomHeight);
 
             // Zimmer-Trennlinie
             this.ctx.save();
