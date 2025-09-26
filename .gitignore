@@ -8,3 +8,7 @@ logs/av-res-dump.log
 logs/cronjob-sync.log
 logs/sync.log
 *.log
+logs/
+restorepoints/
+*.log
+*.tar.gz
