@@ -12,3 +12,7 @@ logs/
 restorepoints/
 *.log
 *.tar.gz
+logs/
+restorepoints/
+*.log
+*.tar.gz
