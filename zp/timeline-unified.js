@@ -448,8 +448,8 @@ class TimelineUnifiedRenderer {
         this.DAY_WIDTH = 90; // Breite eines Tages in Pixeln - wird von Theme überschrieben
 
         // Dynamische Zimmer-Balkenhöhe
-        this.ROOM_BAR_HEIGHT = 16; // Standard Balkenhöhe (10-30px)
-
+        this.ROOM_BAR_HEIGHT = 16; // Standard Balkenhöhe (10-35px)
+        this.MASTER_BAR_HEIGHT = this.ROOM_BAR_HEIGHT; // Initial Master Bar Height
         // Performance tracking
         this.lastDragRender = 0;
         this.lastHoverRender = 0;
@@ -528,10 +528,13 @@ class TimelineUnifiedRenderer {
 
         this.touchPointers = new Map();
         this.isPinchZoom = false;
+        this.isPinchBarResize = false;
         this.pinchStartDistance = 0;
         this.pinchStartDayWidth = 0;
         this.pinchFocusDayOffset = 0;
         this.pinchCenterCanvasX = 0;
+        this.pinchBarStartDistance = 0;
+        this.pinchBarStartHeight = 0;
 
         // Referenzen auf Scroll-Container für Synchronisation
         this.horizontalTrack = null;
@@ -553,7 +556,19 @@ class TimelineUnifiedRenderer {
         this.themeConfig = this.loadThemeConfiguration();
         const themeDayWidth = typeof this.themeConfig.dayWidth === 'number' ? this.themeConfig.dayWidth : 90;
         this.DAY_WIDTH = Math.max(40, Math.min(250, themeDayWidth));
-        this.ROOM_BAR_HEIGHT = this.themeConfig.room?.barHeight || 16; // Verwende Theme-ROOM_BAR_HEIGHT
+        const themeRoomBarHeight = this.themeConfig.room?.barHeight;
+        const themeMasterBarHeight = this.themeConfig.master?.barHeight;
+        const initialBarHeight = Math.max(10, Math.min(35, typeof themeRoomBarHeight === 'number'
+            ? themeRoomBarHeight
+            : (typeof themeMasterBarHeight === 'number' ? themeMasterBarHeight : 16)));
+        this.ROOM_BAR_HEIGHT = initialBarHeight;
+        this.MASTER_BAR_HEIGHT = initialBarHeight;
+
+        this.themeConfig.sidebar = this.themeConfig.sidebar || {};
+        this.sidebarFontSize = Math.max(9, Math.min(20,
+            this.themeConfig.sidebar.fontSize || this.computeBarFontSize(this.ROOM_BAR_HEIGHT)));
+        this.themeConfig.sidebar.fontSize = this.sidebarFontSize;
+        this.sidebarMetricsDirty = true;
 
         const radialRoot = document.getElementById('timeline-radial-menu');
 
@@ -592,33 +607,7 @@ class TimelineUnifiedRenderer {
         // Create Master Bar Context Menu (DOM-based)
         this.ensureMasterContextMenu();
 
-        // DAY_WIDTH aus localStorage laden (überschreibt Theme-Wert)
-        try {
-            const savedDayWidth = localStorage.getItem('timeline_day_width');
-            if (savedDayWidth) {
-                const dayWidth = parseInt(savedDayWidth, 10);
-                if (dayWidth >= 40 && dayWidth <= 250) {
-                    this.DAY_WIDTH = dayWidth;
-                    console.log('DAY_WIDTH aus localStorage geladen:', this.DAY_WIDTH);
-                }
-            }
-        } catch (e) {
-            console.warn('DAY_WIDTH konnte nicht aus localStorage geladen werden:', e);
-        }
-
-        // ROOM_BAR_HEIGHT aus localStorage laden (überschreibt Theme-Wert) 
-        try {
-            const savedBarHeight = localStorage.getItem('timeline_room_bar_height');
-            if (savedBarHeight) {
-                const barHeight = parseInt(savedBarHeight, 10);
-                if (barHeight >= 10 && barHeight <= 30) {
-                    this.ROOM_BAR_HEIGHT = barHeight;
-                    console.log('ROOM_BAR_HEIGHT aus localStorage geladen:', this.ROOM_BAR_HEIGHT);
-                }
-            }
-        } catch (e) {
-            console.warn('ROOM_BAR_HEIGHT konnte nicht aus localStorage geladen werden:', e);
-        }
+        this.applyPersistentSizingFromStorage({ skipRecalculate: true });
 
         this.init();
     }
@@ -1229,7 +1218,9 @@ class TimelineUnifiedRenderer {
             room._dynamicHeight = stackingResult.roomHeight;
         }
 
-        console.log('Zimmer-Höhen neu berechnet für ROOM_BAR_HEIGHT:', this.ROOM_BAR_HEIGHT);
+        if (typeof window !== 'undefined' && window.debugTimeline) {
+            console.log('Zimmer-Höhen neu berechnet für ROOM_BAR_HEIGHT:', this.ROOM_BAR_HEIGHT);
+        }
     }
 
     updateRoomLookups() {
@@ -1241,6 +1232,8 @@ class TimelineUnifiedRenderer {
             const key = String(room.id);
             this.roomsById.set(key, room);
         });
+
+        this.sidebarMetricsDirty = true;
     }
 
     normalizeRoomDetails() {
@@ -1915,14 +1908,43 @@ class TimelineUnifiedRenderer {
     }
 
     refreshThemeConfiguration() {
+        const previousDayWidth = this.DAY_WIDTH;
+        const previousBarHeight = this.ROOM_BAR_HEIGHT;
+
         this.themeConfig = this.loadThemeConfiguration();
+
         const themeDayWidth = typeof this.themeConfig.dayWidth === 'number' ? this.themeConfig.dayWidth : 90;
         this.DAY_WIDTH = Math.max(40, Math.min(250, themeDayWidth));
 
-        // Phase 2: Invalidate all caches when theme changes
-        this.invalidateStackingCache(); // Clear all caches
+        const themeRoomBarHeight = this.themeConfig.room?.barHeight;
+        const themeMasterBarHeight = this.themeConfig.master?.barHeight;
+        const initialBarHeight = Math.max(10, Math.min(35, typeof themeRoomBarHeight === 'number'
+            ? themeRoomBarHeight
+            : (typeof themeMasterBarHeight === 'number' ? themeMasterBarHeight : 16)));
+        this.ROOM_BAR_HEIGHT = initialBarHeight;
+        this.MASTER_BAR_HEIGHT = initialBarHeight;
 
-        this.scheduleRender('theme_change'); // Optimiert: Scheduled render statt direkt
+        this.themeConfig.sidebar = this.themeConfig.sidebar || {};
+        this.sidebarFontSize = Math.max(9, Math.min(20,
+            this.themeConfig.sidebar.fontSize || this.computeBarFontSize(this.ROOM_BAR_HEIGHT)));
+        this.themeConfig.sidebar.fontSize = this.sidebarFontSize;
+        this.sidebarMetricsDirty = true;
+
+        const { dayWidthChanged, barHeightChanged } = this.applyPersistentSizingFromStorage({ skipRecalculate: true });
+
+        const effectiveDayWidthChanged = dayWidthChanged || Math.abs(previousDayWidth - this.DAY_WIDTH) > 0.01;
+        const effectiveBarHeightChanged = barHeightChanged || Math.abs(previousBarHeight - this.ROOM_BAR_HEIGHT) > 0.01;
+
+        this.invalidateStackingCache();
+        if (effectiveBarHeightChanged) {
+            this.recalculateRoomHeights();
+        }
+
+        if (effectiveDayWidthChanged || effectiveBarHeightChanged) {
+            this.scheduleRender('theme_persisted_change');
+        } else {
+            this.scheduleRender('theme_change');
+        }
     }
 
     init() {
@@ -2027,6 +2049,8 @@ class TimelineUnifiedRenderer {
         this.canvas.style.touchAction = 'none';
         this.ctx = this.canvas.getContext('2d');
 
+        this.updateSidebarMetrics(true);
+
         this.resizeCanvas();
         this.addMobileScrollbarStyles();
     }
@@ -2124,6 +2148,8 @@ class TimelineUnifiedRenderer {
         this.canvas.height = availableHeight;
         this.canvas.style.width = rect.width + 'px';
         this.canvas.style.height = availableHeight + 'px';
+
+        this.sidebarMetricsDirty = true;
 
         // Separator-Position relativ zur Canvas-Höhe anpassen
         const relativePosition = this.separatorY / this.totalHeight; // Verhältnis beibehalten
@@ -2254,32 +2280,11 @@ class TimelineUnifiedRenderer {
                 return; // Kein weiteres Scrolling
             }
 
-            // ROOM_BAR_HEIGHT ändern wenn Maus über Sidebar/Zimmer-Bereich
-            if (mouseX <= this.sidebarWidth && mouseY >= this.areas.rooms.y && mouseY < this.areas.rooms.y + this.areas.rooms.height && e.ctrlKey) {
-                // Ctrl + Mausrad über Sidebar = ROOM_BAR_HEIGHT ändern (10-30px)
-                const delta = e.deltaY > 0 ? 1 : -1; // Hoch = vergrößern, runter = verkleinern
-                const newBarHeight = Math.max(10, Math.min(30, this.ROOM_BAR_HEIGHT + delta));
-
-                if (newBarHeight !== this.ROOM_BAR_HEIGHT) {
-                    this.ROOM_BAR_HEIGHT = newBarHeight;
-
-                    // In localStorage speichern
-                    try {
-                        localStorage.setItem('timeline_room_bar_height', this.ROOM_BAR_HEIGHT.toString());
-                        console.log('ROOM_BAR_HEIGHT gespeichert:', this.ROOM_BAR_HEIGHT);
-                    } catch (e) {
-                        console.warn('ROOM_BAR_HEIGHT konnte nicht gespeichert werden:', e);
-                    }
-
-                    // Zimmerbereich Cache invalidieren für korrekte Neuberechnung
-                    this.invalidateStackingCache();
-
-                    // Zimmer-Höhen neu berechnen
-                    this.recalculateRoomHeights();
-
-                    // Neu rendern
-                    this.scheduleRender('bar_height_change');
-                }
+            // ROOM/Master BAR_HEIGHT ändern wenn Maus über Sidebar-Bereich
+            if (mouseX <= this.sidebarWidth && !e.shiftKey) {
+                const delta = e.deltaY > 0 ? 1 : -1;
+                const targetHeight = this.ROOM_BAR_HEIGHT + delta;
+                this.setUnifiedBarHeight(targetHeight, { persist: true, reason: 'wheel_bar_resize' });
                 return; // Kein weiteres Scrolling
             }
 
@@ -2501,16 +2506,23 @@ class TimelineUnifiedRenderer {
             console.warn('Pointer capture failed:', err);
         }
 
-        if (!this.isPinchZoom && this.touchPointers.size >= 2) {
+        if (!this.isPinchZoom && !this.isPinchBarResize && this.touchPointers.size >= 2) {
             const headerPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinHeader(ptr.canvasY));
             if (headerPointers.length >= 2) {
                 this.beginPinchZoom(headerPointers.slice(0, 2));
                 e.preventDefault();
                 return;
             }
+
+            const sidebarPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinSidebar(ptr.canvasX));
+            if (sidebarPointers.length >= 2) {
+                this.beginBarHeightPinch(sidebarPointers.slice(0, 2));
+                e.preventDefault();
+                return;
+            }
         }
 
-        if (this.isPinchZoom) {
+        if (this.isPinchZoom || this.isPinchBarResize) {
             e.preventDefault();
             return;
         }
@@ -2555,6 +2567,12 @@ class TimelineUnifiedRenderer {
 
         if (this.isPinchZoom) {
             this.updatePinchZoom();
+            e.preventDefault();
+            return;
+        }
+
+        if (this.isPinchBarResize) {
+            this.updateBarHeightPinch();
             e.preventDefault();
             return;
         }
@@ -2626,7 +2644,29 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        if (this.isPinchBarResize) {
+            if (this.touchPointers.size >= 2) {
+                this.resetBarPinchBaseline();
+            } else {
+                this.endBarHeightPinch();
+            }
+
+            try {
+                this.canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // ignore
+            }
+
+            e.preventDefault();
+            return;
+        }
+
         if (this.activePointerId !== e.pointerId) {
+            try {
+                this.canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // ignore
+            }
             return;
         }
 
@@ -2665,6 +2705,10 @@ class TimelineUnifiedRenderer {
         const header = this.areas?.header;
         if (!header) return false;
         return canvasY >= header.y && canvasY <= header.y + header.height;
+    }
+
+    isWithinSidebar(canvasX) {
+        return canvasX <= this.sidebarWidth;
     }
 
     beginPinchZoom(pointers) {
@@ -2829,6 +2873,130 @@ class TimelineUnifiedRenderer {
         this.pinchFocusDayOffset = (this.pinchCenterCanvasX - startX) / Math.max(1, this.DAY_WIDTH);
     }
 
+    beginBarHeightPinch(pointers) {
+        if (!pointers || pointers.length < 2) {
+            return;
+        }
+
+        const [first, second] = pointers;
+        const distance = this.verticalDistanceBetweenPoints(first, second);
+        if (!distance || distance <= 0) {
+            return;
+        }
+
+        if (this.activePointerId !== null) {
+            try {
+                this.canvas.releasePointerCapture(this.activePointerId);
+            } catch (err) {
+                // ignore
+            }
+            this.activePointerId = null;
+        }
+
+        this.isPinchBarResize = true;
+        this.isTouchPanning = false;
+        this.panContext = null;
+        this.pinchBarStartDistance = distance;
+        this.pinchBarStartHeight = this.ROOM_BAR_HEIGHT;
+
+        pointers.forEach(ptr => {
+            try {
+                this.canvas.setPointerCapture(ptr.id);
+            } catch (err) {
+                // ignore
+            }
+        });
+
+        this.scheduleRender('pinch_bar_start');
+    }
+
+    updateBarHeightPinch() {
+        if (!this.isPinchBarResize || this.touchPointers.size < 2) {
+            return;
+        }
+
+        const sidebarPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinSidebar(ptr.canvasX));
+        if (sidebarPointers.length < 2) {
+            this.endBarHeightPinch();
+            return;
+        }
+
+        const [first, second] = sidebarPointers;
+        const distance = this.verticalDistanceBetweenPoints(first, second);
+        if (!distance || distance <= 0 || !this.pinchBarStartDistance) {
+            return;
+        }
+
+        const scale = distance / this.pinchBarStartDistance;
+        const targetHeight = this.pinchBarStartHeight * scale;
+        const changed = this.setUnifiedBarHeight(targetHeight, {
+            persist: false,
+            reason: 'pinch_bar_resize'
+        });
+
+        if (changed) {
+            // Baseline refresh for smooth scaling
+            this.pinchBarStartHeight = this.ROOM_BAR_HEIGHT;
+            this.pinchBarStartDistance = distance;
+        }
+    }
+
+    endBarHeightPinch() {
+        if (!this.isPinchBarResize) {
+            return;
+        }
+
+        this.isPinchBarResize = false;
+        this.persistUnifiedBarHeight();
+
+        this.scheduleRender('pinch_bar_end');
+
+        const remainingPointers = Array.from(this.touchPointers.values());
+        if (remainingPointers.length === 1) {
+            const pointer = remainingPointers[0];
+            this.activePointerId = pointer.id;
+            this.mouseX = pointer.canvasX;
+            this.mouseY = pointer.canvasY;
+            try {
+                this.canvas.setPointerCapture(pointer.id);
+            } catch (err) {
+                // ignore
+            }
+            this.isTouchPanning = false;
+            this.panContext = null;
+            this.startTouchPanning({ clientX: pointer.clientX, clientY: pointer.clientY });
+        } else {
+            this.activePointerId = null;
+            this.isTouchPanning = false;
+            this.panContext = null;
+        }
+
+        this.pinchBarStartDistance = 0;
+        this.pinchBarStartHeight = this.ROOM_BAR_HEIGHT;
+    }
+
+    resetBarPinchBaseline() {
+        if (!this.isPinchBarResize || this.touchPointers.size < 2) {
+            this.endBarHeightPinch();
+            return;
+        }
+
+        const sidebarPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinSidebar(ptr.canvasX));
+        if (sidebarPointers.length < 2) {
+            this.endBarHeightPinch();
+            return;
+        }
+
+        const [first, second] = sidebarPointers;
+        this.pinchBarStartDistance = this.verticalDistanceBetweenPoints(first, second);
+        this.pinchBarStartHeight = this.ROOM_BAR_HEIGHT;
+    }
+
+    verticalDistanceBetweenPoints(a, b) {
+        if (!a || !b) return 0;
+        return Math.abs(a.clientY - b.clientY);
+    }
+
     distanceBetweenPoints(a, b) {
         if (!a || !b) return 0;
         const dx = a.clientX - b.clientX;
@@ -2916,26 +3084,227 @@ class TimelineUnifiedRenderer {
         return Math.max(min, Math.min(max, value));
     }
 
+    computeBarFontSize(barHeight) {
+        if (!Number.isFinite(barHeight)) {
+            return 12;
+        }
+        const clampedHeight = this.clamp(barHeight, 6, 100);
+        const dynamicSize = Math.round(clampedHeight * 0.6);
+        return this.clamp(dynamicSize, 8, Math.max(8, Math.floor(clampedHeight - 2)));
+    }
+
+    applyPersistentSizingFromStorage(options = {}) {
+        const { skipRecalculate = false } = options;
+        let dayWidthChanged = false;
+        let barHeightChanged = false;
+
+        if (!this.themeConfig.sidebar) {
+            this.themeConfig.sidebar = {};
+        }
+
+        try {
+            const savedDayWidth = localStorage.getItem('timeline_day_width');
+            if (savedDayWidth) {
+                const parsedWidth = parseInt(savedDayWidth, 10);
+                if (Number.isFinite(parsedWidth) && parsedWidth >= 40 && parsedWidth <= 250 && Math.abs(parsedWidth - this.DAY_WIDTH) > 0.01) {
+                    this.DAY_WIDTH = parsedWidth;
+                    dayWidthChanged = true;
+                }
+            }
+        } catch (error) {
+            console.warn('DAY_WIDTH konnte nicht aus localStorage geladen werden:', error);
+        }
+
+        try {
+            const savedBarHeight = localStorage.getItem('timeline_room_bar_height');
+            if (savedBarHeight) {
+                const parsedHeight = parseInt(savedBarHeight, 10);
+                if (Number.isFinite(parsedHeight) && parsedHeight >= 10 && parsedHeight <= 35 && Math.abs(parsedHeight - this.ROOM_BAR_HEIGHT) > 0.01) {
+                    this.ROOM_BAR_HEIGHT = parsedHeight;
+                    this.MASTER_BAR_HEIGHT = parsedHeight;
+                    this.sidebarFontSize = Math.max(9, Math.min(22, Math.round(this.computeBarFontSize(this.ROOM_BAR_HEIGHT) * 0.95)));
+                    this.themeConfig.sidebar.fontSize = this.sidebarFontSize;
+                    this.sidebarMetricsDirty = true;
+                    barHeightChanged = true;
+                }
+            }
+        } catch (error) {
+            console.warn('ROOM_BAR_HEIGHT konnte nicht aus localStorage geladen werden:', error);
+        }
+
+        this.themeConfig.dayWidth = this.DAY_WIDTH;
+
+        if (!this.themeConfig.master) {
+            this.themeConfig.master = {};
+        }
+        if (!this.themeConfig.room) {
+            this.themeConfig.room = {};
+        }
+
+        this.themeConfig.master.barHeight = this.MASTER_BAR_HEIGHT;
+        this.themeConfig.master.fontSize = this.computeBarFontSize(this.MASTER_BAR_HEIGHT);
+        this.themeConfig.room.barHeight = this.ROOM_BAR_HEIGHT;
+        this.themeConfig.room.fontSize = this.computeBarFontSize(this.ROOM_BAR_HEIGHT);
+
+        if (barHeightChanged && !skipRecalculate) {
+            this.invalidateStackingCache();
+            this.recalculateRoomHeights();
+        }
+
+        return { dayWidthChanged, barHeightChanged };
+    }
+
+    collectSidebarLabels() {
+        const labelSource = [];
+
+        if (this.roomsById && this.roomsById.size) {
+            for (const room of this.roomsById.values()) {
+                const caption = room?.display_name || room?.displayName || room?.caption || room?.room || room?.name || room?.id;
+                if (caption) {
+                    labelSource.push(String(caption));
+                }
+            }
+        } else if (Array.isArray(rooms) && rooms.length) {
+            rooms.forEach(room => {
+                const caption = room?.display_name || room?.displayName || room?.caption || room?.room || room?.name || room?.id;
+                if (caption) {
+                    labelSource.push(String(caption));
+                }
+            });
+        }
+
+        if (!labelSource.length) {
+            labelSource.push('Zimmer');
+        }
+
+        return labelSource;
+    }
+
+    updateSidebarMetrics(force = false) {
+        if (!this.ctx) {
+            this.sidebarMetricsDirty = true;
+            return false;
+        }
+
+        if (!force && !this.sidebarMetricsDirty) {
+            return false;
+        }
+
+        const targetFontSize = Math.max(9, Math.min(22, Math.round(this.computeBarFontSize(this.ROOM_BAR_HEIGHT) * 0.95)));
+        const fontFamily = this.themeConfig.sidebar.fontFamily || 'Arial';
+        const previousFont = this.ctx.font;
+
+        this.ctx.save();
+        this.ctx.font = `${targetFontSize}px ${fontFamily}`;
+
+        let widestLabel = 0;
+        for (const label of this.collectSidebarLabels()) {
+            if (!label) continue;
+            const metrics = this.ctx.measureText(label);
+            widestLabel = Math.max(widestLabel, metrics.width);
+        }
+
+        this.ctx.restore();
+        this.ctx.font = previousFont;
+
+        const widthPadding = 28;
+        const desiredWidth = Math.ceil(widestLabel + widthPadding);
+        const minWidth = 80;
+        const maxWidth = Math.max(minWidth, Math.floor(this.canvas ? this.canvas.width * 0.3 : 240));
+        const clampedWidth = this.clamp(desiredWidth || this.sidebarWidth, minWidth, maxWidth);
+
+        let metricsChanged = false;
+
+        if (Math.abs(targetFontSize - this.sidebarFontSize) >= 0.1) {
+            this.sidebarFontSize = targetFontSize;
+            this.themeConfig.sidebar.fontSize = this.sidebarFontSize;
+            metricsChanged = true;
+        }
+
+        if (Math.abs(clampedWidth - this.sidebarWidth) >= 0.5) {
+            this.sidebarWidth = clampedWidth;
+            metricsChanged = true;
+        }
+
+        this.sidebarMetricsDirty = false;
+        return metricsChanged;
+    }
+
+    setUnifiedBarHeight(newHeight, options = {}) {
+        const { persist = true, reason = 'bar_height_change' } = options;
+        const clampedHeight = this.clamp(Number(newHeight) || 0, 10, 35);
+
+        if (Math.abs(clampedHeight - this.ROOM_BAR_HEIGHT) < 0.01 &&
+            Math.abs(clampedHeight - this.MASTER_BAR_HEIGHT) < 0.01) {
+            return false;
+        }
+
+        this.ROOM_BAR_HEIGHT = clampedHeight;
+        this.MASTER_BAR_HEIGHT = clampedHeight;
+
+        if (this.themeConfig.master) {
+            this.themeConfig.master.barHeight = clampedHeight;
+            this.themeConfig.master.fontSize = this.computeBarFontSize(clampedHeight);
+        }
+        if (this.themeConfig.room) {
+            this.themeConfig.room.barHeight = clampedHeight;
+            this.themeConfig.room.fontSize = this.computeBarFontSize(clampedHeight);
+        }
+
+        this.sidebarFontSize = Math.max(9, Math.min(22, Math.round(this.computeBarFontSize(this.ROOM_BAR_HEIGHT) * 0.95)));
+        this.themeConfig.sidebar.fontSize = this.sidebarFontSize;
+        this.sidebarMetricsDirty = true;
+
+        this.invalidateStackingCache();
+        this.recalculateRoomHeights();
+
+        if (persist) {
+            this.persistUnifiedBarHeight();
+        }
+
+        this.scheduleRender(reason);
+        return true;
+    }
+
+    persistUnifiedBarHeight() {
+        try {
+            localStorage.setItem('timeline_room_bar_height', this.ROOM_BAR_HEIGHT.toString());
+            console.log('ROOM/Master BAR_HEIGHT gespeichert:', this.ROOM_BAR_HEIGHT);
+        } catch (error) {
+            console.warn('ROOM_BAR_HEIGHT konnte nicht gespeichert werden:', error);
+        }
+    }
+
     updateLayoutAreas() {
         const maxTopSeparatorY = this.canvas.height * 0.5;
-        const minBottomSeparatorY = this.canvas.height * 0.6;
-        const maxBottomSeparatorY = this.canvas.height - 40; // 40px für Scrollbar
+        const minRoomGap = Math.max(120, this.ROOM_BAR_HEIGHT * 4);
+        const minHistogramHeight = Math.max(80, this.ROOM_BAR_HEIGHT * 4);
+        const minBottomSeparatorY = Math.max(this.canvas.height * 0.55, this.separatorY + minRoomGap);
+        const maxBottomCandidate = this.canvas.height - 20 - minHistogramHeight;
+        const maxBottomSeparatorY = Math.max(minBottomSeparatorY, maxBottomCandidate); // Stelle sicher, dass Histogramm Platz bekommt
 
         // Oberer Separator begrenzen
         this.separatorY = Math.min(this.separatorY, maxTopSeparatorY);
 
         // Unterer Separator begrenzen und sicherstellen dass er unter dem oberen ist
-        this.bottomSeparatorY = Math.max(minBottomSeparatorY,
-            Math.min(this.bottomSeparatorY, maxBottomSeparatorY));
-        this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + 100);
+        this.bottomSeparatorY = this.clamp(this.bottomSeparatorY, minBottomSeparatorY, maxBottomSeparatorY);
+        this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + minRoomGap);
+
+        // Falls nach Clamping zu wenig Platz für Histogramm bleibt, nachjustieren
+        const residualHistogramSpace = this.canvas.height - this.bottomSeparatorY - 20;
+        if (residualHistogramSpace < minHistogramHeight) {
+            const adjustedBottom = this.canvas.height - 20 - Math.max(minHistogramHeight, residualHistogramSpace);
+            this.bottomSeparatorY = Math.max(this.separatorY + minRoomGap, Math.min(adjustedBottom, maxBottomSeparatorY));
+        }
 
         // Layout-Bereiche aktualisieren (Menü + Header wieder hinzugefügt)
         this.areas.master.height = this.separatorY - 60;
         this.areas.master.y = 60;
         this.areas.rooms.y = this.separatorY;
-        this.areas.rooms.height = this.bottomSeparatorY - this.separatorY;
+        this.areas.rooms.height = Math.max(60, this.bottomSeparatorY - this.separatorY);
         this.areas.histogram.y = this.bottomSeparatorY;
-        this.areas.histogram.height = (this.canvas.height - this.bottomSeparatorY - 20) * 0.95; // 95% Ausnutzung
+        const availableHistogramSpace = Math.max(minHistogramHeight, this.canvas.height - this.bottomSeparatorY - 20);
+        this.areas.histogram.height = Math.max(minHistogramHeight * 0.85, availableHistogramSpace * 0.95); // 95% Ausnutzung mit Mindesthöhe
 
         // Scrollbars nach Layout-Änderung neu positionieren
         this.positionScrollbars();
@@ -3152,7 +3521,7 @@ class TimelineUnifiedRenderer {
         const { startDate, endDate } = this.getTimelineDateRange();
         const startX = this.sidebarWidth - this.scrollX;
         const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.25;
-        const barHeight = this.themeConfig.master?.barHeight || 14;
+        const barHeight = this.MASTER_BAR_HEIGHT || 14;
 
         // Build stack levels incrementally like in renderMasterArea
         const stackLevels = [];
@@ -4958,7 +5327,7 @@ class TimelineUnifiedRenderer {
 
                 // Jetzt durchsuchen mit korrekten Positionsdaten
                 for (const reservation of sortedReservations) {
-                    const barHeight = this.themeConfig.room.barHeight || 16;
+                    const barHeight = this.ROOM_BAR_HEIGHT;
                     const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
 
                     if (mouseX >= reservation.left && mouseX <= reservation.left + reservation.width &&
@@ -5427,7 +5796,7 @@ class TimelineUnifiedRenderer {
                     }
                 }
 
-                const barHeight = this.themeConfig.room.barHeight || 16;
+                const barHeight = this.ROOM_BAR_HEIGHT;
                 this.ghostBar.y = baseRoomY + 1 + (optimalStackLevel * (barHeight + 2));
                 this.ghostBar.height = barHeight;
                 this.ghostBar._stackLevel = optimalStackLevel;
@@ -5884,7 +6253,7 @@ class TimelineUnifiedRenderer {
         });
 
         // Calculate room height
-        const barHeight = this.themeConfig.room.barHeight || 16;
+        const barHeight = this.ROOM_BAR_HEIGHT;
         const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
 
         // Store preview result
@@ -5996,7 +6365,7 @@ class TimelineUnifiedRenderer {
                 });
 
                 // Update Zimmer-Höhe
-                const barHeight = this.themeConfig.room.barHeight || 16;
+                const barHeight = this.ROOM_BAR_HEIGHT;
                 const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
                 room._dynamicHeight = roomHeight;
             });
@@ -6018,6 +6387,12 @@ class TimelineUnifiedRenderer {
         this.lastStickyNotesRender = 0;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const sidebarChanged = this.updateSidebarMetrics();
+
+        if (sidebarChanged) {
+            this.updateViewportCache(this.scrollX, this.roomsScrollY);
+        }
 
         if (reservations.length === 0) {
             this.renderEmpty();
@@ -6077,7 +6452,7 @@ class TimelineUnifiedRenderer {
         if (scrollContentMaster && reservations.length > 0) {
             // Berechne tatsächliche maximale Stack-Höhe für Master-Bereich
             const maxStackLevel = this.calculateMasterMaxStackLevel(startDate, endDate, reservations);
-            const barHeight = this.themeConfig.master.barHeight || 14;
+            const barHeight = this.MASTER_BAR_HEIGHT || 14;
             const masterContentHeight = Math.max(this.areas.master.height, 10 + (maxStackLevel + 1) * barHeight + 50);
             scrollContentMaster.style.height = masterContentHeight + 'px';
         }
@@ -6222,7 +6597,7 @@ class TimelineUnifiedRenderer {
                         }
                     });
 
-                    const barHeight = this.themeConfig.room.barHeight || 16;
+                    const barHeight = this.ROOM_BAR_HEIGHT;
                     const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
                     room._dynamicHeight = roomHeight;
                 } else {
@@ -6412,10 +6787,10 @@ class TimelineUnifiedRenderer {
 
         // Labels mit Theme-Konfiguration
         this.ctx.fillStyle = this.themeConfig.sidebar.text;
-        this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+        this.ctx.font = `${this.sidebarFontSize}px Arial`;
         this.ctx.textAlign = 'center';
 
-        this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + 20);
+        this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + Math.min(20, this.sidebarFontSize + 4));
 
         // Zimmer-Label
         this.ctx.save();
@@ -6611,7 +6986,7 @@ class TimelineUnifiedRenderer {
 
             stackLevels[stackLevel] = left + width + 5;
 
-            const barHeight = this.themeConfig.master.barHeight || 14;
+            const barHeight = this.MASTER_BAR_HEIGHT || 14;
             const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
 
             // Prüfe Hover-Status
@@ -6939,10 +7314,10 @@ class TimelineUnifiedRenderer {
 
         // Labels mit Theme-Konfiguration
         this.ctx.fillStyle = this.themeConfig.sidebar.text;
-        this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+        this.ctx.font = `${this.sidebarFontSize}px Arial`;
         this.ctx.textAlign = 'center';
 
-        this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + 20);
+        this.ctx.fillText('Alle', this.sidebarWidth / 2, this.areas.master.y + Math.min(20, this.sidebarFontSize + 4));
 
         // Zimmer-Label
         this.ctx.save();
@@ -7062,7 +7437,7 @@ class TimelineUnifiedRenderer {
 
             stackLevels[stackLevel] = left + width + 5;
 
-            const barHeight = this.themeConfig.master.barHeight || 14;
+            const barHeight = this.MASTER_BAR_HEIGHT || 14;
             const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
 
             // Prüfe Hover-Status
@@ -7170,7 +7545,7 @@ class TimelineUnifiedRenderer {
             });
 
             // Update Zimmer-Höhe basierend auf Stacking
-            const barHeight = this.themeConfig.room.barHeight || 16;
+            const barHeight = this.ROOM_BAR_HEIGHT;
             const roomHeight = Math.max(20, 4 + (maxStackLevel + 1) * (barHeight + 0));
             room._dynamicHeight = roomHeight;
 
@@ -7234,11 +7609,11 @@ class TimelineUnifiedRenderer {
 
         visibleRooms.forEach(({ room, yOffset, height }) => {
             const baseRoomY = startY + yOffset;
-            const roomDisplayY = baseRoomY + (height / 2) + (this.themeConfig.sidebar.fontSize / 3);
+            const roomDisplayY = baseRoomY + (height / 2) + (this.sidebarFontSize / 3);
 
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
                 this.ctx.fillStyle = this.themeConfig.sidebar.text;
-                this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+                this.ctx.font = `${this.sidebarFontSize}px Arial`;
                 this.ctx.textAlign = 'center';
 
                 const caption = room.caption || `R${room.id}`;
@@ -7363,7 +7738,7 @@ class TimelineUnifiedRenderer {
                         }
                     });
 
-                    const barHeight = this.themeConfig.room.barHeight || 16;
+                    const barHeight = this.ROOM_BAR_HEIGHT;
                     const roomHeight = Math.max(25, 4 + (maxStackLevel + 1) * (barHeight + 2));
 
                     stackingResult = {
@@ -7469,11 +7844,11 @@ class TimelineUnifiedRenderer {
 
         visibleRooms.forEach(({ room, yOffset, height }) => {
             const baseRoomY = startY + yOffset;
-            const roomDisplayY = baseRoomY + (height / 2) + (this.themeConfig.sidebar.fontSize / 3);
+            const roomDisplayY = baseRoomY + (height / 2) + (this.sidebarFontSize / 3);
 
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
                 this.ctx.fillStyle = this.themeConfig.sidebar.text;
-                this.ctx.font = `${this.themeConfig.sidebar.fontSize}px Arial`;
+                this.ctx.font = `${this.sidebarFontSize}px Arial`;
                 this.ctx.textAlign = 'center';
 
                 const caption = room.caption || `R${room.id}`;
@@ -7826,8 +8201,12 @@ class TimelineUnifiedRenderer {
         if (width > 40) {
             // Automatische Textfarbe basierend auf Balkenhelligkeit
             const textColor = this.getContrastColor(color);
+            const masterFontSize = this.computeBarFontSize(height);
+            if (this.themeConfig.master) {
+                this.themeConfig.master.fontSize = masterFontSize;
+            }
             this.ctx.fillStyle = textColor;
-            this.ctx.font = `${this.themeConfig.master.fontSize}px Arial`;
+            this.ctx.font = `${masterFontSize}px Arial`;
             this.ctx.textAlign = 'left';
 
             // Name ermitteln (Nachname Vorname bevorzugt)
@@ -7869,7 +8248,7 @@ class TimelineUnifiedRenderer {
             const availableWidth = width - 8 - circlePadding;
             if (availableWidth > 0) {
                 caption = this.truncateTextToWidth(caption, availableWidth);
-                const textY = y + (height / 2) + (this.themeConfig.master.fontSize / 3);
+                const textY = y + (height / 2) + (masterFontSize / 3);
                 this.ctx.fillText(caption, x + 2, textY);
             }
 
@@ -8097,8 +8476,10 @@ class TimelineUnifiedRenderer {
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
 
-            const baseFontSize = (this.themeConfig?.room?.fontSize) || 12;
-            const dynamicFontSize = Math.max(8, Math.min(baseFontSize, renderHeight - 2));
+            const dynamicFontSize = this.computeBarFontSize(renderHeight);
+            if (this.themeConfig.room) {
+                this.themeConfig.room.fontSize = dynamicFontSize;
+            }
             this.ctx.font = `${dynamicFontSize}px Arial`;
             this.ctx.textAlign = 'left';
             this.ctx.textBaseline = 'alphabetic';

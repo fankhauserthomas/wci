@@ -134,7 +134,9 @@ class TimelineConfigManager {
             input.addEventListener('input', (e) => {
                 const valueSpan = document.getElementById(e.target.id + '-value');
                 if (valueSpan) {
-                    valueSpan.textContent = e.target.value + 'px';
+                    const id = e.target.id;
+                    const usePx = !(id === 'weeks-past' || id === 'weeks-future');
+                    valueSpan.textContent = e.target.value + (usePx ? 'px' : '');
                 }
                 this.updateFromInputs();
             });
@@ -174,40 +176,70 @@ class TimelineConfigManager {
     }
 
     updateInputsFromConfig() {
-        // Sidebar
-        document.getElementById('sidebar-bg').value = this.currentConfig.sidebar.bg;
-        document.getElementById('sidebar-text').value = this.currentConfig.sidebar.text;
-        document.getElementById('sidebar-font-size').value = this.currentConfig.sidebar.fontSize;
-        document.getElementById('sidebar-font-size-value').textContent = this.currentConfig.sidebar.fontSize + 'px';
+        const sidebarBg = document.getElementById('sidebar-bg');
+        if (sidebarBg) {
+            sidebarBg.value = this.currentConfig.sidebar.bg;
+            const sidebarText = document.getElementById('sidebar-text');
+            const sidebarFontSize = document.getElementById('sidebar-font-size');
+            const sidebarFontSizeValue = document.getElementById('sidebar-font-size-value');
+            if (sidebarText) sidebarText.value = this.currentConfig.sidebar.text;
+            if (sidebarFontSize) sidebarFontSize.value = this.currentConfig.sidebar.fontSize;
+            if (sidebarFontSizeValue) sidebarFontSizeValue.textContent = this.currentConfig.sidebar.fontSize + 'px';
+        }
 
-        // Header
-        document.getElementById('header-bg').value = this.currentConfig.header.bg;
-        document.getElementById('header-text').value = this.currentConfig.header.text;
-        document.getElementById('header-font-size').value = this.currentConfig.header.fontSize;
-        document.getElementById('header-font-size-value').textContent = this.currentConfig.header.fontSize + 'px';
+        const headerBg = document.getElementById('header-bg');
+        if (headerBg) {
+            headerBg.value = this.currentConfig.header.bg;
+            const headerText = document.getElementById('header-text');
+            const headerFontSize = document.getElementById('header-font-size');
+            const headerFontSizeValue = document.getElementById('header-font-size-value');
+            if (headerText) headerText.value = this.currentConfig.header.text;
+            if (headerFontSize) headerFontSize.value = this.currentConfig.header.fontSize;
+            if (headerFontSizeValue) headerFontSizeValue.textContent = this.currentConfig.header.fontSize + 'px';
+        }
 
-        // Master
-        document.getElementById('master-bg').value = this.currentConfig.master.bg;
-        document.getElementById('master-bar').value = this.currentConfig.master.bar;
-        document.getElementById('master-font-size').value = this.currentConfig.master.fontSize;
-        document.getElementById('master-font-size-value').textContent = this.currentConfig.master.fontSize + 'px';
-        document.getElementById('master-bar-height').value = this.currentConfig.master.barHeight;
-        document.getElementById('master-bar-height-value').textContent = this.currentConfig.master.barHeight + 'px';
+        const masterBg = document.getElementById('master-bg');
+        if (masterBg) {
+            masterBg.value = this.currentConfig.master.bg;
+            const masterBar = document.getElementById('master-bar');
+            const masterFontSize = document.getElementById('master-font-size');
+            const masterFontSizeValue = document.getElementById('master-font-size-value');
+            const masterBarHeight = document.getElementById('master-bar-height');
+            const masterBarHeightValue = document.getElementById('master-bar-height-value');
+            if (masterBar) masterBar.value = this.currentConfig.master.bar;
+            if (masterFontSize) masterFontSize.value = this.currentConfig.master.fontSize;
+            if (masterFontSizeValue) masterFontSizeValue.textContent = this.currentConfig.master.fontSize + 'px';
+            if (masterBarHeight) masterBarHeight.value = this.currentConfig.master.barHeight;
+            if (masterBarHeightValue) masterBarHeightValue.textContent = this.currentConfig.master.barHeight + 'px';
+        }
 
-        // Room
-        document.getElementById('room-bg').value = this.currentConfig.room.bg;
-        document.getElementById('room-bar').value = this.currentConfig.room.bar;
-        document.getElementById('room-font-size').value = this.currentConfig.room.fontSize;
-        document.getElementById('room-font-size-value').textContent = this.currentConfig.room.fontSize + 'px';
-        document.getElementById('room-bar-height').value = this.currentConfig.room.barHeight;
-        document.getElementById('room-bar-height-value').textContent = this.currentConfig.room.barHeight + 'px';
+        const roomBg = document.getElementById('room-bg');
+        if (roomBg) {
+            roomBg.value = this.currentConfig.room.bg;
+            const roomBar = document.getElementById('room-bar');
+            const roomFontSize = document.getElementById('room-font-size');
+            const roomFontSizeValue = document.getElementById('room-font-size-value');
+            const roomBarHeight = document.getElementById('room-bar-height');
+            const roomBarHeightValue = document.getElementById('room-bar-height-value');
+            if (roomBar) roomBar.value = this.currentConfig.room.bar;
+            if (roomFontSize) roomFontSize.value = this.currentConfig.room.fontSize;
+            if (roomFontSizeValue) roomFontSizeValue.textContent = this.currentConfig.room.fontSize + 'px';
+            if (roomBarHeight) roomBarHeight.value = this.currentConfig.room.barHeight;
+            if (roomBarHeightValue) roomBarHeightValue.textContent = this.currentConfig.room.barHeight + 'px';
+        }
 
-        // Histogram
-        document.getElementById('histogram-bg').value = this.currentConfig.histogram.bg;
-        document.getElementById('histogram-bar').value = this.currentConfig.histogram.bar;
-        document.getElementById('histogram-text').value = this.currentConfig.histogram.text;
-        document.getElementById('histogram-font-size').value = this.currentConfig.histogram.fontSize;
-        document.getElementById('histogram-font-size-value').textContent = this.currentConfig.histogram.fontSize + 'px';
+        const histogramBg = document.getElementById('histogram-bg');
+        if (histogramBg) {
+            histogramBg.value = this.currentConfig.histogram.bg;
+            const histogramBar = document.getElementById('histogram-bar');
+            const histogramText = document.getElementById('histogram-text');
+            const histogramFontSize = document.getElementById('histogram-font-size');
+            const histogramFontSizeValue = document.getElementById('histogram-font-size-value');
+            if (histogramBar) histogramBar.value = this.currentConfig.histogram.bar;
+            if (histogramText) histogramText.value = this.currentConfig.histogram.text;
+            if (histogramFontSize) histogramFontSize.value = this.currentConfig.histogram.fontSize;
+            if (histogramFontSizeValue) histogramFontSizeValue.textContent = this.currentConfig.histogram.fontSize + 'px';
+        }
 
         // Weeks range
         const wp = this.currentConfig.weeksPast ?? 2;
@@ -221,39 +253,89 @@ class TimelineConfigManager {
     }
 
     updateFromInputs() {
-        // Sidebar
-        this.currentConfig.sidebar.bg = document.getElementById('sidebar-bg').value;
-        this.currentConfig.sidebar.text = document.getElementById('sidebar-text').value;
-        this.currentConfig.sidebar.fontSize = parseInt(document.getElementById('sidebar-font-size').value);
+        const sidebarBg = document.getElementById('sidebar-bg');
+        if (sidebarBg) {
+            this.currentConfig.sidebar.bg = sidebarBg.value;
+            const sidebarText = document.getElementById('sidebar-text');
+            const sidebarFontSize = document.getElementById('sidebar-font-size');
+            if (sidebarText) this.currentConfig.sidebar.text = sidebarText.value;
+            if (sidebarFontSize) {
+                const parsed = parseInt(sidebarFontSize.value, 10);
+                if (!Number.isNaN(parsed)) this.currentConfig.sidebar.fontSize = parsed;
+            }
+        }
 
-        // Header
-        this.currentConfig.header.bg = document.getElementById('header-bg').value;
-        this.currentConfig.header.text = document.getElementById('header-text').value;
-        this.currentConfig.header.fontSize = parseInt(document.getElementById('header-font-size').value);
+        const headerBg = document.getElementById('header-bg');
+        if (headerBg) {
+            this.currentConfig.header.bg = headerBg.value;
+            const headerText = document.getElementById('header-text');
+            const headerFontSize = document.getElementById('header-font-size');
+            if (headerText) this.currentConfig.header.text = headerText.value;
+            if (headerFontSize) {
+                const parsed = parseInt(headerFontSize.value, 10);
+                if (!Number.isNaN(parsed)) this.currentConfig.header.fontSize = parsed;
+            }
+        }
 
-        // Master
-        this.currentConfig.master.bg = document.getElementById('master-bg').value;
-        this.currentConfig.master.bar = document.getElementById('master-bar').value;
-        this.currentConfig.master.fontSize = parseInt(document.getElementById('master-font-size').value);
-        this.currentConfig.master.barHeight = parseInt(document.getElementById('master-bar-height').value);
+        const masterBg = document.getElementById('master-bg');
+        if (masterBg) {
+            this.currentConfig.master.bg = masterBg.value;
+            const masterBar = document.getElementById('master-bar');
+            const masterFontSize = document.getElementById('master-font-size');
+            const masterBarHeight = document.getElementById('master-bar-height');
+            if (masterBar) this.currentConfig.master.bar = masterBar.value;
+            if (masterFontSize) {
+                const parsedFont = parseInt(masterFontSize.value, 10);
+                if (!Number.isNaN(parsedFont)) this.currentConfig.master.fontSize = parsedFont;
+            }
+            if (masterBarHeight) {
+                const parsedHeight = parseInt(masterBarHeight.value, 10);
+                if (!Number.isNaN(parsedHeight)) this.currentConfig.master.barHeight = parsedHeight;
+            }
+        }
 
-        // Room
-        this.currentConfig.room.bg = document.getElementById('room-bg').value;
-        this.currentConfig.room.bar = document.getElementById('room-bar').value;
-        this.currentConfig.room.fontSize = parseInt(document.getElementById('room-font-size').value);
-        this.currentConfig.room.barHeight = parseInt(document.getElementById('room-bar-height').value);
+        const roomBg = document.getElementById('room-bg');
+        if (roomBg) {
+            this.currentConfig.room.bg = roomBg.value;
+            const roomBar = document.getElementById('room-bar');
+            const roomFontSize = document.getElementById('room-font-size');
+            const roomBarHeight = document.getElementById('room-bar-height');
+            if (roomBar) this.currentConfig.room.bar = roomBar.value;
+            if (roomFontSize) {
+                const parsedFont = parseInt(roomFontSize.value, 10);
+                if (!Number.isNaN(parsedFont)) this.currentConfig.room.fontSize = parsedFont;
+            }
+            if (roomBarHeight) {
+                const parsedHeight = parseInt(roomBarHeight.value, 10);
+                if (!Number.isNaN(parsedHeight)) this.currentConfig.room.barHeight = parsedHeight;
+            }
+        }
 
-        // Histogram
-        this.currentConfig.histogram.bg = document.getElementById('histogram-bg').value;
-        this.currentConfig.histogram.bar = document.getElementById('histogram-bar').value;
-        this.currentConfig.histogram.text = document.getElementById('histogram-text').value;
-        this.currentConfig.histogram.fontSize = parseInt(document.getElementById('histogram-font-size').value);
+        const histogramBg = document.getElementById('histogram-bg');
+        if (histogramBg) {
+            this.currentConfig.histogram.bg = histogramBg.value;
+            const histogramBar = document.getElementById('histogram-bar');
+            const histogramText = document.getElementById('histogram-text');
+            const histogramFontSize = document.getElementById('histogram-font-size');
+            if (histogramBar) this.currentConfig.histogram.bar = histogramBar.value;
+            if (histogramText) this.currentConfig.histogram.text = histogramText.value;
+            if (histogramFontSize) {
+                const parsed = parseInt(histogramFontSize.value, 10);
+                if (!Number.isNaN(parsed)) this.currentConfig.histogram.fontSize = parsed;
+            }
+        }
 
         // Weeks range
         const weeksPastEl = document.getElementById('weeks-past');
         const weeksFutureEl = document.getElementById('weeks-future');
-        if (weeksPastEl) this.currentConfig.weeksPast = parseInt(weeksPastEl.value);
-        if (weeksFutureEl) this.currentConfig.weeksFuture = parseInt(weeksFutureEl.value);
+        if (weeksPastEl) {
+            const parsedPast = parseInt(weeksPastEl.value, 10);
+            if (!Number.isNaN(parsedPast)) this.currentConfig.weeksPast = parsedPast;
+        }
+        if (weeksFutureEl) {
+            const parsedFuture = parseInt(weeksFutureEl.value, 10);
+            if (!Number.isNaN(parsedFuture)) this.currentConfig.weeksFuture = parsedFuture;
+        }
 
         this.updatePreview();
     }
