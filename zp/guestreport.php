@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../vendor/fpdf/fpdf.php';
 
 function h(?string $value): string
 {
@@ -32,6 +33,47 @@ function formatLongGerman(DateTimeImmutable $date): string
     return $weekday . ', ' . $date->format('d.m.Y');
 }
 
+function isSameDay(DateTimeImmutable $a, DateTimeImmutable $b): bool
+{
+    return $a->format('Y-m-d') === $b->format('Y-m-d');
+}
+
+function ptToMm(float $pt): float
+{
+    return $pt * 25.4 / 72.0;
+}
+
+function pdfEncode(string $text): string
+{
+    $converted = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text);
+    if ($converted === false) {
+        $converted = @mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
+    }
+    if ($converted === false) {
+        return $text;
+    }
+    return $converted;
+}
+
+function pdfStringWidth(FPDF $pdf, string $text): float
+{
+    return $pdf->GetStringWidth(pdfEncode($text));
+}
+
+function hexToRgb(string $hex): array
+{
+    $hex = ltrim($hex, '#');
+    if (strlen($hex) === 3) {
+        $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+    }
+    $int = hexdec($hex);
+    return [
+        'r' => ($int >> 16) & 0xFF,
+        'g' => ($int >> 8) & 0xFF,
+        'b' => $int & 0xFF,
+    ];
+}
+
 function getArrangementKey(array $reservation): string
 {
     $label = trim((string)($reservation['arrangement_label'] ?? ''));
@@ -45,9 +87,12 @@ function getArrangementKey(array $reservation): string
     return 'n/a';
 }
 
+$format = strtolower($_GET['format'] ?? 'pdf');
+
 $reportDateParam = $_GET['date'] ?? date('Y-m-d');
 $reportDate = parseDateTime($reportDateParam) ?? new DateTimeImmutable('today');
 $reportDate = $reportDate->setTime(0, 0, 0);
+$reportDatePlusOne = $reportDate->modify('+1 day');
 
 $daysBefore = 7;
 $daysAfter = 7;
@@ -55,6 +100,7 @@ $timelineStart = $reportDate->modify('-' . $daysBefore . ' day');
 $timelineEnd = $reportDate->modify('+' . $daysAfter . ' day');
 
 $nextTwoWeeksEnd = $reportDate->modify('+13 day');
+$queryEnd = $timelineEnd->getTimestamp() >= $nextTwoWeeksEnd->getTimestamp() ? $timelineEnd : $nextTwoWeeksEnd;
 
 try {
     if (!isset($mysqli) || !($mysqli instanceof mysqli)) {
@@ -90,10 +136,13 @@ try {
         throw new RuntimeException('Vorbereitung der Reservierungsabfrage fehlgeschlagen: ' . $mysqli->error);
     }
 
+    $queryEndParam = $queryEnd->format('Y-m-d 23:59:59');
+    $timelineStartParam = $timelineStart->format('Y-m-d 00:00:00');
+
     $stmt->bind_param(
         'ss',
-        $timelineEnd->format('Y-m-d 23:59:59'),
-        $timelineStart->format('Y-m-d 00:00:00')
+        $queryEndParam,
+        $timelineStartParam
     );
 
     if (!$stmt->execute()) {
@@ -101,7 +150,7 @@ try {
     }
 
     $result = $stmt->get_result();
-    $reservations = [];
+    $allReservations = [];
     while ($row = $result->fetch_assoc()) {
         $start = parseDateTime($row['anreise']);
         $end = parseDateTime($row['abreise']);
@@ -124,7 +173,12 @@ try {
             $totalGuests = 1;
         }
 
-        $reservations[] = [
+        $arrangementKey = getArrangementKey([
+            'arrangement_label' => $row['arrangement_label'] ?? '',
+            'arrangement_text' => $row['arrangement_text'] ?? '',
+        ]);
+
+        $record = [
             'id' => (int)$row['id'],
             'start' => $start,
             'end' => $end,
@@ -132,8 +186,24 @@ try {
             'guest_count' => $totalGuests,
             'arrangement_label' => $row['arrangement_label'] ?? '',
             'arrangement_text' => $row['arrangement_text'] ?? '',
+            'arrangement_key' => $arrangementKey,
         ];
+        $allReservations[] = $record;
     }
+    $result->free();
+
+    $reservations = array_values(array_filter($allReservations, function (array $reservation) use ($reportDate, $reportDatePlusOne): bool {
+        $start = $reservation['start'];
+        $end = $reservation['end'];
+        if (!$start instanceof DateTimeImmutable || !$end instanceof DateTimeImmutable) {
+            return false;
+        }
+        $arrivesToday = isSameDay($start, $reportDate);
+        $departsTomorrow = isSameDay($end, $reportDatePlusOne);
+        $presentToday = $start <= $reportDate && $end > $reportDate;
+        return $arrivesToday || $departsTomorrow || $presentToday;
+    }));
+
     $stmt->close();
 
     if (empty($reservations)) {
@@ -152,7 +222,7 @@ try {
     $colorIndex = 0;
 
     foreach ($reservations as $reservation) {
-        $key = getArrangementKey($reservation);
+        $key = $reservation['arrangement_key'];
         if (!isset($arrangementColors[$key])) {
             $arrangementColors[$key] = $basePalette[$colorIndex % count($basePalette)];
             $colorIndex++;
@@ -180,9 +250,9 @@ try {
             'byArrangement' => [],
             'total' => 0,
         ];
-        foreach ($reservations as $reservation) {
+        foreach ($allReservations as $reservation) {
             if ($reservation['start'] <= $day && $reservation['end'] > $day) {
-                $key = getArrangementKey($reservation);
+                $key = $reservation['arrangement_key'];
                 $row['byArrangement'][$key] = ($row['byArrangement'][$key] ?? 0) + $reservation['guest_count'];
                 $row['total'] += $reservation['guest_count'];
             }
@@ -193,10 +263,259 @@ try {
     $uniqueArrangements = array_keys($arrangementColors);
     sort($uniqueArrangements, SORT_NATURAL | SORT_FLAG_CASE);
 
+    $arrangementOrder = [];
+    if (!empty($twoWeekTable)) {
+        foreach ($twoWeekTable[0]['byArrangement'] as $label => $_count) {
+            $arrangementOrder[] = $label;
+        }
+    }
+    foreach ($arrangementColors as $label => $_color) {
+        if (!in_array($label, $arrangementOrder, true)) {
+            $arrangementOrder[] = $label;
+        }
+    }
+
+    foreach ($arrangementOrder as $label) {
+        if (!isset($arrangementColors[$label])) {
+            $arrangementColors[$label] = $basePalette[$colorIndex % count($basePalette)];
+            $colorIndex++;
+        }
+    }
+
 } catch (Throwable $error) {
     http_response_code(500);
     $pageTitle = 'Gästebericht – Fehler';
     $errorMessage = $error->getMessage();
+}
+if ($format === 'pdf') {
+    if (!class_exists('GuestReportPdf')) {
+        class GuestReportPdf extends FPDF {}
+    }
+
+    $title = 'Aufenthaltsübersicht ' . $reportDate->format('d.m.Y');
+    $pdf = new GuestReportPdf('P', 'mm', 'A4');
+    $pdf->SetTitle(pdfEncode($title));
+    $pdf->SetAuthor('WCI');
+    $pdf->SetAutoPageBreak(false);
+    $pdf->AddPage();
+
+    if (isset($errorMessage)) {
+        $pdf->SetFont('Helvetica', 'B', 16);
+        $pdf->SetTextColor(200, 0, 0);
+        $pdf->Cell(0, 10, pdfEncode('Gästebericht – Hinweis'), 0, 1, 'L');
+        $pdf->SetFont('Helvetica', '', 12);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->MultiCell(0, 7, pdfEncode($errorMessage));
+    } else {
+        $pageWidth = $pdf->GetPageWidth();
+        $pageHeight = $pdf->GetPageHeight();
+
+        $marginLeft = 15.0;
+        $marginRight = 15.0;
+        $marginTop = 15.0;
+        $marginBottom = 15.0;
+
+        $usableWidth = $pageWidth - $marginLeft - $marginRight;
+
+        $rowHeight = 5.0;
+        $nameColWidth = 30.0;
+        $gapCols = 2.0;
+
+        $chartX = $marginLeft + $nameColWidth + $gapCols;
+        $chartY = $marginTop + ptToMm(45.0);
+        $chartW = $usableWidth - $nameColWidth - $gapCols;
+        $totalDays = count($timelineDays);
+        $totalRows = count($reservations);
+        $colWidth = $totalDays > 0 ? $chartW / $totalDays : 0.0;
+        $chartHeight = $totalRows * $rowHeight;
+        if ($chartHeight <= 0) {
+            $chartHeight = $rowHeight;
+        }
+
+        // Titel
+        $pdf->SetFont('Helvetica', 'B', 16);
+        $pdf->SetTextColor(0, 0, 139);
+        $pdf->SetXY($marginLeft, $marginTop);
+        $pdf->Cell($usableWidth, ptToMm(30.0), pdfEncode('Aufenthaltsübersicht'), 0, 0, 'C');
+
+        // Tagesheader
+        $hdrY = $marginTop + ptToMm(16.0) + 2.0;
+        $lineHeight = ptToMm(10.0);
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        for ($i = 0; $i < $totalDays; $i++) {
+            $day = $timelineDays[$i];
+            $x = $chartX + $i * $colWidth;
+            $pdf->SetXY($x, $hdrY);
+            $pdf->Cell($colWidth, $lineHeight, pdfEncode($day->format('D')), 0, 0, 'C');
+            $pdf->SetXY($x, $hdrY + $lineHeight);
+            $pdf->Cell($colWidth, $lineHeight, pdfEncode($day->format('d.m.')), 0, 0, 'C');
+        }
+
+        // Hintergrund und Grid
+        if ($totalDays > 0) {
+            $pdf->SetLineWidth(0.2);
+            for ($i = 0; $i < $totalDays; $i++) {
+                $day = $timelineDays[$i];
+                $x = $chartX + $i * $colWidth;
+                if ($day < $reportDate) {
+                    $pdf->SetFillColor(224, 255, 255);
+                } elseif ($day > $reportDate) {
+                    $pdf->SetFillColor(255, 160, 122);
+                } else {
+                    $pdf->SetFillColor(255, 255, 224);
+                }
+                $pdf->Rect($x, $chartY, $colWidth, $chartHeight, 'F');
+                $pdf->SetDrawColor(211, 211, 211);
+                $pdf->Line($x, $chartY, $x, $chartY + $chartHeight);
+            }
+            $pdf->Line($chartX + $chartW, $chartY, $chartX + $chartW, $chartY + $chartHeight);
+            for ($r = 0; $r <= $totalRows; $r++) {
+                $y = $chartY + $r * $rowHeight;
+                $pdf->Line($chartX, $y, $chartX + $chartW, $y);
+            }
+        }
+
+        // Namensspalte
+        $pdf->SetFont('Helvetica', '', 10);
+        $pdf->SetTextColor(0, 0, 0);
+        for ($idx = 0; $idx < $totalRows; $idx++) {
+            $reservation = $reservations[$idx];
+            $pdf->SetXY($marginLeft, $chartY + $idx * $rowHeight);
+            $pdf->Cell($nameColWidth, $rowHeight, pdfEncode($reservation['guest_name']), 0, 0, 'L');
+        }
+
+        // Aufenthaltsbalken
+        $chartRight = $chartX + $chartW;
+        foreach ($reservations as $idx => $reservation) {
+            $startOffset = ($reservation['start']->getTimestamp() - $timelineStart->getTimestamp()) / 86400.0;
+            $endOffset = ($reservation['end']->getTimestamp() - $timelineStart->getTimestamp()) / 86400.0;
+
+            $x1 = $chartX + ($startOffset + 0.5) * $colWidth;
+            $x2 = $chartX + ($endOffset + 0.5) * $colWidth;
+            $barWidth = $x2 - $x1;
+            if ($barWidth <= 0) {
+                continue;
+            }
+
+            if ($x1 < $chartX) {
+                $barWidth -= ($chartX - $x1);
+                $x1 = $chartX;
+            }
+
+            if ($x1 + $barWidth > $chartRight) {
+                $barWidth = $chartRight - $x1;
+            }
+
+            if ($barWidth <= 0) {
+                continue;
+            }
+
+            $y = $chartY + $idx * $rowHeight + ($rowHeight * 0.1);
+            $h = $rowHeight * 0.8;
+
+            $color = $arrangementColors[$reservation['arrangement_key']] ?? '#666666';
+            $rgb = hexToRgb($color);
+            $pdf->SetFillColor($rgb['r'], $rgb['g'], $rgb['b']);
+            $pdf->Rect($x1, $y, $barWidth, $h, 'F');
+
+            $label = $reservation['guest_count'] . ' ' . $reservation['arrangement_key'];
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('Helvetica', '', 8);
+            $pdf->SetXY($x1, $y);
+            $pdf->Cell($barWidth, $h, pdfEncode($label), 0, 0, 'C');
+        }
+        $pdf->SetTextColor(0, 0, 0);
+
+        // Seite 2
+        $pdf->SetAutoPageBreak(true, $marginBottom);
+        $pdf->AddPage();
+
+        $left = 10.0;
+        $right = 10.0;
+        $top = 15.0;
+        $bottom = 15.0;
+        $pageWidth = $pdf->GetPageWidth();
+        $contentWidth = $pageWidth - $left - $right;
+        $curY = $top;
+
+        $pdf->SetFont('Helvetica', 'B', 16);
+        $pdf->SetTextColor(0, 0, 139);
+        $pdf->SetXY($left, $curY);
+        $pdf->Cell($contentWidth, ptToMm(16.0) * 1.2, pdfEncode('Nächste 2 Wochen'), 0, 0, 'L');
+        $curY += ptToMm(16.0) + 4.0;
+
+        $columns = 1 + count($arrangementOrder) + 1;
+        $colWidth = $columns > 0 ? $contentWidth / $columns : $contentWidth;
+        $rowHeightHeader = 5.0;
+
+        $pdf->SetFont('Helvetica', 'B', 15);
+        $pdf->SetTextColor(0, 0, 0);
+        $xPos = $left;
+        $pdf->SetXY($xPos, $curY);
+        $pdf->Cell($colWidth, $rowHeightHeader, pdfEncode('Datum'), 0, 0, 'C');
+        $xPos += $colWidth;
+        foreach ($arrangementOrder as $arrName) {
+            $pdf->SetXY($xPos, $curY);
+            $pdf->Cell($colWidth, $rowHeightHeader, pdfEncode($arrName), 0, 0, 'R');
+            $xPos += $colWidth;
+        }
+        $pdf->SetXY($xPos, $curY);
+        $pdf->Cell($colWidth, $rowHeightHeader, pdfEncode('Total'), 0, 0, 'R');
+
+        $curY += $rowHeightHeader * 2;
+        $dataRowHeight = $rowHeightHeader * 1.5;
+        $pdf->SetLineWidth(0.2);
+
+        foreach ($twoWeekTable as $row) {
+            if ($curY > $pdf->GetPageHeight() - $bottom - $dataRowHeight) {
+                break;
+            }
+
+            $day = $row['date'];
+            $isWeekend = in_array($day->format('N'), ['6', '7'], true);
+            if ($isWeekend) {
+                $pdf->SetFillColor(255, 182, 193);
+                $pdf->Rect($left, $curY, $contentWidth, $dataRowHeight, 'F');
+            }
+
+            $pdf->SetFont('Helvetica', 'B', 16);
+            if ($isWeekend) {
+                $pdf->SetTextColor(139, 0, 0);
+            } else {
+                $pdf->SetTextColor(0, 0, 139);
+            }
+            $pdf->SetXY($left, $curY);
+            $pdf->Cell($colWidth, $dataRowHeight, pdfEncode($day->format('D d.m.')), 0, 0, 'C');
+
+            $pdf->SetFont('Helvetica', '', 15);
+            $pdf->SetTextColor(0, 0, 0);
+            $xPos = $left + $colWidth;
+            foreach ($arrangementOrder as $arrName) {
+                $cnt = $row['byArrangement'][$arrName] ?? 0;
+                $pdf->SetXY($xPos, $curY);
+                $pdf->Cell($colWidth, $dataRowHeight, pdfEncode((string)$cnt), 0, 0, 'R');
+                $xPos += $colWidth;
+            }
+
+            $pdf->SetTextColor(139, 0, 0);
+            $pdf->SetXY($xPos, $curY);
+            $pdf->Cell($colWidth, $dataRowHeight, pdfEncode((string)$row['total']), 0, 0, 'R');
+
+            $pdf->SetDrawColor(211, 211, 211);
+            $pdf->Line($left, $curY + $dataRowHeight, $left + $contentWidth, $curY + $dataRowHeight);
+
+            $curY += $dataRowHeight;
+        }
+
+        $pdf->SetTextColor(0, 0, 0);
+    }
+
+    $outputName = 'Aufenthaltsuebersicht_' . $reportDate->format('Ymd') . '.pdf';
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="' . $outputName . '"');
+    $pdf->Output('I', $outputName);
+    exit;
 }
 ?>
 <!DOCTYPE html>
