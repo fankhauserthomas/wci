@@ -7,3 +7,4 @@ logs/av-res-dump-stats.json
 logs/av-res-dump.log
 logs/cronjob-sync.log
 logs/sync.log
+*.log
