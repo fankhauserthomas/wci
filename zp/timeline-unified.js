@@ -526,6 +526,13 @@ class TimelineUnifiedRenderer {
             roomsScrollY: 0
         };
 
+        this.touchPointers = new Map();
+        this.isPinchZoom = false;
+        this.pinchStartDistance = 0;
+        this.pinchStartDayWidth = 0;
+        this.pinchFocusDayOffset = 0;
+        this.pinchCenterCanvasX = 0;
+
         // Referenzen auf Scroll-Container für Synchronisation
         this.horizontalTrack = null;
         this.masterTrack = null;
@@ -1961,6 +1968,7 @@ class TimelineUnifiedRenderer {
                             bottom: 20px;
                             cursor: default;
                             z-index: 1;
+                            touch-action: none;
                         "></canvas>
                         
                         <!-- Master-Scrollbar (zwischen Header und Separator 1) -->
@@ -2475,23 +2483,53 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        this.touchPointers.set(e.pointerId, {
+            id: e.pointerId,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            canvasX,
+            canvasY
+        });
+
+        try {
+            this.canvas.setPointerCapture(e.pointerId);
+        } catch (err) {
+            console.warn('Pointer capture failed:', err);
+        }
+
+        if (!this.isPinchZoom && this.touchPointers.size >= 2) {
+            const headerPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinHeader(ptr.canvasY));
+            if (headerPointers.length >= 2) {
+                this.beginPinchZoom(headerPointers.slice(0, 2));
+                e.preventDefault();
+                return;
+            }
+        }
+
+        if (this.isPinchZoom) {
+            e.preventDefault();
+            return;
+        }
+
         if (this.activePointerId !== null) {
             return;
         }
 
         this.activePointerId = e.pointerId;
-        this.canvas.setPointerCapture(e.pointerId);
-
-        const rect = this.canvas.getBoundingClientRect();
-        this.mouseX = e.clientX - rect.left;
-        this.mouseY = e.clientY - rect.top;
+        this.mouseX = canvasX;
+        this.mouseY = canvasY;
 
         this.handleMouseDown(e);
 
         const isSeparatorDrag = this.isDraggingSeparator || this.isDraggingBottomSeparator;
         const isReservationDrag = this.isDraggingReservation;
+        const isStickyDrag = this.isDraggingStickyNote;
 
-        if (!isSeparatorDrag && !isReservationDrag) {
+        if (!isSeparatorDrag && !isReservationDrag && !isStickyDrag) {
             this.startTouchPanning(e);
         }
 
@@ -2499,13 +2537,39 @@ class TimelineUnifiedRenderer {
     }
 
     handlePointerMove(e) {
-        if (e.pointerType !== 'touch' || this.activePointerId !== e.pointerId) {
+        if (e.pointerType !== 'touch') {
             return;
         }
 
         const rect = this.canvas.getBoundingClientRect();
-        this.mouseX = e.clientX - rect.left;
-        this.mouseY = e.clientY - rect.top;
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        const pointer = this.touchPointers.get(e.pointerId);
+        if (pointer) {
+            pointer.clientX = e.clientX;
+            pointer.clientY = e.clientY;
+            pointer.canvasX = canvasX;
+            pointer.canvasY = canvasY;
+        }
+
+        if (this.isPinchZoom) {
+            this.updatePinchZoom();
+            e.preventDefault();
+            return;
+        }
+
+        if (this.activePointerId !== e.pointerId) {
+            try {
+                this.canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // ignore
+            }
+            return;
+        }
+
+        this.mouseX = canvasX;
+        this.mouseY = canvasY;
 
         if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
             const mouseY = this.mouseY;
@@ -2526,6 +2590,12 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        if (this.isDraggingStickyNote) {
+            this.handleStickyNoteDrag(e);
+            e.preventDefault();
+            return;
+        }
+
         if (this.isTouchPanning && this.panContext) {
             this.updateTouchPan(e);
             e.preventDefault();
@@ -2533,13 +2603,38 @@ class TimelineUnifiedRenderer {
     }
 
     handlePointerUp(e) {
-        if (e.pointerType !== 'touch' || this.activePointerId !== e.pointerId) {
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+
+        this.touchPointers.delete(e.pointerId);
+
+        if (this.isPinchZoom) {
+            if (this.touchPointers.size >= 2) {
+                this.resetPinchBaseline();
+            } else {
+                this.endPinchZoom();
+            }
+
+            try {
+                this.canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // ignore
+            }
+
+            e.preventDefault();
+            return;
+        }
+
+        if (this.activePointerId !== e.pointerId) {
             return;
         }
 
         if (this.isDraggingReservation) {
             this.finishReservationDrag();
             this.scheduleRender('drag_touch_end');
+        } else if (this.isDraggingStickyNote) {
+            this.endStickyNoteDrag();
         } else if (this.isDraggingSeparator || this.isDraggingBottomSeparator) {
             if (this.isDraggingSeparator) {
                 this.saveToCookie('separatorTop', this.separatorY);
@@ -2557,9 +2652,188 @@ class TimelineUnifiedRenderer {
             this.panContext = null;
         }
 
-        this.canvas.releasePointerCapture(e.pointerId);
+        try {
+            this.canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {
+            // ignore
+        }
         this.activePointerId = null;
         e.preventDefault();
+    }
+
+    isWithinHeader(canvasY) {
+        const header = this.areas?.header;
+        if (!header) return false;
+        return canvasY >= header.y && canvasY <= header.y + header.height;
+    }
+
+    beginPinchZoom(pointers) {
+        if (!pointers || pointers.length < 2) {
+            return;
+        }
+
+        const [first, second] = pointers;
+        const distance = this.distanceBetweenPoints(first, second);
+        if (!distance || distance <= 0) {
+            return;
+        }
+
+        if (this.activePointerId !== null) {
+            try {
+                this.canvas.releasePointerCapture(this.activePointerId);
+            } catch (err) {
+                // ignore
+            }
+            this.activePointerId = null;
+        }
+
+        this.isPinchZoom = true;
+        this.isTouchPanning = false;
+        this.panContext = null;
+        this.pinchStartDistance = distance;
+        this.pinchStartDayWidth = this.DAY_WIDTH;
+        this.pinchCenterCanvasX = (first.canvasX + second.canvasX) / 2;
+
+        const startX = this.sidebarWidth - this.scrollX;
+        this.pinchFocusDayOffset = (this.pinchCenterCanvasX - startX) / Math.max(1, this.DAY_WIDTH);
+        if (!Number.isFinite(this.pinchFocusDayOffset)) {
+            this.pinchFocusDayOffset = 0;
+        }
+
+        // Ensure new pointers maintain capture for continued updates
+        pointers.forEach(ptr => {
+            try {
+                this.canvas.setPointerCapture(ptr.id);
+            } catch (err) {
+                // ignore
+            }
+        });
+
+        this.scheduleRender('pinch_start');
+    }
+
+    updatePinchZoom() {
+        if (!this.isPinchZoom || this.touchPointers.size < 2) {
+            return;
+        }
+
+        const headerPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinHeader(ptr.canvasY));
+        if (headerPointers.length < 2) {
+            // If fingers move out of header, end pinch gracefully
+            this.endPinchZoom();
+            return;
+        }
+
+        const [first, second] = headerPointers;
+        const distance = this.distanceBetweenPoints(first, second);
+        if (!distance || distance <= 0 || !this.pinchStartDistance) {
+            return;
+        }
+
+        const scale = distance / this.pinchStartDistance;
+        const targetDayWidth = this.clamp(this.pinchStartDayWidth * scale, 40, 250);
+
+        if (Math.abs(targetDayWidth - this.DAY_WIDTH) < 0.05) {
+            return;
+        }
+
+        this.DAY_WIDTH = targetDayWidth;
+
+        this.pinchCenterCanvasX = (first.canvasX + second.canvasX) / 2;
+        const startX = this.sidebarWidth - this.scrollX;
+        const focusOffset = Number.isFinite(this.pinchFocusDayOffset)
+            ? this.pinchFocusDayOffset
+            : (this.pinchCenterCanvasX - startX) / Math.max(1, this.DAY_WIDTH);
+
+        const range = this.currentRange || this.getTimelineDateRange();
+        const rangeDuration = Math.max(MS_IN_DAY, range.endDate.getTime() - range.startDate.getTime());
+        const totalDays = Math.max(1, Math.ceil(rangeDuration / MS_IN_DAY));
+        const viewportWidth = Math.max(1, this.canvas.width - this.sidebarWidth);
+
+        let newScrollX = this.sidebarWidth + focusOffset * this.DAY_WIDTH - this.pinchCenterCanvasX;
+        const maxScroll = Math.max(0, totalDays * this.DAY_WIDTH - viewportWidth);
+        newScrollX = this.clamp(newScrollX, 0, maxScroll);
+
+        if (this.horizontalTrack) {
+            this.horizontalTrack.scrollLeft = newScrollX;
+        }
+        this.scrollX = newScrollX;
+
+        // Recompute focus offset for stability on subsequent moves
+        const newStartX = this.sidebarWidth - this.scrollX;
+        this.pinchFocusDayOffset = (this.pinchCenterCanvasX - newStartX) / Math.max(1, this.DAY_WIDTH);
+
+        this.updateViewportCache(this.scrollX, this.roomsScrollY);
+        this.invalidateStackingCache();
+        this.scheduleRender('pinch_zoom');
+    }
+
+    endPinchZoom() {
+        if (!this.isPinchZoom) {
+            return;
+        }
+
+        this.isPinchZoom = false;
+
+        try {
+            localStorage.setItem('timeline_day_width', this.DAY_WIDTH.toString());
+        } catch (error) {
+            console.warn('DAY_WIDTH konnte nicht gespeichert werden (pinch):', error);
+        }
+
+        this.scheduleRender('pinch_end');
+
+        const remainingPointers = Array.from(this.touchPointers.values());
+        if (remainingPointers.length === 1) {
+            const pointer = remainingPointers[0];
+            this.activePointerId = pointer.id;
+            this.mouseX = pointer.canvasX;
+            this.mouseY = pointer.canvasY;
+            try {
+                this.canvas.setPointerCapture(pointer.id);
+            } catch (err) {
+                // ignore
+            }
+            this.isTouchPanning = false;
+            this.panContext = null;
+            this.startTouchPanning({ clientX: pointer.clientX, clientY: pointer.clientY });
+        } else {
+            this.activePointerId = null;
+            this.isTouchPanning = false;
+            this.panContext = null;
+        }
+
+        this.pinchStartDistance = 0;
+        this.pinchStartDayWidth = 0;
+        this.pinchFocusDayOffset = 0;
+        this.pinchCenterCanvasX = 0;
+    }
+
+    resetPinchBaseline() {
+        if (!this.isPinchZoom || this.touchPointers.size < 2) {
+            this.endPinchZoom();
+            return;
+        }
+
+        const headerPointers = Array.from(this.touchPointers.values()).filter(ptr => this.isWithinHeader(ptr.canvasY));
+        if (headerPointers.length < 2) {
+            this.endPinchZoom();
+            return;
+        }
+
+        const [first, second] = headerPointers;
+        this.pinchStartDistance = this.distanceBetweenPoints(first, second);
+        this.pinchStartDayWidth = this.DAY_WIDTH;
+        this.pinchCenterCanvasX = (first.canvasX + second.canvasX) / 2;
+        const startX = this.sidebarWidth - this.scrollX;
+        this.pinchFocusDayOffset = (this.pinchCenterCanvasX - startX) / Math.max(1, this.DAY_WIDTH);
+    }
+
+    distanceBetweenPoints(a, b) {
+        if (!a || !b) return 0;
+        const dx = a.clientX - b.clientX;
+        const dy = a.clientY - b.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     startTouchPanning(e) {
