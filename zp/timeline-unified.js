@@ -1291,6 +1291,183 @@ class TimelineUnifiedRenderer {
         return date.getTime();
     }
 
+    normalizeDateForComparison(value) {
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        let date = null;
+
+        if (value instanceof Date) {
+            date = new Date(value.getTime());
+        } else if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return null;
+            }
+            date = new Date(value);
+        } else if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed || /^0{4}/.test(trimmed)) {
+                return null;
+            }
+
+            date = new Date(trimmed);
+            if (Number.isNaN(date.getTime())) {
+                const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                if (match) {
+                    const day = parseInt(match[1], 10);
+                    const month = parseInt(match[2], 10) - 1;
+                    const year = parseInt(match[3], 10);
+                    date = new Date(year, month, day, 12, 0, 0, 0);
+                }
+            }
+        }
+
+        if (!date || Number.isNaN(date.getTime())) {
+            return null;
+        }
+
+        date.setHours(12, 0, 0, 0);
+        return date.getTime();
+    }
+
+    extractFirstDateFromSources(sources, candidateNames) {
+        if (!Array.isArray(sources) || sources.length === 0 || !Array.isArray(candidateNames) || candidateNames.length === 0) {
+            return null;
+        }
+
+        const normalizedCandidates = candidateNames
+            .filter(name => typeof name === 'string' && name.length > 0)
+            .map(name => name.toLowerCase());
+
+        for (const source of sources) {
+            if (!source || typeof source !== 'object') {
+                continue;
+            }
+
+            for (const [key, value] of Object.entries(source)) {
+                if (typeof key !== 'string') {
+                    continue;
+                }
+
+                if (!normalizedCandidates.includes(key.toLowerCase())) {
+                    continue;
+                }
+
+                const normalized = this.normalizeDateForComparison(value);
+                if (normalized !== null) {
+                    return normalized;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    extractMasterStayBounds(reservation) {
+        if (!reservation) {
+            return { start: null, end: null };
+        }
+
+        const sources = [reservation];
+        if (reservation.fullData && typeof reservation.fullData === 'object') {
+            sources.push(reservation.fullData);
+        }
+        if (reservation.data && typeof reservation.data === 'object') {
+            sources.push(reservation.data);
+        }
+
+        const startCandidates = [
+            'start', 'start_date', 'startdate', 'anreise', 'arrival', 'arr_date', 'ankunft',
+            'von', 'checkin', 'check_in', 'master_start', 'start_at', 'date_from', 'begin'
+        ];
+        const endCandidates = [
+            'end', 'end_date', 'enddate', 'abreise', 'departure', 'dep_date', 'ende',
+            'bis', 'checkout', 'check_out', 'master_end', 'end_at', 'date_to', 'finish'
+        ];
+
+        const start = this.extractFirstDateFromSources(sources, startCandidates);
+        const end = this.extractFirstDateFromSources(sources, endCandidates);
+
+        return { start, end };
+    }
+
+    evaluateDetailDateAlignment(detailStatsEntry, masterStay) {
+        const result = {
+            masterStart: masterStay?.start ?? null,
+            masterEnd: masterStay?.end ?? null,
+            detailStart: null,
+            detailEnd: null,
+            startMismatch: false,
+            endMismatch: false,
+            dateMismatch: false,
+            usedLinkedGroups: false,
+            comparedGroupCount: 0,
+            hasDetailDates: false
+        };
+
+        if (!detailStatsEntry || !detailStatsEntry.groups || detailStatsEntry.groups.size === 0) {
+            return result;
+        }
+
+        const groups = Array.from(detailStatsEntry.groups.values()).filter(group =>
+            group && group.entries && group.entries.length > 0 && group.hasDateData
+        );
+
+        if (groups.length === 0) {
+            return result;
+        }
+
+        const linkedGroups = groups.filter(group => group.parentId !== null);
+        const groupsForComparison = linkedGroups.length > 0 ? linkedGroups : groups;
+        result.usedLinkedGroups = linkedGroups.length > 0;
+        result.comparedGroupCount = groupsForComparison.length;
+
+        const masterStartKey = result.masterStart !== null ? this.getDateKey(new Date(result.masterStart)) : null;
+        const masterEndKey = result.masterEnd !== null ? this.getDateKey(new Date(result.masterEnd)) : null;
+
+        let detailStartKey = null;
+        let detailEndKey = null;
+        let startMismatch = false;
+        let endMismatch = false;
+
+        groupsForComparison.forEach(group => {
+            if (!group) {
+                return;
+            }
+
+            const groupStartMs = group.earliestStart ?? null;
+            const groupEndMs = group.latestEnd ?? null;
+
+            if (groupStartMs !== null) {
+                const groupStartKey = this.getDateKey(new Date(groupStartMs));
+                result.detailStart = result.detailStart === null ? groupStartMs : Math.min(result.detailStart, groupStartMs);
+                detailStartKey = detailStartKey === null ? groupStartKey : Math.min(detailStartKey, groupStartKey);
+
+                if (masterStartKey !== null && groupStartKey !== masterStartKey) {
+                    startMismatch = true;
+                }
+            }
+
+            if (groupEndMs !== null) {
+                const groupEndKey = this.getDateKey(new Date(groupEndMs));
+                result.detailEnd = result.detailEnd === null ? groupEndMs : Math.max(result.detailEnd, groupEndMs);
+                detailEndKey = detailEndKey === null ? groupEndKey : Math.max(detailEndKey, groupEndKey);
+
+                if (masterEndKey !== null && groupEndKey !== masterEndKey) {
+                    endMismatch = true;
+                }
+            }
+        });
+
+        result.hasDetailDates = result.detailStart !== null || result.detailEnd !== null;
+        result.startMismatch = Boolean(startMismatch && masterStartKey !== null && detailStartKey !== null);
+        result.endMismatch = Boolean(endMismatch && masterEndKey !== null && detailEndKey !== null);
+        result.dateMismatch = result.startMismatch || result.endMismatch;
+
+        return result;
+    }
+
     getRoomCategoryByRoomId(roomId) {
         const key = String(roomId ?? '');
         if (!this.roomCategoryCache.has(key)) {
@@ -1871,7 +2048,10 @@ class TimelineUnifiedRenderer {
                     group = {
                         canonicalId: canonicalGroupId,
                         parentId: hasValidParent ? parentIdNumber : null,
-                        entries: []
+                        entries: [],
+                        earliestStart: null,
+                        latestEnd: null,
+                        hasDateData: false
                     };
                     stats.groups.set(canonicalGroupId, group);
                 }
@@ -1879,30 +2059,26 @@ class TimelineUnifiedRenderer {
                 const startValue = detail.start ?? detail.start_date ?? detail.startDate ?? detail.data?.start ?? detail.data?.start_date ?? detail.data?.startDate;
                 const endValue = detail.end ?? detail.end_date ?? detail.endDate ?? detail.data?.end ?? detail.data?.end_date ?? detail.data?.endDate;
 
-                let startNorm = null;
-                let endNorm = null;
-
-                if (startValue) {
-                    const startDateObj = new Date(startValue);
-                    if (!Number.isNaN(startDateObj.getTime())) {
-                        startNorm = this.normalizeDateToNoon(startDateObj);
-                    }
-                }
-
-                if (endValue) {
-                    const endDateObj = new Date(endValue);
-                    if (!Number.isNaN(endDateObj.getTime())) {
-                        endNorm = this.normalizeDateToNoon(endDateObj);
-                    }
-                }
+                const startNorm = this.normalizeDateForComparison(startValue);
+                const endNorm = this.normalizeDateForComparison(endValue);
 
                 group.entries.push({
                     capacity: normalizedCapacity,
-                    startNorm: Number.isFinite(startNorm) ? startNorm : null,
-                    endNorm: Number.isFinite(endNorm) ? endNorm : null,
+                    startNorm,
+                    endNorm,
                     detailId: detailId !== null && detailId !== undefined ? detailId : null,
                     parentId: hasValidParent ? parentIdNumber : null
                 });
+
+                if (startNorm !== null) {
+                    group.hasDateData = true;
+                    group.earliestStart = group.earliestStart === null ? startNorm : Math.min(group.earliestStart, startNorm);
+                }
+
+                if (endNorm !== null) {
+                    group.hasDateData = true;
+                    group.latestEnd = group.latestEnd === null ? endNorm : Math.max(group.latestEnd, endNorm);
+                }
             });
         }
 
@@ -1919,6 +2095,8 @@ class TimelineUnifiedRenderer {
             const stats = detailStats.get(key) || { sum: 0, count: 0, groups: new Map(), hasParentLinks: false };
             const masterTotals = this.getMasterCategoryTotals(reservation);
             const masterCapacity = masterTotals.total !== null ? Math.max(0, masterTotals.total) : null;
+            const masterStay = this.extractMasterStayBounds(reservation);
+            const dateComparison = this.evaluateDetailDateAlignment(stats, masterStay);
 
             let detailDailyPeak = null;
             let detailDailyTotals = null;
@@ -2010,6 +2188,7 @@ class TimelineUnifiedRenderer {
             const detailCapacity = Math.max(0, detailDailyPeak);
             const hasDetailData = stats.count > 0;
             const mismatch = hasDetailData && masterCapacity !== null ? Math.abs(masterCapacity - detailCapacity) > 0.001 : false;
+            const dateMismatch = Boolean(dateComparison?.dateMismatch);
 
             const info = {
                 resId: identifiers.resId,
@@ -2022,8 +2201,30 @@ class TimelineUnifiedRenderer {
                 detailRawSum: Math.max(0, stats.sum),
                 detailDailyPeak,
                 detailGroupCount: stats.groups ? stats.groups.size : 0,
-                detailHasParentLinks: Boolean(stats.hasParentLinks)
+                detailHasParentLinks: Boolean(stats.hasParentLinks),
+                hasDetailDateData: Boolean(dateComparison?.hasDetailDates),
+                dateMismatch,
+                startMismatch: Boolean(dateComparison?.startMismatch),
+                endMismatch: Boolean(dateComparison?.endMismatch),
+                masterStart: dateComparison?.masterStart ?? null,
+                masterEnd: dateComparison?.masterEnd ?? null,
+                detailStart: dateComparison?.detailStart ?? null,
+                detailEnd: dateComparison?.detailEnd ?? null,
+                comparedDateGroupCount: dateComparison?.comparedGroupCount ?? 0,
+                usedLinkedGroupsForDateComparison: Boolean(dateComparison?.usedLinkedGroups)
             };
+
+            info.hasAnyMismatch = Boolean(info.mismatch || info.dateMismatch);
+            info.mismatchReasons = [];
+            if (info.mismatch) {
+                info.mismatchReasons.push('capacity');
+            }
+            if (info.startMismatch) {
+                info.mismatchReasons.push('start');
+            }
+            if (info.endMismatch) {
+                info.mismatchReasons.push('end');
+            }
 
             byResId.set(key, info);
             byReservation.set(reservation, info);
@@ -9814,10 +10015,12 @@ class TimelineUnifiedRenderer {
 
         const mismatchInfo = this.getCapacityMismatchInfo(detail);
         const hasCapacityMismatch = Boolean(mismatchInfo && mismatchInfo.masterCapacity !== null && mismatchInfo.mismatch);
+        const hasDateMismatch = Boolean(mismatchInfo && mismatchInfo.dateMismatch);
+        const hasMismatch = hasCapacityMismatch || hasDateMismatch;
         let mismatchPulse = 0;
         let mismatchScale = 1;
 
-        if (hasCapacityMismatch) {
+        if (hasMismatch) {
             const pulsePhase = Date.now() / 260;
             mismatchPulse = (Math.sin(pulsePhase) + 1) / 2;
             mismatchScale = 1 + mismatchPulse * 0.06;
@@ -9875,7 +10078,7 @@ class TimelineUnifiedRenderer {
         }
         // isSourceOfDrag behält Originalgröße, wird nur heller und glüht
 
-        if (hasCapacityMismatch && !isSourceOfDrag) {
+        if (hasMismatch && !isSourceOfDrag) {
             const widthInflation = renderWidth * ((mismatchScale - 1) * 0.35);
             const heightInflation = renderHeight * (mismatchScale - 1);
             renderX -= widthInflation / 2;
@@ -9897,7 +10100,7 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowColor = 'transparent';
             this.ctx.shadowBlur = 0;
             this.ctx.globalAlpha = 1.0; // Alpha zurücksetzen
-        } else if (hasCapacityMismatch) {
+        } else if (hasMismatch) {
             this.ctx.shadowColor = 'transparent';
             this.ctx.shadowBlur = 0;
             this.ctx.shadowOffsetX = 0;
@@ -9925,7 +10128,7 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowOffsetY = 0;
         }
 
-        if (hasCapacityMismatch && renderWidth > 6 && renderHeight > 4) {
+        if (hasMismatch && renderWidth > 6 && renderHeight > 4) {
             const overlayAlpha = 0.25 + (mismatchPulse * 0.35);
             this.ctx.save();
             this.ctx.globalCompositeOperation = 'lighter';

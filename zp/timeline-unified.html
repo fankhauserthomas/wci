@@ -711,7 +711,7 @@
 
         /* Disabled state for rooms that cannot accept more assignments (max <= 0) */
         .assign-room.disabled {
-            opacity: 0.1;
+            opacity: 0.45;
         }
 
         .assign-room.disabled .assign-bar {
@@ -807,16 +807,32 @@
             border: 1px solid #dde3ea;
             cursor: ew-resize;
             flex: 1;
+            overflow: hidden;
         }
 
         .assign-bar-fill {
             position: absolute;
+            inset: 0;
+            border-radius: 4px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .assign-bar-segment {
+            position: absolute;
             top: 0;
-            left: 0;
             height: 100%;
-            background: linear-gradient(90deg, #b3d4fc, #6aa7f7);
-            border-radius: 8px;
-            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+            transition: width 0.2s ease, left 0.2s ease;
+        }
+
+        .assign-bar-segment.occupied {
+            left: 0;
+            background: linear-gradient(90deg, #f87171, #dc2626);
+        }
+
+        .assign-bar-segment.assigned {
+            left: 0;
+            background: linear-gradient(90deg, #93c5fd, #3b82f6);
         }
 
         .assign-bar-label {
@@ -826,10 +842,21 @@
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            color: #2c3e50;
+            color: #0f172a;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
             pointer-events: none;
             font-size: 11px;
+        }
+
+        .assign-bar-cap {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #475569;
+            font-size: 11px;
+            font-weight: 600;
+            pointer-events: none;
         }
 
         .assign-controls {
@@ -1929,7 +1956,15 @@
 
                     const metaEl = document.createElement('div');
                     metaEl.className = 'assign-ablage-room-meta';
-                    metaEl.textContent = `${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}`;
+                    const ablageTotalCapacity = roomTotalCap > 0 ? roomTotalCap : Math.max(baseAvail, 0);
+                    const ablageExisting = ablageTotalCapacity > 0 ? Math.max(0, ablageTotalCapacity - baseAvail) : 0;
+                    const ablageAssigned = Math.max(assigned, 0);
+                    const ablageOccupied = ablageTotalCapacity > 0
+                        ? Math.min(ablageTotalCapacity, ablageExisting + Math.min(ablageAssigned, Math.max(0, ablageTotalCapacity - ablageExisting)))
+                        : Math.max(0, ablageExisting + ablageAssigned);
+                    metaEl.textContent = ablageTotalCapacity > 0
+                        ? `${ablageOccupied}/${ablageTotalCapacity}`
+                        : '';
 
                     roomElement.appendChild(titleEl);
                     roomElement.appendChild(metaEl);
@@ -1951,10 +1986,18 @@
                     // Finde das Zimmer-Objekt für die Kapazität
                     const room = (Array.isArray(window.rooms) ? window.rooms : []).find(r => r.id == roomId);
                     const roomTotalCap = room ? Number(room.kapazitaet || room.capacity || 0) : 0;
+                    const ablageTotalCapacity = roomTotalCap > 0 ? roomTotalCap : Math.max(baseAvail, 0);
+                    const ablageExisting = ablageTotalCapacity > 0 ? Math.max(0, ablageTotalCapacity - baseAvail) : 0;
+                    const ablageAssigned = Math.max(assigned, 0);
+                    const ablageOccupied = ablageTotalCapacity > 0
+                        ? Math.min(ablageTotalCapacity, ablageExisting + Math.min(ablageAssigned, Math.max(0, ablageTotalCapacity - ablageExisting)))
+                        : Math.max(0, ablageExisting + ablageAssigned);
 
                     const metaEl = roomElement.querySelector('.assign-ablage-room-meta');
                     if (metaEl) {
-                        metaEl.textContent = `${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}`;
+                        metaEl.textContent = ablageTotalCapacity > 0
+                            ? `${ablageOccupied}/${ablageTotalCapacity}`
+                            : '';
                     }
                 });
             }
@@ -2258,7 +2301,18 @@
                             const title = document.createElement('div');
                             title.className = 'assign-room-title';
                             const roomTotalCap = Number(room.kapazitaet || room.capacity || 0);
-                            title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span> <span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+                            const initialTotalCapacity = roomTotalCap > 0 ? roomTotalCap : Math.max(baseAvail, 0);
+                            const initialExisting = initialTotalCapacity > 0 ? Math.max(0, initialTotalCapacity - baseAvail) : 0;
+                            const initialOccupied = initialTotalCapacity > 0
+                                ? Math.min(initialTotalCapacity, initialExisting + Math.max(assigned, 0))
+                                : Math.max(0, initialExisting + Math.max(assigned, 0));
+                            const roomTitleText = room.caption || room.display_name || ('Zimmer ' + room.id);
+                            const initialMetaValue = initialTotalCapacity > 0 && Number.isFinite(initialOccupied)
+                                ? `${initialOccupied}/${initialTotalCapacity}`
+                                : '';
+                            title.innerHTML = initialMetaValue
+                                ? `<span>${roomTitleText}</span> <span class="assign-room-meta">${initialMetaValue}</span>`
+                                : `<span>${roomTitleText}</span>`;
                             // Farb-Akzent links auf Basis der Zimmerfarbe (#RRGGBB oder #AARRGGBB)
                             if (room.col && typeof room.col === 'string') {
                                 let col = room.col.trim();
@@ -2270,13 +2324,20 @@
 
                             const bar = document.createElement('div');
                             bar.className = 'assign-bar';
-                            bar.style.flex = '1';
+
                             const fill = document.createElement('div');
                             fill.className = 'assign-bar-fill';
+                            const occupiedFill = document.createElement('div');
+                            occupiedFill.className = 'assign-bar-segment occupied';
+                            const assignedFill = document.createElement('div');
+                            assignedFill.className = 'assign-bar-segment assigned';
+                            fill.appendChild(occupiedFill);
+                            fill.appendChild(assignedFill);
+
                             const label = document.createElement('div');
                             label.className = 'assign-bar-label';
                             const capLabel = document.createElement('div');
-                            capLabel.style.position = 'absolute'; capLabel.style.right = '6px'; capLabel.style.top = '50%'; capLabel.style.transform = 'translateY(-50%)'; capLabel.style.color = '#475569'; capLabel.style.fontSize = '11px'; capLabel.style.pointerEvents = 'none';
+                            capLabel.className = 'assign-bar-cap';
                             // Debug-Label: per-Tag freie Kapazitäten als farbkodierte Ovale
                             const debugLabel = document.createElement('div');
                             debugLabel.className = 'assign-bar-debug';
@@ -2326,13 +2387,47 @@
                             controls.appendChild(btnMinus); controls.appendChild(btnPlus);
 
                             const updateBar = () => {
+                                const totalCapacity = roomTotalCap > 0 ? roomTotalCap : Math.max(baseAvail, 0);
+                                const existingOccupied = totalCapacity > 0 ? Math.max(0, totalCapacity - baseAvail) : 0;
                                 const maxAssignAbs = Math.min(baseAvail, remaining() + assigned);
-                                const denom = baseAvail > 0 ? baseAvail : 1;
-                                const pct = Math.max(0, Math.min(1, assigned / denom));
-                                fill.style.width = `${pct * 100}%`;
-                                label.textContent = `${assigned}`;
-                                capLabel.textContent = `/${baseAvail}`;
-                                title.innerHTML = `<span>${room.caption || room.display_name || ('Zimmer ' + room.id)}</span> <span class="assign-room-meta">${assigned}/${baseAvail}${roomTotalCap ? ` (von ${roomTotalCap})` : ''}</span>`;
+
+                                const clampedExisting = totalCapacity > 0 ? Math.min(existingOccupied, totalCapacity) : 0;
+                                const clampedAssigned = totalCapacity > 0
+                                    ? Math.min(Math.max(assigned, 0), Math.max(0, totalCapacity - clampedExisting))
+                                    : Math.max(assigned, 0);
+
+                                const occupiedPct = totalCapacity > 0 ? (clampedExisting / totalCapacity) * 100 : 0;
+                                const assignedPct = totalCapacity > 0 ? (clampedAssigned / totalCapacity) * 100 : 0;
+
+                                if (totalCapacity > 0) {
+                                    occupiedFill.style.display = clampedExisting > 0 ? 'block' : 'none';
+                                    assignedFill.style.display = clampedAssigned > 0 ? 'block' : 'none';
+                                    occupiedFill.style.width = `${occupiedPct}%`;
+                                    assignedFill.style.left = `${occupiedPct}%`;
+                                    assignedFill.style.width = `${assignedPct}%`;
+                                } else {
+                                    occupiedFill.style.display = 'none';
+                                    assignedFill.style.display = clampedAssigned > 0 ? 'block' : 'none';
+                                    assignedFill.style.left = '0%';
+                                    assignedFill.style.width = clampedAssigned > 0 ? '100%' : '0%';
+                                }
+
+                                label.textContent = assigned > 0 ? `+${assigned}` : '0';
+                                capLabel.textContent = '';
+                                capLabel.style.display = 'none';
+
+                                const currentOccupied = totalCapacity > 0
+                                    ? Math.min(totalCapacity, clampedExisting + clampedAssigned)
+                                    : Math.max(0, clampedExisting + clampedAssigned);
+                                const roomTitleText = room.caption || room.display_name || ('Zimmer ' + room.id);
+                                const metaValue = totalCapacity > 0 && Number.isFinite(currentOccupied)
+                                    ? `${currentOccupied}/${totalCapacity}`
+                                    : '';
+
+                                title.innerHTML = metaValue
+                                    ? `<span>${roomTitleText}</span> <span class="assign-room-meta">${metaValue}</span>`
+                                    : `<span>${roomTitleText}</span>`;
+
                                 btnMinus.disabled = assigned <= 0;
                                 btnPlus.disabled = assigned >= maxAssignAbs;
                                 // Toggle disabled state for token drop if no additional capacity can be added now
