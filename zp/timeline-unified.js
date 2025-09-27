@@ -481,6 +481,16 @@ class TimelineUnifiedRenderer {
             positions: []
         };
 
+        let disposedToggle = false;
+        if (typeof window !== 'undefined') {
+            if (typeof window.TIMELINE_SHOW_DISPOSED_MASTER !== 'undefined') {
+                disposedToggle = Boolean(window.TIMELINE_SHOW_DISPOSED_MASTER);
+            } else if (typeof window.timelineShowDisposedMaster !== 'undefined') {
+                disposedToggle = Boolean(window.timelineShowDisposedMaster);
+            }
+        }
+        this.showDisposedMasterReservations = disposedToggle;
+
         this.arrangementsCatalog = Array.isArray(arrangementsCatalog) ? arrangementsCatalog : [];
         this.histogramSource = Array.isArray(histogramSourceData) ? histogramSourceData : [];
 
@@ -549,6 +559,7 @@ class TimelineUnifiedRenderer {
         // Datensynchronisation & Caches
         this.dataVersion = 0;
         this.histogramCache = null;
+        this.capacityMismatchCache = null;
         this.roomsById = new Map();
         this.roomCategoryCache = new Map();
 
@@ -661,21 +672,23 @@ class TimelineUnifiedRenderer {
 
         const startX = this.sidebarWidth - this.scrollX;
 
-        return reservations.filter(reservation => {
-            const checkinDate = new Date(reservation.start);
-            checkinDate.setHours(12, 0, 0, 0);
-            const checkoutDate = new Date(reservation.end);
-            checkoutDate.setHours(12, 0, 0, 0);
+        return reservations
+            .filter(reservation => this.isMasterReservationVisible(reservation))
+            .filter(reservation => {
+                const checkinDate = new Date(reservation.start);
+                checkinDate.setHours(12, 0, 0, 0);
+                const checkoutDate = new Date(reservation.end);
+                checkoutDate.setHours(12, 0, 0, 0);
 
-            const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-            const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
+                const startOffset = (checkinDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+                const duration = (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24);
 
-            const resLeft = startX + (startOffset + 0.1) * this.DAY_WIDTH;
-            const resRight = resLeft + (duration - 0.2) * this.DAY_WIDTH;
+                const resLeft = startX + (startOffset + 0.1) * this.DAY_WIDTH;
+                const resRight = resLeft + (duration - 0.2) * this.DAY_WIDTH;
 
-            // Großzügigere Sichtbarkeitsprüfung
-            return resRight >= viewportLeft && resLeft <= viewportRight;
-        });
+                // Großzügigere Sichtbarkeitsprüfung
+                return resRight >= viewportLeft && resLeft <= viewportRight;
+            });
     }
 
     getVisibleRooms() {
@@ -1333,6 +1346,7 @@ class TimelineUnifiedRenderer {
     markDataDirty() {
         this.dataVersion += 1;
         this.invalidateHistogramCache();
+        this.capacityMismatchCache = null;
         this.dataIndex = null;
     }
 
@@ -1380,6 +1394,231 @@ class TimelineUnifiedRenderer {
         identifiers.uniqueId = detail.id || (detailId ? `room_detail_${detailId}` : null);
 
         return identifiers;
+    }
+
+    normalizeReservationId(resId) {
+        if (resId === undefined || resId === null) {
+            return null;
+        }
+
+        if (typeof resId === 'number' && Number.isFinite(resId)) {
+            return String(resId);
+        }
+
+        if (typeof resId === 'string') {
+            const trimmed = resId.trim();
+            if (!trimmed) {
+                return null;
+            }
+            const parsed = Number(trimmed);
+            if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+                return String(parsed);
+            }
+            return trimmed;
+        }
+
+        const parsed = Number(resId);
+        if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+            return String(parsed);
+        }
+
+        return null;
+    }
+
+    normalizeBoolean(value) {
+        if (typeof value === 'boolean') {
+            return value;
+        }
+        if (typeof value === 'number') {
+            return value !== 0;
+        }
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (!normalized) {
+                return false;
+            }
+            return ['1', 'true', 'yes', 'y', 'ja', 'on'].includes(normalized);
+        }
+        return Boolean(value);
+    }
+
+    isMasterReservationVisible(reservation) {
+        if (!reservation) {
+            return false;
+        }
+
+        if (this.showDisposedMasterReservations) {
+            return true;
+        }
+
+        const disposedFlag = reservation.is_disposed ??
+            reservation.fullData?.is_disposed ??
+            reservation.data?.is_disposed ??
+            null;
+
+        return !this.normalizeBoolean(disposedFlag);
+    }
+
+    extractMasterReservationIdentifiers(reservation) {
+        const identifiers = {
+            resId: null,
+            uniqueId: null
+        };
+
+        if (!reservation) {
+            return identifiers;
+        }
+
+        let resId = reservation.res_id ?? reservation.reservation_id ?? reservation.resid ?? null;
+
+        if (resId === null || resId === undefined) {
+            const data = reservation.fullData || reservation.data || {};
+            if (data.res_id !== undefined && data.res_id !== null) {
+                resId = data.res_id;
+            } else if (data.id !== undefined && data.id !== null) {
+                resId = data.id;
+            }
+        }
+
+        if ((resId === null || resId === undefined) && typeof reservation.id === 'string') {
+            const match = reservation.id.match(/res_(\d+)/i);
+            if (match) {
+                const parsed = Number(match[1]);
+                if (!Number.isNaN(parsed)) {
+                    resId = parsed;
+                }
+            }
+        }
+
+        identifiers.resId = resId ?? null;
+        identifiers.uniqueId = reservation.id || (resId !== null && resId !== undefined ? `res_${resId}` : null);
+
+        return identifiers;
+    }
+
+    getReservationCapacityValue(reservation) {
+        if (!reservation) {
+            return null;
+        }
+
+        const candidates = [
+            reservation._capacity,
+            reservation.capacity,
+            reservation.total_capacity,
+            reservation.persons,
+            reservation.person_count,
+            reservation.guest_count,
+            reservation.data?.capacity,
+            reservation.data?.anz,
+            reservation.data?.persons,
+            reservation.data?.person_count,
+            reservation.fullData?.capacity,
+            reservation.fullData?.anz,
+            reservation.fullData?.persons,
+            reservation.fullData?.person_count
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate === undefined || candidate === null) {
+                continue;
+            }
+            const numeric = Number(candidate);
+            if (Number.isFinite(numeric)) {
+                return numeric;
+            }
+        }
+
+        return null;
+    }
+
+    getMasterCategoryTotals(reservation) {
+        const result = {
+            categories: {
+                betten: 0,
+                lager: 0,
+                sonder: 0,
+                dz: 0
+            },
+            total: 0,
+            found: false,
+            usedFallback: false
+        };
+
+        if (!reservation) {
+            result.total = null;
+            return result;
+        }
+
+        const categories = ['betten', 'lager', 'sonder', 'dz'];
+        const capacityDetailSources = [
+            reservation.capacity_details,
+            reservation.capacityDetails,
+            reservation.fullData?.capacity_details,
+            reservation.fullData?.capacityDetails,
+            reservation.data?.capacity_details,
+            reservation.data?.capacityDetails
+        ];
+
+        const directSources = [
+            reservation,
+            reservation.fullData,
+            reservation.data
+        ];
+
+        categories.forEach(category => {
+            let value = null;
+
+            for (const source of capacityDetailSources) {
+                if (!source || typeof source !== 'object') {
+                    continue;
+                }
+                const candidate = source[category];
+                if (candidate === undefined || candidate === null) {
+                    continue;
+                }
+                const numeric = Number(candidate);
+                if (Number.isFinite(numeric)) {
+                    value = numeric;
+                    break;
+                }
+            }
+
+            if (value === null) {
+                for (const source of directSources) {
+                    if (!source || typeof source !== 'object') {
+                        continue;
+                    }
+                    const candidate = source[category];
+                    if (candidate === undefined || candidate === null) {
+                        continue;
+                    }
+                    const numeric = Number(candidate);
+                    if (Number.isFinite(numeric)) {
+                        value = numeric;
+                        break;
+                    }
+                }
+            }
+
+            if (value !== null) {
+                const normalized = Math.max(0, value);
+                result.categories[category] = normalized;
+                result.total += normalized;
+                result.found = true;
+            }
+        });
+
+        if (!result.found) {
+            const fallback = this.getReservationCapacityValue(reservation);
+            if (Number.isFinite(fallback)) {
+                result.total = Math.max(0, fallback);
+                result.usedFallback = true;
+            } else {
+                result.total = null;
+            }
+        }
+
+        return result;
     }
 
     getDetailCaption(detail) {
@@ -1508,6 +1747,261 @@ class TimelineUnifiedRenderer {
         });
 
         return occupancyMap;
+    }
+
+    ensureCapacityMismatchCache() {
+        if (this.capacityMismatchCache && this.capacityMismatchCache.version === this.dataVersion) {
+            return this.capacityMismatchCache;
+        }
+
+        const detailStats = new Map();
+
+        if (Array.isArray(roomDetails)) {
+            roomDetails.forEach(detail => {
+                if (!detail || detail._isGhost) {
+                    return;
+                }
+
+                const identifiers = this.extractDetailIdentifiers(detail);
+                const key = this.normalizeReservationId(identifiers.resId);
+                if (!key) {
+                    return;
+                }
+
+                const rawCapacity = this.getDetailCapacityValue(detail);
+                const normalizedCapacity = Number.isFinite(rawCapacity) ? Math.max(0, rawCapacity) : 0;
+
+                let stats = detailStats.get(key);
+                if (!stats) {
+                    stats = {
+                        sum: 0,
+                        count: 0,
+                        groups: new Map(),
+                        hasParentLinks: false
+                    };
+                    detailStats.set(key, stats);
+                }
+
+                stats.sum += normalizedCapacity;
+                stats.count += 1;
+
+                const parentIdRaw = detail.ParentID ?? detail.parentID ?? detail.parentId ?? detail.data?.ParentID ?? detail.data?.parentID ?? detail.data?.parentId;
+                const parentIdNumber = Number(parentIdRaw);
+                const hasValidParent = Number.isFinite(parentIdNumber) && parentIdNumber > 0;
+
+                if (hasValidParent) {
+                    stats.hasParentLinks = true;
+                }
+
+                const detailId = identifiers.detailId ?? detail.detail_id ?? detail.id ?? null;
+                const canonicalGroupId = hasValidParent
+                    ? String(parentIdNumber)
+                    : (detailId !== null && detailId !== undefined ? String(detailId) : `detail_${stats.count}_${Math.random().toString(36).slice(2, 8)}`);
+
+                let group = stats.groups.get(canonicalGroupId);
+                if (!group) {
+                    group = {
+                        canonicalId: canonicalGroupId,
+                        parentId: hasValidParent ? parentIdNumber : null,
+                        entries: []
+                    };
+                    stats.groups.set(canonicalGroupId, group);
+                }
+
+                const startValue = detail.start ?? detail.start_date ?? detail.startDate ?? detail.data?.start ?? detail.data?.start_date ?? detail.data?.startDate;
+                const endValue = detail.end ?? detail.end_date ?? detail.endDate ?? detail.data?.end ?? detail.data?.end_date ?? detail.data?.endDate;
+
+                let startNorm = null;
+                let endNorm = null;
+
+                if (startValue) {
+                    const startDateObj = new Date(startValue);
+                    if (!Number.isNaN(startDateObj.getTime())) {
+                        startNorm = this.normalizeDateToNoon(startDateObj);
+                    }
+                }
+
+                if (endValue) {
+                    const endDateObj = new Date(endValue);
+                    if (!Number.isNaN(endDateObj.getTime())) {
+                        endNorm = this.normalizeDateToNoon(endDateObj);
+                    }
+                }
+
+                group.entries.push({
+                    capacity: normalizedCapacity,
+                    startNorm: Number.isFinite(startNorm) ? startNorm : null,
+                    endNorm: Number.isFinite(endNorm) ? endNorm : null,
+                    detailId: detailId !== null && detailId !== undefined ? detailId : null,
+                    parentId: hasValidParent ? parentIdNumber : null
+                });
+            });
+        }
+
+        const byResId = new Map();
+        const byReservation = new Map();
+
+        (Array.isArray(reservations) ? reservations : []).forEach(reservation => {
+            const identifiers = this.extractMasterReservationIdentifiers(reservation);
+            const key = this.normalizeReservationId(identifiers.resId);
+            if (!key) {
+                return;
+            }
+
+            const stats = detailStats.get(key) || { sum: 0, count: 0, groups: new Map(), hasParentLinks: false };
+            const masterTotals = this.getMasterCategoryTotals(reservation);
+            const masterCapacity = masterTotals.total !== null ? Math.max(0, masterTotals.total) : null;
+
+            let detailDailyPeak = null;
+            let detailDailyTotals = null;
+
+            if (stats.groups && stats.groups.size > 0) {
+                detailDailyTotals = new Map();
+
+                stats.groups.forEach(group => {
+                    if (!group || !Array.isArray(group.entries) || group.entries.length === 0) {
+                        return;
+                    }
+
+                    const groupDaily = new Map();
+
+                    group.entries.forEach(entry => {
+                        const capacity = Number.isFinite(entry.capacity) ? entry.capacity : 0;
+                        if (capacity <= 0) {
+                            return;
+                        }
+
+                        let { startNorm, endNorm } = entry;
+
+                        if (startNorm === null && endNorm === null) {
+                            const fallbackKey = `__fallback__`;
+                            const prev = groupDaily.get(fallbackKey) || 0;
+                            groupDaily.set(fallbackKey, Math.max(prev, capacity));
+                            return;
+                        }
+
+                        if (startNorm === null && endNorm !== null) {
+                            startNorm = endNorm - MS_IN_DAY;
+                        } else if (startNorm !== null && endNorm === null) {
+                            endNorm = startNorm + MS_IN_DAY;
+                        }
+
+                        if (startNorm === null) {
+                            const fallbackKey = `__fallback__`;
+                            const prev = groupDaily.get(fallbackKey) || 0;
+                            groupDaily.set(fallbackKey, Math.max(prev, capacity));
+                            return;
+                        }
+
+                        if (!Number.isFinite(endNorm) || endNorm <= startNorm) {
+                            endNorm = startNorm + MS_IN_DAY;
+                        }
+
+                        let current = startNorm;
+                        let safety = 0;
+                        while (current < endNorm && safety < 3700) {
+                            const prev = groupDaily.get(current) || 0;
+                            groupDaily.set(current, Math.max(prev, capacity));
+                            current += MS_IN_DAY;
+                            safety += 1;
+                        }
+                    });
+
+                    if (groupDaily.size === 0) {
+                        const fallbackCapacity = group.entries.reduce((max, entry) => Number.isFinite(entry.capacity) ? Math.max(max, entry.capacity) : max, 0);
+                        if (fallbackCapacity > 0) {
+                            const fallbackKey = `__group_${group.canonicalId}`;
+                            const prev = detailDailyTotals.get(fallbackKey) || 0;
+                            detailDailyTotals.set(fallbackKey, prev + fallbackCapacity);
+                        }
+                        return;
+                    }
+
+                    groupDaily.forEach((value, dayKey) => {
+                        const prev = detailDailyTotals.get(dayKey) || 0;
+                        detailDailyTotals.set(dayKey, prev + value);
+                    });
+                });
+
+                if (detailDailyTotals.size > 0) {
+                    detailDailyTotals.forEach(value => {
+                        if (!Number.isFinite(value)) {
+                            return;
+                        }
+                        if (detailDailyPeak === null || value > detailDailyPeak) {
+                            detailDailyPeak = value;
+                        }
+                    });
+                }
+            }
+
+            if (detailDailyPeak === null) {
+                detailDailyPeak = Math.max(0, stats.sum);
+            }
+
+            const detailCapacity = Math.max(0, detailDailyPeak);
+            const hasDetailData = stats.count > 0;
+            const mismatch = hasDetailData && masterCapacity !== null ? Math.abs(masterCapacity - detailCapacity) > 0.001 : false;
+
+            const info = {
+                resId: identifiers.resId,
+                masterCapacity,
+                detailCapacity,
+                mismatch,
+                hasDetailData,
+                masterCategories: masterTotals.categories,
+                usedFallbackCapacity: masterTotals.usedFallback,
+                detailRawSum: Math.max(0, stats.sum),
+                detailDailyPeak,
+                detailGroupCount: stats.groups ? stats.groups.size : 0,
+                detailHasParentLinks: Boolean(stats.hasParentLinks)
+            };
+
+            byResId.set(key, info);
+            byReservation.set(reservation, info);
+        });
+
+        this.capacityMismatchCache = {
+            version: this.dataVersion,
+            byResId,
+            byReservation
+        };
+
+        return this.capacityMismatchCache;
+    }
+
+    getCapacityMismatchInfo(entry) {
+        if (!entry) {
+            return null;
+        }
+
+        const cache = this.ensureCapacityMismatchCache();
+        if (!cache) {
+            return null;
+        }
+
+        const direct = cache.byReservation.get(entry);
+        if (direct) {
+            return direct;
+        }
+
+        const masterIdentifiers = this.extractMasterReservationIdentifiers(entry);
+        const masterKey = this.normalizeReservationId(masterIdentifiers.resId);
+        if (masterKey && cache.byResId.has(masterKey)) {
+            return cache.byResId.get(masterKey) || null;
+        }
+
+        if (typeof this.extractDetailIdentifiers === 'function') {
+            const detailIdentifiers = this.extractDetailIdentifiers(entry);
+            if (detailIdentifiers && detailIdentifiers.resId !== null && detailIdentifiers.resId !== undefined) {
+                const detailKey = this.normalizeReservationId(detailIdentifiers.resId);
+                if (detailKey && cache.byResId.has(detailKey)) {
+                    return cache.byResId.get(detailKey) || null;
+                }
+            }
+        }
+
+        return null;
     }
 
     ensureCautionIcon() {
@@ -3734,9 +4228,11 @@ class TimelineUnifiedRenderer {
 
         // Build stack levels incrementally like in renderMasterArea
         const stackLevels = [];
-        const sortedReservations = [...reservations].sort((a, b) =>
-            new Date(a.start).getTime() - new Date(b.start).getTime()
-        );
+        const sortedReservations = reservations
+            .filter(reservation => this.isMasterReservationVisible(reservation))
+            .sort((a, b) =>
+                new Date(a.start).getTime() - new Date(b.start).getTime()
+            );
 
         for (const reservation of sortedReservations) {
             const checkinDate = new Date(reservation.start);
@@ -6820,7 +7316,7 @@ class TimelineUnifiedRenderer {
 
     calculateMasterMaxStackLevel(startDate, endDate, visibleReservations = null) {
         // Verwende ALLE Reservierungen für Master-Bereich, nicht nur sichtbare
-        const reservationsToCheck = reservations; // Alle Reservierungen verwenden
+        const reservationsToCheck = reservations.filter(reservation => this.isMasterReservationVisible(reservation));
         if (reservationsToCheck.length === 0) return 0;
 
         const stackLevels = [];
@@ -7146,8 +7642,10 @@ class TimelineUnifiedRenderer {
         this.shadeWeekendColumns(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
         this.shadeTodayColumn(area, startDate, endDate, { barWidth: this.DAY_WIDTH });
 
-        // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
-        const reservationsToRender = reservations;
+        const baseReservations = Array.isArray(visibleReservations) && visibleReservations.length > 0
+            ? visibleReservations
+            : reservations;
+        const reservationsToRender = baseReservations.filter(reservation => this.isMasterReservationVisible(reservation));
 
         // Stack-Algorithmus für Master-Reservierungen (Original-Logik)
         const stackLevels = [];
@@ -7597,8 +8095,10 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
 
-        // Verwende ALLE Reservierungen für Master-Bereich - KEIN Viewport-Filter!
-        const reservationsToRender = reservations; // Alle Reservierungen ohne Filter verwenden
+        const baseReservations = Array.isArray(visibleReservations) && visibleReservations.length > 0
+            ? visibleReservations
+            : reservations;
+        const reservationsToRender = baseReservations.filter(reservation => this.isMasterReservationVisible(reservation));
 
         // Stack-Algorithmus für Master-Reservierungen
         const stackLevels = [];
@@ -8388,8 +8888,12 @@ class TimelineUnifiedRenderer {
                     capacity <= 10 ? '#f39c12' :
                         capacity <= 20 ? '#e74c3c' : '#9b59b6');
 
+        this.ctx.save();
+
         if (isHovered) {
-            color = this.lightenColor(color, 20);
+            if (typeof color === 'string' && color.startsWith('#')) {
+                color = this.lightenColor(color, 20);
+            }
             this.ctx.shadowColor = 'rgba(0,0,0,0.25)';
             this.ctx.shadowBlur = 4;
             this.ctx.shadowOffsetX = 1;
@@ -8399,16 +8903,11 @@ class TimelineUnifiedRenderer {
         this.ctx.fillStyle = color;
         this.roundedRect(x, y, width, height, 3);
         this.ctx.fill();
-
-        if (isHovered) {
-            this.ctx.shadowColor = 'transparent';
-            this.ctx.shadowBlur = 0;
-            this.ctx.shadowOffsetX = 0;
-            this.ctx.shadowOffsetY = 0;
-        }
+        this.ctx.restore();
 
         this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)';
         this.ctx.lineWidth = 1;
+        this.roundedRect(x, y, width, height, 3);
         this.ctx.stroke();
 
         if (width > 40) {
@@ -8602,6 +9101,22 @@ class TimelineUnifiedRenderer {
             color = '#ffffff';
         }
 
+        const mismatchInfo = this.getCapacityMismatchInfo(detail);
+        const hasCapacityMismatch = Boolean(mismatchInfo && mismatchInfo.masterCapacity !== null && mismatchInfo.mismatch);
+        let mismatchPulse = 0;
+        let mismatchScale = 1;
+
+        if (hasCapacityMismatch) {
+            const pulsePhase = Date.now() / 260;
+            mismatchPulse = (Math.sin(pulsePhase) + 1) / 2;
+            mismatchScale = 1 + mismatchPulse * 0.06;
+            if (typeof color === 'string' && color.startsWith('#')) {
+                const lightenAmount = 12 + (mismatchPulse * 14);
+                color = this.lightenColor(color, lightenAmount);
+            }
+            this.scheduleRender('capacity_mismatch_pulse');
+        }
+
         // Drag & Drop visuelles Feedback
         const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
             this.dragTargetRoom && this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
@@ -8649,6 +9164,20 @@ class TimelineUnifiedRenderer {
         }
         // isSourceOfDrag behält Originalgröße, wird nur heller und glüht
 
+        if (hasCapacityMismatch && !isSourceOfDrag) {
+            const widthInflation = renderWidth * ((mismatchScale - 1) * 0.35);
+            const heightInflation = renderHeight * (mismatchScale - 1);
+            renderX -= widthInflation / 2;
+            renderWidth += widthInflation;
+            renderY -= heightInflation / 2;
+            renderHeight += heightInflation;
+
+            this.ctx.shadowColor = `rgba(255, 210, 40, ${0.55 + mismatchPulse * 0.35})`;
+            this.ctx.shadowBlur = 14 + mismatchPulse * 18;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+        }
+
         this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
         this.ctx.fill();
 
@@ -8657,6 +9186,11 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowColor = 'transparent';
             this.ctx.shadowBlur = 0;
             this.ctx.globalAlpha = 1.0; // Alpha zurücksetzen
+        } else if (hasCapacityMismatch) {
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
         }
 
         // Resize-Handles bei Hover oder Drag - angepasst für vergrößerten Balken
@@ -8678,6 +9212,25 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowBlur = 0;
             this.ctx.shadowOffsetX = 0;
             this.ctx.shadowOffsetY = 0;
+        }
+
+        if (hasCapacityMismatch && renderWidth > 6 && renderHeight > 4) {
+            const overlayAlpha = 0.25 + (mismatchPulse * 0.35);
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'lighter';
+            this.ctx.fillStyle = `rgba(255, 196, 0, ${overlayAlpha})`;
+            this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
+            this.ctx.fill();
+            this.ctx.restore();
+
+            this.ctx.save();
+            const strokeAlpha = 0.55 + (mismatchPulse * 0.45);
+            this.ctx.lineWidth = 1.4 + mismatchPulse * 1.6;
+            this.ctx.strokeStyle = `rgba(255, 185, 0, ${strokeAlpha})`;
+            const strokePadding = 1.5 + mismatchPulse * 1.5;
+            this.roundedRect(renderX - strokePadding, renderY - strokePadding, renderWidth + strokePadding * 2, renderHeight + strokePadding * 2, 4 + mismatchPulse * 2);
+            this.ctx.stroke();
+            this.ctx.restore();
         }
 
         // Border - auch für vergrößerten Balken

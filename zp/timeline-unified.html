@@ -1203,7 +1203,7 @@
                             <input type="number" id="dataset-dz" class="modal-input" min="0">
                         </div>
                         <div class="dataset-field">
-                            <label for="dataset-sonder">Sonderwünsche:</label>
+                            <label for="dataset-sonder">Plätze:</label>
                             <input type="number" id="dataset-sonder" class="modal-input" min="0">
                         </div>
                     </div>
@@ -3092,27 +3092,49 @@
 
                 const timelineItems = Array.isArray(apiData.timeline_items) ? apiData.timeline_items : [];
                 console.log(`Processing ${timelineItems.length} timeline items...`);
-                reservations = timelineItems
+                const mappedReservations = timelineItems
                     .filter(item => item && item.content && item.start && item.end)
-                    .filter(item => !(item.data && item.data.is_disposed))
                     .map((item, index) => {
-                        const itemData = item.data || {};
+                        const rawData = item.data || {};
+                        const normalizedData = { ...rawData };
+                        const masterId = normalizedData.id ?? null;
+                        const toBoolean = (value) => {
+                            if (typeof value === 'boolean') return value;
+                            if (typeof value === 'number') return value !== 0;
+                            if (typeof value === 'string') {
+                                const normalized = value.trim().toLowerCase();
+                                if (!normalized) return false;
+                                return ['1', 'true', 'yes', 'y', 'ja', 'on'].includes(normalized);
+                            }
+                            return Boolean(value);
+                        };
+                        const isDisposed = toBoolean(normalizedData.is_disposed);
+                        normalizedData.is_disposed = isDisposed;
+
+                        const capacityRaw = item.capacity ?? normalizedData.capacity ?? 1;
+                        const numericCapacity = Number(capacityRaw);
                         return {
                             id: item.id || index,
-                            name: item.name || itemData.guest_name || item.content.replace(/<[^>]*>/g, ''),
+                            res_id: masterId ?? undefined,
+                            resid: masterId ?? undefined,
+                            reservation_id: masterId ?? undefined,
+                            name: item.name || normalizedData.guest_name || item.content.replace(/<[^>]*>/g, ''),
                             nachname: item.nachname || '',
                             vorname: item.vorname || '',
                             start: parseAPIDate(item.start),
                             end: parseAPIDate(item.end),
-                            capacity: item.capacity || itemData.capacity || 1,
+                            capacity: Number.isFinite(numericCapacity) ? numericCapacity : 1,
                             arrangement_name: item.arrangement_name || item.arr_kbez || '',
                             arr_kbez: item.arr_kbez || '',
-                            has_dog: item.has_dog || item.hund || itemData.has_dog || false,
+                            has_dog: item.has_dog || item.hund || normalizedData.has_dog || false,
                             hund: item.hund || item.has_dog || false,
-                            fullData: itemData
+                            is_disposed: isDisposed,
+                            fullData: normalizedData,
+                            data: normalizedData
                         };
                     });
 
+                reservations = mappedReservations;
                 console.log(`Processed ${reservations.length} reservations`);
 
                 console.log('Fetching rooms data...');
