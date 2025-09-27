@@ -267,10 +267,6 @@ js_modules:
       size: "175326B"
       type: "zimmerplan_timeline"
       
-    - file: "zp/timeline-config.js"
-      size: "18139B"
-      type: "timeline_configuration"
-      
     - file: "libs/jquery.min.js"
       size: "93638B"
       type: "external_library"
@@ -638,7 +634,6 @@ js_active: 18
   - "js/email-utils.js"
   - "auto-barcode-scanner.js"
   - "zp/timeline-unified.js"
-  - "zp/timeline-config.js"
   - "libs/jquery.min.js"
   - "libs/qrcode.js"
   - "libs/qrcode.min.js"

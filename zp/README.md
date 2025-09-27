@@ -3,7 +3,7 @@
 Dieses Verzeichnis bündelt alle Frontend- und Backend-Komponenten für den Zimmerplan der Franz-Senn-Hütte. Die Module decken drei Hauptbereiche ab:
 
 1. **Tagesansicht (`zp_day.php`)** – Drag-&-Drop-Planung einzelner Tage inklusive Sidebar, Ablage und Live-Farblogik aus AV-Daten.
-2. **Timeline** – Canvas-basierte Mehrwochenansicht (`timeline-unified.html`/`.js`) plus Konfigurator (`timeline-config.html`/`.js`).
+2. **Timeline** – Canvas-basierte Mehrwochenansicht (`timeline-unified.html`/`.js`) mit integriertem Topbar-Konfigurator.
 3. **Zimmereditor (`zimmereditor/index.php`)** – Verwaltungsoberfläche für Stammdaten der Schlafräume samt Layout-Vorschau.
 
 Alle Oberflächen greifen auf gemeinsame PHP-APIs zu, die auf der lokalen MySQL-Instanz basieren (verbindungsdetails → `config.php`).
@@ -28,8 +28,6 @@ Alle Oberflächen greifen auf gemeinsame PHP-APIs zu, die auf der lokalen MySQL-
 | `zp_day.php` | Hauptansicht für den Zimmerplan eines Tages (Drag & Drop, mobile Optimierungen, Ablage).
 | `timeline-unified.html` | Canvas-basierte Timeline UI mit Modals, Radialmenü und Sticky Notes.
 | `timeline-unified.js` | Rendering-, Interaktions- und Datenlogik der Timeline (Canvas, Caching, Radial-Menü, Histogramme).
-| `timeline-config.html` | Konfigurationsoberfläche für Themes, Layout-Metriken und Wochenbereich.
-| `timeline-config.js` | Persistenz der Konfiguration (Cookie + `localStorage`), `postMessage`-Brücke zur Timeline.
 | `zimmereditor/index.php` | CRUD-Oberfläche für `zp_zimmer` inkl. Farbwähler, Drag-Sortierung, Layout-Vorschau.
 | `roomplan.php` | Druckfreundliche Zimmerplan-Ansicht für einen Stichtag (Kontextmenü im Timeline-Header).
 | `guestreport.php` | Aufenthaltsübersicht (±7 Tage) inkl. Arrangements-Tabelle für die nächsten 14 Tage.
@@ -63,10 +61,10 @@ Unterordner:
 * Lädt Daten über `getZimmerplanData.php`, `getRooms.php`, `getArrangements.php`, `getOrigins.php`, `getHistogramSource.php` usw.
 * Debug-Helfer (z. B. `sessionStorage.debugStickyNotes = true`).
 
-### Timeline-Konfigurator – `timeline-config.html` & `timeline-config.js`
-* UI zur Anpassung von Farben, Schriftgrößen, Balkenhöhen, Wochenbereich (Vergangenheit/Zukunft).
-* Persistiert Einstellungen in `timeline_config`-Cookie plus `localStorage`.
-* Sendet Live-Updates über `postMessage` an die Timeline (z. B. `updateMetric`, `weeks-past`, `weeks-future`).
+### Timeline-Toolbar (integriert in `timeline-unified.html`)
+* Dropdown für Theme-Presets, persistiert in `timeline_config` (Cookie + `localStorage`).
+* Slider/Felder für Radialmenü-Größe sowie Wochenbereich (Vergangenheit/Zukunft) mit Live-Übernahme.
+* Direktlink in den Zimmereditor; weitere Slots für zukünftige Tools.
 
 ### Zimmereditor – `zimmereditor/index.php`
 * Tabellarische Bearbeitung von `zp_zimmer` (Bezeichnung, Kapazität, Kategorie, Farbe, Sichtbarkeit).
@@ -139,7 +137,6 @@ php -S 0.0.0.0:8080 -t /home/vadmin/lemp/html
 Danach:
 * Tagesansicht: `/wci/zp/zp_day.php`
 * Timeline: `/wci/zp/timeline-unified.html`
-* Konfigurator: `/wci/zp/timeline-config.html`
 * Zimmereditor: `/wci/zp/zimmereditor/index.php`
 
 **Debug-Hinweise**
@@ -151,9 +148,9 @@ Danach:
 
 ## Weiterführende Dokumente
 
-* `TIMELINE-CONFIG-ANALYSIS.md` – Detaillierte Analyse von Timeline & Konfigurator (Änderungshistorie, Empfehlungen).
+* `TIMELINE-CONFIG-ANALYSIS.md` – Historische Analyse der früheren Konfigurationsseite, ergänzt um Hinweise zur Toolbar-Migration.
 * `papierkorb/` (Root) – enthält archivierte Debug-/Testscripte, u. a. `debug_day_occupancy.php` und `debug_tables.php` (bereits verschoben).
 
 ---
 
-Bei Fragen zu Datenstrukturen oder API-Erweiterungen bitte zunächst `TIMELINE-CONFIG-ANALYSIS.md` sowie den Quellcode der jeweiligen Endpunkte konsultieren. Änderungen an der DB-Struktur sollten stets über Migrationen oder dokumentierte SQL-Skripte erfolgen.
+Bei Fragen zu Datenstrukturen oder API-Erweiterungen bitte zunächst `TIMELINE-CONFIG-ANALYSIS.md` (Toolbar-Migrationsnotizen) sowie den Quellcode der jeweiligen Endpunkte konsultieren. Änderungen an der DB-Struktur sollten stets über Migrationen oder dokumentierte SQL-Skripte erfolgen.

@@ -425,19 +425,37 @@ class TimelineUnifiedRenderer {
         this.pixelGhostFrame = null; // Pixelgenauer Rahmen der mit Maus mitfährt
 
         // Separator-Positionen aus Cookies laden oder Defaults setzen
-        this.separatorY = this.loadFromCookie('separatorTop', 255);
-        this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 805);
+        this.separatorY = this.loadFromCookie('separatorTop', 270);
+        this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 820);
 
         // Layout-Bereiche (dynamisch) - Header wieder hinzugefügt + Menü
+        const menuHeight = 30;
+        const headerHeight = 40;
+        const masterHeight = 200;
+        const roomsHeight = 550;
+        const histogramHeight = 160;
+
         this.areas = {
-            menu: { height: 20, y: 0 },
-            header: { height: 40, y: 20 },
-            master: { height: 200, y: 60 },
-            rooms: { height: 550, y: 260 },
-            histogram: { height: 160, y: 810 }
+            menu: { height: menuHeight, y: 0 },
+            header: { height: headerHeight, y: menuHeight },
+            master: { height: masterHeight, y: menuHeight + headerHeight },
+            rooms: { height: roomsHeight, y: menuHeight + headerHeight + masterHeight },
+            histogram: { height: histogramHeight, y: menuHeight + headerHeight + masterHeight + roomsHeight }
         };
 
-        this.totalHeight = 970;
+        this.totalHeight = menuHeight + headerHeight + masterHeight + roomsHeight + histogramHeight;
+
+        // Navigation Overview (Minimap) State
+        this.navCanvas = null;
+        this.navCtx = null;
+        this.navHeight = menuHeight;
+        this.navDevicePixelRatio = window.devicePixelRatio || 1;
+        this.navResizeObserver = null;
+        this.navPointerHandlers = null;
+        this.navIsDragging = false;
+        this.navDragOffsetMs = 0;
+        this.navActivePointerId = null;
+        this.navWindowResizeHandler = null;
         this.sidebarWidth = 80;
 
         // Timeline-Konstanten
@@ -1344,6 +1362,60 @@ class TimelineUnifiedRenderer {
         this.invalidateHistogramCache();
         this.capacityMismatchCache = null;
         this.dataIndex = null;
+    }
+
+    finalizeRoomDetailMutation(removedDetails = [], options = {}) {
+        const affectedRooms = new Set();
+
+        removedDetails.forEach(detail => {
+            if (!detail) {
+                return;
+            }
+
+            const detailId = detail.detail_id
+                ?? detail.detailId
+                ?? detail.data?.detail_id
+                ?? detail.ID
+                ?? detail.id;
+            if (detailId && this.stickyNotesCache && this.stickyNotesCache.size) {
+                this.stickyNotesCache.delete(detailId);
+            }
+
+            const roomCandidates = [
+                detail.room_id,
+                detail.roomId,
+                detail.data?.room_id,
+                detail.data?.roomid,
+                detail.data?.zimmer_id,
+                detail.zimmer_id,
+                detail.zimmerid
+            ];
+
+            for (const candidate of roomCandidates) {
+                if (candidate !== undefined && candidate !== null) {
+                    affectedRooms.add(candidate);
+                    break;
+                }
+            }
+        });
+
+        this.markDataDirty();
+
+        if (affectedRooms.size > 0) {
+            affectedRooms.forEach(roomId => this.invalidateStackingCache(roomId));
+        } else {
+            this.invalidateStackingCache();
+        }
+
+        this.recalculateRoomHeights();
+        this.updateViewportCache(this.scrollX, this.roomsScrollY);
+        this.updateNavigationOverview();
+
+        if (this.radialMenu?.isVisible()) {
+            this.radialMenu.hide();
+        }
+
+        this.scheduleRender(options.reason || 'room_detail_mutation');
     }
 
     formatDateForDb(value) {
@@ -2679,6 +2751,8 @@ class TimelineUnifiedRenderer {
         topbar.style.setProperty('--topbar-fg', safeSidebarText);
         topbar.style.setProperty('--topbar-muted', lighten(safeSidebarText, -45));
         topbar.style.setProperty('--topbar-accent', headerBg || '#007acc');
+
+        this.updateNavigationOverview();
     }
 
     init() {
@@ -2717,7 +2791,6 @@ class TimelineUnifiedRenderer {
                         overflow: hidden;
                     ">
                         <div id="timeline-toolbar" class="timeline-topbar">
-                            <div class="timeline-topbar-title">Anzeige</div>
                             <div class="timeline-topbar-actions">
                                 <button id="timeline-settings-toggle" class="timeline-topbar-button" type="button">⚙️ Optionen</button>
                                 <div id="timeline-settings-menu" class="timeline-topbar-menu" data-open="false">
@@ -2757,6 +2830,9 @@ class TimelineUnifiedRenderer {
                                         <a id="timeline-room-editor-link" class="topbar-link" href="zimmereditor/index.php" target="_blank" rel="noopener">🛏️ Zimmereditor</a>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="timeline-nav-container">
+                                <canvas id="timeline-nav-canvas" class="timeline-nav-canvas"></canvas>
                             </div>
                         </div>
                         <canvas id="timeline-canvas" style="
@@ -2830,7 +2906,9 @@ class TimelineUnifiedRenderer {
 
         this.resizeCanvas();
         this.addMobileScrollbarStyles();
+        this.initializeNavigationOverview();
         this.updateTopbarVisuals();
+        this.updateNavigationOverview();
     }
 
     addMobileScrollbarStyles() {
@@ -2916,6 +2994,643 @@ class TimelineUnifiedRenderer {
         document.head.appendChild(style);
     }
 
+    disposeNavigationOverview() {
+        if (this.navResizeObserver) {
+            try {
+                this.navResizeObserver.disconnect();
+            } catch (error) {
+                console.warn('ResizeObserver disconnect failed:', error);
+            }
+            this.navResizeObserver = null;
+        }
+
+        if (this.navWindowResizeHandler) {
+            window.removeEventListener('resize', this.navWindowResizeHandler);
+            this.navWindowResizeHandler = null;
+        }
+
+        if (this.navCanvas && this.navPointerHandlers) {
+            this.navCanvas.removeEventListener('pointerdown', this.navPointerHandlers.down);
+            this.navCanvas.removeEventListener('pointermove', this.navPointerHandlers.move);
+            this.navCanvas.removeEventListener('pointerup', this.navPointerHandlers.up);
+            this.navCanvas.removeEventListener('pointercancel', this.navPointerHandlers.up);
+        }
+
+        if (this.navCanvas && this.navActivePointerId !== null) {
+            try {
+                this.navCanvas.releasePointerCapture(this.navActivePointerId);
+            } catch (error) {
+                // ignore
+            }
+        }
+
+        this.navPointerHandlers = null;
+        this.navIsDragging = false;
+        this.navDragOffsetMs = 0;
+        this.navActivePointerId = null;
+        this.navCanvas = null;
+        this.navCtx = null;
+    }
+
+    initializeNavigationOverview() {
+        this.disposeNavigationOverview();
+
+        const navCanvas = this.container.querySelector('#timeline-nav-canvas');
+        if (!navCanvas) {
+            this.navCanvas = null;
+            this.navCtx = null;
+            return;
+        }
+
+        this.navCanvas = navCanvas;
+        this.navCtx = navCanvas.getContext('2d');
+        this.navCanvas.classList.remove('dragging');
+
+        this.navPointerHandlers = {
+            down: (event) => this.handleNavigationPointerDown(event),
+            move: (event) => this.handleNavigationPointerMove(event),
+            up: (event) => this.handleNavigationPointerUp(event)
+        };
+
+        navCanvas.addEventListener('pointerdown', this.navPointerHandlers.down);
+        navCanvas.addEventListener('pointermove', this.navPointerHandlers.move);
+        navCanvas.addEventListener('pointerup', this.navPointerHandlers.up);
+        navCanvas.addEventListener('pointercancel', this.navPointerHandlers.up);
+
+        if (typeof ResizeObserver !== 'undefined') {
+            this.navResizeObserver = new ResizeObserver(() => this.resizeNavigationCanvas());
+            const parent = navCanvas.parentElement || navCanvas;
+            if (parent) {
+                this.navResizeObserver.observe(parent);
+            }
+        } else {
+            this.navWindowResizeHandler = () => this.resizeNavigationCanvas();
+            window.addEventListener('resize', this.navWindowResizeHandler);
+        }
+
+        // Initial sizing once layout is available
+        requestAnimationFrame(() => this.resizeNavigationCanvas());
+    }
+
+    resizeNavigationCanvas() {
+        if (!this.navCanvas || !this.navCtx) {
+            return;
+        }
+
+        const rect = this.navCanvas.getBoundingClientRect();
+        const cssWidth = rect.width || this.navCanvas.clientWidth;
+        const cssHeight = rect.height || this.navCanvas.clientHeight || this.navHeight;
+
+        if (!cssWidth || !cssHeight) {
+            return;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        this.navDevicePixelRatio = dpr;
+
+        this.navCanvas.width = Math.max(1, Math.round(cssWidth * dpr));
+        this.navCanvas.height = Math.max(1, Math.round(cssHeight * dpr));
+
+        this.navCtx.setTransform(1, 0, 0, 1, 0, 0);
+        this.navCtx.scale(dpr, dpr);
+
+        this.updateNavigationOverview();
+    }
+
+    getNavigationMetrics() {
+        if (!this.navCanvas || !this.navCtx || !this.currentRange) {
+            return null;
+        }
+
+        const width = this.navCanvas.clientWidth || this.navCanvas.getBoundingClientRect().width;
+        const height = this.navCanvas.clientHeight || this.navCanvas.getBoundingClientRect().height || this.navHeight;
+
+        if (!width || !height) {
+            return null;
+        }
+
+        const startMs = this.currentRange.startDate.getTime();
+        const endMs = this.currentRange.endDate.getTime();
+        const totalMs = Math.max(1, endMs - startMs);
+
+        const viewportPixelWidth = Math.max(1, this.canvas.width - this.sidebarWidth);
+        const viewportWidthMs = Math.min(totalMs, (viewportPixelWidth / Math.max(1, this.DAY_WIDTH)) * MS_IN_DAY);
+
+        let viewportStartMs = startMs + (this.scrollX / Math.max(1, this.DAY_WIDTH)) * MS_IN_DAY;
+        const maxViewportStart = endMs - viewportWidthMs;
+        if (viewportWidthMs >= totalMs) {
+            viewportStartMs = startMs;
+        } else {
+            viewportStartMs = this.clamp(viewportStartMs, startMs, maxViewportStart);
+        }
+
+        return {
+            width,
+            height,
+            startMs,
+            endMs,
+            totalMs,
+            viewportStartMs,
+            viewportWidthMs,
+            viewportPixelWidth,
+            msPerPx: totalMs / width
+        };
+    }
+
+    getNavigationPointerTimestamp(event, metrics) {
+        const rect = this.navCanvas.getBoundingClientRect();
+        const relativeX = this.clamp(event.clientX - rect.left, 0, metrics.width);
+        return metrics.startMs + relativeX * metrics.msPerPx;
+    }
+
+    scrollToNavigationViewport(startMs, metrics) {
+        if (!metrics) {
+            return;
+        }
+
+        const totalWidthPx = (metrics.totalMs / MS_IN_DAY) * this.DAY_WIDTH;
+        const maxScroll = Math.max(0, totalWidthPx - metrics.viewportPixelWidth);
+        const desiredScroll = ((startMs - metrics.startMs) / MS_IN_DAY) * this.DAY_WIDTH;
+        const clampedScroll = this.clamp(desiredScroll, 0, maxScroll);
+
+        if (this.horizontalTrack) {
+            if (Math.abs(this.horizontalTrack.scrollLeft - clampedScroll) > 0.5) {
+                this.horizontalTrack.scrollLeft = clampedScroll;
+            } else {
+                this.scrollX = clampedScroll;
+                this.updateViewportCache(this.scrollX, this.roomsScrollY);
+                this.updateNavigationOverview();
+                this.scheduleRender('nav_scroll_sync');
+            }
+        } else {
+            this.scrollX = clampedScroll;
+            this.updateViewportCache(this.scrollX, this.roomsScrollY);
+            this.updateNavigationOverview();
+            this.scheduleRender('nav_scroll_manual');
+        }
+    }
+
+    buildNavigationSegments(rangeStartMs, rangeEndMs) {
+        const segments = new Map();
+
+        const ensureEntry = (key, startMs, endMs, hasRooms, color) => {
+            if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+                return;
+            }
+            const existing = segments.get(key);
+            if (existing) {
+                existing.startMs = Math.min(existing.startMs, startMs);
+                existing.endMs = Math.max(existing.endMs, endMs);
+                existing.hasRooms = existing.hasRooms || hasRooms;
+                if (!existing.color && color) {
+                    existing.color = color;
+                }
+            } else {
+                segments.set(key, {
+                    startMs,
+                    endMs,
+                    hasRooms: !!hasRooms,
+                    color: color || null
+                });
+            }
+        };
+
+        if (Array.isArray(reservations)) {
+            reservations.forEach((reservation, index) => {
+                if (!reservation || this.isReservationStorno(reservation)) {
+                    return;
+                }
+
+                const startMs = this.normalizeNavTimestamp(reservation.start);
+                const endMs = this.normalizeNavTimestamp(reservation.end);
+                if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+                    return;
+                }
+
+                const identifiers = this.extractMasterReservationIdentifiers(reservation);
+                const normalizedId = this.normalizeReservationId(identifiers.resId ?? reservation.res_id ?? reservation.id);
+                const key = normalizedId || `reservation-${index}`;
+                const color = this.getMasterReservationColor(reservation);
+                ensureEntry(key, startMs, endMs, false, color);
+            });
+        }
+
+        if (Array.isArray(roomDetails)) {
+            roomDetails.forEach((detail, index) => {
+                if (!detail || this.isDetailStorno(detail)) {
+                    return;
+                }
+
+                const startMs = this.normalizeNavTimestamp(detail.start);
+                const endMs = this.normalizeNavTimestamp(detail.end);
+                if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+                    return;
+                }
+
+                const resId = this.normalizeReservationId(
+                    detail.res_id ?? detail.reservation_id ?? detail.data?.res_id ?? detail.data?.reservation_id
+                );
+                const key = resId || `detail-${index}`;
+                const color = this.getMasterReservationColor(detail);
+                ensureEntry(key, startMs, endMs, true, color);
+            });
+        }
+
+        const result = [];
+        segments.forEach(entry => {
+            const clampedStart = this.clamp(entry.startMs, rangeStartMs, rangeEndMs);
+            const clampedEnd = this.clamp(entry.endMs, rangeStartMs, rangeEndMs);
+            if (clampedEnd <= clampedStart) {
+                return;
+            }
+            result.push({
+                start: clampedStart,
+                end: clampedEnd,
+                hasRooms: entry.hasRooms,
+                color: entry.color || this.getMasterReservationColor(null)
+            });
+        });
+
+        result.sort((a, b) => a.start - b.start || a.end - b.end);
+        return result;
+    }
+
+    normalizeNavTimestamp(value) {
+        if (!value) {
+            return NaN;
+        }
+
+        if (value instanceof Date) {
+            const clone = new Date(value.getTime());
+            clone.setHours(12, 0, 0, 0);
+            return clone.getTime();
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+
+        const parsed = new Date(value);
+        if (!parsed || Number.isNaN(parsed.getTime())) {
+            return NaN;
+        }
+        parsed.setHours(12, 0, 0, 0);
+        return parsed.getTime();
+    }
+
+    isReservationStorno(reservation) {
+        if (!reservation) {
+            return false;
+        }
+
+        const candidates = [
+            reservation.storno,
+            reservation.data?.storno,
+            reservation.fullData?.storno,
+            reservation.fullData?.storno_flag,
+            reservation.data?.storno_flag
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate === undefined || candidate === null) {
+                continue;
+            }
+
+            if (typeof candidate === 'number') {
+                if (candidate !== 0) return true;
+            } else if (typeof candidate === 'boolean') {
+                if (candidate) return true;
+            } else if (typeof candidate === 'string') {
+                const normalized = candidate.trim().toLowerCase();
+                if (!normalized) continue;
+                if (['1', 'true', 'yes', 'y', 'ja'].includes(normalized)) return true;
+                if (['0', 'false', 'no', 'n', 'nein'].includes(normalized)) continue;
+                const numeric = Number(normalized);
+                if (!Number.isNaN(numeric) && numeric !== 0) return true;
+            }
+        }
+
+        return false;
+    }
+
+    isDetailStorno(detail) {
+        if (!detail) {
+            return false;
+        }
+
+        const value = detail.storno ?? detail.data?.storno ?? detail.data?.storno_flag;
+        if (value === undefined || value === null) {
+            return false;
+        }
+
+        if (typeof value === 'number') {
+            return value !== 0;
+        }
+        if (typeof value === 'boolean') {
+            return value;
+        }
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (!normalized) {
+                return false;
+            }
+            if (['1', 'true', 'yes', 'y', 'ja'].includes(normalized)) {
+                return true;
+            }
+            if (['0', 'false', 'no', 'n', 'nein'].includes(normalized)) {
+                return false;
+            }
+            const numeric = Number(normalized);
+            return !Number.isNaN(numeric) && numeric !== 0;
+        }
+
+        return false;
+    }
+
+    extractNumericCapacity(source) {
+        if (!source) {
+            return 1;
+        }
+
+        const candidates = [
+            source.capacity,
+            source.data?.capacity,
+            source.data?.anz,
+            source.fullData?.capacity,
+            source.personen,
+            source.data?.personen
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate === undefined || candidate === null) {
+                continue;
+            }
+
+            const numeric = Number(candidate);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                return numeric;
+            }
+        }
+
+        return 1;
+    }
+
+    getMasterReservationColor(source) {
+        const baseColor = this.themeConfig?.master?.bar || '#4facfe';
+        if (!source) {
+            return baseColor;
+        }
+
+        if (source.color) {
+            return source.color;
+        }
+
+        const capacity = this.extractNumericCapacity(source);
+
+        if (capacity <= 2) return baseColor;
+        if (capacity <= 5) return '#2ecc71';
+        if (capacity <= 10) return '#f39c12';
+        if (capacity <= 20) return '#e74c3c';
+        return '#9b59b6';
+    }
+
+    updateNavigationOverview() {
+        if (!this.navCanvas || !this.navCtx) {
+            return;
+        }
+
+        const metrics = this.getNavigationMetrics();
+        if (!metrics) {
+            const width = this.navCanvas.width / (this.navDevicePixelRatio || 1);
+            const height = this.navCanvas.height / (this.navDevicePixelRatio || 1);
+            if (width && height) {
+                this.navCtx.clearRect(0, 0, width, height);
+            }
+            return;
+        }
+
+        const { width, height } = metrics;
+        const ctx = this.navCtx;
+        ctx.save();
+        ctx.clearRect(0, 0, width, height);
+
+        const sidebarBg = this.themeConfig.sidebar?.bg || '#242424';
+        let backgroundFill = sidebarBg;
+        try {
+            backgroundFill = this.lightenColor(sidebarBg, -14);
+        } catch (error) {
+            backgroundFill = '#1c1c1c';
+        }
+
+        ctx.fillStyle = backgroundFill;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        ctx.fillRect(0, 0, width, height);
+
+        const monthLabels = [];
+
+        // Alternating month bands and labels
+        const monthNames = ['Jan.', 'Feb.', 'Mär.', 'Apr.', 'Mai.', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+        const monthStart = new Date(metrics.startMs);
+        monthStart.setHours(12, 0, 0, 0);
+        monthStart.setDate(1);
+
+        // If the computed first-of-month is after the range start, step one month back
+        if (monthStart.getTime() > metrics.startMs) {
+            monthStart.setMonth(monthStart.getMonth() - 1);
+        }
+
+        const monthBandAlpha = 0.08;
+        while (monthStart.getTime() < metrics.endMs) {
+            const currentMonthStart = monthStart.getTime();
+            const nextMonth = new Date(monthStart.getTime());
+            nextMonth.setMonth(monthStart.getMonth() + 1);
+            const currentMonthEnd = nextMonth.getTime();
+
+            const clampedStart = Math.max(currentMonthStart, metrics.startMs);
+            const clampedEnd = Math.min(currentMonthEnd, metrics.endMs);
+            if (clampedEnd > clampedStart) {
+                const startX = (clampedStart - metrics.startMs) / metrics.totalMs * width;
+                const endX = (clampedEnd - metrics.startMs) / metrics.totalMs * width;
+                const bandWidth = Math.max(0, endX - startX);
+                const monthIndex = monthStart.getMonth();
+
+                if (bandWidth > 0) {
+                    ctx.fillStyle = monthIndex % 2 === 0
+                        ? 'rgba(255, 255, 255, 0.05)'
+                        : `rgba(0, 0, 0, ${monthBandAlpha})`;
+                    ctx.fillRect(startX, 0, bandWidth, height);
+
+                    const midX = (startX + endX) / 2;
+                    const label = `${monthNames[monthIndex] || ''} ${String(monthStart.getFullYear()).slice(-2)}`.trim();
+                    monthLabels.push({ x: midX, text: label });
+                }
+            }
+
+            monthStart.setMonth(monthStart.getMonth() + 1);
+        }
+
+        const segments = this.buildNavigationSegments(metrics.startMs, metrics.endMs);
+
+        if (segments.length > 0) {
+            const stackEnds = [];
+            segments.forEach(segment => {
+                let level = 0;
+                while (stackEnds[level] !== undefined && stackEnds[level] > segment.start) {
+                    level++;
+                }
+                stackEnds[level] = segment.end;
+                segment.level = level;
+            });
+
+            const maxLevel = Math.max(0, ...segments.map(segment => segment.level));
+            const totalLevels = maxLevel + 1;
+            const drawableHeight = Math.max(1, height);
+            let lineThickness = Math.max(1, Math.floor(drawableHeight / Math.max(1, totalLevels)));
+            if (lineThickness < 1) {
+                lineThickness = 1;
+            }
+
+            let maxDrawableLevels = Math.max(1, Math.floor(drawableHeight / lineThickness));
+            let levelsToRender = Math.min(totalLevels, maxDrawableLevels);
+
+            while (levelsToRender * lineThickness > drawableHeight && lineThickness > 1) {
+                lineThickness -= 1;
+                maxDrawableLevels = Math.max(1, Math.floor(drawableHeight / lineThickness));
+                levelsToRender = Math.min(totalLevels, maxDrawableLevels);
+            }
+
+            const baseColor = this.themeConfig.master?.bar || '#4facfe';
+
+            segments.forEach(segment => {
+                const clampedStart = this.clamp(segment.start, metrics.startMs, metrics.endMs);
+                const clampedEnd = this.clamp(segment.end, metrics.startMs, metrics.endMs);
+                if (clampedEnd <= clampedStart) {
+                    return;
+                }
+
+                if (segment.level >= levelsToRender) {
+                    return;
+                }
+
+                const x1 = (clampedStart - metrics.startMs) / metrics.totalMs * width;
+                const x2 = (clampedEnd - metrics.startMs) / metrics.totalMs * width;
+                const pixelStart = Math.floor(x1);
+                const pixelEnd = Math.ceil(x2);
+                const segWidth = Math.max(1, pixelEnd - pixelStart);
+                const y = height - (segment.level + 1) * lineThickness;
+
+                ctx.globalAlpha = segment.hasRooms ? 0.95 : 1.0;
+                ctx.fillStyle = segment.color || baseColor;
+                ctx.fillRect(pixelStart, y, segWidth, lineThickness);
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // Viewport highlight
+        if (metrics.viewportWidthMs < metrics.totalMs - 1) {
+            const viewportX = (metrics.viewportStartMs - metrics.startMs) / metrics.totalMs * width;
+            const viewportW = Math.max(2, metrics.viewportWidthMs / metrics.totalMs * width);
+            let clampedViewportX = this.clamp(viewportX, 0, width);
+            const clampedViewportEnd = this.clamp(viewportX + viewportW, 0, width);
+            let clampedViewportW = Math.max(2, clampedViewportEnd - clampedViewportX);
+            if (clampedViewportW < 2) {
+                clampedViewportX = this.clamp(viewportX, 0, width - 2);
+                clampedViewportW = Math.max(2, Math.min(width - clampedViewportX, viewportW));
+            }
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 214, 10, 0.28)';
+            ctx.fillRect(clampedViewportX, 0, clampedViewportW, height);
+            ctx.restore();
+        }
+
+        if (monthLabels.length) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.font = `${Math.max(9, Math.min(12, Math.floor(height * 0.45)))}px "Segoe UI", "Helvetica Neue", Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const labelY = Math.min(height - 6, Math.max(10, height * 0.45));
+
+            monthLabels.forEach(label => {
+                if (label.text) {
+                    const clampedX = this.clamp(label.x, 12, width - 12);
+                    ctx.fillText(label.text, clampedX, labelY);
+                }
+            });
+
+            ctx.restore();
+        }
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+
+        ctx.restore();
+    }
+
+    handleNavigationPointerDown(event) {
+        if (!this.navCanvas || !this.navCtx) {
+            return;
+        }
+
+        const metrics = this.getNavigationMetrics();
+        if (!metrics) {
+            return;
+        }
+
+        this.navIsDragging = true;
+        this.navActivePointerId = event.pointerId;
+        try {
+            this.navCanvas.setPointerCapture(event.pointerId);
+        } catch (error) {
+            console.warn('setPointerCapture failed:', error);
+        }
+
+        const pointerMs = this.getNavigationPointerTimestamp(event, metrics);
+        this.navDragOffsetMs = this.clamp(pointerMs - metrics.viewportStartMs, 0, metrics.viewportWidthMs);
+        this.navCanvas.classList.add('dragging');
+
+        this.handleNavigationPointerMove(event);
+    }
+
+    handleNavigationPointerMove(event) {
+        if (!this.navIsDragging) {
+            return;
+        }
+
+        const metrics = this.getNavigationMetrics();
+        if (!metrics) {
+            return;
+        }
+
+        const pointerMs = this.getNavigationPointerTimestamp(event, metrics);
+        let desiredStart = pointerMs - this.navDragOffsetMs;
+        const maxStart = metrics.endMs - metrics.viewportWidthMs;
+        desiredStart = this.clamp(desiredStart, metrics.startMs, maxStart);
+        this.scrollToNavigationViewport(desiredStart, metrics);
+    }
+
+    handleNavigationPointerUp(event) {
+        if (!this.navIsDragging) {
+            return;
+        }
+
+        if (this.navCanvas && this.navActivePointerId !== null) {
+            try {
+                this.navCanvas.releasePointerCapture(this.navActivePointerId);
+            } catch (error) {
+                // ignore
+            }
+        }
+
+        this.navIsDragging = false;
+        this.navDragOffsetMs = 0;
+        this.navActivePointerId = null;
+        this.navCanvas?.classList.remove('dragging');
+        this.updateNavigationOverview();
+    }
+
     resizeCanvas() {
         const canvasContainer = this.container.querySelector('.canvas-container');
         const rect = canvasContainer.getBoundingClientRect();
@@ -2938,6 +3653,8 @@ class TimelineUnifiedRenderer {
 
         // Scrollbars positionieren
         this.positionScrollbars();
+
+        this.updateNavigationOverview();
     }
 
     positionScrollbars() {
@@ -2982,6 +3699,7 @@ class TimelineUnifiedRenderer {
             if (this.masterMenuEl && this.masterMenuEl.style.display === 'block') {
                 this.hideMasterContextMenu();
             }
+            this.updateNavigationOverview();
             this.scheduleRender('scroll_h');
         });
 
@@ -3053,6 +3771,7 @@ class TimelineUnifiedRenderer {
                     }
 
                     this.invalidateStackingCache();
+                    this.updateNavigationOverview();
                     this.scheduleRender('day_width_change');
                 }
                 return; // Kein weiteres Scrolling
@@ -3069,7 +3788,21 @@ class TimelineUnifiedRenderer {
             if (e.shiftKey) {
                 // Shift + Mausrad = horizontal scrollen
                 const newScrollX = Math.max(0, this.scrollX + e.deltaY);
-                horizontalTrack.scrollLeft = newScrollX;
+
+                if (horizontalTrack) {
+                    horizontalTrack.scrollLeft = newScrollX;
+                }
+
+                if (Math.abs(newScrollX - this.scrollX) > 0.5 || !horizontalTrack) {
+                    this.scrollX = newScrollX;
+                    this.updateViewportCache(this.scrollX, this.roomsScrollY);
+                    this.invalidateStackingCache();
+                    this.updateNavigationOverview();
+
+                    if (!horizontalTrack) {
+                        this.scheduleRender('wheel_shift_scroll');
+                    }
+                }
             } else {
                 // Bereichsspezifisches vertikales Scrollen basierend auf Mausposition
                 if (mouseY >= this.areas.master.y && mouseY < this.separatorY && masterTrack) {
@@ -3587,6 +4320,7 @@ class TimelineUnifiedRenderer {
 
         this.updateViewportCache(this.scrollX, this.roomsScrollY);
         this.invalidateStackingCache();
+        this.updateNavigationOverview();
         this.scheduleRender('pinch_zoom');
     }
 
@@ -3811,6 +4545,7 @@ class TimelineUnifiedRenderer {
                 this.scrollX = newScrollX;
                 this.updateViewportCache(this.scrollX, this.roomsScrollY);
                 this.invalidateStackingCache();
+                this.updateNavigationOverview();
                 needsRender = true;
             }
         }
@@ -4076,12 +4811,17 @@ class TimelineUnifiedRenderer {
         }
 
         // Layout-Bereiche aktualisieren (Menü + Header wieder hinzugefügt)
-        this.areas.master.height = this.separatorY - 60;
-        this.areas.master.y = 60;
+        const headerBottom = this.areas.header.y + this.areas.header.height;
+        const footerPadding = 20;
+
+        this.areas.master.y = headerBottom;
+        this.areas.master.height = Math.max(60, this.separatorY - headerBottom);
+
         this.areas.rooms.y = this.separatorY;
         this.areas.rooms.height = Math.max(60, this.bottomSeparatorY - this.separatorY);
+
         this.areas.histogram.y = this.bottomSeparatorY;
-        const availableHistogramSpace = Math.max(minHistogramHeight, this.canvas.height - this.bottomSeparatorY - 20);
+        const availableHistogramSpace = Math.max(minHistogramHeight, this.canvas.height - this.bottomSeparatorY - footerPadding);
         this.areas.histogram.height = Math.max(minHistogramHeight * 0.85, availableHistogramSpace * 0.95); // 95% Ausnutzung mit Mindesthöhe
 
         // Scrollbars nach Layout-Änderung neu positionieren
@@ -5494,14 +6234,16 @@ class TimelineUnifiedRenderer {
                     if (data.success) {
                         console.log('Detail-Datensatz erfolgreich gelöscht:', data.deletedDetail);
 
-                        // Lokale Daten aus roomDetails entfernen
+                        const removedDetails = [];
                         const index = roomDetails.findIndex(item => item === detail);
                         if (index >= 0) {
-                            roomDetails.splice(index, 1);
+                            const [removed] = roomDetails.splice(index, 1);
+                            removedDetails.push(removed || detail);
+                        } else {
+                            removedDetails.push(detail);
                         }
 
-                        // Einfacher Page-Reload für saubere Aktualisierung
-                        window.location.reload();
+                        this.finalizeRoomDetailMutation(removedDetails, { reason: 'detail_deleted' });
 
                     } else {
                         console.error('Fehler beim Löschen:', data.error);
@@ -5550,17 +6292,24 @@ class TimelineUnifiedRenderer {
                         console.log('Alle Detail-Datensätze erfolgreich gelöscht:', data.deletedDetails);
                         console.log(`${data.deletedCount} Datensätze für Reservierung ${data.resId} gelöscht`);
 
-                        // Lokale Daten aus roomDetails entfernen (alle mit gleicher resid)
+                        const removedDetails = [];
+
                         for (let i = roomDetails.length - 1; i >= 0; i--) {
                             const item = roomDetails[i];
                             const itemResId = item.data?.res_id || item.res_id || item.resid;
                             if (itemResId == resId) {
-                                roomDetails.splice(i, 1);
+                                const [removed] = roomDetails.splice(i, 1);
+                                if (removed) {
+                                    removedDetails.push(removed);
+                                }
                             }
                         }
 
-                        // Einfacher Page-Reload für saubere Aktualisierung
-                        window.location.reload();
+                        if (removedDetails.length === 0) {
+                            console.warn('Keine lokalen Detail-Datensätze gefunden, die entfernt werden konnten.');
+                        }
+
+                        this.finalizeRoomDetailMutation(removedDetails, { reason: 'detail_delete_all' });
 
                     } else {
                         console.error('Fehler beim Löschen aller Details:', data.error);
@@ -7152,6 +7901,7 @@ class TimelineUnifiedRenderer {
 
         if (reservations.length === 0) {
             this.renderEmpty();
+            this.updateNavigationOverview();
             return;
         }
 
@@ -7266,6 +8016,8 @@ class TimelineUnifiedRenderer {
                 scrollVelocity: this.predictiveCache.scrollVelocity.toFixed(2)
             });
         }
+
+        this.updateNavigationOverview();
     }
 
     // Pre-calculate room heights to ensure correct scrollbar sizing
@@ -8842,14 +9594,10 @@ class TimelineUnifiedRenderer {
     renderReservationBar(x, y, width, height, reservation, isHovered = false) {
         // Master-Bereich Balken werden normal gerendert (kein Glow hier)
 
-        const capacity = reservation.capacity || reservation.data?.capacity || reservation.data?.anz || 1;
+        const capacity = this.extractNumericCapacity(reservation);
 
         // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
-        let color = reservation.color ||
-            (capacity <= 2 ? this.themeConfig.master.bar :
-                capacity <= 5 ? '#2ecc71' :
-                    capacity <= 10 ? '#f39c12' :
-                        capacity <= 20 ? '#e74c3c' : '#9b59b6');
+        let color = this.getMasterReservationColor(reservation);
 
         this.ctx.save();
 

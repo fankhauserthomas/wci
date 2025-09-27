@@ -143,32 +143,24 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 20px;
+            height: 30px;
             display: flex;
             align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            padding: 0 8px;
+            justify-content: flex-start;
+            gap: 12px;
+            padding: 0 12px;
             z-index: 5;
             background: var(--topbar-bg, rgba(34, 34, 34, 0.95));
             color: var(--topbar-fg, #f5f5f5);
             border-bottom: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.12));
         }
 
-        .timeline-topbar-title {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--topbar-muted, rgba(255, 255, 255, 0.65));
-            margin-right: auto;
-            pointer-events: none;
-        }
-
         .timeline-topbar-actions {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            flex: 0 0 auto;
         }
 
         .timeline-topbar-button {
@@ -177,10 +169,29 @@
             background: transparent;
             color: inherit;
             font-size: 11px;
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 4px;
             cursor: pointer;
             transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .timeline-nav-container {
+            flex: 1 1 auto;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .timeline-nav-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 4px;
+            cursor: grab;
+        }
+
+        .timeline-nav-canvas.dragging {
+            cursor: grabbing;
         }
 
         .timeline-topbar-button:hover,
@@ -192,8 +203,10 @@
         .timeline-topbar-menu {
             position: absolute;
             top: calc(100% + 6px);
-            right: 0;
+            left: 0;
+            right: auto;
             min-width: 260px;
+            max-width: min(360px, calc(100vw - 24px));
             background: var(--topbar-menu-bg, rgba(30, 30, 30, 0.96));
             border: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.18));
             border-radius: 8px;
@@ -3519,7 +3532,7 @@
                 const now = new Date();
                 now.setHours(0, 0, 0, 0);
 
-                // Verwende konfigurierbare Wochenwerte aus timeline-config
+                // Verwende gespeicherte Wochenwerte aus Toolbar-/Cookie-Konfiguration
                 const weekRange = getConfiguredWeeksRange();
                 const startDate = new Date(now.getTime() - (weekRange.past * 7 * MS_IN_DAY)); // Konfigurierbare Wochen zurück
                 const endDate = new Date(now.getTime() + (weekRange.future * 7 * MS_IN_DAY));   // Konfigurierbare Wochen voraus

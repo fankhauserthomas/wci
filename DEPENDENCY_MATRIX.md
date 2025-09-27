@@ -90,7 +90,7 @@ save-arrangement-inline.php:
 
 ### SPECIAL_MODULES
 zp/timeline-unified.html:
-  includes: [zp/timeline-unified.js, zp/timeline-config.js, zimmerplan.css]
+  includes: [zp/timeline-unified.js, zimmerplan.css]
   api_calls: [getZimmerplanData.php]
   status: ACTIVE_MODULE
 

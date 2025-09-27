@@ -241,7 +241,6 @@ css/navigation-integration.css ✅ Navigation-Integration (2KB)
 ```
 zp/timeline-unified.html     ✅ Zimmerplan (per index.php verlinkt)
 zp/timeline-unified.js       ✅ Zimmerplan-Logik
-zp/timeline-config.js        ✅ Zimmerplan-Konfiguration
 zimmerplan.css               ✅ Zimmerplan-Styling
 ```
 

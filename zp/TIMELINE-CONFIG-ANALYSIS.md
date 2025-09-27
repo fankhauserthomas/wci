@@ -1,4 +1,4 @@
-# Timeline Config & Unified Renderer – Analyse, Optimierung und Doku (Stand: 2025-09-20)
+# Timeline Config & Unified Renderer – Analyse, Optimierung und Doku (Stand: 2025-09-27)
 
 ## Ziele
 - Funktionalität unverändert beibehalten
@@ -7,28 +7,32 @@
 - Liste unnötiger Dateien im Verzeichnis erstellen
 - Dokumentation der Struktur, Abhängigkeiten und Empfehlungen
 
+> **Update 2025-09-27:** Die eigenständigen Dateien `timeline-config.html` und `timeline-config.js` wurden entfernt. Deren Funktionen (Theme-Presets, Menügröße, Wochenbereich, Zimmereditor-Link) leben nun in der integrierten Toolbar von `timeline-unified.html`. Dieser Bericht bleibt als historische Referenz bestehen und dokumentiert zusätzlich die Migration.
+
 ---
 
 ## Verzeichnis-Überblick `/wci/zp`
 Aktive Dateien (verwendet per `fetch()`/Seitenaufruf):
-- `timeline-unified.html` – Hauptseite (Canvas-Renderer, Modals, Debug-Konsole)
+- `timeline-unified.html` – Hauptseite (Canvas-Renderer, Modals, Debug-Konsole, Toolbar)
 - `timeline-unified.js` – Renderer und Interaktionslogik
-- `timeline-config.html` – UI zur Konfigurations-/Theme-Auswahl
-- `timeline-config.js` – Konfigurationsmanager (Cookies + localStorage)
 - API-Endpoints (per `fetch` referenziert):
   - `getZimmerplanData.php`, `getRooms.php`, `getArrangements.php`, `getOrigins.php`, `getCountries.php`, `getHistogramSource.php`, `getAVReservationData.php`
   - Update-Endpoints: `updateRoomDetail.php`, `updateRoomDetailAttributes.php`, `updateReservationMasterData.php`
 - `config.php` – DB-Konfiguration
 - `README.md` – Dokumentation
 
+Legacy (entfernt am 2025-09-27, Inhalte in Toolbar überführt):
+- `timeline-config.html`
+- `timeline-config.js`
+
 Nicht identifiziert: Test-/Debug-/Backup-Dateien – keine gefunden in diesem Verzeichnis.
 
 ---
 
 ## Wichtige UI-Verknüpfungen
-- `timeline-config.html` → schickt Live-Änderungen via `window.opener.postMessage({ type: 'updateMetric', metric, value })`
-- `timeline-unified.html` → hört auf `message` und aktualisiert z.B. Menügröße des Radialmenüs
-- Theme-/Layoutwerte werden in Cookie `timeline_config` und als Fallback im `localStorage` gespeichert
+- Toolbar in `timeline-unified.html` aktualisiert Theme/Metadaten direkt über Renderer-Methoden (`applyTimelinePreset`, `updateMenuSize`, `updateTimelineWeekRange`).
+- Der vorhandene `message`-Listener bleibt erhalten, um Kompatibilität mit älteren Fenstern/Skripten zu wahren (z. B. falls die entfernte Seite lokal noch geöffnet ist).
+- Theme-/Layoutwerte werden weiterhin in Cookie `timeline_config` sowie im `localStorage` gespeichert.
 
 ---
 
@@ -42,8 +46,8 @@ Nicht identifiziert: Test-/Debug-/Backup-Dateien – keine gefunden in diesem Ve
 
 ---
 
-## Redundanzen und kleine Korrekturen
-- `timeline-config.html` enthielt zwei „Day Width“-Regler mit identischer `id="day-width"` und `id="day-width-value"`. Der doppelte (zweite) Regler im Bereich „Layout Settings“ wurde entfernt, da bereits unter „Anzeige-Einstellungen“ vorhanden. Vermeidet ID-Konflikte und doppelte Events.
+## Redundanzen und kleine Korrekturen (Legacy-Hinweise)
+- `timeline-config.html` enthielt zwei „Day Width“-Regler mit identischer `id="day-width"` und `id="day-width-value"`. Der doppelte (zweite) Regler im Bereich „Layout Settings“ wurde entfernt, da bereits unter „Anzeige-Einstellungen“ vorhanden. Vermeidet ID-Konflikte und doppelte Events. (Die Seite ist inzwischen entfernt, die Erkenntnis bleibt historisch relevant.)
 - Veraltete Basismetrics-Styles wurden durch den bestehenden „Kompakte Metrics-Grid Styles“-Block ersetzt (Kommentarhinweis belassen). Keine visuellen Änderungen, jedoch eindeutige Stylequelle.
 
 ---
@@ -103,9 +107,9 @@ Hinweis: In übergeordneten Ordnern existieren Debug-/Analyse-Skripte, die nicht
 - Keine API-Änderungen
 - Keine autonomen Tests, die DB schreiben, wurden hinzugefügt
 
-## Quick-Check
-- Öffnen: `timeline-unified.html` (Timeline) und `timeline-config.html` (Konfiguration)
-- Slider in Konfiguration ändern → `postMessage` an Timeline → Menügröße reagiert wie zuvor
-- Neue Regler „Wochen Vergangenheit/Zukunft“ ändern live den sichtbaren Datumsbereich. Für einen passenden Datenabruf empfiehlt sich „Anwenden & Schließen“ (neulädt Timeline mit den neuen Wochenwerten für den API-Zeitraum).
+## Quick-Check (nach Toolbar-Migration)
+- Öffnen: `timeline-unified.html` (Timeline mit Toolbar)
+- Preset wechseln oder Slider im Toolbar-Menü anpassen → Renderer aktualisiert Theme/Menu-Größe live
+- Wochen-Eingabefelder ändern → Datenbereich und Persistenz aktualisieren; anschließend `reloadTimelineData()` für frische API-Daten auslösen (Automatik läuft beim Wertwechsel)
  - Hinweis: F5/Ctrl+R werden nicht abgefangen; das Standard-Reload-Verhalten des Browsers bleibt bestehen.
 - Modals (Bestätigung, Bezeichnung, Notiz, Dataset) sehen unverändert aus, werden aber nun zentral über Variablen gestylt
