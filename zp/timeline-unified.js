@@ -383,10 +383,6 @@ class TimelineUnifiedRenderer {
         // Setze statische Referenz auf diese Instanz
         TimelineUnifiedRenderer.instance = this;
 
-        // Config-Button Tracking
-        this.isConfigButtonHovered = false;
-        this.configButtonBounds = null;
-
         // Drag & Drop für Separatoren
         this.isDraggingSeparator = false;
         this.isDraggingBottomSeparator = false;
@@ -2648,6 +2644,41 @@ class TimelineUnifiedRenderer {
         } else {
             this.scheduleRender('theme_change');
         }
+
+        this.updateTopbarVisuals();
+
+        if (typeof window !== 'undefined' && typeof window.updateTimelineToolbarValues === 'function') {
+            window.updateTimelineToolbarValues();
+        }
+    }
+
+    updateTopbarVisuals() {
+        const topbar = document.getElementById('timeline-toolbar');
+        if (!topbar) return;
+
+        const config = this.themeConfig || {};
+        const sidebarBg = config.sidebar?.bg || '#2c2c2c';
+        const sidebarText = config.sidebar?.text || '#f5f5f5';
+        const headerBg = config.header?.bg || '#007acc';
+
+        const isHex = (color) => typeof color === 'string' && /^#([0-9a-f]{3}){1,2}$/i.test(color.trim());
+        const safeSidebarBg = isHex(sidebarBg) ? sidebarBg : '#2c2c2c';
+        const safeSidebarText = isHex(sidebarText) ? sidebarText : '#f5f5f5';
+
+        const lighten = (color, amount) => {
+            try {
+                return this.lightenColor(color, amount);
+            } catch (err) {
+                return color;
+            }
+        };
+
+        topbar.style.setProperty('--topbar-bg', lighten(safeSidebarBg, 5));
+        topbar.style.setProperty('--topbar-menu-bg', lighten(safeSidebarBg, 15));
+        topbar.style.setProperty('--topbar-border', lighten(safeSidebarBg, 25));
+        topbar.style.setProperty('--topbar-fg', safeSidebarText);
+        topbar.style.setProperty('--topbar-muted', lighten(safeSidebarText, -45));
+        topbar.style.setProperty('--topbar-accent', headerBg || '#007acc');
     }
 
     init() {
@@ -2685,6 +2716,49 @@ class TimelineUnifiedRenderer {
                         position: relative;
                         overflow: hidden;
                     ">
+                        <div id="timeline-toolbar" class="timeline-topbar">
+                            <div class="timeline-topbar-title">Anzeige</div>
+                            <div class="timeline-topbar-actions">
+                                <button id="timeline-settings-toggle" class="timeline-topbar-button" type="button">⚙️ Optionen</button>
+                                <div id="timeline-settings-menu" class="timeline-topbar-menu" data-open="false">
+                                    <div class="topbar-menu-section">
+                                        <label for="timeline-preset-select">Preset</label>
+                                        <select id="timeline-preset-select" class="topbar-select">
+                                            <option value="professional">Professional</option>
+                                            <option value="comfort">Comfort</option>
+                                            <option value="focus">Focus</option>
+                                            <option value="nature">Nature</option>
+                                            <option value="ocean">Ocean</option>
+                                            <option value="sunset">Sunset</option>
+                                            <option value="earth">Earth</option>
+                                            <option value="rainbow">Rainbow</option>
+                                            <option value="grayscale">Grayscale</option>
+                                            <option value="custom">Benutzerdefiniert</option>
+                                        </select>
+                                    </div>
+                                    <div class="topbar-menu-section">
+                                        <label for="timeline-menu-size">Radialmenü-Größe</label>
+                                        <div class="topbar-control-row">
+                                            <input type="range" id="timeline-menu-size" min="120" max="320" step="20" value="220">
+                                            <span id="timeline-menu-size-display">220px</span>
+                                        </div>
+                                    </div>
+                                    <div class="topbar-menu-section topbar-menu-grid">
+                                        <div class="topbar-field">
+                                            <label for="timeline-weeks-past">Wochen zurück</label>
+                                            <input type="number" id="timeline-weeks-past" min="0" max="52" step="1" value="2">
+                                        </div>
+                                        <div class="topbar-field">
+                                            <label for="timeline-weeks-future">Wochen voraus</label>
+                                            <input type="number" id="timeline-weeks-future" min="4" max="208" step="1" value="104">
+                                        </div>
+                                    </div>
+                                    <div class="topbar-menu-section topbar-menu-links">
+                                        <a id="timeline-room-editor-link" class="topbar-link" href="zimmereditor/index.php" target="_blank" rel="noopener">🛏️ Zimmereditor</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <canvas id="timeline-canvas" style="
                             position: absolute;
                             top: 0;
@@ -2756,6 +2830,7 @@ class TimelineUnifiedRenderer {
 
         this.resizeCanvas();
         this.addMobileScrollbarStyles();
+        this.updateTopbarVisuals();
     }
 
     addMobileScrollbarStyles() {
@@ -4062,16 +4137,6 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        if (this.configButtonBounds) {
-            const bounds = this.configButtonBounds;
-            if (mouseX >= bounds.x && mouseX <= bounds.x + bounds.width &&
-                mouseY >= bounds.y && mouseY <= bounds.y + bounds.height) {
-                window.location.href = 'timeline-config.html';
-                e.preventDefault();
-                return;
-            }
-        }
-
         // Separator-Handling hat Priorität
         if (this.isOverTopSeparator(mouseY)) {
             this.isDraggingSeparator = true;
@@ -4127,14 +4192,6 @@ class TimelineUnifiedRenderer {
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-
-        // If right-click happens on the top-left config button, ignore (default behavior elsewhere)
-        if (this.configButtonBounds) {
-            const b = this.configButtonBounds;
-            if (mouseX >= b.x && mouseX <= b.x + b.width && mouseY >= b.y && mouseY <= b.y + b.height) {
-                return;
-            }
-        }
 
         // Header-Bereich: Datums-spezifisches Kontextmenü
         if (mouseY >= this.areas.header.y && mouseY <= this.areas.header.y + this.areas.header.height) {
@@ -6726,12 +6783,6 @@ class TimelineUnifiedRenderer {
             return; // Cursor nicht ändern während Drag-Operationen
         }
 
-        // Config-Button Cursor
-        if (this.isConfigButtonHovered) {
-            this.canvas.style.cursor = 'pointer';
-            return;
-        }
-
         // Separator-Cursor hat Priorität
         const overTopSeparator = this.isOverTopSeparator(this.mouseY);
         const overBottomSeparator = this.isOverBottomSeparator(this.mouseY);
@@ -7425,9 +7476,6 @@ class TimelineUnifiedRenderer {
         this.ctx.fillStyle = this.lightenColor(this.themeConfig.sidebar.bg, 5);
         this.ctx.fillRect(0, area.y, this.canvas.width, area.height);
 
-        // Config-Button im Menü (rechts)
-        this.renderConfigButtonInMenu();
-
         // Menü-Border unten
         this.ctx.strokeStyle = '#ddd';
         this.ctx.lineWidth = 1;
@@ -7435,41 +7483,6 @@ class TimelineUnifiedRenderer {
         this.ctx.moveTo(0, area.y + area.height);
         this.ctx.lineTo(this.canvas.width, area.y + area.height);
         this.ctx.stroke();
-    }
-
-    renderConfigButtonInMenu() {
-        const area = this.areas.menu;
-        const buttonWidth = 60;
-        const buttonHeight = 16;
-        const buttonX = this.canvas.width - buttonWidth - 5;
-        const buttonY = area.y + 2;
-
-        // Button-Hintergrund
-        this.ctx.fillStyle = this.isConfigButtonHovered ?
-            this.lightenColor(this.themeConfig.sidebar.bg, 30) :
-            this.lightenColor(this.themeConfig.sidebar.bg, 15);
-
-        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 3);
-        this.ctx.fill();
-
-        // Button-Border
-        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
-        this.ctx.lineWidth = 0.5;
-        this.ctx.stroke();
-
-        // Button-Text
-        this.ctx.fillStyle = this.themeConfig.sidebar.text;
-        this.ctx.font = '9px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('⚙️ Config', buttonX + buttonWidth / 2, buttonY + 10);
-
-        // Button-Position für Click-Detection speichern
-        this.configButtonBounds = {
-            x: buttonX,
-            y: buttonY,
-            width: buttonWidth,
-            height: buttonHeight
-        };
     }
 
     // ===== PHASE 3: OPTIMIZED RENDERING METHODS =====
@@ -7518,9 +7531,6 @@ class TimelineUnifiedRenderer {
         this.ctx.fillStyle = this.lightenColor(this.themeConfig.sidebar.bg, 5);
         this.ctx.fillRect(0, area.y, this.canvas.width, area.height);
 
-        // Config-Button im Menü (rechts) - not batched for immediate interaction
-        this.renderConfigButtonInMenuOptimized();
-
         // Menü-Border unten
         this.ctx.strokeStyle = '#ddd';
         this.ctx.lineWidth = 1;
@@ -7528,43 +7538,6 @@ class TimelineUnifiedRenderer {
         this.ctx.moveTo(0, area.y + area.height);
         this.ctx.lineTo(this.canvas.width, area.y + area.height);
         this.ctx.stroke();
-
-        this.ctx.restore();
-    }
-
-    renderConfigButtonInMenuOptimized() {
-        const area = this.areas.menu;
-        const buttonWidth = 60;
-        const buttonHeight = 16;
-        const buttonX = this.canvas.width - buttonWidth - 5;
-        const buttonY = area.y + 2;
-
-        // Render immediately (not batched)
-        this.ctx.save();
-
-        // Button-Hintergrund
-        this.ctx.fillStyle = this.isConfigButtonHovered ?
-            this.lightenColor(this.themeConfig.sidebar.bg, 30) :
-            this.lightenColor(this.themeConfig.sidebar.bg, 15);
-
-        this.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 3);
-        this.ctx.fill();
-
-        // Button-Border
-        this.ctx.strokeStyle = this.themeConfig.sidebar.text;
-        this.ctx.lineWidth = 0.5;
-        this.ctx.stroke();
-
-        // Button-Text
-        this.ctx.fillStyle = this.themeConfig.sidebar.text;
-        this.ctx.font = '9px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('⚙️ Config', buttonX + buttonWidth / 2, buttonY + 10);
-
-        // Button-Position für Click-Detection speichern
-        this.configButtonBounds = {
-            x: buttonX, y: buttonY, width: buttonWidth, height: buttonHeight
-        };
 
         this.ctx.restore();
     }
@@ -8850,16 +8823,6 @@ class TimelineUnifiedRenderer {
 
     // Hilfsmethoden
     checkHover() {
-        // Config-Button Hover-Check
-        this.isConfigButtonHovered = false;
-        if (this.configButtonBounds) {
-            const bounds = this.configButtonBounds;
-            if (this.mouseX >= bounds.x && this.mouseX <= bounds.x + bounds.width &&
-                this.mouseY >= bounds.y && this.mouseY <= bounds.y + bounds.height) {
-                this.isConfigButtonHovered = true;
-            }
-        }
-
         // Nur im Rooms-Bereich nach Reservierungen suchen
         if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
             const reservation = this.findReservationAt(this.mouseX, this.mouseY);
@@ -9751,6 +9714,25 @@ class TimelineUnifiedRenderer {
             // Update the radial menu instance if it exists
             if (this.radialMenu && this.radialMenu.updateSize) {
                 this.radialMenu.updateSize(newSize);
+            }
+        }
+
+        // Persist size for future sessions
+        try {
+            localStorage.setItem('timeline_menu_size', String(newSize));
+        } catch (error) {
+            console.warn('Konnte timeline_menu_size nicht speichern:', error);
+        }
+
+        // Sync toolbar controls if available
+        if (typeof window !== 'undefined') {
+            const slider = document.getElementById('timeline-menu-size');
+            const display = document.getElementById('timeline-menu-size-display');
+            if (slider) slider.value = String(newSize);
+            if (display) display.textContent = `${newSize}px`;
+
+            if (typeof window.updateTimelineToolbarValues === 'function') {
+                window.updateTimelineToolbarValues();
             }
         }
     }

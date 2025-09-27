@@ -138,6 +138,148 @@
             pointer-events: auto;
         }
 
+        .timeline-topbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 0 8px;
+            z-index: 5;
+            background: var(--topbar-bg, rgba(34, 34, 34, 0.95));
+            color: var(--topbar-fg, #f5f5f5);
+            border-bottom: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.12));
+        }
+
+        .timeline-topbar-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--topbar-muted, rgba(255, 255, 255, 0.65));
+            margin-right: auto;
+            pointer-events: none;
+        }
+
+        .timeline-topbar-actions {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .timeline-topbar-button {
+            appearance: none;
+            border: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.2));
+            background: transparent;
+            color: inherit;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .timeline-topbar-button:hover,
+        .timeline-topbar-button[aria-expanded="true"] {
+            background: var(--topbar-menu-bg, rgba(28, 28, 28, 0.95));
+            border-color: var(--topbar-accent, #4facfe);
+        }
+
+        .timeline-topbar-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 260px;
+            background: var(--topbar-menu-bg, rgba(30, 30, 30, 0.96));
+            border: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.18));
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+            display: none;
+            pointer-events: auto;
+        }
+
+        .timeline-topbar-menu[data-open="true"] {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .topbar-menu-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .topbar-menu-section label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--topbar-muted, rgba(255, 255, 255, 0.6));
+        }
+
+        .topbar-select,
+        .topbar-menu input[type="number"] {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--topbar-fg, #f5f5f5);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        .topbar-menu input[type="number"]:focus,
+        .topbar-select:focus {
+            outline: none;
+            border-color: var(--topbar-accent, #4facfe);
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+        }
+
+        .topbar-control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topbar-control-row input[type="range"] {
+            flex: 1;
+        }
+
+        .topbar-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .topbar-field input[type="number"] {
+            width: 100%;
+        }
+
+        .topbar-menu-links {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .topbar-link {
+            color: var(--topbar-fg, #f5f5f5);
+            font-size: 12px;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .topbar-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--topbar-accent, #4facfe);
+        }
+
         /* Modal Dialog Styles */
         .modal-overlay {
             display: none;
@@ -1343,6 +1485,375 @@
         let timelineRenderer = null; // Timeline-Renderer-Instanz
         window.arrangementsCatalog = [];
         window.histogramSource = [];
+
+        const TIMELINE_THEME_PRESETS = {
+            professional: {
+                label: 'Professional',
+                sidebar: { bg: '#2c3e50', text: '#ecf0f1' },
+                header: { bg: '#34495e', text: '#ecf0f1' },
+                master: { bg: '#2c3e50', bar: '#3498db' },
+                room: { bg: '#2c3e50', bar: '#27ae60' },
+                histogram: { bg: '#34495e', bar: '#e74c3c', text: '#ecf0f1' }
+            },
+            comfort: {
+                label: 'Comfort',
+                sidebar: { bg: '#f8f9fa', text: '#495057' },
+                header: { bg: '#ffffff', text: '#343a40' },
+                master: { bg: '#f1f3f4', bar: '#007bff' },
+                room: { bg: '#f1f3f4', bar: '#28a745' },
+                histogram: { bg: '#ffffff', bar: '#17a2b8', text: '#495057' }
+            },
+            focus: {
+                label: 'Focus',
+                sidebar: { bg: '#1a1a2e', text: '#ffffff' },
+                header: { bg: '#16213e', text: '#ffffff' },
+                master: { bg: '#0f3460', bar: '#e94560' },
+                room: { bg: '#0f3460', bar: '#f39c12' },
+                histogram: { bg: '#16213e', bar: '#e94560', text: '#ffffff' }
+            },
+            nature: {
+                label: 'Nature',
+                sidebar: { bg: '#2d5016', text: '#a8e6cf' },
+                header: { bg: '#5d4e75', text: '#ffffff' },
+                master: { bg: '#134e5e', bar: '#71b280' },
+                room: { bg: '#134e5e', bar: '#ffd3a5' },
+                histogram: { bg: '#5d4e75', bar: '#a8e6cf', text: '#ffffff' }
+            },
+            ocean: {
+                label: 'Ocean',
+                sidebar: { bg: '#1e3a8a', text: '#dbeafe' },
+                header: { bg: '#1e40af', text: '#dbeafe' },
+                master: { bg: '#155e75', bar: '#06b6d4' },
+                room: { bg: '#155e75', bar: '#0891b2' },
+                histogram: { bg: '#1e40af', bar: '#0ea5e9', text: '#dbeafe' }
+            },
+            sunset: {
+                label: 'Sunset',
+                sidebar: { bg: '#7c2d12', text: '#fed7aa' },
+                header: { bg: '#9a3412', text: '#fed7aa' },
+                master: { bg: '#a16207', bar: '#f59e0b' },
+                room: { bg: '#a16207', bar: '#dc2626' },
+                histogram: { bg: '#9a3412', bar: '#ea580c', text: '#fed7aa' }
+            },
+            earth: {
+                label: 'Earth',
+                sidebar: { bg: '#44403c', text: '#d6d3d1' },
+                header: { bg: '#57534e', text: '#d6d3d1' },
+                master: { bg: '#78716c', bar: '#a3a3a3' },
+                room: { bg: '#78716c', bar: '#84cc16' },
+                histogram: { bg: '#57534e', bar: '#eab308', text: '#d6d3d1' }
+            },
+            rainbow: {
+                label: 'Rainbow',
+                sidebar: { bg: '#f1f5f9', text: '#475569' },
+                header: { bg: '#e2e8f0', text: '#475569' },
+                master: { bg: '#fef3c7', bar: '#8b5cf6' },
+                room: { bg: '#fef3c7', bar: '#10b981' },
+                histogram: { bg: '#e2e8f0', bar: '#f59e0b', text: '#475569' }
+            },
+            grayscale: {
+                label: 'Grayscale',
+                sidebar: { bg: '#1f2937', text: '#f9fafb' },
+                header: { bg: '#374151', text: '#f9fafb' },
+                master: { bg: '#4b5563', bar: '#9ca3af' },
+                room: { bg: '#4b5563', bar: '#6b7280' },
+                histogram: { bg: '#374151', bar: '#d1d5db', text: '#f9fafb' }
+            }
+        };
+
+        function getTimelineRenderer() {
+            if (timelineRenderer) return timelineRenderer;
+            if (typeof TimelineUnifiedRenderer !== 'undefined') {
+                return TimelineUnifiedRenderer.instance || null;
+            }
+            return null;
+        }
+
+        function cloneTimelineConfig(config) {
+            return JSON.parse(JSON.stringify(config || {}));
+        }
+
+        function persistTimelineThemeConfig(config) {
+            try {
+                const configString = JSON.stringify(config);
+                const expires = new Date();
+                expires.setFullYear(expires.getFullYear() + 1);
+                document.cookie = `timeline_config=${encodeURIComponent(configString)}; expires=${expires.toUTCString()}; path=/`;
+                localStorage.setItem('timeline_config', configString);
+            } catch (error) {
+                console.warn('Timeline-Konfiguration konnte nicht gespeichert werden:', error);
+            }
+        }
+
+        function clampNumber(value, min, max) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return min;
+            return Math.max(min, Math.min(max, num));
+        }
+
+        function detectTimelinePreset(config) {
+            if (!config) return 'custom';
+
+            const matchesPreset = (preset) => {
+                const sectionMatches = (sectionName, keys) => {
+                    const presetSection = preset[sectionName];
+                    const configSection = config[sectionName] || {};
+                    if (!presetSection) return true;
+                    return keys.every(key => presetSection[key] === configSection[key]);
+                };
+
+                return sectionMatches('sidebar', ['bg', 'text']) &&
+                    sectionMatches('header', ['bg', 'text']) &&
+                    sectionMatches('master', ['bg', 'bar']) &&
+                    sectionMatches('room', ['bg', 'bar']) &&
+                    sectionMatches('histogram', ['bg', 'bar', 'text']);
+            };
+
+            for (const [key, preset] of Object.entries(TIMELINE_THEME_PRESETS)) {
+                if (matchesPreset(preset)) {
+                    return key;
+                }
+            }
+
+            return 'custom';
+        }
+
+        function applyTimelinePreset(presetKey) {
+            const renderer = getTimelineRenderer();
+            const preset = TIMELINE_THEME_PRESETS[presetKey];
+            if (!renderer || !preset) return;
+
+            const baseConfig = cloneTimelineConfig(renderer.themeConfig || renderer.loadThemeConfiguration?.() || {});
+            const updatedConfig = {
+                sidebar: { ...preset.sidebar, fontSize: baseConfig.sidebar?.fontSize ?? 12 },
+                header: { ...preset.header, fontSize: baseConfig.header?.fontSize ?? 10 },
+                master: {
+                    ...preset.master,
+                    fontSize: baseConfig.master?.fontSize ?? 10,
+                    barHeight: baseConfig.master?.barHeight ?? renderer.MASTER_BAR_HEIGHT ?? 16
+                },
+                room: {
+                    ...preset.room,
+                    fontSize: baseConfig.room?.fontSize ?? 10,
+                    barHeight: baseConfig.room?.barHeight ?? renderer.ROOM_BAR_HEIGHT ?? 16
+                },
+                histogram: {
+                    ...preset.histogram,
+                    fontSize: baseConfig.histogram?.fontSize ?? 9
+                },
+                dayWidth: baseConfig.dayWidth ?? renderer.DAY_WIDTH ?? 90,
+                weeksPast: baseConfig.weeksPast ?? 2,
+                weeksFuture: baseConfig.weeksFuture ?? 104
+            };
+
+            persistTimelineThemeConfig(updatedConfig);
+            renderer.themeConfig = updatedConfig;
+            renderer.refreshThemeConfiguration();
+            renderer.updateTopbarVisuals?.();
+            updateTimelineToolbarValues();
+            try {
+                localStorage.setItem('timeline_theme_preset', presetKey);
+            } catch (error) {
+                console.warn('Konnte timeline_theme_preset nicht speichern:', error);
+            }
+        }
+
+        function updateTimelineWeekRange(past, future) {
+            const renderer = getTimelineRenderer();
+            if (!renderer) return;
+
+            const sanitizedPast = clampNumber(past, 0, 52);
+            const sanitizedFuture = clampNumber(future, 4, 208);
+            const currentConfig = cloneTimelineConfig(renderer.themeConfig || renderer.loadThemeConfiguration?.() || {});
+
+            if (currentConfig.weeksPast === sanitizedPast && currentConfig.weeksFuture === sanitizedFuture) {
+                updateTimelineToolbarValues();
+                return;
+            }
+
+            currentConfig.weeksPast = sanitizedPast;
+            currentConfig.weeksFuture = sanitizedFuture;
+
+            persistTimelineThemeConfig(currentConfig);
+            renderer.themeConfig = currentConfig;
+            renderer.refreshThemeConfiguration();
+            renderer.updateTopbarVisuals?.();
+            updateTimelineToolbarValues();
+
+            try {
+                const detected = detectTimelinePreset(currentConfig);
+                localStorage.setItem('timeline_theme_preset', detected);
+            } catch (error) {
+                console.warn('Konnte timeline_theme_preset nicht speichern:', error);
+            }
+
+            if (typeof window.reloadTimelineData === 'function') {
+                window.reloadTimelineData();
+            }
+        }
+
+        function updateTimelineToolbarValues() {
+            const renderer = getTimelineRenderer();
+            const toolbar = document.getElementById('timeline-toolbar');
+            if (!renderer || !toolbar) return;
+
+            const config = renderer.themeConfig || {};
+
+            const presetSelect = document.getElementById('timeline-preset-select');
+            if (presetSelect) {
+                let presetKey = detectTimelinePreset(config);
+                if (!presetSelect.querySelector(`option[value="${presetKey}"]`)) {
+                    presetKey = 'custom';
+                }
+                presetSelect.value = presetKey;
+            }
+
+            const menuSizeSlider = document.getElementById('timeline-menu-size');
+            const menuSizeDisplay = document.getElementById('timeline-menu-size-display');
+            if (menuSizeSlider && menuSizeDisplay) {
+                let storedSize = null;
+                try {
+                    const stored = localStorage.getItem('timeline_menu_size');
+                    if (stored) {
+                        const parsed = parseInt(stored, 10);
+                        if (!Number.isNaN(parsed)) {
+                            storedSize = parsed;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Konnte timeline_menu_size nicht laden:', error);
+                }
+
+                const currentSize = storedSize ?? renderer.radialMenu?.size ?? 220;
+                menuSizeSlider.value = String(currentSize);
+                menuSizeDisplay.textContent = `${currentSize}px`;
+            }
+
+            const weeksPastInput = document.getElementById('timeline-weeks-past');
+            const weeksFutureInput = document.getElementById('timeline-weeks-future');
+            if (weeksPastInput) {
+                weeksPastInput.value = String(config.weeksPast ?? 2);
+            }
+            if (weeksFutureInput) {
+                weeksFutureInput.value = String(config.weeksFuture ?? 104);
+            }
+        }
+
+        function setupTimelineToolbar() {
+            const renderer = getTimelineRenderer();
+            const toolbar = document.getElementById('timeline-toolbar');
+            if (!renderer || !toolbar || toolbar.dataset.initialized === 'true') {
+                return;
+            }
+
+            const toggle = document.getElementById('timeline-settings-toggle');
+            const menu = document.getElementById('timeline-settings-menu');
+            const presetSelect = document.getElementById('timeline-preset-select');
+            const menuSizeSlider = document.getElementById('timeline-menu-size');
+            const menuSizeDisplay = document.getElementById('timeline-menu-size-display');
+            const weeksPastInput = document.getElementById('timeline-weeks-past');
+            const weeksFutureInput = document.getElementById('timeline-weeks-future');
+
+            if (toggle && menu) {
+                const closeMenu = () => {
+                    menu.dataset.open = 'false';
+                    toggle.setAttribute('aria-expanded', 'false');
+                };
+                const openMenu = () => {
+                    menu.dataset.open = 'true';
+                    toggle.setAttribute('aria-expanded', 'true');
+                };
+
+                const handleToggle = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const isOpen = menu.dataset.open === 'true';
+                    if (isOpen) {
+                        closeMenu();
+                    } else {
+                        openMenu();
+                    }
+                };
+
+                const handleOutsideClick = (event) => {
+                    if (menu.dataset.open !== 'true') return;
+                    if (!menu.contains(event.target) && event.target !== toggle) {
+                        closeMenu();
+                    }
+                };
+
+                const handleEscape = (event) => {
+                    if (event.key === 'Escape' && menu.dataset.open === 'true') {
+                        closeMenu();
+                    }
+                };
+
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-haspopup', 'true');
+                toggle.addEventListener('click', handleToggle);
+                document.addEventListener('click', handleOutsideClick);
+                document.addEventListener('keydown', handleEscape);
+                menu.addEventListener('click', (event) => event.stopPropagation());
+            }
+
+            if (presetSelect) {
+                presetSelect.addEventListener('change', (event) => {
+                    const value = event.target.value;
+                    if (value && value !== 'custom') {
+                        applyTimelinePreset(value);
+                    } else if (value === 'custom') {
+                        try {
+                            localStorage.removeItem('timeline_theme_preset');
+                        } catch (error) {
+                            console.warn('Konnte timeline_theme_preset nicht entfernen:', error);
+                        }
+                    }
+                });
+            }
+
+            if (menuSizeSlider && menuSizeDisplay) {
+                menuSizeSlider.addEventListener('input', (event) => {
+                    const value = parseInt(event.target.value, 10);
+                    if (!Number.isFinite(value)) return;
+                    menuSizeDisplay.textContent = `${value}px`;
+                    renderer.updateMenuSize(value);
+                });
+
+                menuSizeSlider.addEventListener('change', (event) => {
+                    const value = parseInt(event.target.value, 10);
+                    if (!Number.isFinite(value)) return;
+                    try {
+                        localStorage.setItem('timeline_menu_size', String(value));
+                    } catch (error) {
+                        console.warn('Konnte timeline_menu_size nicht speichern:', error);
+                    }
+                });
+            }
+
+            const handleWeeksChange = () => {
+                const past = clampNumber(weeksPastInput?.value ?? 2, 0, 52);
+                const future = clampNumber(weeksFutureInput?.value ?? 104, 4, 208);
+                if (weeksPastInput) weeksPastInput.value = String(past);
+                if (weeksFutureInput) weeksFutureInput.value = String(future);
+                updateTimelineWeekRange(past, future);
+            };
+
+            if (weeksPastInput) {
+                weeksPastInput.addEventListener('change', handleWeeksChange);
+            }
+            if (weeksFutureInput) {
+                weeksFutureInput.addEventListener('change', handleWeeksChange);
+            }
+
+            toolbar.dataset.initialized = 'true';
+        }
+
+        function initializeTimelineToolbar() {
+            setupTimelineToolbar();
+            updateTimelineToolbarValues();
+            const renderer = getTimelineRenderer();
+            renderer?.updateTopbarVisuals?.();
+        }
 
         // ===== FUNCTION DEFINITIONS (moved to top for onclick availability) =====
 
@@ -3321,12 +3832,14 @@
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.setHistogramSource(window.histogramSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
+                initializeTimelineToolbar();
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.setHistogramSource(window.histogramSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
+                initializeTimelineToolbar();
             }
         }
 
@@ -3431,6 +3944,7 @@
                                 radialMenu.style.marginTop = `-${menuSize / 2}px`;
                             }
                         }
+                        updateTimelineToolbarValues();
                     } else if ((event.data.metric === 'weeks-past' || event.data.metric === 'weeks-future')) {
                         // Live-Overrides merken
                         const val = parseFloat(event.data.value);
@@ -3459,7 +3973,9 @@
                             if (typeof timelineRenderer.scheduleRender === 'function') {
                                 timelineRenderer.scheduleRender('weeks_range_change');
                             }
+                            timelineRenderer.updateTopbarVisuals?.();
                         }
+                        updateTimelineToolbarValues();
                     }
                 }
             });
