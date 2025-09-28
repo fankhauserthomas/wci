@@ -282,7 +282,6 @@ class TimelineRadialMenu {
     hide() {
         if (!this.root || !this.isOpen) return;
 
-        // Animation: Erst hiding-Klasse hinzufügen
         this.root.classList.remove('active');
         this.root.classList.add('hiding');
 
@@ -397,6 +396,8 @@ class TimelineUnifiedRenderer {
         this.dragOriginalData = null;
         this.dragTargetRoom = null;
         this.lastDragRender = 0; // Für Performance-Throttling
+    this.dragAxisLock = null; // 'horizontal' oder 'vertical'
+    this.dragAxisLockThreshold = 12; // Pixel-Schwelle bis Achse fixiert wird
 
         // Drag & Drop für Sticky Notes
         this.isDraggingStickyNote = false;
@@ -424,6 +425,11 @@ class TimelineUnifiedRenderer {
         this.ghostBar = null; // { x, y, width, height, room, mode, visible }
         this.pixelGhostFrame = null; // Pixelgenauer Rahmen der mit Maus mitfährt
 
+        // Touch-optimierte Fokussteuerung für Zimmer-Balken
+        this.focusedReservationKey = null;
+        this.focusedReservationAt = 0;
+        this.focusedReservationSource = null;
+
         // Separator-Positionen aus Cookies laden oder Defaults setzen
         this.separatorY = this.loadFromCookie('separatorTop', 270);
         this.bottomSeparatorY = this.loadFromCookie('separatorBottom', 820);
@@ -444,6 +450,10 @@ class TimelineUnifiedRenderer {
         };
 
         this.totalHeight = menuHeight + headerHeight + masterHeight + roomsHeight + histogramHeight;
+        this.topSeparatorRatio = this.separatorY / this.totalHeight;
+        this.bottomSeparatorRatio = this.bottomSeparatorY / this.totalHeight;
+        this.histogramPreferredHeight = histogramHeight;
+        this.histogramFooterPadding = 10;
 
         // Navigation Overview (Minimap) State
         this.navCanvas = null;
@@ -494,6 +504,15 @@ class TimelineUnifiedRenderer {
             textMetrics: [],
             positions: []
         };
+
+        this.rootContainer = null;
+        this.lastViewportHeightPx = null;
+        this.boundWindowResizeHandler = null;
+        this.boundOrientationChangeHandler = null;
+        this.visualViewportResizeHandler = null;
+        this.pendingViewportResize = false;
+        this.pendingViewportResizeReason = null;
+        this.forceHistogramLayout = true;
 
         let disposedToggle = false;
         if (typeof window !== 'undefined') {
@@ -1641,6 +1660,99 @@ class TimelineUnifiedRenderer {
         return identifiers;
     }
 
+    getReservationFocusKey(detail) {
+        if (!detail) {
+            return null;
+        }
+
+        const identifiers = this.extractDetailIdentifiers(detail) || {};
+
+        if (identifiers.uniqueId) {
+            return `uid:${identifiers.uniqueId}`;
+        }
+        if (identifiers.detailId !== null && identifiers.detailId !== undefined) {
+            return `detail:${identifiers.detailId}`;
+        }
+        if (identifiers.resId !== null && identifiers.resId !== undefined) {
+            return `res:${identifiers.resId}`;
+        }
+        if (detail.id) {
+            return `id:${detail.id}`;
+        }
+        return null;
+    }
+
+    setFocusedReservation(detail, options = {}) {
+        const { source = 'rooms', silent = false } = options;
+        const key = this.getReservationFocusKey(detail);
+        if (!key) {
+            return false;
+        }
+
+        const hasChanged = this.focusedReservationKey !== key || this.focusedReservationSource !== source;
+        this.focusedReservationKey = key;
+        this.focusedReservationSource = source;
+        this.focusedReservationAt = Date.now();
+
+        if (hasChanged && !silent) {
+            this.scheduleRender('reservation_focus_set');
+        }
+
+        return hasChanged;
+    }
+
+    clearReservationFocus(options = {}) {
+        const { reason = 'reservation_focus_clear', silent = false } = options || {};
+        if (!this.focusedReservationKey) {
+            return false;
+        }
+
+        this.focusedReservationKey = null;
+        this.focusedReservationSource = null;
+        this.focusedReservationAt = 0;
+
+        if (!silent) {
+            this.scheduleRender(reason);
+        }
+
+        return true;
+    }
+
+    isReservationFocused(detail) {
+        const key = this.getReservationFocusKey(detail);
+        return Boolean(key && key === this.focusedReservationKey);
+    }
+
+    isTouchLikePointer(event) {
+        if (!event) {
+            return false;
+        }
+
+        if (typeof event.pointerType === 'string') {
+            if (event.pointerType === 'touch') {
+                return true;
+            }
+            if (event.pointerType === 'pen') {
+                if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+                    return window.matchMedia('(pointer: coarse)').matches;
+                }
+            }
+            return false;
+        }
+        if (typeof event.type === 'string') {
+            const lowered = event.type.toLowerCase();
+            if (lowered.includes('touch')) {
+                return true;
+            }
+        }
+
+        if (typeof event.changedTouches !== 'undefined') {
+            return true;
+        }
+
+        return false;
+    }
+
     normalizeReservationId(resId) {
         if (resId === undefined || resId === null) {
             return null;
@@ -2785,18 +2897,110 @@ class TimelineUnifiedRenderer {
         return niceFraction * Math.pow(10, exponent);
     }
 
-    getHistogramTicks(maxValue, desiredTickCount = 5) {
-        if (!maxValue || maxValue <= 0) {
-            return { ticks: [0], niceMax: 0 };
+    computeHistogramTickStep(range, desiredTickCount) {
+        if (!Number.isFinite(range) || range <= 0) {
+            return 1;
         }
-        const niceRange = this.niceNumber(maxValue, false);
-        const tickSpacing = this.niceNumber(niceRange / Math.max(desiredTickCount - 1, 1), true);
-        const niceMax = Math.ceil(maxValue / tickSpacing) * tickSpacing;
+
+        const safeCount = Math.max(1, desiredTickCount);
+        const rawStep = range / safeCount;
+        const exponent = Math.floor(Math.log10(rawStep));
+        const magnitude = Math.pow(10, exponent);
+        const normalized = rawStep / magnitude;
+        const candidates = [1, 1.25, 2, 2.5, 4, 5, 6, 8, 10];
+
+        let candidate = candidates[candidates.length - 1];
+        for (const option of candidates) {
+            if (normalized <= option) {
+                candidate = option;
+                break;
+            }
+        }
+
+        return candidate * magnitude;
+    }
+
+    getHistogramTicks(maxValue, options = {}) {
+        const { desiredTickCount = 5, manualMax = null } = options;
+        const manualTarget = Number(manualMax);
+        const hasManualTarget = Number.isFinite(manualTarget) && manualTarget > 0;
+        const dataMax = Number(maxValue);
+        const effectiveDataMax = Number.isFinite(dataMax) && dataMax > 0 ? dataMax : 0;
+
+        if (!effectiveDataMax && !hasManualTarget) {
+            return { ticks: [0], niceMax: 0, spacing: 1, manualApplied: false };
+        }
+
+        let targetMax = effectiveDataMax;
+        if (hasManualTarget) {
+            targetMax = Math.max(targetMax, manualTarget);
+        }
+
+        if (!Number.isFinite(targetMax) || targetMax <= 0) {
+            return { ticks: [0], niceMax: 0, spacing: 1, manualApplied: hasManualTarget };
+        }
+
+        const safeTickCount = Math.max(2, Math.floor(desiredTickCount));
+        const step = this.computeHistogramTickStep(targetMax, safeTickCount - 1);
+        const epsilon = step * 1e-3;
+
         const ticks = [];
-        for (let tick = 0; tick <= niceMax + tickSpacing * 0.5; tick += tickSpacing) {
-            ticks.push(Math.round(tick * 100) / 100);
+        for (let tick = 0; tick <= targetMax + epsilon; tick += step) {
+            const rounded = Math.round(tick * 1000) / 1000;
+            if (!ticks.length || Math.abs(ticks[ticks.length - 1] - rounded) > epsilon) {
+                ticks.push(rounded);
+            }
         }
-        return { ticks, niceMax, spacing: tickSpacing };
+
+        let niceMax = ticks.length ? ticks[ticks.length - 1] : targetMax;
+
+        if (hasManualTarget) {
+            const manualRounded = Math.round(manualTarget * 1000) / 1000;
+
+            if (!ticks.length) {
+                ticks.push(0, manualRounded);
+                niceMax = manualRounded;
+            } else {
+                const lastTick = ticks[ticks.length - 1];
+                const diff = Math.abs(lastTick - manualRounded);
+
+                if (manualRounded > lastTick + epsilon) {
+                    ticks.push(manualRounded);
+                    niceMax = manualRounded;
+                } else if (diff > epsilon) {
+                    if (ticks.length >= 2 && manualRounded > ticks[ticks.length - 2] + epsilon) {
+                        ticks[ticks.length - 1] = manualRounded;
+                    } else {
+                        ticks[ticks.length - 1] = manualRounded;
+                    }
+                    niceMax = manualRounded;
+                } else {
+                    ticks[ticks.length - 1] = manualRounded;
+                    niceMax = manualRounded;
+                }
+            }
+        } else {
+            niceMax = ticks[ticks.length - 1] ?? targetMax;
+        }
+
+        if (!ticks.length || ticks[0] !== 0) {
+            ticks.unshift(0);
+        }
+
+        const deduped = [];
+        for (const value of ticks) {
+            const rounded = Math.round(value * 1000) / 1000;
+            if (!deduped.length || Math.abs(deduped[deduped.length - 1] - rounded) > epsilon) {
+                deduped.push(rounded);
+            }
+        }
+
+        return {
+            ticks: deduped,
+            niceMax: niceMax,
+            spacing: step,
+            manualApplied: hasManualTarget
+        };
     }
 
 
@@ -2873,6 +3077,15 @@ class TimelineUnifiedRenderer {
                 result.weeksFuture = result.weeksFuture ?? defaults.weeksFuture;
             } else {
                 result[section] = { ...sectionDefaults, ...result[section] };
+            }
+        }
+
+        if (result.histogram) {
+            const configuredMax = Number(result.histogram.maxValue);
+            if (Number.isFinite(configuredMax) && configuredMax > 0) {
+                result.histogram.maxValue = Math.round(this.clamp(configuredMax, 10, 2000));
+            } else {
+                delete result.histogram.maxValue;
             }
         }
 
@@ -2954,6 +3167,170 @@ class TimelineUnifiedRenderer {
         topbar.style.setProperty('--topbar-accent', headerBg || '#007acc');
 
         this.updateNavigationOverview();
+        this.syncTopbarControls();
+    }
+
+    persistThemeConfig() {
+        if (!this.themeConfig || typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const configString = JSON.stringify(this.themeConfig);
+            const expires = new Date();
+            expires.setFullYear(expires.getFullYear() + 1);
+
+            if (typeof document !== 'undefined') {
+                document.cookie = `timeline_config=${encodeURIComponent(configString)}; expires=${expires.toUTCString()}; path=/`;
+            }
+
+            if (window && window.localStorage) {
+                window.localStorage.setItem('timeline_config', configString);
+            }
+        } catch (error) {
+            console.warn('Theme-Konfiguration konnte nicht gespeichert werden:', error);
+        }
+    }
+
+    getConfiguredHistogramMaxValue() {
+        const configured = Number(this.themeConfig?.histogram?.maxValue);
+        if (Number.isFinite(configured) && configured > 0) {
+            return Math.round(this.clamp(configured, 10, 2000));
+        }
+        return 0;
+    }
+
+    setHistogramMaxValue(value) {
+        if (!this.themeConfig) {
+            this.themeConfig = {};
+        }
+        if (!this.themeConfig.histogram) {
+            this.themeConfig.histogram = {};
+        }
+
+        const numericValue = Number(value);
+        const sanitized = Number.isFinite(numericValue) && numericValue > 0
+            ? Math.round(this.clamp(numericValue, 10, 2000))
+            : null;
+
+        const previous = this.getConfiguredHistogramMaxValue();
+
+        if (sanitized === null) {
+            if (previous === 0) {
+                this.syncTopbarControls();
+                return false;
+            }
+
+            delete this.themeConfig.histogram.maxValue;
+            this.persistThemeConfig();
+            this.syncTopbarControls();
+            this.scheduleRender('histogram_max_reset');
+            return true;
+        }
+
+        if (previous === sanitized) {
+            this.syncTopbarControls();
+            return false;
+        }
+
+        this.themeConfig.histogram.maxValue = sanitized;
+        this.persistThemeConfig();
+        this.syncTopbarControls();
+        this.scheduleRender('histogram_max_update');
+        return true;
+    }
+
+    initializeTopbarControls() {
+        if (typeof document === 'undefined') {
+            return;
+        }
+
+        const toggle = document.getElementById('timeline-settings-toggle');
+        const menu = document.getElementById('timeline-settings-menu');
+        if (toggle && menu && !toggle.dataset.bound) {
+            toggle.dataset.bound = 'true';
+            toggle.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === 'function') {
+                    event.stopImmediatePropagation();
+                }
+                const isOpen = menu.getAttribute('data-open') === 'true';
+                const nextState = !isOpen;
+                menu.setAttribute('data-open', nextState ? 'true' : 'false');
+                menu.classList.toggle('open', nextState);
+                toggle.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+                toggle.setAttribute('aria-haspopup', 'true');
+                menu.setAttribute('aria-hidden', nextState ? 'false' : 'true');
+            });
+        }
+
+        const histogramInput = document.getElementById('timeline-histogram-max');
+        const histogramDisplay = document.getElementById('timeline-histogram-max-display');
+
+        if (histogramInput && !histogramInput.dataset.bound) {
+            histogramInput.dataset.bound = 'true';
+
+            const updateDisplay = () => {
+                const current = this.getConfiguredHistogramMaxValue();
+                if (document.activeElement !== histogramInput) {
+                    histogramInput.value = current > 0 ? String(current) : '';
+                }
+                if (histogramDisplay) {
+                    const candidate = document.activeElement === histogramInput
+                        ? Number(histogramInput.value)
+                        : current;
+                    const displayValue = Number.isFinite(candidate) && candidate > 0 ? Math.round(candidate) : null;
+                    histogramDisplay.textContent = displayValue ? String(displayValue) : 'Auto';
+                }
+            };
+
+            histogramInput.addEventListener('focus', () => updateDisplay());
+            histogramInput.addEventListener('input', () => {
+                if (histogramDisplay) {
+                    const candidate = Number(histogramInput.value);
+                    histogramDisplay.textContent = Number.isFinite(candidate) && candidate > 0
+                        ? String(Math.round(candidate))
+                        : 'Auto';
+                }
+            });
+            histogramInput.addEventListener('change', () => {
+                this.setHistogramMaxValue(histogramInput.value);
+            });
+            histogramInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    this.setHistogramMaxValue(histogramInput.value);
+                    histogramInput.blur();
+                }
+            });
+            histogramInput.addEventListener('blur', () => updateDisplay());
+
+            updateDisplay();
+        }
+
+        this.syncTopbarControls();
+    }
+
+    syncTopbarControls() {
+        if (typeof document === 'undefined') {
+            return;
+        }
+
+        const histogramInput = document.getElementById('timeline-histogram-max');
+        const histogramDisplay = document.getElementById('timeline-histogram-max-display');
+
+        if (histogramInput && document.activeElement !== histogramInput) {
+            const current = this.getConfiguredHistogramMaxValue();
+            histogramInput.value = current > 0 ? String(current) : '';
+            if (histogramDisplay) {
+                histogramDisplay.textContent = current > 0 ? String(current) : 'Auto';
+            }
+        } else if (histogramInput && histogramDisplay) {
+            const candidate = Number(histogramInput.value);
+            histogramDisplay.textContent = Number.isFinite(candidate) && candidate > 0
+                ? String(Math.round(candidate))
+                : 'Auto';
+        }
     }
 
     init() {
@@ -2966,7 +3343,9 @@ class TimelineUnifiedRenderer {
         this.container.innerHTML = `
             <div class="timeline-unified-container" style="
                 width: 100vw;
-                height: 100vh;
+                height: var(--timeline-vh, 100vh);
+                min-height: var(--timeline-vh, 100vh);
+                max-height: var(--timeline-vh, 100vh);
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -3026,6 +3405,14 @@ class TimelineUnifiedRenderer {
                                             <label for="timeline-weeks-future">Wochen voraus</label>
                                             <input type="number" id="timeline-weeks-future" min="4" max="208" step="1" value="104">
                                         </div>
+                                    </div>
+                                    <div class="topbar-menu-section">
+                                        <label for="timeline-histogram-max">Histogramm-Maximum</label>
+                                        <div class="topbar-control-row">
+                                            <input type="number" id="timeline-histogram-max" min="10" max="2000" step="10" placeholder="Auto">
+                                            <span id="timeline-histogram-max-display">Auto</span>
+                                        </div>
+                                        <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Leer lassen für automatischen Modus</p>
                                     </div>
                                     <div class="topbar-menu-section topbar-menu-links">
                                         <a id="timeline-room-editor-link" class="topbar-link" href="zimmereditor/index.php" target="_blank" rel="noopener">🛏️ Zimmereditor</a>
@@ -3099,10 +3486,12 @@ class TimelineUnifiedRenderer {
                 </div>
             </div>
         `;
+        this.rootContainer = this.container.querySelector('.timeline-unified-container');
         this.canvas = document.getElementById('timeline-canvas');
         this.canvas.style.touchAction = 'none';
         this.ctx = this.canvas.getContext('2d');
 
+        this.updateDynamicViewportHeight(true);
         this.updateSidebarMetrics(true);
 
         this.resizeCanvas();
@@ -3110,6 +3499,7 @@ class TimelineUnifiedRenderer {
         this.initializeNavigationOverview();
         this.updateTopbarVisuals();
         this.updateNavigationOverview();
+        this.initializeTopbarControls();
     }
 
     addMobileScrollbarStyles() {
@@ -3119,13 +3509,17 @@ class TimelineUnifiedRenderer {
         const style = document.createElement('style');
         style.id = 'mobile-scrollbar-styles';
         style.textContent = `
+            :root {
+                --timeline-vh: 100vh;
+            }
+
             /* Body Fullscreen ohne Scrollbars */
             body, html {
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
                 width: 100vw !important;
-                height: 100vh !important;
+                height: var(--timeline-vh, 100vh) !important;
             }
             
             /* Verbesserte Scrollbars für Mobilgeräte */
@@ -3832,11 +4226,70 @@ class TimelineUnifiedRenderer {
         this.updateNavigationOverview();
     }
 
+    updateDynamicViewportHeight(force = false) {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        const viewport = window.visualViewport;
+        const viewportHeight = Math.round(
+            viewport?.height ||
+            window.innerHeight ||
+            document.documentElement?.clientHeight ||
+            document.body?.clientHeight ||
+            0
+        );
+
+        if (!viewportHeight) {
+            return false;
+        }
+
+        if (!force && this.lastViewportHeightPx === viewportHeight) {
+            return false;
+        }
+
+        this.lastViewportHeightPx = viewportHeight;
+        const cssValue = `${viewportHeight}px`;
+
+        if (document?.documentElement?.style) {
+            document.documentElement.style.setProperty('--timeline-vh', cssValue);
+        }
+
+        if (this.rootContainer) {
+            this.rootContainer.style.height = cssValue;
+            this.rootContainer.style.minHeight = cssValue;
+            this.rootContainer.style.maxHeight = cssValue;
+        }
+
+        return true;
+    }
+
+    handleViewportResize(reason = 'viewport_resize') {
+        if (this.pendingViewportResize) {
+            this.pendingViewportResizeReason = reason;
+            return;
+        }
+
+        this.pendingViewportResize = true;
+        this.pendingViewportResizeReason = reason;
+
+        requestAnimationFrame(() => {
+            const finalReason = this.pendingViewportResizeReason || reason;
+            this.pendingViewportResize = false;
+            this.pendingViewportResizeReason = null;
+
+            this.updateDynamicViewportHeight(true);
+            this.resizeCanvas();
+            this.scheduleRender(finalReason);
+        });
+    }
+
     resizeCanvas() {
         const canvasContainer = this.container.querySelector('.canvas-container');
         const rect = canvasContainer.getBoundingClientRect();
 
         // Canvas-Höhe: vom oberen Rand bis 20px über dem unteren Rand
+        this.updateDynamicViewportHeight();
         const availableHeight = rect.height - 20;
         this.canvas.width = rect.width;
         this.canvas.height = availableHeight;
@@ -4020,7 +4473,24 @@ class TimelineUnifiedRenderer {
     }
 
     setupEvents() {
-        window.addEventListener('resize', () => this.resizeCanvas());
+        if (!this.boundWindowResizeHandler) {
+            this.boundWindowResizeHandler = () => this.handleViewportResize('window_resize');
+        }
+        window.addEventListener('resize', this.boundWindowResizeHandler, { passive: true });
+
+        if ('onorientationchange' in window) {
+            if (!this.boundOrientationChangeHandler) {
+                this.boundOrientationChangeHandler = () => this.handleViewportResize('orientation_change');
+            }
+            window.addEventListener('orientationchange', this.boundOrientationChangeHandler, { passive: true });
+        }
+
+        if (typeof window.visualViewport !== 'undefined') {
+            if (!this.visualViewportResizeHandler) {
+                this.visualViewportResizeHandler = () => this.handleViewportResize('visual_viewport_resize');
+            }
+            window.visualViewport.addEventListener('resize', this.visualViewportResizeHandler, { passive: true });
+        }
 
         // Pointer-Events für Touch-Unterstützung
         this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e), { passive: false });
@@ -4052,6 +4522,22 @@ class TimelineUnifiedRenderer {
                     this.hideDateContextMenu();
                 }
             }
+
+            // Close settings menu on outside click
+            const settingsMenu = document.getElementById('timeline-settings-menu');
+            const settingsToggle = document.getElementById('timeline-settings-toggle');
+            if (settingsMenu && settingsMenu.getAttribute('data-open') === 'true') {
+                const clickedToggle = settingsToggle && settingsToggle.contains(event.target);
+                const clickedInside = settingsMenu.contains(event.target);
+                if (!clickedToggle && !clickedInside) {
+                    settingsMenu.setAttribute('data-open', 'false');
+                    settingsMenu.classList.remove('open');
+                    settingsMenu.setAttribute('aria-hidden', 'true');
+                    if (settingsToggle) {
+                        settingsToggle.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            }
         });
 
         window.addEventListener('keydown', (event) => {
@@ -4064,6 +4550,16 @@ class TimelineUnifiedRenderer {
                 }
                 if (this.dateMenuEl && this.dateMenuEl.style.display === 'block') {
                     this.hideDateContextMenu();
+                }
+                const settingsMenu = document.getElementById('timeline-settings-menu');
+                const settingsToggle = document.getElementById('timeline-settings-toggle');
+                if (settingsMenu && settingsMenu.getAttribute('data-open') === 'true') {
+                    settingsMenu.setAttribute('data-open', 'false');
+                    settingsMenu.classList.remove('open');
+                    settingsMenu.setAttribute('aria-hidden', 'true');
+                    if (settingsToggle) {
+                        settingsToggle.setAttribute('aria-expanded', 'false');
+                    }
                 }
             }
         });
@@ -4737,6 +5233,13 @@ class TimelineUnifiedRenderer {
         const deltaY = e.clientY - this.panStart.clientY;
         let needsRender = false;
 
+        if (!this.isDraggingReservation) {
+            const movement = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+            if (movement > 8) {
+                this.clearReservationFocus({ reason: 'reservation_focus_cleared_by_pan' });
+            }
+        }
+
         if (this.panContext.allowHorizontal && this.horizontalTrack) {
             const maxScrollX = Math.max(0, this.horizontalTrack.scrollWidth - this.horizontalTrack.clientWidth);
             const newScrollX = this.clamp(this.panStart.scrollX - deltaX, 0, maxScrollX);
@@ -4990,30 +5493,44 @@ class TimelineUnifiedRenderer {
     }
 
     updateLayoutAreas() {
+        if (!this.canvas) {
+            return;
+        }
+
         const maxTopSeparatorY = this.canvas.height * 0.5;
+        const minTopSeparatorY = this.areas.header.y + this.areas.header.height + 60;
         const minRoomGap = Math.max(120, this.ROOM_BAR_HEIGHT * 4);
         const minHistogramHeight = Math.max(80, this.ROOM_BAR_HEIGHT * 4);
+        const footerPadding = Math.max(4, Math.min(12, this.sidebarFontSize ? this.sidebarFontSize * 0.5 : 10));
+
+        this.separatorY = this.clamp(this.separatorY, minTopSeparatorY, maxTopSeparatorY);
+
         const minBottomSeparatorY = Math.max(this.canvas.height * 0.55, this.separatorY + minRoomGap);
-        const maxBottomCandidate = this.canvas.height - 20 - minHistogramHeight;
-        const maxBottomSeparatorY = Math.max(minBottomSeparatorY, maxBottomCandidate); // Stelle sicher, dass Histogramm Platz bekommt
+        const maxBottomCandidate = this.canvas.height - footerPadding - minHistogramHeight;
+        const maxBottomSeparatorY = Math.max(minBottomSeparatorY, maxBottomCandidate);
 
-        // Oberer Separator begrenzen
-        this.separatorY = Math.min(this.separatorY, maxTopSeparatorY);
+        const maxHistogramHeight = Math.max(minHistogramHeight, this.canvas.height - footerPadding - (this.separatorY + minRoomGap));
+        let preferredHistogramHeight = Number.isFinite(this.histogramPreferredHeight) && this.histogramPreferredHeight > 0
+            ? this.histogramPreferredHeight
+            : Math.max(minHistogramHeight, this.canvas.height - this.bottomSeparatorY - footerPadding);
 
-        // Unterer Separator begrenzen und sicherstellen dass er unter dem oberen ist
+        preferredHistogramHeight = this.clamp(preferredHistogramHeight, minHistogramHeight, maxHistogramHeight);
+
+        if (!this.isDraggingBottomSeparator && !this.forceHistogramLayout) {
+            this.bottomSeparatorY = this.canvas.height - footerPadding - preferredHistogramHeight;
+        }
+
         this.bottomSeparatorY = this.clamp(this.bottomSeparatorY, minBottomSeparatorY, maxBottomSeparatorY);
         this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + minRoomGap);
 
-        // Falls nach Clamping zu wenig Platz für Histogramm bleibt, nachjustieren
-        const residualHistogramSpace = this.canvas.height - this.bottomSeparatorY - 20;
+        let residualHistogramSpace = this.canvas.height - this.bottomSeparatorY - footerPadding;
         if (residualHistogramSpace < minHistogramHeight) {
-            const adjustedBottom = this.canvas.height - 20 - Math.max(minHistogramHeight, residualHistogramSpace);
-            this.bottomSeparatorY = Math.max(this.separatorY + minRoomGap, Math.min(adjustedBottom, maxBottomSeparatorY));
+            this.bottomSeparatorY = this.canvas.height - footerPadding - minHistogramHeight;
+            this.bottomSeparatorY = Math.max(this.bottomSeparatorY, this.separatorY + minRoomGap);
+            residualHistogramSpace = this.canvas.height - this.bottomSeparatorY - footerPadding;
         }
 
-        // Layout-Bereiche aktualisieren (Menü + Header wieder hinzugefügt)
         const headerBottom = this.areas.header.y + this.areas.header.height;
-        const footerPadding = 20;
 
         this.areas.master.y = headerBottom;
         this.areas.master.height = Math.max(60, this.separatorY - headerBottom);
@@ -5022,10 +5539,31 @@ class TimelineUnifiedRenderer {
         this.areas.rooms.height = Math.max(60, this.bottomSeparatorY - this.separatorY);
 
         this.areas.histogram.y = this.bottomSeparatorY;
-        const availableHistogramSpace = Math.max(minHistogramHeight, this.canvas.height - this.bottomSeparatorY - footerPadding);
-        this.areas.histogram.height = Math.max(minHistogramHeight * 0.85, availableHistogramSpace * 0.95); // 95% Ausnutzung mit Mindesthöhe
+        const availableHistogramSpace = Math.max(minHistogramHeight, residualHistogramSpace);
+        this.areas.histogram.height = availableHistogramSpace;
 
-        // Scrollbars nach Layout-Änderung neu positionieren
+        if (this.isDraggingBottomSeparator || !Number.isFinite(this.histogramPreferredHeight) || this.histogramPreferredHeight <= 0 || this.forceHistogramLayout) {
+            this.histogramPreferredHeight = availableHistogramSpace;
+        }
+        this.forceHistogramLayout = false;
+
+        this.totalHeight = this.canvas.height;
+        if (this.totalHeight > 0) {
+            this.topSeparatorRatio = this.separatorY / this.totalHeight;
+            this.bottomSeparatorRatio = this.bottomSeparatorY / this.totalHeight;
+        }
+
+        if (typeof window !== 'undefined' && window.debugTimeline) {
+            this.layoutMetrics = {
+                canvasHeight: this.canvas.height,
+                menu: { y: this.areas.menu.y, height: this.areas.menu.height },
+                header: { y: this.areas.header.y, height: this.areas.header.height },
+                master: { y: this.areas.master.y, height: this.areas.master.height },
+                rooms: { y: this.areas.rooms.y, height: this.areas.rooms.height },
+                histogram: { y: this.areas.histogram.y, height: this.areas.histogram.height, footerPadding }
+            };
+        }
+
         this.positionScrollbars();
     }
 
@@ -5091,6 +5629,8 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        const isTouchLike = this.isTouchLikePointer(e);
+
         // Reservierung Drag & Drop nur wenn im Rooms-Bereich
         if (mouseY >= this.areas.rooms.y && mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
             // Check for sticky note click first (higher priority than reservation drag)
@@ -5105,10 +5645,32 @@ class TimelineUnifiedRenderer {
             const reservation = this.findReservationAt(mouseX, mouseY);
 
             if (reservation) {
+                const focusKey = this.getReservationFocusKey(reservation);
+                const focusSource = isTouchLike ? 'touch' : 'mouse';
+                const focusChanged = focusKey ? this.setFocusedReservation(reservation, { source: focusSource }) : false;
+
+                if (!focusKey && this.focusedReservationKey) {
+                    this.clearReservationFocus({ reason: 'reservation_focus_missing_key', silent: true });
+                }
+
+                if (isTouchLike && focusKey && focusChanged) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+
+                if (focusKey && !focusChanged) {
+                    this.focusedReservationAt = Date.now();
+                }
+
                 this.startReservationDrag(reservation, mouseX, mouseY, e);
                 e.preventDefault();
                 e.stopPropagation();
+            } else {
+                this.clearReservationFocus({ reason: 'reservation_focus_clear_room_background' });
             }
+        } else {
+            this.clearReservationFocus({ reason: 'reservation_focus_clear_outside' });
         }
     }
 
@@ -7057,8 +7619,11 @@ class TimelineUnifiedRenderer {
     startReservationDrag(reservation, mouseX, mouseY, e) {
         this.isDraggingReservation = true;
         this.draggedReservation = reservation;
+        const dragSource = this.isTouchLikePointer(e) ? 'touch' : 'mouse';
+        this.setFocusedReservation(reservation, { source: dragSource, silent: true });
         this.dragStartX = mouseX;
         this.dragStartY = mouseY;
+        this.dragAxisLock = null;
 
         // WICHTIG: Speichere eine eindeutige Referenz auf den EXAKTEN Balken
         this.draggedReservationReference = reservation; // Direkte Objektreferenz
@@ -7117,26 +7682,54 @@ class TimelineUnifiedRenderer {
         const deltaX = mouseX - this.dragStartX;
         const deltaY = mouseY - this.dragStartY;
 
-        // Prüfe ob dies ein primär vertikaler Drag ist (Zimmer-Wechsel)
-        const isVerticalDrag = Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 20;
+        let axisLock = this.dragAxisLock;
+        const isMoveMode = this.dragMode === 'move';
 
-        // Berechne neue Datums-Werte basierend auf Drag-Modus
-        // Bei vertikalem Drag keine horizontale Verschiebung zulassen
-        const daysDelta = isVerticalDrag ? 0 : Math.round(deltaX / this.DAY_WIDTH);
+        if (isMoveMode) {
+            if (!axisLock) {
+                const threshold = Math.max(4, this.dragAxisLockThreshold || 12);
+                const absX = Math.abs(deltaX);
+                const absY = Math.abs(deltaY);
+                if (absX >= threshold || absY >= threshold) {
+                    axisLock = absY > absX ? 'vertical' : 'horizontal';
+                    this.dragAxisLock = axisLock;
+                }
+            }
+        } else {
+            if (!axisLock) {
+                axisLock = 'horizontal';
+                this.dragAxisLock = axisLock;
+            }
+        }
+
+        let effectiveMouseX = mouseX;
+        let effectiveMouseY = mouseY;
+
+        if (axisLock === 'vertical') {
+            effectiveMouseX = this.dragStartX;
+        }
+        if (axisLock === 'horizontal') {
+            effectiveMouseY = this.dragStartY;
+        }
+
+        const horizontalDelta = effectiveMouseX - this.dragStartX;
+        const daysDelta = isMoveMode
+            ? Math.round(horizontalDelta / this.DAY_WIDTH)
+            : Math.round((effectiveMouseX - this.dragStartX) / this.DAY_WIDTH);
 
         // Phase 3+: Real-time optimal stacking during drag
         if (this.dragOptimization.enabled) {
-            this.updateDragPreview(mouseX, mouseY, daysDelta);
+            this.updateDragPreview(effectiveMouseX, effectiveMouseY, daysDelta);
         }
 
         // Update pixel-precise ghost frame that follows mouse
-        this.updatePixelGhostFrame(mouseX, mouseY);
+        this.updatePixelGhostFrame(effectiveMouseX, effectiveMouseY);
 
         // Invalidate stacking cache for affected rooms to force re-calculation
         if (this.dragOriginalData?.room_id) {
             this.invalidateStackingCache(this.dragOriginalData.room_id);
         }
-        const targetRoom = this.findRoomAt(mouseY);
+        const targetRoom = this.findRoomAt(effectiveMouseY);
         if (targetRoom && targetRoom.id !== this.dragOriginalData?.room_id) {
             this.invalidateStackingCache(targetRoom.id);
         }
@@ -7159,10 +7752,10 @@ class TimelineUnifiedRenderer {
         }
 
         // Berechne Ghost-Bar Position (diskret)
-        this.updateGhostBar(mouseX, mouseY, daysDelta);
+        this.updateGhostBar(effectiveMouseX, effectiveMouseY, daysDelta);
 
         if (this.dragMode === 'move') {
-            this.handleReservationMove(daysDelta, mouseY);
+            this.handleReservationMove(daysDelta);
         } else if (this.dragMode === 'resize-start') {
             this.handleReservationResizeStart(daysDelta);
         } else if (this.dragMode === 'resize-end') {
@@ -7171,14 +7764,14 @@ class TimelineUnifiedRenderer {
 
         // Finde Ziel-Zimmer bei Move-Operation
         if (this.dragMode === 'move') {
-            this.dragTargetRoom = this.findRoomAt(mouseY);
+            this.dragTargetRoom = this.findRoomAt(effectiveMouseY);
         }
 
         // Phase 3+: Smart stacking update - only for affected rooms
         this.updateRoomStackingOptimal();
     }
 
-    handleReservationMove(daysDelta, mouseY) {
+    handleReservationMove(daysDelta) {
         const duration = this.dragOriginalData.end.getTime() - this.dragOriginalData.start.getTime();
 
         // Neue Start- und End-Daten berechnen
@@ -7415,6 +8008,7 @@ class TimelineUnifiedRenderer {
         this.dragMode = null;
         this.dragOriginalData = null;
         this.dragTargetRoom = null;
+        this.dragAxisLock = null;
         this.ghostBar = null; // Ghost-Bar ausblenden
         this.pixelGhostFrame = null; // Pixel ghost frame ausblenden
 
@@ -8659,8 +9253,11 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        const availableHeight = area.height * 0.9;
-        const bottomMargin = area.height * 0.05;
+        const bottomPadding = Math.max(0, Math.min(4, area.height * 0.02));
+        const topPadding = Math.max(14, Math.min(28, area.height * 0.12));
+        const availableHeight = Math.max(10, area.height - topPadding - bottomPadding);
+        const chartBottomY = area.y + area.height - bottomPadding;
+        const chartTopY = chartBottomY - availableHeight;
         const barWidth = Math.max(4, this.DAY_WIDTH - 10);
         const categoryColors = histogramTheme.segments || {
             dz: '#1f78ff',
@@ -8671,8 +9268,13 @@ class TimelineUnifiedRenderer {
         const weekendFill = histogramTheme.weekendFill || (this.themeConfig.weekend && this.themeConfig.weekend.fill) || 'rgba(255, 99, 132, 0.08)';
         const gridColor = histogramTheme.gridColor || 'rgba(255,255,255,0.28)';
 
-        const { ticks, niceMax } = this.getHistogramTicks(maxGuests);
-        const scaledMax = niceMax > 0 ? niceMax : (maxGuests > 0 ? maxGuests : 1);
+        const manualHistogramMax = this.getConfiguredHistogramMaxValue();
+        const estimatedTicks = Math.max(3, Math.min(8, Math.round(availableHeight / 36)));
+        const { ticks, niceMax } = this.getHistogramTicks(maxGuests, {
+            desiredTickCount: estimatedTicks,
+            manualMax: manualHistogramMax > 0 ? manualHistogramMax : null
+        });
+        const scaledMax = niceMax > 0 ? niceMax : (manualHistogramMax > 0 ? manualHistogramMax : (maxGuests > 0 ? maxGuests : 1));
 
         // Shade weekends
         dailyCounts.forEach((_, dayIndex) => {
@@ -8697,7 +9299,7 @@ class TimelineUnifiedRenderer {
 
         // Erst die Gitterlinien im geclippten Bereich zeichnen
         ticks.forEach(tick => {
-            const y = area.y + area.height - bottomMargin - (tick / scaledMax) * availableHeight;
+            const y = chartBottomY - (tick / scaledMax) * availableHeight;
             this.ctx.beginPath();
             this.ctx.moveTo(this.sidebarWidth, y);
             this.ctx.lineTo(this.canvas.width, y);
@@ -8715,29 +9317,11 @@ class TimelineUnifiedRenderer {
         this.ctx.font = `${fontSize}px Arial`;
 
         ticks.forEach(tick => {
-            const y = area.y + area.height - bottomMargin - (tick / scaledMax) * availableHeight;
+            const y = chartBottomY - (tick / scaledMax) * availableHeight;
             this.ctx.fillText(String(tick), this.sidebarWidth - 6, y);
         });
 
         // Clipping wieder aktivieren für den Rest
-        this.ctx.beginPath();
-        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
-        this.ctx.clip();
-
-        // Weitere Labels ohne Clipping
-        this.ctx.restore();
-        this.ctx.save();
-
-        const headerArea = this.areas.header;
-        this.ctx.fillStyle = textColor;
-        this.ctx.font = `${fontSize}px Arial`;
-        this.ctx.textAlign = 'right';
-        this.ctx.textBaseline = 'bottom';
-        this.ctx.fillText(String(ticks[ticks.length - 1] || scaledMax), this.sidebarWidth - 6, headerArea.y + headerArea.height - 2);
-        this.ctx.textBaseline = 'top';
-        this.ctx.fillText('0', this.sidebarWidth - 6, area.y + area.height - bottomMargin + 4);
-
-        // Clipping wieder für Balken aktivieren
         this.ctx.beginPath();
         this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
         this.ctx.clip();
@@ -8757,7 +9341,7 @@ class TimelineUnifiedRenderer {
             const totalValue = detail.total || 0;
             const ratio = scaledMax > 0 ? totalValue / scaledMax : 0;
             const barHeight = ratio * availableHeight;
-            const barY = area.y + area.height - bottomMargin - barHeight;
+            const barY = chartBottomY - barHeight;
 
             let currentTop = barY + barHeight;
             const categoriesInOrder = ['dz', 'betten', 'lager', 'sonder'];
@@ -9795,12 +10379,24 @@ class TimelineUnifiedRenderer {
     renderReservationBar(x, y, width, height, reservation, isHovered = false) {
         // Master-Bereich Balken werden normal gerendert (kein Glow hier)
 
+        const isFocused = this.isReservationFocused(reservation);
         const capacity = this.extractNumericCapacity(reservation);
 
         // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
         let color = this.getMasterReservationColor(reservation);
 
+        const renderX = x;
+        const renderY = y;
+        const renderWidth = width;
+        const renderHeight = height;
+
         this.ctx.save();
+
+        if (isFocused && !isHovered) {
+            if (typeof color === 'string' && color.startsWith('#')) {
+                color = this.lightenColor(color, 10);
+            }
+        }
 
         if (isHovered) {
             if (typeof color === 'string' && color.startsWith('#')) {
@@ -9813,19 +10409,28 @@ class TimelineUnifiedRenderer {
         }
 
         this.ctx.fillStyle = color;
-        this.roundedRect(x, y, width, height, 3);
+        this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
         this.ctx.fill();
         this.ctx.restore();
 
-        this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)';
+        this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
         this.ctx.lineWidth = 1;
-        this.roundedRect(x, y, width, height, 3);
         this.ctx.stroke();
 
-        if (width > 40) {
+        const shouldRenderTouchHelpers = isFocused && this.focusedReservationSource === 'touch' &&
+            !this.isDraggingReservation && renderHeight > 10 && renderWidth > 60;
+        const shouldRenderHoverHelpers = isHovered && !this.isDraggingReservation && renderHeight > 10 && renderWidth > 60;
+
+        let helperInsets = { leftInset: 0, rightInset: 0 };
+        if (shouldRenderTouchHelpers || shouldRenderHoverHelpers) {
+            const mode = shouldRenderTouchHelpers ? 'touch' : 'hover';
+            helperInsets = this.renderTouchHelperIcons(renderX, renderY, renderWidth, renderHeight, { mode });
+        }
+
+        if (renderWidth > 40) {
             // Automatische Textfarbe basierend auf Balkenhelligkeit
             const textColor = this.getContrastColor(color);
-            const masterFontSize = this.computeBarFontSize(height);
+            const masterFontSize = this.computeBarFontSize(renderHeight);
             if (this.themeConfig.master) {
                 this.themeConfig.master.fontSize = masterFontSize;
             }
@@ -9853,7 +10458,7 @@ class TimelineUnifiedRenderer {
             const arrangementLetterMatch = arrangementRaw.match(/[A-Za-zÄÖÜäöü]/);
             const arrangementLetter = arrangementLetterMatch ? arrangementLetterMatch[0].toUpperCase() : null;
             const hasCircle = Boolean(arrangementLetter);
-            const circleDiameter = hasCircle ? Math.max(12, Math.min(height - 4, 18)) : 0;
+            const circleDiameter = hasCircle ? Math.max(12, Math.min(renderHeight - 4, 18)) : 0;
             const circlePadding = hasCircle ? circleDiameter + 6 : 0;
 
             // Strikt: AV-Res.av_id > 0 (Masterdaten aus AV-Res), einmal berechnen und überall verwenden
@@ -9869,17 +10474,18 @@ class TimelineUnifiedRenderer {
             let caption = `${capacity} ${fullName}`.trim();
 
             // Platz für Text unter Berücksichtigung des Kreis-Indikators
-            const availableWidth = width - 8 - circlePadding;
+            const availableWidth = renderWidth - helperInsets.leftInset - helperInsets.rightInset - 8 - circlePadding;
             if (availableWidth > 0) {
                 caption = this.truncateTextToWidth(caption, availableWidth);
-                const textY = y + (height / 2) + (masterFontSize / 3);
-                this.ctx.fillText(caption, x + 2, textY);
+                const textY = renderY + (renderHeight / 2) + (masterFontSize / 3);
+                const textX = renderX + helperInsets.leftInset + 2;
+                this.ctx.fillText(caption, textX, textY);
             }
 
             // Kreis rechts mit Buchstabe des Arrangements; Farbe grün wenn AV-Res.av_id vorhanden (>0 numerisch oder allgemein truthy)
-            if (hasCircle && width > circleDiameter + 10) {
-                const circleX = x + width - (circleDiameter / 2) - 3;
-                const circleY = y + height / 2;
+            if (hasCircle && renderWidth > circleDiameter + 10 + helperInsets.rightInset) {
+                const circleX = renderX + renderWidth - helperInsets.rightInset - (circleDiameter / 2) - 3;
+                const circleY = renderY + renderHeight / 2;
                 // Kreisfarbe strikt anhand der bereits berechneten AV-Kennung
                 const circleFill = hasAvMaster ? '#2ecc71' : '#bdc3c7';
                 const circleStroke = hasAvMaster ? '#1e8449' : '#95a5a6';
@@ -9963,11 +10569,148 @@ class TimelineUnifiedRenderer {
         }
     }
 
+    renderTouchHelperIcons(renderX, renderY, renderWidth, renderHeight, options = {}) {
+        const { mode = 'hover' } = options || {};
+
+        const circleRadius = Math.max(10, Math.min(renderHeight * 0.45, 18, renderWidth / 8));
+        if (circleRadius < 8) {
+            return { leftInset: 0, rightInset: 0 };
+        }
+
+        const fillOpacity = mode === 'touch' ? 0.35 : 0.22;
+        const strokeOpacity = mode === 'touch' ? 0.9 : 0.65;
+        const arrowOpacity = mode === 'touch' ? 0.95 : 0.8;
+        const fillColor = `rgba(39, 174, 96, ${fillOpacity})`;
+        const strokeColor = `rgba(39, 174, 96, ${strokeOpacity})`;
+        const arrowColor = `rgba(25, 111, 61, ${arrowOpacity})`;
+
+        const edgeOffset = circleRadius + 8;
+        if (renderWidth <= edgeOffset * 2 + 8) {
+            return { leftInset: 0, rightInset: 0 };
+        }
+
+        const helperInsets = { leftInset: 0, rightInset: 0 };
+        const circleCenters = [];
+
+        const baseY = renderY + renderHeight / 2;
+        const leftCenterX = renderX + edgeOffset;
+        const rightCenterX = renderX + renderWidth - edgeOffset;
+        circleCenters.push({ x: leftCenterX, y: baseY, kind: 'resize-left' });
+        circleCenters.push({ x: rightCenterX, y: baseY, kind: 'resize-right' });
+
+        if (rightCenterX - leftCenterX > circleRadius * 3.2) {
+            circleCenters.push({ x: renderX + renderWidth / 2, y: baseY, kind: 'move' });
+        }
+
+        const insetValue = Math.min(renderWidth / 3, circleRadius * 2 + 12);
+        helperInsets.leftInset = insetValue;
+        helperInsets.rightInset = insetValue;
+
+        const drawCircle = (cx, cy) => {
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.fillStyle = fillColor;
+            this.ctx.strokeStyle = strokeColor;
+            this.ctx.lineWidth = 2;
+            this.ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+            this.ctx.restore();
+        };
+
+        const drawArrow = (center, kind) => {
+            const { x: cx, y: cy } = center;
+            const arrowHead = Math.min(6, circleRadius * 0.45);
+            const shaftHalf = circleRadius * 0.7;
+            this.ctx.save();
+            this.ctx.strokeStyle = arrowColor;
+            this.ctx.fillStyle = arrowColor;
+            this.ctx.lineWidth = 2;
+            this.ctx.lineCap = 'round';
+            this.ctx.setLineDash([]);
+
+            if (kind === 'resize-left' || kind === 'resize-right') {
+                const direction = kind === 'resize-left' ? -1 : 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx - shaftHalf, cy);
+                this.ctx.lineTo(cx + shaftHalf, cy);
+                this.ctx.stroke();
+
+                const tipX = direction === -1 ? cx - shaftHalf : cx + shaftHalf;
+                const baseX = tipX - direction * arrowHead;
+                this.ctx.beginPath();
+                this.ctx.moveTo(tipX, cy);
+                this.ctx.lineTo(baseX, cy - arrowHead);
+                this.ctx.lineTo(baseX, cy + arrowHead);
+                this.ctx.closePath();
+                this.ctx.fill();
+            } else {
+                const moveHalf = circleRadius * 0.6;
+                const moveArrow = Math.min(5, circleRadius * 0.35);
+
+                // Horizontale Linie
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx - moveHalf, cy);
+                this.ctx.lineTo(cx + moveHalf, cy);
+                this.ctx.stroke();
+
+                // Vertikale Linie
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, cy - moveHalf);
+                this.ctx.lineTo(cx, cy + moveHalf);
+                this.ctx.stroke();
+
+                // Linke Pfeilspitze
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx - moveHalf, cy);
+                this.ctx.lineTo(cx - moveHalf + moveArrow, cy - moveArrow);
+                this.ctx.lineTo(cx - moveHalf + moveArrow, cy + moveArrow);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Rechte Pfeilspitze
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx + moveHalf, cy);
+                this.ctx.lineTo(cx + moveHalf - moveArrow, cy - moveArrow);
+                this.ctx.lineTo(cx + moveHalf - moveArrow, cy + moveArrow);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Obere Pfeilspitze
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, cy - moveHalf);
+                this.ctx.lineTo(cx - moveArrow, cy - moveHalf + moveArrow);
+                this.ctx.lineTo(cx + moveArrow, cy - moveHalf + moveArrow);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Untere Pfeilspitze
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx, cy + moveHalf);
+                this.ctx.lineTo(cx - moveArrow, cy + moveHalf - moveArrow);
+                this.ctx.lineTo(cx + moveArrow, cy + moveHalf - moveArrow);
+                this.ctx.closePath();
+                this.ctx.fill();
+            }
+
+            this.ctx.restore();
+        };
+
+        circleCenters.forEach(center => {
+            drawCircle(center.x, center.y);
+            drawArrow(center, center.kind);
+        });
+
+        return helperInsets;
+    }
+
     renderRoomReservationBar(x, y, width, height, detail, isHovered = false) {
         // Ghost-Reservierungen werden NIEMALS sichtbar gerendert - nur für Stacking
         if (detail._isGhost) {
             return; // Komplette Verweigerung der Sichtbarkeit
         }
+
+        const isFocused = this.isReservationFocused(detail);
 
         // Check if this is the source of a drag operation (show strong glow around original bar)
         // ECHTE ID-BASIERTE Lösung: Verwende die echten Datenbank-IDs vom Backend
@@ -10034,6 +10777,10 @@ class TimelineUnifiedRenderer {
         // Drag & Drop visuelles Feedback
         const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
             this.dragTargetRoom && this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+        if (isFocused && !isSourceOfDrag) {
+            color = this.lightenColor(color, 10);
+        }
 
         if (isHovered) {
             color = this.lightenColor(color, 15);
@@ -10107,27 +10854,6 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowOffsetY = 0;
         }
 
-        // Resize-Handles bei Hover oder Drag - angepasst für vergrößerten Balken
-        if (isHovered && renderWidth > 20) {
-            const handleWidth = 4;
-            const handleColor = 'rgba(255,255,255,0.8)';
-
-            // Start-Handle (links)
-            this.ctx.fillStyle = handleColor;
-            this.ctx.fillRect(renderX, renderY, handleWidth, renderHeight);
-
-            // End-Handle (rechts)
-            this.ctx.fillRect(renderX + renderWidth - handleWidth, renderY, handleWidth, renderHeight);
-        }
-
-        // Shadow reset nach Handles
-        if (isHovered && !isSourceOfDrag) {
-            this.ctx.shadowColor = 'transparent';
-            this.ctx.shadowBlur = 0;
-            this.ctx.shadowOffsetX = 0;
-            this.ctx.shadowOffsetY = 0;
-        }
-
         if (hasMismatch && renderWidth > 6 && renderHeight > 4) {
             const overlayAlpha = 0.25 + (mismatchPulse * 0.35);
             this.ctx.save();
@@ -10152,6 +10878,28 @@ class TimelineUnifiedRenderer {
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
+        const shouldRenderTouchHelpers = isFocused && this.focusedReservationSource === 'touch' &&
+            !this.isDraggingReservation && !isSourceOfDrag && renderHeight > 10 && renderWidth > 60;
+        const shouldRenderHoverHelpers = isHovered && !this.isDraggingReservation && !isSourceOfDrag && renderHeight > 10 && renderWidth > 60;
+
+        let helperInsets = { leftInset: 0, rightInset: 0 };
+        if (shouldRenderTouchHelpers || shouldRenderHoverHelpers) {
+            const mode = shouldRenderTouchHelpers ? 'touch' : 'hover';
+            helperInsets = this.renderTouchHelperIcons(renderX, renderY, renderWidth, renderHeight, { mode });
+        }
+
+        if (isFocused && renderWidth > 6 && renderHeight > 6) {
+            this.ctx.save();
+            const focusPadding = Math.min(12, Math.max(4, renderHeight * 0.4));
+            this.ctx.lineWidth = 2.2;
+            this.ctx.strokeStyle = 'rgba(255, 214, 10, 0.9)';
+            this.ctx.setLineDash([6, 4]);
+            this.roundedRect(renderX - focusPadding / 2, renderY - focusPadding / 2,
+                renderWidth + focusPadding, renderHeight + focusPadding, 4.5);
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
         if (renderWidth > 12) {
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
@@ -10175,16 +10923,16 @@ class TimelineUnifiedRenderer {
             const circlePadding = hasCircle ? circleDiameter + 6 : 0;
 
             // Schriftposition NICHT wegen Hund verschieben
-            const availableWidth = renderWidth - 8 - circlePadding;
+            const availableWidth = renderWidth - helperInsets.leftInset - helperInsets.rightInset - 8 - circlePadding;
             if (availableWidth > 0) {
                 const truncated = this.truncateTextToWidth(text, availableWidth);
                 const textY = renderY + (renderHeight / 2) + (dynamicFontSize / 3);
-                const textX = renderX + 3; // Text an normaler Position
+                const textX = renderX + helperInsets.leftInset + 3;
                 this.ctx.fillText(truncated, textX, textY);
             }
 
-            if (hasCircle && renderWidth > circleDiameter + 10) {
-                const circleX = renderX + renderWidth - (circleDiameter / 2) - 3;
+            if (hasCircle && renderWidth > circleDiameter + 10 + helperInsets.rightInset) {
+                const circleX = renderX + renderWidth - helperInsets.rightInset - (circleDiameter / 2) - 3;
                 const circleY = renderY + renderHeight / 2;
                 // Strikt: AV-Res.av_id > 0 (aus Join in den Room-Details)
                 const avIdRaw = (detail.data && detail.data.av_id) ?? detail.av_id ?? 0;
