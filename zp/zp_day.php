@@ -333,7 +333,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
             padding: 0;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: box-shadow 0.25s ease, transform 0.22s ease, background-color 0.25s ease, border-color 0.25s ease;
             overflow: hidden;
             display: flex;
             flex-direction: row;
@@ -405,7 +405,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
             padding: 6px 8px;
             font-size: 12px;
             cursor: grab;
-            transition: all 0.2s ease;
+            transition: transform 0.22s ease, width 0.22s ease, height 0.22s ease, padding 0.22s ease, box-shadow 0.22s ease;
             box-sizing: border-box;
             line-height: 1.3;
             overflow: hidden;
@@ -421,6 +421,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
             -webkit-user-select: none;
             position: relative;
             box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+            will-change: transform;
         }
 
         .reservation-item::after {
@@ -622,6 +623,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
             flex-direction: column;
             gap: 10px;
             min-height: 220px;
+            transition: box-shadow 0.25s ease, transform 0.22s ease, background-color 0.25s ease, border-color 0.25s ease;
         }
 
         .ablage-header {
@@ -871,6 +873,9 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
     let previousBodyOverscrollBehavior = '';
     let previousBodyOverflow = '';
     let previousHtmlOverflow = '';
+    let isDragOperationActive = false;
+    let currentHoverRoom = null;
+    let capacityStateByRoomId = new Map();
 
     const GRID_PADDING = 20;
     const GRID_VERTICAL_GAP = 8;
@@ -881,6 +886,68 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
     const SCROLL_BOTTOM_BUFFER_TOUCH = 160;
     const SCROLL_BOTTOM_BUFFER_DESKTOP = 80;
     const returnUrlTarget = <?= json_encode($returnUrlRaw, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+        function resetRoomVisuals(roomElement) {
+            if (!roomElement) {
+                return;
+            }
+            roomElement.classList.remove('drag-hover', 'drop-target', 'drop-target-warning', 'drop-target-forbidden', 'drop-target-active');
+            roomElement.style.removeProperty('transform');
+            roomElement.style.removeProperty('box-shadow');
+        }
+
+        function applyRoomVisuals(roomElement) {
+            if (!roomElement) {
+                return;
+            }
+
+            const roomId = roomElement.dataset.zimmerId;
+            const capacityState = capacityStateByRoomId.get(roomId);
+
+            roomElement.classList.add('drag-hover');
+            roomElement.classList.add('drop-target-active');
+            roomElement.classList.remove('drop-target', 'drop-target-warning', 'drop-target-forbidden');
+
+            if (!capacityState) {
+                if (roomElement.classList.contains('ablage-zimmer')) {
+                    roomElement.classList.add('drop-target');
+                }
+                return;
+            }
+
+            if (capacityState.type === 'forbidden') {
+                roomElement.classList.add('drop-target-forbidden');
+            } else if (capacityState.type === 'warning') {
+                roomElement.classList.add('drop-target-warning');
+            } else {
+                roomElement.classList.add('drop-target');
+            }
+        }
+
+        function setHoveredRoom(newRoom) {
+            if (newRoom === currentHoverRoom) {
+                return;
+            }
+
+            if (currentHoverRoom) {
+                resetRoomVisuals(currentHoverRoom);
+            }
+
+            currentHoverRoom = newRoom;
+
+            if (currentHoverRoom) {
+                applyRoomVisuals(currentHoverRoom);
+            }
+        }
+
+        function refreshCurrentHoverRoom() {
+            if (!currentHoverRoom) {
+                return;
+            }
+
+            resetRoomVisuals(currentHoverRoom);
+            applyRoomVisuals(currentHoverRoom);
+        }
 
         function escapeHtml(value) {
             if (value === null || value === undefined) {
@@ -1716,6 +1783,15 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
             const isAblage = !!container.closest('.ablage-zimmer');
             const items = Array.from(container.querySelectorAll('.reservation-item'));
             const count = items.length;
+            const shouldAnimate = isDragOperationActive && !isAblage && count > 0;
+            let previousRects = null;
+
+            if (shouldAnimate) {
+                previousRects = new Map();
+                items.forEach(item => {
+                    previousRects.set(item, item.getBoundingClientRect());
+                });
+            }
 
             // Bereinige vorherige Layout-Klassen
             container.classList.remove('count-1', 'count-2', 'count-3-plus');
@@ -1747,6 +1823,44 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
 
             // Dynamische Höhenanpassung basierend auf Zimmergröße
             adjustReservationHeights(container);
+
+            if (shouldAnimate && previousRects && previousRects.size > 0) {
+                requestAnimationFrame(() => {
+                    items.forEach(item => {
+                        const previousRect = previousRects.get(item);
+                        if (!previousRect) {
+                            return;
+                        }
+
+                        const currentRect = item.getBoundingClientRect();
+                        const deltaX = previousRect.left - currentRect.left;
+                        const deltaY = previousRect.top - currentRect.top;
+
+                        if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) {
+                            return;
+                        }
+
+                        if (typeof item.animate === 'function') {
+                            item.animate(
+                                [
+                                    { transform: `translate(${deltaX}px, ${deltaY}px)` },
+                                    { transform: 'translate(0, 0)' }
+                                ],
+                                {
+                                    duration: 220,
+                                    easing: 'ease',
+                                    fill: 'both'
+                                }
+                            );
+                        } else {
+                            item.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                            requestAnimationFrame(() => {
+                                item.style.removeProperty('transform');
+                            });
+                        }
+                    });
+                });
+            }
         }
 
         function adjustReservationHeights(container) {
@@ -2045,10 +2159,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                 const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
                 const zimmer = elementBelow ? elementBelow.closest('.zimmer, .ablage-zimmer') : null;
 
-                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => z.classList.remove('drag-hover'));
-                if (zimmer) {
-                    zimmer.classList.add('drag-hover');
-                }
+                setHoveredRoom(zimmer);
 
                 updateGhostPosition(lastTouchPoint);
             }, { passive: false });
@@ -2162,7 +2273,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
 
 
             // 🚀 GEMEINSAME FUNKTIONEN
-            function startTouchDrag(element) {
+            async function startTouchDrag(element) {
                 clearPendingTouchHold();
                 resetTouchPreview();
                 if (element && typeof element.setPointerCapture === 'function' && activePointerId !== null) {
@@ -2182,10 +2293,12 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                 pointerMoveLogCount = 0;
                 dragStartTimestamp = performance.now();
 
+                capacityStateByRoomId.clear();
                 draggedElement = element;
                 draggedReservation = getCurrentReservationData(element);
                 element.classList.add('dragging');
                 isDragging = true;
+                isDragOperationActive = true;
                 if (document.body) {
                     document.body.classList.add('dragging-active');
                     previousBodyTouchAction = document.body.style.touchAction || '';
@@ -2213,6 +2326,8 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                     selection.removeAllRanges();
                 }
                 startAutoScrollLoop();
+
+                setHoveredRoom(element ? element.closest('.zimmer, .ablage-zimmer') : null);
 
                 const referencePoint = lastTouchPoint || touchStartPos;
                 const elementRect = element.getBoundingClientRect();
@@ -2297,18 +2412,12 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                 updateGhostPosition(ghostAnchor, dragGhostOffset.x, dragGhostOffset.y);
                 
                 // Kapazitätsprüfung und Zimmer-Markierung
-                checkRoomCapacities(draggedReservation);
-                
-                // Visuelles Feedback für verfügbare Drop-Zonen
-                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(zimmer => {
-                    zimmer.style.transition = 'all 0.2s ease';
-                    if (zimmer.classList.contains('drop-target') || 
-                        zimmer.classList.contains('drop-target-warning') || 
-                        zimmer.classList.contains('ablage-zimmer')) {
-                        zimmer.style.transform = 'scale(1.02)';
-                        zimmer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    }
-                });
+                try {
+                    await checkRoomCapacities(draggedReservation);
+                } catch (capacityError) {
+                    console.error('Fehler bei Kapazitätsprüfung während Drag-Start:', capacityError);
+                }
+                refreshCurrentHoverRoom();
             }
 
             function endTouchDrag() {
@@ -2355,6 +2464,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                 previousHtmlOverscrollBehavior = '';
                 previousBodyOverflow = '';
                 previousHtmlOverflow = '';
+                isDragOperationActive = false;
                 
                 // Reset für alle Zimmer
                 document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(zimmer => {
@@ -2367,6 +2477,8 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
                 draggedReservation = null;
                 isDragging = false;
                 dragSourceContainer = null;
+                capacityStateByRoomId.clear();
+                setHoveredRoom(null);
                 if (dragStartTimestamp) {
                     const dragDuration = Math.round(performance.now() - dragStartTimestamp);
                     console.debug('[DRAG] endTouchDrag metrics', {
@@ -2382,9 +2494,6 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
 
                 // Alle Markierungen entfernen
                 clearRoomMarkings();
-                document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(z => {
-                    z.classList.remove('drag-hover');
-                });
             }
 
             async function handleDrop(e, targetElement) {
@@ -2492,36 +2601,49 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
         async function checkRoomCapacities(reservation) {
             const roomElements = document.querySelectorAll('.zimmer, .ablage-zimmer');
             console.log(`🔄 Prüfe Kapazitäten für ${roomElements.length} Zimmer...`);
-            
+
+            capacityStateByRoomId.clear();
+
+            roomElements.forEach(zimmer => {
+                zimmer.classList.remove('drop-target', 'drop-target-warning', 'drop-target-forbidden', 'drop-target-active');
+            });
+
+            const capacityTasks = [];
+
             for (const zimmer of roomElements) {
                 const zimmerId = zimmer.dataset.zimmerId;
-                const isAblageZimmer = zimmer.classList.contains('ablage-zimmer');
-                
-                // Entferne alle Markierungen
-                zimmer.classList.remove('drop-target', 'drop-target-warning', 'drop-target-forbidden');
-                
-                // SONDERBEHANDLUNG FÜR ABLAGE-ZIMMER
-                if (isAblageZimmer) {
-                    // Ablage-Zimmer sind immer erlaubt (grün)
-                    zimmer.classList.add('drop-target');
-                    console.log(`📂 Ablage-Zimmer ${zimmerId}: Immer erlaubt`);
+                if (!zimmerId) {
                     continue;
                 }
-                
-                // Normale Zimmer: Kapazitätsprüfung
-                const capacityStatus = await checkRoomCapacityForReservation(zimmerId, reservation);
-                
-                // Setze entsprechende Markierung
-                if (capacityStatus.allowed) {
-                    if (capacityStatus.hasOtherGuests) {
-                        zimmer.classList.add('drop-target-warning');
-                    } else {
-                        zimmer.classList.add('drop-target');
-                    }
-                } else {
-                    zimmer.classList.add('drop-target-forbidden');
+
+                const isAblageZimmer = zimmer.classList.contains('ablage-zimmer');
+
+                if (isAblageZimmer) {
+                    capacityStateByRoomId.set(zimmerId, {
+                        type: 'allowed',
+                        status: { allowed: true, isAblage: true }
+                    });
+                    continue;
                 }
+
+                capacityTasks.push((async () => {
+                    try {
+                        const capacityStatus = await checkRoomCapacityForReservation(zimmerId, reservation);
+                        const type = capacityStatus.allowed
+                            ? (capacityStatus.hasOtherGuests ? 'warning' : 'allowed')
+                            : 'forbidden';
+                        capacityStateByRoomId.set(zimmerId, { type, status: capacityStatus });
+                    } catch (error) {
+                        console.error(`Kapazitätsprüfung fehlgeschlagen für Zimmer ${zimmerId}:`, error);
+                        capacityStateByRoomId.set(zimmerId, { type: 'forbidden', status: { allowed: false } });
+                    }
+                })());
             }
+
+            if (capacityTasks.length > 0) {
+                await Promise.all(capacityTasks);
+            }
+
             console.log(`✅ Kapazitätsprüfung für alle Zimmer abgeschlossen`);
         }
 
@@ -2671,7 +2793,7 @@ $returnUrlRaw = $sanitizeReturnUrl($returnCandidate, '../reservierungen.html');
 
         function clearRoomMarkings() {
             document.querySelectorAll('.zimmer, .ablage-zimmer').forEach(el => {
-                el.classList.remove('drop-target', 'drop-target-warning', 'drop-target-forbidden', 'drag-hover');
+                el.classList.remove('drop-target', 'drop-target-warning', 'drop-target-forbidden', 'drag-hover', 'drop-target-active');
             });
         }
 
