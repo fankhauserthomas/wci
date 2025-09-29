@@ -396,8 +396,8 @@ class TimelineUnifiedRenderer {
         this.dragOriginalData = null;
         this.dragTargetRoom = null;
         this.lastDragRender = 0; // Für Performance-Throttling
-    this.dragAxisLock = null; // 'horizontal' oder 'vertical'
-    this.dragAxisLockThreshold = 12; // Pixel-Schwelle bis Achse fixiert wird
+        this.dragAxisLock = null; // 'horizontal' oder 'vertical'
+        this.dragAxisLockThreshold = 12; // Pixel-Schwelle bis Achse fixiert wird
 
         // Drag & Drop für Sticky Notes
         this.isDraggingStickyNote = false;
@@ -7600,12 +7600,14 @@ class TimelineUnifiedRenderer {
                 });
 
                 // Jetzt durchsuchen mit korrekten Positionsdaten
+                const edgeHandleMargin = Math.min(24, Math.max(10, this.ROOM_BAR_HEIGHT + 6));
+
                 for (const reservation of sortedReservations) {
                     const barHeight = this.ROOM_BAR_HEIGHT;
                     const stackY = baseRoomY + 1 + (reservation.stackLevel * (barHeight + 2));
 
-                    if (mouseX >= reservation.left && mouseX <= reservation.left + reservation.width &&
-                        mouseY >= stackY && mouseY <= stackY + barHeight) {
+                    if (mouseX >= reservation.left - edgeHandleMargin && mouseX <= reservation.left + reservation.width + edgeHandleMargin &&
+                        mouseY >= stackY - edgeHandleMargin * 0.4 && mouseY <= stackY + barHeight + edgeHandleMargin * 0.4) {
                         return { ...reservation, room_id: room.id, stackY, barHeight };
                     }
                 }
@@ -10573,38 +10575,30 @@ class TimelineUnifiedRenderer {
         const { mode = 'hover' } = options || {};
 
         const circleRadius = Math.max(10, Math.min(renderHeight * 0.45, 18, renderWidth / 8));
-        if (circleRadius < 8) {
+        if (circleRadius < 8 || renderWidth <= circleRadius * 2 + 12) {
             return { leftInset: 0, rightInset: 0 };
         }
 
-        const fillOpacity = mode === 'touch' ? 0.35 : 0.22;
-        const strokeOpacity = mode === 'touch' ? 0.9 : 0.65;
-        const arrowOpacity = mode === 'touch' ? 0.95 : 0.8;
-        const fillColor = `rgba(39, 174, 96, ${fillOpacity})`;
-        const strokeColor = `rgba(39, 174, 96, ${strokeOpacity})`;
-        const arrowColor = `rgba(25, 111, 61, ${arrowOpacity})`;
+        const baseGrey = mode === 'touch' ? 90 : 110;
+        const fillOpacity = mode === 'touch' ? 0.28 : 0.18;
+        const strokeOpacity = mode === 'touch' ? 0.85 : 0.7;
+        const arrowOpacity = mode === 'touch' ? 0.85 : 0.75;
+        const fillColor = `rgba(${baseGrey + 120}, ${baseGrey + 120}, ${baseGrey + 120}, ${fillOpacity})`;
+        const strokeColor = `rgba(${baseGrey + 40}, ${baseGrey + 40}, ${baseGrey + 40}, ${strokeOpacity})`;
+        const arrowColor = `rgba(${baseGrey}, ${baseGrey}, ${baseGrey}, ${arrowOpacity})`;
 
-        const edgeOffset = circleRadius + 8;
-        if (renderWidth <= edgeOffset * 2 + 8) {
-            return { leftInset: 0, rightInset: 0 };
-        }
-
-        const helperInsets = { leftInset: 0, rightInset: 0 };
+        const helperInsets = { leftInset: Math.min(renderWidth / 2, circleRadius + 6), rightInset: Math.min(renderWidth / 2, circleRadius + 6) };
         const circleCenters = [];
 
         const baseY = renderY + renderHeight / 2;
-        const leftCenterX = renderX + edgeOffset;
-        const rightCenterX = renderX + renderWidth - edgeOffset;
+        const leftCenterX = renderX;
+        const rightCenterX = renderX + renderWidth;
         circleCenters.push({ x: leftCenterX, y: baseY, kind: 'resize-left' });
         circleCenters.push({ x: rightCenterX, y: baseY, kind: 'resize-right' });
 
-        if (rightCenterX - leftCenterX > circleRadius * 3.2) {
+        if (rightCenterX - leftCenterX > circleRadius * 3) {
             circleCenters.push({ x: renderX + renderWidth / 2, y: baseY, kind: 'move' });
         }
-
-        const insetValue = Math.min(renderWidth / 3, circleRadius * 2 + 12);
-        helperInsets.leftInset = insetValue;
-        helperInsets.rightInset = insetValue;
 
         const drawCircle = (cx, cy) => {
             this.ctx.save();
