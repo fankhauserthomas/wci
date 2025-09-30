@@ -22,7 +22,13 @@ function formatBytes($bytes, $precision = 2) {
 }
 
 // Statistik-Datei
-$statsFile = __DIR__ . '/logs/av-res-dump-stats.json';
+$logDir = __DIR__ . '/logs';
+if (!is_dir($logDir)) {
+    if (!mkdir($logDir, 0775, true) && !is_dir($logDir)) {
+        throw new RuntimeException("Log-Verzeichnis konnte nicht erstellt werden: {$logDir}");
+    }
+}
+$statsFile = $logDir . '/av-res-dump-stats.json';
 
 // Lade aktuelle Statistiken
 $stats = [];

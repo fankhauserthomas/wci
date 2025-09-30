@@ -426,7 +426,7 @@ try {
                 if (needsUpdate($existingData[$av_id], $newData)) {
                     // UPDATE ausführen
                     $updateStmt->bind_param(
-                        "sssiiiiiissssssiissi",
+                        "ssiiiiiisssssssiissi",
                         $anreise, $abreise, $lager, $betten, $dz, $sonder,
                         $hp, $vegi, $gruppe, $bem_av, $nachname, $vorname,
                         $handy, $email, $email_date, $storno, $arr, $vorgang, $timestamp,
@@ -444,7 +444,7 @@ try {
             } else {
                 // INSERT ausführen
                 $insertStmt->bind_param(
-                    "isssiiiiiissssssiiss",
+                    "issiiiiiisssssssiiss",
                     $av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder,
                     $hp, $vegi, $gruppe, $bem_av, $nachname, $vorname,
                     $handy, $email, $email_date, $storno, $arr, $vorgang, $timestamp
