@@ -1525,6 +1525,7 @@
         let timelineRenderer = null; // Timeline-Renderer-Instanz
         window.arrangementsCatalog = [];
         window.histogramSource = [];
+        window.histogramStornoSource = [];
 
         const TIMELINE_THEME_PRESETS = {
             professional: {
@@ -3838,6 +3839,7 @@
                 window.arrangementsCatalog = arrangementsCatalog;
 
                 let histogramSource = [];
+                let histogramStornoSource = [];
                 const histogramResponse = await histogramFetchPromise;
                 console.log('🔍 Histogramm Response:', histogramResponse);
 
@@ -3846,15 +3848,33 @@
                         const histogramJson = await histogramResponse.json();
                         console.log('📊 Histogramm JSON:', histogramJson);
 
-                        if (histogramJson && histogramJson.success && histogramJson.data?.histogram) {
-                            histogramSource = histogramJson.data.histogram.map(entry => ({
-                                id: Number(entry.id),
-                                start: entry.start,
-                                end: entry.end,
-                                guest_name: entry.guest_name || '',
-                                capacity_details: entry.capacity_details || {}
-                            }));
-                            console.log(`✅ ${histogramSource.length} Histogramm-Einträge verarbeitet`);
+                        if (histogramJson && histogramJson.success && histogramJson.data) {
+                            if (Array.isArray(histogramJson.data.histogram)) {
+                                histogramSource = histogramJson.data.histogram.map(entry => ({
+                                    id: Number(entry.id),
+                                    av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
+                                    start: entry.start,
+                                    end: entry.end,
+                                    guest_name: entry.guest_name || '',
+                                    capacity_details: entry.capacity_details || {}
+                                }));
+                                console.log(`✅ ${histogramSource.length} Histogramm-Einträge verarbeitet`);
+                            } else {
+                                console.warn('❌ Histogramm JSON hat keine gültige Struktur (histogram fehlt):', histogramJson);
+                            }
+
+                            if (Array.isArray(histogramJson.data.storno)) {
+                                histogramStornoSource = histogramJson.data.storno.map(entry => ({
+                                    id: Number(entry.id),
+                                    av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
+                                    start: entry.start,
+                                    end: entry.end,
+                                    guest_name: entry.guest_name || '',
+                                    capacity_details: entry.capacity_details || {},
+                                    storno: true
+                                }));
+                                console.log(`✅ ${histogramStornoSource.length} Storno-Histogramm-Einträge verarbeitet`);
+                            }
                         } else {
                             console.warn('❌ Histogramm JSON hat keine gültige Struktur:', histogramJson);
                         }
@@ -3868,7 +3888,9 @@
                 }
 
                 window.histogramSource = histogramSource;
+                window.histogramStornoSource = histogramStornoSource;
                 histogramSourceData = window.histogramSource;
+                histogramStornoSourceData = window.histogramStornoSource;
                 arrangementsCatalog = window.arrangementsCatalog;
 
                 console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
@@ -3885,7 +3907,9 @@
                 arrangementsCatalog = [];
                 window.arrangementsCatalog = [];
                 window.histogramSource = [];
+                window.histogramStornoSource = [];
                 histogramSourceData = [];
+                histogramStornoSourceData = [];
                 renderTimeline();
             }
         }
@@ -3938,14 +3962,14 @@
             if (timelineRenderer) {
                 console.debug('Aktualisiere bestehende Timeline-Instanz.');
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
-                timelineRenderer.setHistogramSource(window.histogramSource);
+                timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
                 initializeTimelineToolbar();
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
-                timelineRenderer.setHistogramSource(window.histogramSource);
+                timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
                 initializeTimelineToolbar();
             }

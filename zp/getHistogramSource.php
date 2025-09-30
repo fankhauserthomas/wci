@@ -30,7 +30,7 @@ try {
         throw new InvalidArgumentException('Ungültiges Datumsformat. Erwartet YYYY-MM-DD.');
     }
 
-    $sql = "SELECT id, anreise, abreise,
+    $sql = "SELECT id, av_id, anreise, abreise,
                    COALESCE(dz, 0) AS dz,
                    COALESCE(betten, 0) AS betten,
                    COALESCE(lager, 0) AS lager,
@@ -73,6 +73,64 @@ try {
 
         $data[] = [
             'id' => (int)$row['id'],
+            'av_id' => isset($row['av_id']) ? (int)$row['av_id'] : null,
+            'start' => $anreise->format('Y-m-d'),
+            'end' => $abreise->format('Y-m-d'),
+            'guest_name' => trim(($row['nachname'] ?? '') . ' ' . ($row['vorname'] ?? '')),
+            'capacity_details' => [
+                'dz' => (int)$row['dz'],
+                'betten' => (int)$row['betten'],
+                'lager' => (int)$row['lager'],
+                'sonder' => (int)$row['sonder']
+            ]
+        ];
+    }
+
+    $stmt->close();
+
+    $stornoSql = "SELECT id, av_id, anreise, abreise,
+                   COALESCE(dz, 0) AS dz,
+                   COALESCE(betten, 0) AS betten,
+                   COALESCE(lager, 0) AS lager,
+                   COALESCE(sonder, 0) AS sonder,
+                   nachname, vorname
+            FROM `AV-Res`
+            WHERE anreise <= ?
+              AND abreise > ?
+              AND (storno IS NOT NULL AND storno <> 0)
+            ORDER BY anreise, id";
+
+    $stmt = $mysqli->prepare($stornoSql);
+    if (!$stmt) {
+        throw new Exception('SQL prepare failed: ' . $mysqli->error);
+    }
+
+    $stmt->bind_param('ss', $endDate, $startDate);
+    if (!$stmt->execute()) {
+        throw new Exception('SQL execution failed: ' . $stmt->error);
+    }
+
+    $result = $stmt->get_result();
+    $stornoData = [];
+
+    while ($row = $result->fetch_assoc()) {
+        $anreise = DateTime::createFromFormat('Y-m-d H:i:s', $row['anreise'] ?? '');
+        $abreise = DateTime::createFromFormat('Y-m-d H:i:s', $row['abreise'] ?? '');
+
+        if (!$anreise) {
+            $anreise = DateTime::createFromFormat('Y-m-d', $row['anreise'] ?? '');
+        }
+        if (!$abreise) {
+            $abreise = DateTime::createFromFormat('Y-m-d', $row['abreise'] ?? '');
+        }
+
+        if (!$anreise || !$abreise) {
+            continue;
+        }
+
+        $stornoData[] = [
+            'id' => (int)$row['id'],
+            'av_id' => isset($row['av_id']) ? (int)$row['av_id'] : null,
             'start' => $anreise->format('Y-m-d'),
             'end' => $abreise->format('Y-m-d'),
             'guest_name' => trim(($row['nachname'] ?? '') . ' ' . ($row['vorname'] ?? '')),
@@ -91,6 +149,7 @@ try {
         'success' => true,
         'data' => [
             'histogram' => $data,
+            'storno' => $stornoData,
             'generated_at' => date('Y-m-d H:i:s')
         ]
     ]);

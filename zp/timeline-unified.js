@@ -4,9 +4,11 @@ let roomDetails = [];
 let rooms = [];
 let arrangementsCatalog = typeof window !== 'undefined' && window.arrangementsCatalog ? window.arrangementsCatalog : [];
 let histogramSourceData = typeof window !== 'undefined' && window.histogramSource ? window.histogramSource : [];
+let histogramStornoSourceData = typeof window !== 'undefined' && window.histogramStornoSource ? window.histogramStornoSource : [];
 if (typeof window !== 'undefined') {
     window.arrangementsCatalog = arrangementsCatalog;
     window.histogramSource = histogramSourceData;
+    window.histogramStornoSource = histogramStornoSourceData;
 
     // Initialize debug mode from sessionStorage
     if (sessionStorage.getItem('debugStickyNotes') === 'true') {
@@ -530,6 +532,7 @@ class TimelineUnifiedRenderer {
 
         this.arrangementsCatalog = Array.isArray(arrangementsCatalog) ? arrangementsCatalog : [];
         this.histogramSource = Array.isArray(histogramSourceData) ? histogramSourceData : [];
+        this.histogramStornoSource = Array.isArray(histogramStornoSourceData) ? histogramStornoSourceData : [];
 
         this.predictiveCache = {
             scrollDirection: 0,
@@ -2743,22 +2746,47 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    setHistogramSource(source) {
+    setHistogramSource(source, stornoSource = null) {
+        const normalizeEntry = (entry, isStorno = false) => ({
+            id: entry?.id,
+            av_id: entry?.av_id ?? entry?.avId ?? null,
+            start: entry?.start,
+            end: entry?.end,
+            capacity_details: entry?.capacity_details || {},
+            storno: isStorno || Boolean(entry?.storno)
+        });
+
+        let normalizedHistogram = [];
+        let normalizedStorno = [];
+
         if (Array.isArray(source)) {
-            this.histogramSource = source.map(entry => ({
-                id: entry.id,
-                start: entry.start,
-                end: entry.end,
-                capacity_details: entry.capacity_details || {}
-            }));
-        } else {
-            this.histogramSource = [];
+            normalizedHistogram = source.map(entry => normalizeEntry(entry, false));
+        } else if (source && typeof source === 'object') {
+            if (Array.isArray(source.histogram)) {
+                normalizedHistogram = source.histogram.map(entry => normalizeEntry(entry, false));
+            }
+            if (Array.isArray(source.storno)) {
+                normalizedStorno = source.storno.map(entry => normalizeEntry(entry, true));
+            }
         }
 
+        if (Array.isArray(stornoSource)) {
+            normalizedStorno = stornoSource.map(entry => normalizeEntry(entry, true));
+        } else if (!normalizedStorno.length && source && Array.isArray(source?.storno)) {
+            normalizedStorno = source.storno.map(entry => normalizeEntry(entry, true));
+        }
+
+        this.histogramSource = normalizedHistogram;
+        this.histogramStornoSource = normalizedStorno;
+
         histogramSourceData = this.histogramSource;
+        histogramStornoSourceData = this.histogramStornoSource;
         if (typeof window !== 'undefined') {
             window.histogramSource = this.histogramSource;
+            window.histogramStornoSource = this.histogramStornoSource;
         }
+
+        this.invalidateHistogramCache();
     }
 
     shadeWeekendColumns(area, startDate, endDate, options = {}) {
@@ -2883,7 +2911,12 @@ class TimelineUnifiedRenderer {
             betten: 0,
             lager: 0,
             sonder: 0,
-            total: 0
+            total: 0,
+            storno: {
+                av0: 0,
+                avPositive: 0,
+                total: 0
+            }
         }));
 
         const addReservationToHistogram = (reservation) => {
@@ -2931,8 +2964,59 @@ class TimelineUnifiedRenderer {
 
         sourceReservations.forEach(addReservationToHistogram);
 
+        const stornoReservations = Array.isArray(this.histogramStornoSource) && this.histogramStornoSource.length > 0
+            ? this.histogramStornoSource
+            : [];
+
+        const addStornoReservationToHistogram = (reservation) => {
+            if (!reservation) return;
+
+            const startValue = reservation.start ?? reservation.start_date ?? reservation.startDate;
+            const endValue = reservation.end ?? reservation.end_date ?? reservation.endDate;
+
+            const start = this.normalizeDateToNoon(startValue);
+            const end = this.normalizeDateToNoon(endValue);
+
+            let startIndex = Math.floor((start - startTs) / MS_IN_DAY);
+            let endIndex = Math.floor((end - startTs) / MS_IN_DAY);
+
+            if (Number.isNaN(startIndex) || Number.isNaN(endIndex)) return;
+            if (startIndex >= totalDays || endIndex <= 0) return;
+
+            startIndex = Math.max(0, startIndex);
+            endIndex = Math.min(totalDays, endIndex);
+            if (startIndex >= endIndex) return;
+
+            const data = reservation.capacity_details ? { capacity_details: reservation.capacity_details } : (reservation.fullData || reservation.data || {});
+            const details = data.capacity_details || {};
+            const dz = Number(details.dz || 0);
+            const betten = Number(details.betten || 0);
+            const lager = Number(details.lager || 0);
+            const sonder = Number(details.sonder || 0);
+            const total = dz + betten + lager + sonder;
+            if (total <= 0) return;
+
+            const avId = reservation.av_id !== undefined && reservation.av_id !== null
+                ? Number(reservation.av_id)
+                : Number(reservation.data?.av_id ?? reservation.fullData?.av_id ?? 0);
+
+            for (let day = startIndex; day < endIndex; day++) {
+                dailyDetails[day].storno.total += total;
+                if (Number.isFinite(avId) && avId > 0) {
+                    dailyDetails[day].storno.avPositive += total;
+                } else {
+                    dailyDetails[day].storno.av0 += total;
+                }
+            }
+        };
+
+        stornoReservations.forEach(addStornoReservationToHistogram);
+
         const dailyCounts = dailyDetails.map(detail => detail.total);
-        const maxGuests = dailyCounts.reduce((max, value) => Math.max(max, value), 0);
+        const dailyStornoCounts = dailyDetails.map(detail => detail.storno.total);
+        const maxActiveGuests = dailyCounts.reduce((max, value) => Math.max(max, value), 0);
+        const maxStornoGuests = dailyStornoCounts.reduce((max, value) => Math.max(max, value), 0);
+        const maxGuests = Math.max(maxActiveGuests, maxStornoGuests);
 
         this.histogramCache = {
             version: this.dataVersion,
@@ -2940,7 +3024,10 @@ class TimelineUnifiedRenderer {
             endTs,
             dailyCounts,
             dailyDetails,
-            maxGuests
+            maxGuests,
+            dailyStornoCounts,
+            maxActiveGuests,
+            maxStornoGuests
         };
 
         return this.histogramCache;
@@ -9472,7 +9559,23 @@ class TimelineUnifiedRenderer {
         const availableHeight = Math.max(10, area.height - topPadding - bottomPadding);
         const chartBottomY = area.y + area.height - bottomPadding;
         const chartTopY = chartBottomY - availableHeight;
-        const barWidth = Math.max(4, this.DAY_WIDTH - 10);
+        const stornoColors = histogramTheme.stornoSegments || { av0: '#f97316', avPositive: '#ef4444' };
+        const baseBarWidth = Math.max(4, this.DAY_WIDTH - 10);
+        let stornoEnabled = dailyDetails.some(detail => detail?.storno?.total > 0);
+        let stornoBarWidth = stornoEnabled ? Math.max(3, Math.min(5, Math.round(baseBarWidth * 0.18))) : 0;
+        let stornoGap = stornoEnabled && baseBarWidth - stornoBarWidth > 6 ? 1 : 0;
+        let barWidth = stornoEnabled ? baseBarWidth - stornoBarWidth - stornoGap : baseBarWidth;
+        if (stornoEnabled && barWidth < 4) {
+            stornoGap = 0;
+            barWidth = baseBarWidth - stornoBarWidth;
+        }
+        if (stornoEnabled && barWidth < 4) {
+            stornoEnabled = false;
+            stornoBarWidth = 0;
+            barWidth = baseBarWidth;
+        }
+        const totalBarWidth = barWidth + (stornoEnabled ? stornoGap + stornoBarWidth : 0);
+        const xOffsetBase = (this.DAY_WIDTH - totalBarWidth) / 2;
         const categoryColors = histogramTheme.segments || {
             dz: '#1f78ff',
             betten: '#2ecc71',
@@ -9492,9 +9595,8 @@ class TimelineUnifiedRenderer {
 
         // Shade weekends
         dailyCounts.forEach((_, dayIndex) => {
-            const xOffset = (this.DAY_WIDTH - barWidth) / 2;
-            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
-            if (x + barWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffsetBase;
+            if (x + totalBarWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
                 return;
             }
             const dayDate = new Date(startDate.getTime() + dayIndex * MS_IN_DAY);
@@ -9502,7 +9604,7 @@ class TimelineUnifiedRenderer {
             if (dayOfWeek === 0 || dayOfWeek === 6) {
                 this.ctx.fillStyle = weekendFill;
                 this.ctx.globalAlpha = 1;
-                this.ctx.fillRect(x, area.y, barWidth, area.height);
+                this.ctx.fillRect(x, area.y, totalBarWidth, area.height);
             }
         });
         this.ctx.globalAlpha = 1;
@@ -9544,14 +9646,15 @@ class TimelineUnifiedRenderer {
         this.ctx.textBaseline = 'alphabetic';
 
         dailyCounts.forEach((count, dayIndex) => {
-            const xOffset = (this.DAY_WIDTH - barWidth) / 2;
-            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
+            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffsetBase;
 
-            if (x + barWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+            if (x + totalBarWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
                 return;
             }
 
+            const defaultStorno = { av0: 0, avPositive: 0, total: 0 };
             const detail = dailyDetails[dayIndex] || { total: count };
+
             const totalValue = detail.total || 0;
             const ratio = scaledMax > 0 ? totalValue / scaledMax : 0;
             const barHeight = ratio * availableHeight;
@@ -9578,29 +9681,162 @@ class TimelineUnifiedRenderer {
 
             this.ctx.globalAlpha = 1;
 
-            if (barHeight <= 16 || totalValue <= 0) {
-                return;
+            const stornoDetail = detail.storno || defaultStorno;
+
+            if (stornoEnabled && stornoBarWidth > 0 && scaledMax > 0) {
+                if (stornoDetail.total > 0) {
+                    const stornoX = x + barWidth + stornoGap;
+                    let stornoCurrentTop = chartBottomY;
+                    const av0Height = stornoDetail.av0 > 0 ? (stornoDetail.av0 / scaledMax) * availableHeight : 0;
+                    const avPositiveHeight = stornoDetail.avPositive > 0 ? (stornoDetail.avPositive / scaledMax) * availableHeight : 0;
+
+                    if (av0Height > 0.5) {
+                        const segmentY = stornoCurrentTop - av0Height;
+                        this.ctx.fillStyle = stornoColors.av0 || '#f97316';
+                        this.ctx.globalAlpha = 0.9;
+                        this.ctx.fillRect(stornoX, segmentY, stornoBarWidth, av0Height);
+                        stornoCurrentTop = segmentY;
+                    }
+
+                    if (avPositiveHeight > 0.5) {
+                        const segmentY = stornoCurrentTop - avPositiveHeight;
+                        this.ctx.fillStyle = stornoColors.avPositive || '#ef4444';
+                        this.ctx.globalAlpha = 0.9;
+                        this.ctx.fillRect(stornoX, segmentY, stornoBarWidth, avPositiveHeight);
+                        stornoCurrentTop = segmentY;
+                    }
+
+                    this.ctx.globalAlpha = 1;
+                }
             }
 
-            this.ctx.fillStyle = textColor;
-            this.ctx.font = `${fontSize}px Arial`;
-            const centerX = x + barWidth / 2;
-            let textY = barY + barHeight - 6;
+            const previousAlign = this.ctx.textAlign;
+            const previousBaseline = this.ctx.textBaseline;
+            const previousFont = this.ctx.font;
 
-            this.ctx.fillText(String(totalValue), centerX, textY);
+            try {
+                this.ctx.fillStyle = textColor;
+                this.ctx.font = `${fontSize}px Arial`;
 
-            const breakdownLabels = [];
-            if (detail.dz) breakdownLabels.push(`DZ:${detail.dz}`);
-            if (detail.betten) breakdownLabels.push(`B:${detail.betten}`);
-            if (detail.lager) breakdownLabels.push(`L:${detail.lager}`);
-            if (detail.sonder) breakdownLabels.push(`S:${detail.sonder}`);
+                const labelPadding = Math.min(12, Math.max(4, barWidth * 0.12));
+                const blockInnerPadding = 4;
+                const minFontSize = Math.max(5, Math.round(fontSize * 0.6));
+                let currentFontSize = fontSize;
+                let lineHeight = currentFontSize + 1;
 
-            if (barHeight > 42 && barWidth > 40 && breakdownLabels.length) {
-                textY -= 10;
-                breakdownLabels.forEach(label => {
-                    this.ctx.fillText(label, centerX, textY);
-                    textY -= 9;
+                const updateFontSize = (size) => {
+                    currentFontSize = size;
+                    lineHeight = size + 1;
+                    this.ctx.font = `${size}px Arial`;
+                };
+
+                const infoLines = [];
+
+                const safeTotalValue = Number.isFinite(totalValue) ? totalValue : 0;
+                const stornoTotal = Number.isFinite(stornoDetail.total) ? stornoDetail.total : 0;
+                const safeSonder = Number(detail.sonder) || 0;
+                const safeLager = Number(detail.lager) || 0;
+                const safeBetten = Number(detail.betten) || 0;
+                const safeDz = Number(detail.dz) || 0;
+
+                const percentageRaw = safeTotalValue > 0 ? (stornoTotal / safeTotalValue) * 100 : 0;
+                let percentageStr;
+                if (!Number.isFinite(percentageRaw)) {
+                    percentageStr = '0';
+                } else if (percentageRaw >= 10) {
+                    percentageStr = String(Math.round(percentageRaw));
+                } else {
+                    percentageStr = (Math.round(percentageRaw * 10) / 10).toString();
+                    if (percentageStr.indexOf('.') !== -1) {
+                        percentageStr = percentageStr.replace(/\.0$/, '');
+                    }
+                }
+                infoLines.push({
+                    text: `ST:${percentageStr}%`,
+                    color: histogramTheme.stornoText || '#ff8c8c'
                 });
+
+                infoLines.push({ text: `SU:${safeTotalValue}`, color: textColor });
+                if (safeSonder) infoLines.push({ text: `PL:${safeSonder}`, color: textColor });
+                if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: textColor });
+                if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: textColor });
+                if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: textColor });
+
+                if (infoLines.length === 0) {
+                    this.ctx.textAlign = previousAlign;
+                    this.ctx.textBaseline = previousBaseline;
+                    this.ctx.font = previousFont;
+                    return;
+                }
+
+                const maxBlockWidth = Math.max(4, barWidth - labelPadding * 2);
+                const availableHeight = Math.max(4, barHeight - labelPadding * 2);
+
+                const measureBlock = () => {
+                    let width = 0;
+                    infoLines.forEach(line => {
+                        const measured = this.ctx.measureText(line.text).width;
+                        if (measured > width) width = measured;
+                    });
+                    return {
+                        width: width + blockInnerPadding * 2,
+                        height: infoLines.length * lineHeight + blockInnerPadding * 2
+                    };
+                };
+
+                let metrics = measureBlock();
+                while ((metrics.width > maxBlockWidth || metrics.height > availableHeight) && currentFontSize > minFontSize) {
+                    updateFontSize(currentFontSize - 1);
+                    metrics = measureBlock();
+                }
+
+                const blockWidth = Number.isFinite(metrics.width)
+                    ? Math.max(4, Math.min(metrics.width, maxBlockWidth))
+                    : Math.min(120, maxBlockWidth);
+                const blockHeight = Number.isFinite(metrics.height)
+                    ? Math.max(lineHeight + blockInnerPadding * 2, metrics.height)
+                    : Math.max(lineHeight + blockInnerPadding * 2, Math.min(availableHeight, 120));
+
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'alphabetic';
+
+                let blockLeft = x + labelPadding;
+                const rightLimit = x + barWidth - labelPadding;
+                if (blockLeft + blockWidth > rightLimit) {
+                    blockLeft = rightLimit - blockWidth;
+                }
+                if (!Number.isFinite(blockLeft)) {
+                    blockLeft = x;
+                }
+                blockLeft = Math.max(blockLeft, x);
+
+                const rectHeight = Math.max(6, blockHeight);
+                const rectWidth = Math.max(6, blockWidth);
+
+                let blockTop = barY + (barHeight / 2) - (rectHeight / 2);
+                if (!Number.isFinite(blockTop)) {
+                    blockTop = barY;
+                }
+
+                this.ctx.save();
+                this.ctx.fillStyle = histogramTheme.labelBackground || 'rgba(30, 30, 30, 0.55)';
+                this.roundedRect(blockLeft, blockTop, rectWidth, rectHeight, 5);
+                this.ctx.fill();
+                this.ctx.restore();
+
+                let textY = blockTop + rectHeight - blockInnerPadding;
+                infoLines.forEach(line => {
+                    this.ctx.fillStyle = line.color || textColor;
+                    this.ctx.fillText(line.text, blockLeft + blockInnerPadding, textY);
+                    textY -= lineHeight;
+                });
+
+            } catch (error) {
+                console.warn('Histogram label rendering failed:', error);
+            } finally {
+                this.ctx.textAlign = previousAlign;
+                this.ctx.textBaseline = previousBaseline;
+                this.ctx.font = previousFont;
             }
         });
 
@@ -11600,7 +11836,7 @@ class TimelineUnifiedRenderer {
         rooms = newRooms || [];
 
         this.setArrangementsCatalog(arrangementsCatalog);
-        this.setHistogramSource(histogramSourceData);
+        this.setHistogramSource(histogramSourceData, histogramStornoSourceData);
 
         this.updateRoomLookups();
         this.normalizeRoomDetails();
