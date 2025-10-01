@@ -145,11 +145,49 @@ try {
 
     $stmt->close();
 
+    $availabilitySql = "SELECT datum, COALESCE(free_place, 0) AS free_places, hut_status
+            FROM av_belegung
+            WHERE datum >= ?
+              AND datum <= ?
+            ORDER BY datum";
+
+    $stmt = $mysqli->prepare($availabilitySql);
+    if (!$stmt) {
+        throw new Exception('SQL prepare failed: ' . $mysqli->error);
+    }
+
+    $stmt->bind_param('ss', $startDate, $endDate);
+    if (!$stmt->execute()) {
+        throw new Exception('SQL execution failed: ' . $stmt->error);
+    }
+
+    $result = $stmt->get_result();
+    $availabilityData = [];
+
+    while ($row = $result->fetch_assoc()) {
+        $date = DateTime::createFromFormat('Y-m-d', $row['datum'] ?? '');
+        if (!$date) {
+            $date = DateTime::createFromFormat('Y-m-d H:i:s', $row['datum'] ?? '');
+        }
+        if (!$date) {
+            continue;
+        }
+
+        $availabilityData[] = [
+            'datum' => $date->format('Y-m-d'),
+            'free_places' => (int)($row['free_places'] ?? 0),
+            'hut_status' => isset($row['hut_status']) ? (string)$row['hut_status'] : null
+        ];
+    }
+
+    $stmt->close();
+
     echo json_encode([
         'success' => true,
         'data' => [
             'histogram' => $data,
             'storno' => $stornoData,
+            'availability' => $availabilityData,
             'generated_at' => date('Y-m-d H:i:s')
         ]
     ]);

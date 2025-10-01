@@ -5,10 +5,12 @@ let rooms = [];
 let arrangementsCatalog = typeof window !== 'undefined' && window.arrangementsCatalog ? window.arrangementsCatalog : [];
 let histogramSourceData = typeof window !== 'undefined' && window.histogramSource ? window.histogramSource : [];
 let histogramStornoSourceData = typeof window !== 'undefined' && window.histogramStornoSource ? window.histogramStornoSource : [];
+let histogramAvailabilityData = typeof window !== 'undefined' && window.histogramAvailability ? window.histogramAvailability : [];
 if (typeof window !== 'undefined') {
     window.arrangementsCatalog = arrangementsCatalog;
     window.histogramSource = histogramSourceData;
     window.histogramStornoSource = histogramStornoSourceData;
+    window.histogramAvailability = histogramAvailabilityData;
 
     // Initialize debug mode from sessionStorage
     if (sessionStorage.getItem('debugStickyNotes') === 'true') {
@@ -533,6 +535,7 @@ class TimelineUnifiedRenderer {
         this.arrangementsCatalog = Array.isArray(arrangementsCatalog) ? arrangementsCatalog : [];
         this.histogramSource = Array.isArray(histogramSourceData) ? histogramSourceData : [];
         this.histogramStornoSource = Array.isArray(histogramStornoSourceData) ? histogramStornoSourceData : [];
+        this.histogramAvailability = Array.isArray(histogramAvailabilityData) ? histogramAvailabilityData : [];
 
         this.predictiveCache = {
             scrollDirection: 0,
@@ -2746,7 +2749,7 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    setHistogramSource(source, stornoSource = null) {
+    setHistogramSource(source, stornoSource = null, availabilitySource = null) {
         const normalizeEntry = (entry, isStorno = false) => ({
             id: entry?.id,
             av_id: entry?.av_id ?? entry?.avId ?? null,
@@ -2758,6 +2761,7 @@ class TimelineUnifiedRenderer {
 
         let normalizedHistogram = [];
         let normalizedStorno = [];
+        let normalizedAvailability = [];
 
         if (Array.isArray(source)) {
             normalizedHistogram = source.map(entry => normalizeEntry(entry, false));
@@ -2768,6 +2772,13 @@ class TimelineUnifiedRenderer {
             if (Array.isArray(source.storno)) {
                 normalizedStorno = source.storno.map(entry => normalizeEntry(entry, true));
             }
+            if (Array.isArray(source.availability)) {
+                normalizedAvailability = source.availability.map(entry => ({
+                    datum: entry?.datum ?? entry?.date ?? entry?.day,
+                    free_places: Number(entry?.free_places ?? entry?.free_place ?? 0),
+                    hut_status: entry?.hut_status || ''
+                }));
+            }
         }
 
         if (Array.isArray(stornoSource)) {
@@ -2776,14 +2787,25 @@ class TimelineUnifiedRenderer {
             normalizedStorno = source.storno.map(entry => normalizeEntry(entry, true));
         }
 
+        if (Array.isArray(availabilitySource)) {
+            normalizedAvailability = availabilitySource.map(entry => ({
+                datum: entry?.datum ?? entry?.date ?? entry?.day,
+                free_places: Number(entry?.free_places ?? entry?.free_place ?? 0),
+                hut_status: entry?.hut_status || ''
+            }));
+        }
+
         this.histogramSource = normalizedHistogram;
         this.histogramStornoSource = normalizedStorno;
+        this.histogramAvailability = normalizedAvailability;
 
         histogramSourceData = this.histogramSource;
         histogramStornoSourceData = this.histogramStornoSource;
+        histogramAvailabilityData = this.histogramAvailability;
         if (typeof window !== 'undefined') {
             window.histogramSource = this.histogramSource;
             window.histogramStornoSource = this.histogramStornoSource;
+            window.histogramAvailability = this.histogramAvailability;
         }
 
         this.invalidateHistogramCache();
@@ -2916,7 +2938,9 @@ class TimelineUnifiedRenderer {
                 av0: 0,
                 avPositive: 0,
                 total: 0
-            }
+            },
+            free_capacity: 0,
+            hut_status: 'SERVICED'
         }));
 
         const addReservationToHistogram = (reservation) => {
@@ -3012,11 +3036,36 @@ class TimelineUnifiedRenderer {
 
         stornoReservations.forEach(addStornoReservationToHistogram);
 
+        const availabilityEntries = Array.isArray(this.histogramAvailability) && this.histogramAvailability.length > 0
+            ? this.histogramAvailability
+            : [];
+
+        availabilityEntries.forEach(entry => {
+            const dateStr = entry?.datum ?? entry?.date ?? entry?.day;
+            if (!dateStr) return;
+
+            const entryDate = new Date(dateStr);
+            if (!entryDate || Number.isNaN(entryDate.getTime())) return;
+            entryDate.setHours(12, 0, 0, 0);
+            const index = Math.floor((entryDate.getTime() - startTs) / MS_IN_DAY);
+            if (index < 0 || index >= totalDays) return;
+
+            const freeValue = Number(entry?.free_places ?? entry?.free_place ?? 0) || 0;
+            dailyDetails[index].free_capacity = Math.max(0, freeValue);
+            if (entry?.hut_status !== undefined && entry?.hut_status !== null) {
+                dailyDetails[index].hut_status = String(entry.hut_status);
+            }
+        });
+
         const dailyCounts = dailyDetails.map(detail => detail.total);
         const dailyStornoCounts = dailyDetails.map(detail => detail.storno.total);
+        const dailyFreeCounts = dailyDetails.map(detail => Math.max(0, detail.free_capacity || 0));
+        const dailyCombinedCounts = dailyDetails.map(detail => Math.max(0, detail.total + Math.max(0, detail.free_capacity || 0)));
         const maxActiveGuests = dailyCounts.reduce((max, value) => Math.max(max, value), 0);
         const maxStornoGuests = dailyStornoCounts.reduce((max, value) => Math.max(max, value), 0);
-        const maxGuests = Math.max(maxActiveGuests, maxStornoGuests);
+        const maxFreeGuests = dailyFreeCounts.reduce((max, value) => Math.max(max, value), 0);
+        const maxCombinedGuests = dailyCombinedCounts.reduce((max, value) => Math.max(max, value), 0);
+        const maxGuests = Math.max(maxCombinedGuests, maxActiveGuests, maxStornoGuests, maxFreeGuests);
 
         this.histogramCache = {
             version: this.dataVersion,
@@ -3026,8 +3075,11 @@ class TimelineUnifiedRenderer {
             dailyDetails,
             maxGuests,
             dailyStornoCounts,
+            dailyFreeCounts,
             maxActiveGuests,
-            maxStornoGuests
+            maxStornoGuests,
+            maxFreeGuests,
+            maxCombinedGuests
         };
 
         return this.histogramCache;
@@ -9056,11 +9108,15 @@ class TimelineUnifiedRenderer {
             scrollContentMaster.style.height = masterContentHeight + 'px';
         }
 
-        // Update Rooms-Scrollbar Content-Höhe  
+        // Update Rooms-Scrollbar Content-Höhe
         const scrollContentRooms = this.container.querySelector('.scroll-content-rooms');
         if (scrollContentRooms) {
             const totalRoomHeight = rooms.reduce((sum, room) => sum + (room._dynamicHeight || 25), 0);
-            scrollContentRooms.style.height = Math.max(this.areas.rooms.height, totalRoomHeight + 200) + 'px';
+            const baseBuffer = Math.max(20, this.ROOM_BAR_HEIGHT * 2);
+            const adaptiveBuffer = Math.max(40, Math.min(80, (this.areas.rooms.height || 0) * 0.25));
+            const extraScrollBuffer = Math.max(baseBuffer, adaptiveBuffer);
+            const requiredHeight = Math.max(this.areas.rooms.height, totalRoomHeight + extraScrollBuffer);
+            scrollContentRooms.style.height = `${Math.round(requiredHeight)}px`;
         }
 
         // Render critical components immediately (prevent clipping issues)
@@ -9593,12 +9649,23 @@ class TimelineUnifiedRenderer {
         });
         const scaledMax = niceMax > 0 ? niceMax : (manualHistogramMax > 0 ? manualHistogramMax : (maxGuests > 0 ? maxGuests : 1));
 
-        // Shade weekends
+        // Shade weekends and closed days
         dailyCounts.forEach((_, dayIndex) => {
             const x = startX + (dayIndex * this.DAY_WIDTH) + xOffsetBase;
             if (x + totalBarWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
                 return;
             }
+
+            const detail = dailyDetails[dayIndex] || {};
+            const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
+
+            if (hutStatus && hutStatus !== 'SERVICED') {
+                this.ctx.fillStyle = histogramTheme.closedFill || 'rgba(220, 38, 38, 0.35)';
+                this.ctx.globalAlpha = 1;
+                this.ctx.fillRect(x, area.y, totalBarWidth, area.height);
+                return;
+            }
+
             const dayDate = new Date(startDate.getTime() + dayIndex * MS_IN_DAY);
             const dayOfWeek = dayDate.getDay();
             if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -9681,6 +9748,19 @@ class TimelineUnifiedRenderer {
 
             this.ctx.globalAlpha = 1;
 
+            const freeCapacity = Math.max(0, Number(detail.free_capacity) || 0);
+            let freeHeight = 0;
+            if (freeCapacity > 0 && scaledMax > 0) {
+                freeHeight = (freeCapacity / scaledMax) * availableHeight;
+                if (freeHeight > 0.5) {
+                    const freeY = barY - freeHeight;
+                    this.ctx.fillStyle = histogramTheme.freeSegment || 'rgba(56, 189, 248, 0.75)';
+                    this.ctx.globalAlpha = 0.8;
+                    this.ctx.fillRect(x, freeY, barWidth, freeHeight);
+                    this.ctx.globalAlpha = 1;
+                }
+            }
+
             const stornoDetail = detail.storno || defaultStorno;
 
             if (stornoEnabled && stornoBarWidth > 0 && scaledMax > 0) {
@@ -9735,6 +9815,7 @@ class TimelineUnifiedRenderer {
                 const safeLager = Number(detail.lager) || 0;
                 const safeBetten = Number(detail.betten) || 0;
                 const safeDz = Number(detail.dz) || 0;
+                const safeFree = Math.max(0, Number(detail.free_capacity) || 0);
 
                 const percentageRaw = safeTotalValue > 0 ? (stornoTotal / safeTotalValue) * 100 : 0;
                 let percentageStr;
@@ -9757,6 +9838,7 @@ class TimelineUnifiedRenderer {
                 if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: textColor, bold: false });
                 if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: textColor, bold: false });
                 if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: textColor, bold: false });
+                infoLines.push({ text: `FR:${safeFree}`, color: histogramTheme.freeText || '#00ffff', bold: false });
 
                 if (infoLines.length === 0) {
                     return;
@@ -11837,7 +11919,7 @@ class TimelineUnifiedRenderer {
         rooms = newRooms || [];
 
         this.setArrangementsCatalog(arrangementsCatalog);
-        this.setHistogramSource(histogramSourceData, histogramStornoSourceData);
+        this.setHistogramSource(histogramSourceData, histogramStornoSourceData, histogramAvailabilityData);
 
         this.updateRoomLookups();
         this.normalizeRoomDetails();
