@@ -9816,22 +9816,10 @@ class TimelineUnifiedRenderer {
                 const safeBetten = Number(detail.betten) || 0;
                 const safeDz = Number(detail.dz) || 0;
                 const safeFree = Math.max(0, Number(detail.free_capacity) || 0);
-
-                const percentageRaw = safeTotalValue > 0 ? (stornoTotal / safeTotalValue) * 100 : 0;
-                let percentageStr;
-                if (!Number.isFinite(percentageRaw)) {
-                    percentageStr = '0';
-                } else if (percentageRaw >= 10) {
-                    percentageStr = String(Math.round(percentageRaw));
-                } else {
-                    percentageStr = (Math.round(percentageRaw * 10) / 10).toString();
-                    if (percentageStr.indexOf('.') !== -1) {
-                        percentageStr = percentageStr.replace(/\.0$/, '');
-                    }
-                }
+                const safeStorno = Math.max(0, stornoTotal);
 
                 const infoLines = [
-                    { text: `ST:${percentageStr}%`, color: histogramTheme.stornoText || '#ff8c8c', bold: false },
+                    { text: `ST:${safeStorno}`, color: histogramTheme.stornoText || '#ff8c8c', bold: false },
                     { text: `SU:${safeTotalValue}`, color: histogramTheme.sumText || '#fada5e', bold: true }
                 ];
                 if (safeSonder) infoLines.push({ text: `PL:${safeSonder}`, color: textColor, bold: false });
@@ -10662,6 +10650,16 @@ class TimelineUnifiedRenderer {
 
         this.ctx.save();
 
+        const areaLeft = this.sidebarWidth;
+        const areaTop = area.y;
+        const areaRight = this.canvas.width;
+        const areaBottom = area.y + area.height;
+
+        // Clip curves to rooms area and timeline (keine Sidebar/Histogram Überläufe)
+        this.ctx.beginPath();
+        this.ctx.rect(areaLeft, areaTop, areaRight - areaLeft, areaBottom - areaTop);
+        this.ctx.clip();
+
         // Set style for the curves
         this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange color
         this.ctx.lineWidth = 2;
@@ -10686,30 +10684,44 @@ class TimelineUnifiedRenderer {
             }
 
             // Draw extended curve with horizontal segments from right end of parent to left start of child
-            const startPointX = parentCoords.x + parentCoords.width; // Right end of parent
-            const startPointY = parentCoords.y + (parentCoords.height / 2); // Middle of parent bar
+            const clampX = (value) => Math.min(areaRight, Math.max(areaLeft, value));
+            const clampY = (value) => Math.min(areaBottom, Math.max(areaTop, value));
 
-            const endPointX = childCoords.x; // Left start of child
-            const endPointY = childCoords.y + (childCoords.height / 2); // Middle of child bar
+            let startPointX = parentCoords.x + parentCoords.width; // Right end of parent
+            let startPointY = parentCoords.y + (parentCoords.height / 2); // Middle of parent bar
+
+            let endPointX = childCoords.x; // Left start of child
+            let endPointY = childCoords.y + (childCoords.height / 2); // Middle of child bar
+
+            startPointX = clampX(startPointX);
+            startPointY = clampY(startPointY);
+            endPointX = clampX(endPointX);
+            endPointY = clampY(endPointY);
 
             // Calculate quarter day length for horizontal segments
             const quarterDay = this.DAY_WIDTH / 4;
 
             // Define intermediate points for extended curve
-            const horizontalStartX = startPointX + quarterDay; // First horizontal segment end
-            const horizontalEndX = endPointX - quarterDay; // Second horizontal segment start
+            let horizontalStartX = clampX(startPointX + quarterDay); // First horizontal segment end
+            let horizontalEndX = clampX(endPointX - quarterDay); // Second horizontal segment start
+
+            if (horizontalStartX > horizontalEndX) {
+                const mid = clampX((startPointX + endPointX) / 2);
+                horizontalStartX = mid;
+                horizontalEndX = mid;
+            }
 
             // Control points for very smooth horizontal transitions
             const horizontalDistance = Math.abs(horizontalEndX - horizontalStartX);
             const controlDistance = Math.min(horizontalDistance / 1.5, quarterDay * 3); // Much larger distance for very smooth curve
 
             // First control point: continue horizontally to the RIGHT from start point
-            const cp1X = horizontalStartX + controlDistance;
-            const cp1Y = startPointY;
+            const cp1X = clampX(horizontalStartX + controlDistance);
+            const cp1Y = clampY(startPointY);
 
             // Second control point: come horizontally from the LEFT to end point  
-            const cp2X = horizontalEndX - controlDistance;
-            const cp2Y = endPointY;
+            const cp2X = clampX(horizontalEndX - controlDistance);
+            const cp2Y = clampY(endPointY);
 
             // Draw the extended curve path
             this.ctx.beginPath();
