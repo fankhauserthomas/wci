@@ -9722,15 +9722,12 @@ class TimelineUnifiedRenderer {
                 const blockInnerPadding = 4;
                 const minFontSize = Math.max(5, Math.round(fontSize * 0.6));
                 let currentFontSize = fontSize;
-                let lineHeight = currentFontSize + 1;
+                let lineHeight = Math.max(6, Math.round(currentFontSize * 1.05));
 
                 const updateFontSize = (size) => {
                     currentFontSize = size;
-                    lineHeight = size + 1;
-                    this.ctx.font = `${size}px Arial`;
+                    lineHeight = Math.max(6, Math.round(size * 1.05));
                 };
-
-                const infoLines = [];
 
                 const safeTotalValue = Number.isFinite(totalValue) ? totalValue : 0;
                 const stornoTotal = Number.isFinite(stornoDetail.total) ? stornoDetail.total : 0;
@@ -9751,33 +9748,31 @@ class TimelineUnifiedRenderer {
                         percentageStr = percentageStr.replace(/\.0$/, '');
                     }
                 }
-                infoLines.push({
-                    text: `ST:${percentageStr}%`,
-                    color: histogramTheme.stornoText || '#ff8c8c'
-                });
 
-                infoLines.push({ text: `SU:${safeTotalValue}`, color: textColor });
-                if (safeSonder) infoLines.push({ text: `PL:${safeSonder}`, color: textColor });
-                if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: textColor });
-                if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: textColor });
-                if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: textColor });
+                const infoLines = [
+                    { text: `ST:${percentageStr}%`, color: histogramTheme.stornoText || '#ff8c8c', bold: false },
+                    { text: `SU:${safeTotalValue}`, color: histogramTheme.sumText || '#fada5e', bold: true }
+                ];
+                if (safeSonder) infoLines.push({ text: `PL:${safeSonder}`, color: textColor, bold: false });
+                if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: textColor, bold: false });
+                if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: textColor, bold: false });
+                if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: textColor, bold: false });
 
                 if (infoLines.length === 0) {
-                    this.ctx.textAlign = previousAlign;
-                    this.ctx.textBaseline = previousBaseline;
-                    this.ctx.font = previousFont;
                     return;
                 }
 
-                const maxBlockWidth = Math.max(4, barWidth - labelPadding * 2);
-                const availableHeight = Math.max(4, barHeight - labelPadding * 2);
+                const maxBlockWidth = Math.max(40, this.DAY_WIDTH - 12);
+                const maxAvailableHeight = Math.max(40, chartBottomY - area.y - 4);
 
                 const measureBlock = () => {
                     let width = 0;
                     infoLines.forEach(line => {
+                        this.ctx.font = `${line.bold ? 'bold ' : ''}${currentFontSize}px Arial`;
                         const measured = this.ctx.measureText(line.text).width;
                         if (measured > width) width = measured;
                     });
+                    this.ctx.font = `${currentFontSize}px Arial`;
                     return {
                         width: width + blockInnerPadding * 2,
                         height: infoLines.length * lineHeight + blockInnerPadding * 2
@@ -9785,23 +9780,26 @@ class TimelineUnifiedRenderer {
                 };
 
                 let metrics = measureBlock();
-                while ((metrics.width > maxBlockWidth || metrics.height > availableHeight) && currentFontSize > minFontSize) {
+                while ((metrics.width > maxBlockWidth || metrics.height > maxAvailableHeight) && currentFontSize > minFontSize) {
                     updateFontSize(currentFontSize - 1);
                     metrics = measureBlock();
                 }
 
                 const blockWidth = Number.isFinite(metrics.width)
-                    ? Math.max(4, Math.min(metrics.width, maxBlockWidth))
-                    : Math.min(120, maxBlockWidth);
+                    ? Math.max(40, Math.min(metrics.width, maxBlockWidth))
+                    : Math.min(140, maxBlockWidth);
                 const blockHeight = Number.isFinite(metrics.height)
                     ? Math.max(lineHeight + blockInnerPadding * 2, metrics.height)
-                    : Math.max(lineHeight + blockInnerPadding * 2, Math.min(availableHeight, 120));
+                    : Math.max(lineHeight + blockInnerPadding * 2, Math.min(maxAvailableHeight, 160));
+
+                this.ctx.font = `${currentFontSize}px Arial`;
 
                 this.ctx.textAlign = 'left';
                 this.ctx.textBaseline = 'alphabetic';
 
-                let blockLeft = x + labelPadding;
-                const rightLimit = x + barWidth - labelPadding;
+                const totalBarWidth = barWidth + (stornoEnabled ? stornoGap + stornoBarWidth : 0);
+                let blockLeft = x + Math.max(labelPadding, (totalBarWidth - blockWidth) * 0.05);
+                const rightLimit = x + totalBarWidth - labelPadding;
                 if (blockLeft + blockWidth > rightLimit) {
                     blockLeft = rightLimit - blockWidth;
                 }
@@ -9810,12 +9808,14 @@ class TimelineUnifiedRenderer {
                 }
                 blockLeft = Math.max(blockLeft, x);
 
-                const rectHeight = Math.max(6, blockHeight);
-                const rectWidth = Math.max(6, blockWidth);
+                const rectWidth = Math.max(40, blockWidth);
+                const rectHeight = Math.max(40, blockHeight);
 
-                let blockTop = barY + (barHeight / 2) - (rectHeight / 2);
-                if (!Number.isFinite(blockTop)) {
-                    blockTop = barY;
+                let blockBottom = chartBottomY;
+                let blockTop = blockBottom - rectHeight;
+                if (blockTop < area.y + 2) {
+                    blockTop = area.y + 2;
+                    blockBottom = blockTop + rectHeight;
                 }
 
                 this.ctx.save();
@@ -9824,8 +9824,9 @@ class TimelineUnifiedRenderer {
                 this.ctx.fill();
                 this.ctx.restore();
 
-                let textY = blockTop + rectHeight - blockInnerPadding;
+                let textY = blockBottom - blockInnerPadding;
                 infoLines.forEach(line => {
+                    this.ctx.font = `${line.bold ? 'bold ' : ''}${currentFontSize}px Arial`;
                     this.ctx.fillStyle = line.color || textColor;
                     this.ctx.fillText(line.text, blockLeft + blockInnerPadding, textY);
                     textY -= lineHeight;
