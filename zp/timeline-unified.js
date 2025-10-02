@@ -10752,74 +10752,110 @@ class TimelineUnifiedRenderer {
         const startX = this.sidebarWidth - this.scrollX;
         const visibleRooms = this.getVisibleRooms();
 
+        const buildAnchorPoint = (coords, side) => {
+            if (!coords) {
+                return null;
+            }
+
+            const anchorX = side === 'right'
+                ? coords.x + coords.width
+                : coords.x;
+            const anchorY = coords.y + (coords.height / 2);
+
+            const roomTop = typeof coords.roomTop === 'number'
+                ? coords.roomTop
+                : coords.y - 2;
+            const roomBottom = typeof coords.roomBottom === 'number'
+                ? coords.roomBottom
+                : coords.y + coords.height + 2;
+
+            const clampX = (value) => Math.min(areaRight, Math.max(areaLeft, value));
+            const clampY = (value) => Math.min(areaBottom, Math.max(areaTop, value));
+
+            const paddedTop = Math.min(areaBottom, Math.max(areaTop, roomTop + 2));
+            const paddedBottom = Math.min(areaBottom, Math.max(areaTop, roomBottom - 2));
+
+            let clampedY = Math.min(paddedBottom, Math.max(paddedTop, anchorY));
+            clampedY = clampY(clampedY);
+            const clampedX = clampX(anchorX);
+
+            const isVisible = clampedX >= areaLeft && clampedX <= areaRight &&
+                clampedY >= areaTop && clampedY <= areaBottom;
+
+            return {
+                x: clampedX,
+                y: clampedY,
+                isVisible
+            };
+        };
+
         childDetails.forEach(childDetail => {
             const parentDetail = detailsById[childDetail.ParentID];
             if (!parentDetail) return;
 
-            // Find coordinates for both parent and child bars
-            const parentCoords = this.getDetailBarCoordinates(parentDetail, startDate, startX, visibleRooms);
-            const childCoords = this.getDetailBarCoordinates(childDetail, startDate, startX, visibleRooms);
+            const parentCoords = this.getDetailBarCoordinates(parentDetail, startDate, startX, visibleRooms, { includeOffscreen: true });
+            const childCoords = this.getDetailBarCoordinates(childDetail, startDate, startX, visibleRooms, { includeOffscreen: true });
 
-            if (!parentCoords || !childCoords) {
+            if (!parentCoords && !childCoords) {
                 if (debug) {
                     console.log(`[ParentID Curves] Skipping curve - coordinates not found for child ${childDetail.id} -> parent ${parentDetail.id}`);
                 }
                 return;
             }
 
-            // Draw extended curve with horizontal segments from right end of parent to left start of child
+            const startAnchor = buildAnchorPoint(parentCoords, 'right');
+            const endAnchor = buildAnchorPoint(childCoords, 'left');
+
+            if (!startAnchor && !endAnchor) {
+                return;
+            }
+
+            if (!startAnchor || !endAnchor) {
+                return;
+            }
+
+            if (!startAnchor.isVisible && !endAnchor.isVisible) {
+                return;
+            }
+
             const clampX = (value) => Math.min(areaRight, Math.max(areaLeft, value));
             const clampY = (value) => Math.min(areaBottom, Math.max(areaTop, value));
 
-            let startPointX = parentCoords.x + parentCoords.width; // Right end of parent
-            let startPointY = parentCoords.y + (parentCoords.height / 2); // Middle of parent bar
+            const startPointX = clampX(startAnchor.x);
+            const startPointY = clampY(startAnchor.y);
+            const endPointX = clampX(endAnchor.x);
+            const endPointY = clampY(endAnchor.y);
 
-            let endPointX = childCoords.x; // Left start of child
-            let endPointY = childCoords.y + (childCoords.height / 2); // Middle of child bar
+            const deltaX = endPointX - startPointX;
+            const spanX = Math.abs(deltaX);
+            const spanY = Math.abs(endPointY - startPointY);
 
-            startPointX = clampX(startPointX);
-            startPointY = clampY(startPointY);
-            endPointX = clampX(endPointX);
-            endPointY = clampY(endPointY);
+            const baseTangent = Math.max(this.DAY_WIDTH * 1.4, spanX * 0.85, spanY * 0.9);
+            const maxTangent = this.DAY_WIDTH * 4.5;
+            let tangent = Math.min(baseTangent, maxTangent);
+            tangent = Math.max(tangent / 2, this.DAY_WIDTH * 0.7);
 
-            // Calculate quarter day length for horizontal segments
-            const quarterDay = this.DAY_WIDTH / 4;
+            const cp1Y = startPointY;
+            const cp2Y = endPointY;
 
-            // Define intermediate points for extended curve
-            let horizontalStartX = clampX(startPointX + quarterDay); // First horizontal segment end
-            let horizontalEndX = clampX(endPointX - quarterDay); // Second horizontal segment start
-
-            if (horizontalStartX > horizontalEndX) {
-                const mid = clampX((startPointX + endPointX) / 2);
-                horizontalStartX = mid;
-                horizontalEndX = mid;
+            let cp1X = clampX(startPointX + tangent);
+            if (cp1X <= startPointX) {
+                const extra = (startPointX - cp1X) + 2;
+                tangent = Math.max(this.DAY_WIDTH * 0.7, tangent + extra);
+                cp1X = clampX(startPointX + tangent);
             }
 
-            // Control points for very smooth horizontal transitions
-            const horizontalDistance = Math.abs(horizontalEndX - horizontalStartX);
-            const controlDistance = Math.min(horizontalDistance / 1.5, quarterDay * 3); // Much larger distance for very smooth curve
+            let cp2X = clampX(endPointX - tangent);
+            if (cp2X >= endPointX) {
+                const extra = (cp2X - endPointX) + 2;
+                tangent = Math.max(this.DAY_WIDTH * 0.7, tangent + extra);
+                cp1X = clampX(startPointX + tangent);
+                cp2X = clampX(endPointX - tangent);
+            }
 
-            // First control point: continue horizontally to the RIGHT from start point
-            const cp1X = clampX(horizontalStartX + controlDistance);
-            const cp1Y = clampY(startPointY);
-
-            // Second control point: come horizontally from the LEFT to end point  
-            const cp2X = clampX(horizontalEndX - controlDistance);
-            const cp2Y = clampY(endPointY);
-
-            // Draw the extended curve path
             this.ctx.beginPath();
             this.ctx.moveTo(startPointX, startPointY);
-
-            // First horizontal segment
-            this.ctx.lineTo(horizontalStartX, startPointY);
-
-            // Curved middle section with very smooth horizontal tangents
-            this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, horizontalEndX, endPointY);
-
-            // Final horizontal segment
-            this.ctx.lineTo(endPointX, endPointY);
-
+            this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endPointX, endPointY);
             this.ctx.stroke();
 
             if (debug) {
@@ -10833,13 +10869,32 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    getDetailBarCoordinates(detail, startDate, startX, visibleRooms) {
-        // Find which room this detail belongs to
-        const roomData = visibleRooms.find(({ room }) =>
+    getDetailBarCoordinates(detail, startDate, startX, visibleRooms, options = {}) {
+        const includeOffscreen = Boolean(options.includeOffscreen);
+
+        const matchesRoom = (room) =>
             room.id === detail.room_id ||
             String(room.id) === String(detail.room_id) ||
-            Number(room.id) === Number(detail.room_id)
-        );
+            Number(room.id) === Number(detail.room_id);
+
+        let roomData = visibleRooms.find(({ room }) => matchesRoom(room));
+
+        if (!roomData && includeOffscreen) {
+            let cumulativeOffset = 0;
+            for (const room of rooms) {
+                const roomHeightApprox = room._dynamicHeight || 25;
+                if (matchesRoom(room)) {
+                    roomData = {
+                        room,
+                        yOffset: cumulativeOffset,
+                        height: roomHeightApprox,
+                        isOffscreen: true
+                    };
+                    break;
+                }
+                cumulativeOffset += roomHeightApprox;
+            }
+        }
 
         if (!roomData) {
             return null;
@@ -10847,7 +10902,6 @@ class TimelineUnifiedRenderer {
 
         const { room, yOffset } = roomData;
 
-        // Calculate temporal coordinates
         const checkinDate = new Date(detail.start);
         checkinDate.setHours(12, 0, 0, 0);
         const checkoutDate = new Date(detail.end);
@@ -10859,12 +10913,12 @@ class TimelineUnifiedRenderer {
         const x = startX + (startOffset + 0.01) * this.DAY_WIDTH;
         const width = (duration - 0.02) * this.DAY_WIDTH;
 
-        // Check if bar is visible
-        if (x + width <= this.sidebarWidth || x >= this.canvas.width) {
-            return null;
-        }
+        const area = this.areas.rooms;
+        const areaTop = area.y;
+        const areaBottom = area.y + area.height;
+        const areaLeft = this.sidebarWidth;
+        const areaRight = this.canvas.width;
 
-        // Calculate stack level - we need to replicate the stacking logic
         const roomReservations = roomDetails.filter(rd =>
             rd.room_id === room.id ||
             String(rd.room_id) === String(room.id) ||
@@ -10889,8 +10943,8 @@ class TimelineUnifiedRenderer {
             };
         }).sort((a, b) => a.startOffset - b.startOffset);
 
-        // Calculate stacking
         const OVERLAP_TOLERANCE = this.DAY_WIDTH * 0.1;
+        let maxStackLevel = 0;
         positionedReservations.forEach((reservation, index) => {
             let stackLevel = 0;
             let placed = false;
@@ -10924,9 +10978,10 @@ class TimelineUnifiedRenderer {
                     placed = true;
                 }
             }
+
+            maxStackLevel = Math.max(maxStackLevel, reservation.stackLevel || 0);
         });
 
-        // Find our specific detail
         const targetReservation = positionedReservations.find(pr =>
             (pr.id && pr.id === detail.id) ||
             (pr.detail_id && pr.detail_id === detail.detail_id) ||
@@ -10939,12 +10994,34 @@ class TimelineUnifiedRenderer {
 
         const baseRoomY = this.areas.rooms.y - this.roomsScrollY + yOffset;
         const stackY = baseRoomY + 1 + (targetReservation.stackLevel * (this.ROOM_BAR_HEIGHT + 2));
+        const roomHeight = typeof roomData.height === 'number'
+            ? roomData.height
+            : Math.max(20, 4 + (maxStackLevel + 1) * (this.ROOM_BAR_HEIGHT));
+
+        const roomTop = baseRoomY;
+        const roomBottom = baseRoomY + roomHeight;
+
+        const barTop = stackY;
+        const barBottom = stackY + this.ROOM_BAR_HEIGHT;
+
+        const visibleHorizontally = (x + width) > areaLeft && x < areaRight;
+        const visibleVertically = barBottom > areaTop && barTop < areaBottom;
+
+        if (!includeOffscreen && (!visibleHorizontally || !visibleVertically)) {
+            return null;
+        }
 
         return {
-            x: x,
+            x,
             y: stackY,
-            width: width,
-            height: this.ROOM_BAR_HEIGHT
+            width,
+            height: this.ROOM_BAR_HEIGHT,
+            roomTop,
+            roomBottom,
+            roomHeight,
+            visibleHorizontally,
+            visibleVertically,
+            isVisible: visibleHorizontally && visibleVertically
         };
     }
 
@@ -11450,6 +11527,13 @@ class TimelineUnifiedRenderer {
         }
         // isSourceOfDrag behält Originalgröße, wird nur heller und glüht
 
+        const textFrame = {
+            x: renderX,
+            y: renderY,
+            width: renderWidth,
+            height: renderHeight
+        };
+
         if (hasMismatch && !isSourceOfDrag) {
             const widthInflation = renderWidth * ((mismatchScale - 1) * 0.35);
             const heightInflation = renderHeight * (mismatchScale - 1);
@@ -11513,6 +11597,9 @@ class TimelineUnifiedRenderer {
             helperInsets = this.renderTouchHelperIcons(renderX, renderY, renderWidth, renderHeight, { mode });
         }
 
+        const deltaLeft = Math.max(0, textFrame.x - renderX);
+        const deltaRight = Math.max(0, (renderX + renderWidth) - (textFrame.x + textFrame.width));
+
         if (isFocused && renderWidth > 6 && renderHeight > 6) {
             this.ctx.save();
             const focusPadding = Math.min(12, Math.max(4, renderHeight * 0.4));
@@ -11525,11 +11612,11 @@ class TimelineUnifiedRenderer {
             this.ctx.restore();
         }
 
-        if (renderWidth > 12) {
+        if (textFrame.width > 12) {
             const textColor = this.getContrastColor(color);
             this.ctx.fillStyle = textColor;
 
-            const dynamicFontSize = this.computeBarFontSize(renderHeight);
+            const dynamicFontSize = this.computeBarFontSize(textFrame.height);
             if (this.themeConfig.room) {
                 this.themeConfig.room.fontSize = dynamicFontSize;
             }
@@ -11544,21 +11631,24 @@ class TimelineUnifiedRenderer {
             const arrangementLetterMatch = arrangementRaw.match(/[A-Za-zÄÖÜäöü]/);
             const arrangementLetter = arrangementLetterMatch ? arrangementLetterMatch[0].toUpperCase() : null;
             const hasCircle = Boolean(arrangementLetter);
-            const circleDiameter = hasCircle ? Math.max(12, Math.min(renderHeight - 4, 18)) : 0;
+            const circleDiameter = hasCircle ? Math.max(12, Math.min(textFrame.height - 4, 18)) : 0;
             const circlePadding = hasCircle ? circleDiameter + 6 : 0;
 
+            const adjustedLeftInset = Math.max(0, helperInsets.leftInset - deltaLeft);
+            const adjustedRightInset = Math.max(0, helperInsets.rightInset - deltaRight);
+
             // Schriftposition NICHT wegen Hund verschieben
-            const availableWidth = renderWidth - helperInsets.leftInset - helperInsets.rightInset - 8 - circlePadding;
+            const availableWidth = textFrame.width - adjustedLeftInset - adjustedRightInset - 8 - circlePadding;
             if (availableWidth > 0) {
                 const truncated = this.truncateTextToWidth(text, availableWidth);
-                const textY = renderY + (renderHeight / 2) + (dynamicFontSize / 3);
-                const textX = renderX + helperInsets.leftInset + 3;
+                const textY = textFrame.y + (textFrame.height / 2) + (dynamicFontSize / 3);
+                const textX = textFrame.x + adjustedLeftInset + 3;
                 this.ctx.fillText(truncated, textX, textY);
             }
 
-            if (hasCircle && renderWidth > circleDiameter + 10 + helperInsets.rightInset) {
-                const circleX = renderX + renderWidth - helperInsets.rightInset - (circleDiameter / 2) - 3;
-                const circleY = renderY + renderHeight / 2;
+            if (hasCircle && textFrame.width > circleDiameter + 10 + adjustedRightInset) {
+                const circleX = textFrame.x + textFrame.width - adjustedRightInset - (circleDiameter / 2) - 3;
+                const circleY = textFrame.y + textFrame.height / 2;
                 // Strikt: AV-Res.av_id > 0 (aus Join in den Room-Details)
                 const avIdRaw = (detail.data && detail.data.av_id) ?? detail.av_id ?? 0;
                 const avIdNum = Number(avIdRaw);
