@@ -429,9 +429,14 @@ class TimelineUnifiedRenderer {
         // Performance optimization for sticky notes
         this.stickyNotesCache = new Map(); // Cache rendered sticky notes
         this.lastStickyNotesRender = 0; // Timestamp of last sticky notes render
-        this.stickyNotesRenderThreshold = 100; // Only re-render sticky notes every 100ms        // Ghost-Balken für Drag-Feedback
+        this.stickyNotesRenderThreshold = 100; // Only re-render sticky notes every 100ms
+
+        // Ghost-Balken für Drag-Feedback
         this.ghostBar = null; // { x, y, width, height, room, mode, visible }
         this.pixelGhostFrame = null; // Pixelgenauer Rahmen der mit Maus mitfährt
+
+        // Visual cues for separators
+        this.masterSeparatorNeedsAttention = false;
 
         // Touch-optimierte Fokussteuerung für Zimmer-Balken
         this.focusedReservationKey = null;
@@ -9320,54 +9325,111 @@ class TimelineUnifiedRenderer {
         this.ctx.fillText('Keine Daten geladen', this.canvas.width / 2, this.canvas.height / 2);
     }
 
-    renderSeparators() {
+    _renderEnhancedSeparators() {
         const ctx = this.ctx;
         ctx.save();
 
-        // Oberer Separator (Master/Rooms)
-        if (this.isDraggingSeparator) {
-            ctx.strokeStyle = '#007acc';
-            ctx.lineWidth = 3;
-        } else {
-            ctx.strokeStyle = '#ddd';
+        const timelineCenterX = this.canvas.width / 2;
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const attentionPulse = this.masterSeparatorNeedsAttention
+            ? 0.5 + 0.5 * Math.sin(now / 220)
+            : 0;
+
+        const drawRoundedRect = (x, y, width, height, radius) => {
+            const r = Math.min(radius, width / 2, height / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + width - r, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+            ctx.lineTo(x + width, y + height - r);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+            ctx.lineTo(x + r, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        };
+
+        const drawCatchIcon = (y, color, invert = false) => {
+            const chevronSize = 7;
+            const chevronOffset = 4;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.6;
+            ctx.lineCap = 'round';
+
+            const directions = invert ? [1, -1] : [-1, 1];
+
+            directions.forEach(direction => {
+                ctx.beginPath();
+                const baseY = y + direction * chevronOffset;
+                const apexY = y + direction * (chevronOffset + 4);
+                ctx.moveTo(timelineCenterX - chevronSize, baseY);
+                ctx.lineTo(timelineCenterX, apexY);
+                ctx.lineTo(timelineCenterX + chevronSize, baseY);
+                ctx.stroke();
+            });
+        };
+
+        const drawSeparator = (y, { highlight = false, attention = false, invertIcon = false } = {}) => {
+            const baseLineColor = 'rgba(255, 255, 255, 0.28)';
+            const highlightColor = '#4facfe';
+            const attentionColor = `rgba(79, 172, 254, ${(0.45 + 0.35 * attentionPulse).toFixed(3)})`;
+
+            ctx.strokeStyle = highlight ? highlightColor : (attention ? attentionColor : baseLineColor);
+            ctx.lineWidth = highlight ? 3 : 2;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(this.canvas.width, y);
+            ctx.stroke();
+
+            const handleWidth = 46;
+            const handleHeight = 14;
+            const handleRadius = 6;
+            const handleX = timelineCenterX - handleWidth / 2;
+            const handleY = y - handleHeight / 2;
+
+            let handleFill = highlight
+                ? 'rgba(79, 172, 254, 0.55)'
+                : 'rgba(255, 255, 255, 0.16)';
+            let handleStroke = highlight
+                ? 'rgba(255, 255, 255, 0.8)'
+                : 'rgba(255, 255, 255, 0.32)';
+
+            if (attention) {
+                handleFill = `rgba(79, 172, 254, ${(0.35 + 0.25 * attentionPulse).toFixed(3)})`;
+                handleStroke = `rgba(79, 172, 254, ${(0.55 + 0.25 * attentionPulse).toFixed(3)})`;
+            }
+
+            drawRoundedRect(handleX, handleY, handleWidth, handleHeight, handleRadius);
+            ctx.fillStyle = handleFill;
+            ctx.fill();
+            ctx.strokeStyle = handleStroke;
             ctx.lineWidth = 1;
-        }
+            ctx.stroke();
 
-        ctx.beginPath();
-        ctx.moveTo(0, this.separatorY);
-        ctx.lineTo(this.canvas.width, this.separatorY);
-        ctx.stroke();
+            const iconColor = attention
+                ? `rgba(255, 255, 255, ${(0.85 + 0.15 * attentionPulse).toFixed(3)})`
+                : highlight
+                    ? '#ffffff'
+                    : 'rgba(255, 255, 255, 0.75)';
+            drawCatchIcon(y, iconColor, invertIcon);
+        };
 
-        // Griff für oberen Separator
-        if (this.isDraggingSeparator) {
-            ctx.fillStyle = '#007acc';
-            const handleWidth = 20;
-            const handleHeight = 4;
-            const centerX = this.canvas.width / 2;
-            ctx.fillRect(centerX - handleWidth / 2, this.separatorY - handleHeight / 2, handleWidth, handleHeight);
-        }
+        drawSeparator(this.separatorY, {
+            highlight: this.isDraggingSeparator,
+            attention: this.masterSeparatorNeedsAttention,
+            invertIcon: false
+        });
 
-        // Unterer Separator (Rooms/Histogram)
-        if (this.isDraggingBottomSeparator) {
-            ctx.strokeStyle = '#007acc';
-            ctx.lineWidth = 3;
-        } else {
-            ctx.strokeStyle = '#ddd';
-            ctx.lineWidth = 1;
-        }
+        drawSeparator(this.bottomSeparatorY, {
+            highlight: this.isDraggingBottomSeparator,
+            attention: false,
+            invertIcon: true
+        });
 
-        ctx.beginPath();
-        ctx.moveTo(0, this.bottomSeparatorY);
-        ctx.lineTo(this.canvas.width, this.bottomSeparatorY);
-        ctx.stroke();
-
-        // Griff für unteren Separator
-        if (this.isDraggingBottomSeparator) {
-            ctx.fillStyle = '#007acc';
-            const handleWidth = 20;
-            const handleHeight = 4;
-            const centerX = this.canvas.width / 2;
-            ctx.fillRect(centerX - handleWidth / 2, this.bottomSeparatorY - handleHeight / 2, handleWidth, handleHeight);
+        if (this.masterSeparatorNeedsAttention) {
+            this.scheduleRender('separator_attention');
         }
 
         ctx.restore();
@@ -9508,7 +9570,8 @@ class TimelineUnifiedRenderer {
 
         // Area-Hintergrund
         this.ctx.save();
-        this.ctx.fillStyle = this.themeConfig.master.bg;
+        const masterBackground = this.getMasterBackgroundColor();
+        this.ctx.fillStyle = masterBackground;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING für Master-Bereich
@@ -9531,6 +9594,9 @@ class TimelineUnifiedRenderer {
         const sortedReservations = [...reservationsToRender].sort((a, b) =>
             new Date(a.start).getTime() - new Date(b.start).getTime()
         );
+
+        const areaBottom = area.y + area.height;
+        let masterOverflowDetected = false;
 
         sortedReservations.forEach(reservation => {
             const checkinDate = new Date(reservation.start);
@@ -9572,6 +9638,15 @@ class TimelineUnifiedRenderer {
 
             const barHeight = this.MASTER_BAR_HEIGHT || 14;
             const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
+            const bottom = top + barHeight;
+
+            if (!masterOverflowDetected) {
+                const hiddenAbove = top < area.y + 6;
+                const hiddenBelow = bottom > areaBottom - 6;
+                if (hiddenAbove || hiddenBelow) {
+                    masterOverflowDetected = true;
+                }
+            }
 
             // Prüfe Hover-Status
             const isHovered = this.isReservationHovered(left, top, width, barHeight);
@@ -9582,6 +9657,8 @@ class TimelineUnifiedRenderer {
 
             this.renderReservationBar(left, top, width, barHeight, reservation, isHovered);
         });
+
+        this.masterSeparatorNeedsAttention = masterOverflowDetected;
 
         this.ctx.restore();
     }
@@ -9949,40 +10026,8 @@ class TimelineUnifiedRenderer {
     }
 
     renderSeparatorsOptimized() {
-        const strokeColor = this.isDraggingSeparator ? '#007acc' : '#ddd';
-        const lineWidth = this.isDraggingSeparator ? 3 : 1;
-
-        // Oberer Separator (Master/Rooms) - batched
-        this.drawOptimizedRect(0, this.separatorY, this.canvas.width, lineWidth,
-            null, strokeColor, lineWidth);
-
-        // Unterer Separator (Rooms/Histogram) - batched  
-        const bottomStrokeColor = this.isDraggingBottomSeparator ? '#007acc' : '#ddd';
-        const bottomLineWidth = this.isDraggingBottomSeparator ? 3 : 1;
-
-        this.drawOptimizedRect(0, this.bottomSeparatorY, this.canvas.width, bottomLineWidth,
-            null, bottomStrokeColor, bottomLineWidth);
-
-        // Separator handles are rendered immediately (not batched) for visual feedback
-        if (this.isDraggingSeparator) {
-            this.ctx.save();
-            this.ctx.fillStyle = '#007acc';
-            const handleWidth = 20;
-            const handleHeight = 4;
-            const centerX = this.canvas.width / 2;
-            this.ctx.fillRect(centerX - handleWidth / 2, this.separatorY - handleHeight / 2, handleWidth, handleHeight);
-            this.ctx.restore();
-        }
-
-        if (this.isDraggingBottomSeparator) {
-            this.ctx.save();
-            this.ctx.fillStyle = '#007acc';
-            const handleWidth = 20;
-            const handleHeight = 4;
-            const centerX = this.canvas.width / 2;
-            this.ctx.fillRect(centerX - handleWidth / 2, this.bottomSeparatorY - handleHeight / 2, handleWidth, handleHeight);
-            this.ctx.restore();
-        }
+        // Optimierter Renderpfad nutzt direkte Zeichnung für bessere Kontrolle über die Handles
+        this._renderEnhancedSeparators();
     }
 
     renderReservationBarDirect(x, y, width, height, reservation, isHovered) {
@@ -10117,7 +10162,8 @@ class TimelineUnifiedRenderer {
         const startX = this.sidebarWidth - this.scrollX;
 
         // Area-Hintergrund mit Theme-Konfiguration
-        this.ctx.fillStyle = this.themeConfig.master.bg;
+        const masterBackground = this.getMasterBackgroundColor();
+        this.ctx.fillStyle = masterBackground;
         this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
 
         // CLIPPING
@@ -10138,6 +10184,9 @@ class TimelineUnifiedRenderer {
         const sortedReservations = [...reservationsToRender].sort((a, b) =>
             new Date(a.start).getTime() - new Date(b.start).getTime()
         );
+
+        const areaBottom = area.y + area.height;
+        let masterOverflowDetected = false;
 
         sortedReservations.forEach(reservation => {
             const checkinDate = new Date(reservation.start);
@@ -10179,6 +10228,15 @@ class TimelineUnifiedRenderer {
 
             const barHeight = this.MASTER_BAR_HEIGHT || 14;
             const top = area.y + 10 + (stackLevel * (barHeight + 2)) - this.masterScrollY;
+            const bottom = top + barHeight;
+
+            if (!masterOverflowDetected) {
+                const hiddenAbove = top < area.y + 6;
+                const hiddenBelow = bottom > areaBottom - 6;
+                if (hiddenAbove || hiddenBelow) {
+                    masterOverflowDetected = true;
+                }
+            }
 
             // Prüfe Hover-Status
             const isHovered = this.isReservationHovered(left, top, width, barHeight);
@@ -10189,6 +10247,8 @@ class TimelineUnifiedRenderer {
 
             this.renderReservationBar(left, top, width, barHeight, reservation, isHovered);
         });
+
+        this.masterSeparatorNeedsAttention = masterOverflowDetected;
 
         this.ctx.restore();
     }
@@ -10294,20 +10354,20 @@ class TimelineUnifiedRenderer {
             // Zimmer-Hintergrund mit alternierenden Streifen
             this.ctx.save();
             const roomIndex = rooms.indexOf(room);
+            const timelineWidth = Math.max(0, this.canvas.width - this.sidebarWidth);
             const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
                 this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
                 this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
 
             if (isDropTarget) {
-                this.ctx.fillStyle = '#4CAF50';
-                this.ctx.globalAlpha = 0.3;
-                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, displayHeight);
-                this.ctx.globalAlpha = 1.0;
+                this.ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, timelineWidth, displayHeight);
             } else {
-                this.ctx.globalAlpha = 0.2;
-                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
-                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, displayHeight);
-                this.ctx.globalAlpha = 1.0;
+                const overlay = roomIndex % 2 === 0
+                    ? 'rgba(255, 255, 255, 0.04)'
+                    : 'rgba(0, 0, 0, 0.06)';
+                this.ctx.fillStyle = overlay;
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, timelineWidth, displayHeight);
             }
             this.ctx.restore();
 
@@ -10353,15 +10413,27 @@ class TimelineUnifiedRenderer {
 
         visibleRooms.forEach(({ room, yOffset, height }) => {
             const baseRoomY = startY + yOffset;
-            const roomDisplayY = baseRoomY + (height / 2) + (this.sidebarFontSize / 3);
+            const roomIndex = rooms.indexOf(room);
+            const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+                this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
+                this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+            if (isDropTarget) {
+                this.ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.fillRect(0, baseRoomY, this.sidebarWidth, height);
+            }
+
+            const roomDisplayY = baseRoomY + (height / 2);
 
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
                 this.ctx.fillStyle = this.themeConfig.sidebar.text;
                 this.ctx.font = `${this.sidebarFontSize}px Arial`;
-                this.ctx.textAlign = 'center';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'middle';
 
-                const caption = room.caption || `R${room.id}`;
-                this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
+                const caption = this.getRoomCaptionWithCapacity(room);
+                const textX = 10;
+                this.ctx.fillText(caption, textX, roomDisplayY);
             }
         });
 
@@ -10511,20 +10583,20 @@ class TimelineUnifiedRenderer {
             // Zimmer-Hintergrund mit alternierenden Streifen
             this.ctx.save();
             const roomIndex = rooms.indexOf(room);
+            const timelineWidth = Math.max(0, this.canvas.width - this.sidebarWidth);
             const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
                 this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
                 this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
 
             if (isDropTarget) {
-                this.ctx.fillStyle = '#4CAF50';
-                this.ctx.globalAlpha = 0.3;
-                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, animatedHeight);
-                this.ctx.globalAlpha = 1.0;
+                this.ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, timelineWidth, animatedHeight);
             } else {
-                this.ctx.globalAlpha = 0.2;
-                this.ctx.fillStyle = roomIndex % 2 === 0 ? '#000000' : '#ffffff';
-                this.ctx.fillRect(this.sidebarWidth, baseRoomY, this.canvas.width - this.sidebarWidth, animatedHeight);
-                this.ctx.globalAlpha = 1.0;
+                const overlay = roomIndex % 2 === 0
+                    ? 'rgba(255, 255, 255, 0.04)'
+                    : 'rgba(0, 0, 0, 0.06)';
+                this.ctx.fillStyle = overlay;
+                this.ctx.fillRect(this.sidebarWidth, baseRoomY, timelineWidth, animatedHeight);
             }
             this.ctx.restore();
 
@@ -10598,15 +10670,27 @@ class TimelineUnifiedRenderer {
 
         visibleRooms.forEach(({ room, yOffset, height }) => {
             const baseRoomY = startY + yOffset;
-            const roomDisplayY = baseRoomY + (height / 2) + (this.sidebarFontSize / 3);
+            const roomIndex = rooms.indexOf(room);
+            const isDropTarget = this.isDraggingReservation && this.dragMode === 'move' &&
+                this.dragTargetRoom && this.dragTargetRoom.id === room.id &&
+                this.dragTargetRoom.id !== this.dragOriginalData?.room_id;
+
+            if (isDropTarget) {
+                this.ctx.fillStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.fillRect(0, baseRoomY, this.sidebarWidth, height);
+            }
+
+            const roomDisplayY = baseRoomY + (height / 2);
 
             if (roomDisplayY >= this.areas.rooms.y && roomDisplayY <= this.areas.rooms.y + this.areas.rooms.height) {
                 this.ctx.fillStyle = this.themeConfig.sidebar.text;
                 this.ctx.font = `${this.sidebarFontSize}px Arial`;
-                this.ctx.textAlign = 'center';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'middle';
 
-                const caption = room.caption || `R${room.id}`;
-                this.ctx.fillText(caption, this.sidebarWidth / 2, roomDisplayY);
+                const caption = this.getRoomCaptionWithCapacity(room);
+                const textX = 10;
+                this.ctx.fillText(caption, textX, roomDisplayY);
             }
         });
 
@@ -10896,21 +10980,7 @@ class TimelineUnifiedRenderer {
     }
 
     renderSeparators() {
-        // Horizontale Separatoren zwischen Bereichen
-        this.ctx.strokeStyle = '#bbb';
-        this.ctx.lineWidth = 2;
-
-        // Zwischen Master und Rooms
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, this.areas.rooms.y);
-        this.ctx.lineTo(this.canvas.width, this.areas.rooms.y);
-        this.ctx.stroke();
-
-        // Zwischen Rooms und Histogram
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, this.areas.histogram.y);
-        this.ctx.lineTo(this.canvas.width, this.areas.histogram.y);
-        this.ctx.stroke();
+        this._renderEnhancedSeparators();
     }
 
     // Hilfsmethoden
@@ -11897,6 +11967,57 @@ class TimelineUnifiedRenderer {
                 this.renderStickyNote(cachedData.barX, cachedData.barY, cachedData.barWidth, cachedData.barHeight, detail.detail);
             }
         }
+    }
+
+    getMasterBackgroundColor() {
+        const roomSection = this.themeConfig?.room || {};
+        const masterSection = this.themeConfig?.master || {};
+
+        const roomBg = typeof roomSection.bg === 'string' ? roomSection.bg : null;
+        let masterBg = typeof masterSection.bg === 'string' ? masterSection.bg : null;
+
+        if (masterBg && (!roomBg || masterBg.toLowerCase() !== roomBg.toLowerCase())) {
+            return masterBg;
+        }
+
+        if (roomBg && roomBg.startsWith('#')) {
+            return this.lightenColor(roomBg, 28);
+        }
+
+        if (roomBg) {
+            return roomBg;
+        }
+
+        return '#3a4a5c';
+    }
+
+    getRoomCaptionWithCapacity(room) {
+        if (!room) {
+            return '';
+        }
+
+        const roomId = room.id != null ? room.id : '';
+        const fallbackCaption = roomId !== '' ? `Zimmer ${roomId}` : 'Zimmer';
+        const baseCaption = room.caption || room.display_name || fallbackCaption;
+
+        const rawCapacity = room.kapazitaet ?? room.capacity ?? room.cap ?? null;
+        let capacityLabel = '';
+
+        if (rawCapacity !== null && rawCapacity !== undefined && rawCapacity !== '') {
+            if (typeof rawCapacity === 'number') {
+                if (Number.isFinite(rawCapacity)) {
+                    capacityLabel = String(rawCapacity);
+                }
+            } else if (typeof rawCapacity === 'string') {
+                const trimmed = rawCapacity.trim();
+                if (trimmed) {
+                    const numeric = Number(trimmed);
+                    capacityLabel = Number.isFinite(numeric) ? String(numeric) : trimmed;
+                }
+            }
+        }
+
+        return capacityLabel ? `${baseCaption} (${capacityLabel})` : baseCaption;
     }
 
     lightenColor(color, percent) {
