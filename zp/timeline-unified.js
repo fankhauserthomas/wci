@@ -709,8 +709,8 @@ class TimelineUnifiedRenderer {
 
         this.renderScheduled = true;
         requestAnimationFrame(() => {
-            this.render();
             this.renderScheduled = false;
+            this.render();
         });
     }
 
@@ -5709,15 +5709,16 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        const maxTopSeparatorY = this.canvas.height * 0.5;
-        const minTopSeparatorY = this.areas.header.y + this.areas.header.height + 60;
-        const minRoomGap = Math.max(120, this.ROOM_BAR_HEIGHT * 4);
-        const minHistogramHeight = Math.max(80, this.ROOM_BAR_HEIGHT * 4);
-        const footerPadding = Math.max(4, Math.min(12, this.sidebarFontSize ? this.sidebarFontSize * 0.5 : 10));
+        const headerBottom = this.areas.header.y + this.areas.header.height;
+        const maxTopSeparatorY = Math.max(headerBottom, this.canvas.height * 0.5);
+        const minTopSeparatorY = headerBottom;
+        const minRoomGap = 0;
+        const minHistogramHeight = 0;
+        const footerPadding = 0;
 
         this.separatorY = this.clamp(this.separatorY, minTopSeparatorY, maxTopSeparatorY);
 
-        const minBottomSeparatorY = Math.max(this.canvas.height * 0.55, this.separatorY + minRoomGap);
+        const minBottomSeparatorY = this.separatorY + minRoomGap;
         const maxBottomCandidate = this.canvas.height - footerPadding - minHistogramHeight;
         const maxBottomSeparatorY = Math.max(minBottomSeparatorY, maxBottomCandidate);
 
@@ -5742,13 +5743,11 @@ class TimelineUnifiedRenderer {
             residualHistogramSpace = this.canvas.height - this.bottomSeparatorY - footerPadding;
         }
 
-        const headerBottom = this.areas.header.y + this.areas.header.height;
-
         this.areas.master.y = headerBottom;
-        this.areas.master.height = Math.max(60, this.separatorY - headerBottom);
+        this.areas.master.height = Math.max(0, this.separatorY - headerBottom);
 
         this.areas.rooms.y = this.separatorY;
-        this.areas.rooms.height = Math.max(60, this.bottomSeparatorY - this.separatorY);
+        this.areas.rooms.height = Math.max(0, this.bottomSeparatorY - this.separatorY);
 
         this.areas.histogram.y = this.bottomSeparatorY;
         const availableHistogramSpace = Math.max(minHistogramHeight, residualHistogramSpace);
@@ -5795,8 +5794,9 @@ class TimelineUnifiedRenderer {
     }
 
     handleTopSeparatorDrag(mouseY) {
-        const minY = 80; // Mindestens etwas Platz für Menü + Header + Master
-        const maxY = this.canvas.height * 0.5;
+        const headerBottom = this.areas.header.y + this.areas.header.height;
+        const minY = headerBottom;
+        const maxY = Math.max(minY, this.canvas.height * 0.5);
 
         this.separatorY = Math.max(minY, Math.min(maxY, mouseY));
         this.updateLayoutAreas();
@@ -5804,8 +5804,8 @@ class TimelineUnifiedRenderer {
     }
 
     handleBottomSeparatorDrag(mouseY) {
-        const minY = Math.max(this.separatorY + 100, this.canvas.height * 0.6);
-        const maxY = this.canvas.height - 40; // Platz für Scrollbar
+        const minY = this.separatorY;
+        const maxY = Math.max(minY, this.canvas.height);
 
         this.bottomSeparatorY = Math.max(minY, Math.min(maxY, mouseY));
         this.updateLayoutAreas();
@@ -10744,13 +10744,29 @@ class TimelineUnifiedRenderer {
         this.ctx.rect(areaLeft, areaTop, areaRight - areaLeft, areaBottom - areaTop);
         this.ctx.clip();
 
-        // Set style for the curves
-        this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange color
+        // Set style for the curves (color set per-connection below)
         this.ctx.lineWidth = 2;
         this.ctx.lineCap = 'round';
 
         const startX = this.sidebarWidth - this.scrollX;
         const visibleRooms = this.getVisibleRooms();
+
+        const resolveBarColor = (detail) => {
+            const candidates = [
+                detail?.color,
+                detail?.baseColor,
+                detail?.data?.color,
+                this.themeConfig?.room?.bar,
+                this.themeConfig?.room?.bg
+            ];
+            for (const candidate of candidates) {
+                const normalized = this.normalizeHexColor(candidate);
+                if (normalized) {
+                    return normalized;
+                }
+            }
+            return '#4facfe';
+        };
 
         const buildAnchorPoint = (coords, side) => {
             if (!coords) {
@@ -10833,6 +10849,13 @@ class TimelineUnifiedRenderer {
             const endPointX = endAnchor.drawX;
             const endPointY = endAnchor.drawY;
 
+            const parentColor = resolveBarColor(parentDetail);
+            const childColor = resolveBarColor(childDetail);
+            const darkParent = this.lightenColor(parentColor, -33);
+            const darkChild = this.lightenColor(childColor, -33);
+            const blendedColor = this.averageHexColors(darkParent, darkChild);
+            const strokeColor = this.hexToRgba(blendedColor, 0.5);
+
             const deltaX = endPointX - startPointX;
             const spanX = Math.abs(deltaX);
             const spanY = Math.abs(endPointY - startPointY);
@@ -10862,9 +10885,29 @@ class TimelineUnifiedRenderer {
                 cp2X = clampX(endPointX - tangent);
             }
 
-            this.ctx.beginPath();
-            this.ctx.moveTo(startPointX, startPointY);
-            this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endPointX, endPointY);
+            const strokePath = () => {
+                this.ctx.beginPath();
+                this.ctx.moveTo(startPointX, startPointY);
+                this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endPointX, endPointY);
+            };
+
+            // Glow pass
+            strokePath();
+            this.ctx.save();
+            const baseLineWidth = this.ctx.lineWidth || 2;
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.lineWidth = Math.max(baseLineWidth * 1.5, baseLineWidth + 1);
+            this.ctx.shadowColor = 'rgba(255, 255, 255, 1)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            // Base stroke
+            strokePath();
+            this.ctx.strokeStyle = strokeColor;
+            this.ctx.lineWidth = baseLineWidth;
             this.ctx.stroke();
 
             if (debug) {
@@ -12120,7 +12163,11 @@ class TimelineUnifiedRenderer {
     }
 
     lightenColor(color, percent) {
-        const num = parseInt(color.replace("#", ""), 16);
+        const normalized = this.normalizeHexColor(color);
+        if (!normalized) {
+            return typeof color === 'string' ? color : '#000000';
+        }
+        const num = parseInt(normalized.replace('#', ''), 16);
         const amt = Math.round(2.55 * percent);
         const R = (num >> 16) + amt;
         const G = (num >> 8 & 0x00FF) + amt;
@@ -12128,6 +12175,52 @@ class TimelineUnifiedRenderer {
         return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
             (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
             (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    }
+
+    normalizeHexColor(color) {
+        if (typeof color !== 'string') {
+            return null;
+        }
+        let hex = color.trim();
+        if (!hex.startsWith('#')) {
+            return null;
+        }
+        hex = hex.slice(1);
+        if (hex.length === 3) {
+            hex = hex.split('').map(ch => ch + ch).join('');
+        }
+        if (hex.length !== 6) {
+            return null;
+        }
+        return `#${hex.toLowerCase()}`;
+    }
+
+    hexToRgb(hex) {
+        const normalized = this.normalizeHexColor(hex) || '#000000';
+        const value = parseInt(normalized.slice(1), 16);
+        return {
+            r: (value >> 16) & 0xff,
+            g: (value >> 8) & 0xff,
+            b: value & 0xff
+        };
+    }
+
+    rgbToHex(r, g, b) {
+        const clamp = (v) => Math.min(255, Math.max(0, Math.round(v)));
+        const value = (clamp(r) << 16) | (clamp(g) << 8) | clamp(b);
+        return `#${value.toString(16).padStart(6, '0')}`;
+    }
+
+    averageHexColors(hexA, hexB) {
+        const rgbA = this.hexToRgb(hexA);
+        const rgbB = this.hexToRgb(hexB);
+        return this.rgbToHex((rgbA.r + rgbB.r) / 2, (rgbA.g + rgbB.g) / 2, (rgbA.b + rgbB.b) / 2);
+    }
+
+    hexToRgba(hex, alpha = 1) {
+        const { r, g, b } = this.hexToRgb(hex);
+        const safeAlpha = Math.min(1, Math.max(0, alpha));
+        return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
     }
 
     getContrastColor(hexColor) {
