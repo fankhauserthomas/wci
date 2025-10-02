@@ -10775,16 +10775,19 @@ class TimelineUnifiedRenderer {
             const paddedTop = Math.min(areaBottom, Math.max(areaTop, roomTop + 2));
             const paddedBottom = Math.min(areaBottom, Math.max(areaTop, roomBottom - 2));
 
-            let clampedY = Math.min(paddedBottom, Math.max(paddedTop, anchorY));
-            clampedY = clampY(clampedY);
-            const clampedX = clampX(anchorX);
+            const visibleY = clampY(Math.min(paddedBottom, Math.max(paddedTop, anchorY)));
+            const visibleX = clampX(anchorX);
 
-            const isVisible = clampedX >= areaLeft && clampedX <= areaRight &&
-                clampedY >= areaTop && clampedY <= areaBottom;
+            const isVisible = visibleX >= areaLeft && visibleX <= areaRight &&
+                visibleY >= areaTop && visibleY <= areaBottom;
 
             return {
-                x: clampedX,
-                y: clampedY,
+                rawX: anchorX,
+                rawY: anchorY,
+                visibleX,
+                visibleY,
+                drawX: anchorX,
+                drawY: anchorY,
                 isVisible
             };
         };
@@ -10814,17 +10817,21 @@ class TimelineUnifiedRenderer {
                 return;
             }
 
+            const startRawY = startAnchor.rawY;
+            const endRawY = endAnchor.rawY;
+
             if (!startAnchor.isVisible && !endAnchor.isVisible) {
-                return;
+                const bothAbove = startRawY < areaTop && endRawY < areaTop;
+                const bothBelow = startRawY > areaBottom && endRawY > areaBottom;
+                if (bothAbove || bothBelow) {
+                    return;
+                }
             }
 
-            const clampX = (value) => Math.min(areaRight, Math.max(areaLeft, value));
-            const clampY = (value) => Math.min(areaBottom, Math.max(areaTop, value));
-
-            const startPointX = clampX(startAnchor.x);
-            const startPointY = clampY(startAnchor.y);
-            const endPointX = clampX(endAnchor.x);
-            const endPointY = clampY(endAnchor.y);
+            const startPointX = startAnchor.drawX;
+            const startPointY = startAnchor.drawY;
+            const endPointX = endAnchor.drawX;
+            const endPointY = endAnchor.drawY;
 
             const deltaX = endPointX - startPointX;
             const spanX = Math.abs(deltaX);
@@ -10834,6 +10841,8 @@ class TimelineUnifiedRenderer {
             const maxTangent = this.DAY_WIDTH * 4.5;
             let tangent = Math.min(baseTangent, maxTangent);
             tangent = Math.max(tangent / 2, this.DAY_WIDTH * 0.7);
+
+            const clampX = (value) => Math.min(areaRight, Math.max(areaLeft, value));
 
             const cp1Y = startPointY;
             const cp2Y = endPointY;
