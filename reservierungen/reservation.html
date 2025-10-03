@@ -283,6 +283,47 @@
       </div>
     </div>
 
+    <!-- Age Modal -->
+    <div id="ageModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-age">
+        <span id="closeAgeModal" class="modal-close">&times;</span>
+        <h2>Alter festlegen</h2>
+
+        <div class="age-modal-section">
+          <label for="ageModalBirthdate">Geburtsdatum</label>
+          <input type="date" id="ageModalBirthdate">
+        </div>
+
+        <div class="age-modal-divider">oder</div>
+
+        <div class="age-modal-section">
+          <label for="ageModalAgeInput">Alter bei Anreise (Jahre)</label>
+          <input type="text" id="ageModalAgeInput" maxlength="3" readonly>
+          <div class="age-keypad">
+            <button type="button" data-digit="1">1</button>
+            <button type="button" data-digit="2">2</button>
+            <button type="button" data-digit="3">3</button>
+            <button type="button" data-digit="4">4</button>
+            <button type="button" data-digit="5">5</button>
+            <button type="button" data-digit="6">6</button>
+            <button type="button" data-digit="7">7</button>
+            <button type="button" data-digit="8">8</button>
+            <button type="button" data-digit="9">9</button>
+            <button type="button" data-action="back">←</button>
+            <button type="button" data-digit="0">0</button>
+            <button type="button" data-action="clear">C</button>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="ageModalRemove" class="btn-secondary">Auf n/a setzen</button>
+          <button id="ageModalSave" class="btn-confirm">Speichern</button>
+          <button id="ageModalCancel" class="btn-cancel">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Namen hinzufügen Modal -->
     <div id="addNamesModal" class="modal hidden">
       <div class="modal-backdrop"></div>

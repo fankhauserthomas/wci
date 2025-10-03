@@ -133,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Action Bar Namen hinzufügen Button
   const addNamesBtn = document.getElementById('addNamesBtn');
 
+  let namesById = new Map();
+  let arrivalDateCache = null;
+
   // Namen hinzufügen Modal elements
   const addNamesModal = document.getElementById('addNamesModal');
   const addNamesModalClose = document.getElementById('addNamesModalClose');
@@ -168,6 +171,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const removeLongSpaces = document.getElementById('removeLongSpaces');
   const removeSpecialChars = document.getElementById('removeSpecialChars');
   const removeNumbers = document.getElementById('removeNumbers');
+
+  // Age modal elements
+  const ageModal = document.getElementById('ageModal');
+  const closeAgeModalBtn = document.getElementById('closeAgeModal');
+  const ageModalBirthdate = document.getElementById('ageModalBirthdate');
+  const ageModalAgeInput = document.getElementById('ageModalAgeInput');
+  const ageModalSave = document.getElementById('ageModalSave');
+  const ageModalCancel = document.getElementById('ageModalCancel');
+  const ageModalRemove = document.getElementById('ageModalRemove');
+  const ageModalBackdrop = document.querySelector('#ageModal .modal-backdrop');
+  const ageKeypadButtons = ageModal ? Array.from(ageModal.querySelectorAll('.age-keypad button')) : [];
+  let ageModalState = { id: null };
 
   if (!resId) {
     alert('Keine Reservierungs-ID in der URL.');
@@ -216,6 +231,74 @@ document.addEventListener('DOMContentLoaded', () => {
       return '';
     }
   };
+
+  function normalizeDateString(value) {
+    if (!value || typeof value !== 'string') return null;
+    const primary = value.split('T')[0].split(' ')[0];
+    const parts = primary.split('-');
+    if (parts.length !== 3) return null;
+    const [yearStr, monthStr, dayStr] = parts;
+    if (yearStr === '0000') return null;
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const day = parseInt(dayStr, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  function parseDateParts(value) {
+    const normalized = normalizeDateString(value);
+    if (!normalized) return null;
+    const [yearStr, monthStr, dayStr] = normalized.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const day = parseInt(dayStr, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+    return { year, month, day };
+  }
+
+  function formatDateParts(year, month, day) {
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  function parseDateStringToUTC(value) {
+    const parts = parseDateParts(value);
+    if (!parts) return null;
+    return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  }
+
+  function getArrivalDateUTC() {
+    if (arrivalDateCache !== null) return arrivalDateCache;
+    const rawArrival = currentReservationData?.detail?.anreise || currentReservationData?.detail?.anreise_date || null;
+    arrivalDateCache = parseDateStringToUTC(rawArrival);
+    return arrivalDateCache;
+  }
+
+  function computeAgeDisplay(birthdateString, arrivalDate) {
+    const normalized = normalizeDateString(birthdateString);
+    if (!normalized) return 'n/a';
+    if (!(arrivalDate instanceof Date)) return 'n/a';
+    const parts = parseDateParts(normalized);
+    if (!parts) return 'n/a';
+    const birthDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+    let age = arrivalDate.getUTCFullYear() - birthDate.getUTCFullYear();
+    const arrivalMonth = arrivalDate.getUTCMonth() + 1;
+    const arrivalDay = arrivalDate.getUTCDate();
+    if (arrivalMonth < parts.month || (arrivalMonth === parts.month && arrivalDay < parts.day)) {
+      age -= 1;
+    }
+    if (!Number.isFinite(age) || age < 0) {
+      age = 0;
+    }
+    return `${age}`;
+  }
+
+  function updateNameCache(id, changes) {
+    const key = Number(id);
+    if (!namesById.has(key)) return;
+    Object.assign(namesById.get(key), changes);
+  }
 
   // === NAME PROCESSING HELPER FUNCTIONS ===
 
@@ -391,6 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Store reservation data globally
       const oldInvoiceStatus = currentReservationData?.detail?.invoice;
       currentReservationData = data;
+      arrivalDateCache = null;
 
       // Handle AV Icon based on av_id
       if (data.detail && data.detail.av_id && parseInt(data.detail.av_id) > 0) {
@@ -888,6 +972,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Namen-Liste rendern (ausgelagert um Duplikation zu vermeiden)
   function renderNamesList(list) {
+    namesById = new Map();
+    const arrivalDate = getArrivalDateUTC();
     // Sort names alphabetically by nachname, then by vorname
     const sortedList = [...list].sort((a, b) => {
       const nameA = `${a.nachname || ''} ${a.vorname || ''}`.trim().toLowerCase();
@@ -953,13 +1039,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // AV-Zelle vorbereiten
       const isAv = n.av === true || n.av === 1 || n.av === '1' || n.av === 'true';
 
+      const normalizedBirthdate = normalizeDateString(n.gebdat);
+      namesById.set(Number(n.id), { ...n, gebdat: normalizedBirthdate });
+
       const logisLabel = n.logis_label || '–';
+      const rawAgeDisplay = computeAgeDisplay(normalizedBirthdate, arrivalDate);
+      const ageDisplay = rawAgeDisplay === 'n/a' ? 'n/a' : rawAgeDisplay;
+      const birthdateTitle = normalizeDateString(n.gebdat);
 
       tr.innerHTML = `
         <td><input type="checkbox" class="rowCheckbox"></td>
         <td class="name-cell">${n.nachname || ''} ${n.vorname || ''}</td>
         <td class="detail-cell" style="cursor:pointer; text-align: center;">${detailIcons}</td>
-        <td>${n.alter_bez || ''}</td>
+        <td class="age-cell" data-id="${n.id}" ${birthdateTitle ? `title="Geburtsdatum: ${birthdateTitle}"` : ''}>${ageDisplay}</td>
         <td class="bem-cell">${n.bem || ''}</td>
         <td class="guide-cell">
           <span class="guide-icon">${n.guide ? '✓' : '○'}</span>
@@ -1044,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td><input type="checkbox" class="rowCheckbox" disabled></td>
             <td class="name-cell" style="color: #ccc; font-style: italic;" title="Klicken zum Hinzufügen">+ Nachname Vorname</td>
             <td class="detail-cell" style="text-align: center;"><img src="${resAssetPath}dots.svg" alt="Details" class="detail-icon" style="opacity: 0.3;"></td>
-            <td></td>
+            <td class="age-cell">n/a</td>
             <td class="bem-cell"></td>
             <td class="guide-cell">
               <span class="guide-icon" style="opacity: 0.3;">○</span>
@@ -2165,6 +2257,202 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function openAgeModal(id) {
+    const entry = namesById.get(Number(id));
+    if (!entry || !ageModal) return;
+
+    ageModalState = { id: Number(id) };
+    const arrivalDate = getArrivalDateUTC();
+    const normalized = normalizeDateString(entry.gebdat);
+
+    if (ageModalBirthdate) {
+      ageModalBirthdate.value = normalized || '';
+    }
+
+    if (ageModalAgeInput) {
+      if (normalized && arrivalDate instanceof Date) {
+        const computed = computeAgeDisplay(normalized, arrivalDate);
+        ageModalAgeInput.value = computed === 'n/a' ? '' : computed;
+      } else {
+        ageModalAgeInput.value = '';
+      }
+    }
+
+    ageModal.classList.remove('hidden');
+    setTimeout(() => {
+      if (ageModalBirthdate) {
+        ageModalBirthdate.focus();
+      }
+    }, 50);
+  }
+
+  function closeAgeModal() {
+    if (!ageModal) return;
+    ageModal.classList.add('hidden');
+    if (ageModalBirthdate) ageModalBirthdate.value = '';
+    if (ageModalAgeInput) ageModalAgeInput.value = '';
+    ageModalState = { id: null };
+  }
+
+  async function persistBirthdate(id, isoBirthdate) {
+    const payload = { id: Number(id), gebdat: isoBirthdate };
+    const url = resApiPath('updateReservationNamesBirthdate.php');
+
+    try {
+      let response;
+      if (window.HttpUtils?.postJsonWithLoading) {
+        response = await HttpUtils.postJsonWithLoading(url, payload, httpOptions, 'Geburtsdatum wird gespeichert...', false);
+      } else {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        response = await res.json();
+      }
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Unbekannter Fehler');
+      }
+
+      const arrivalDate = getArrivalDateUTC();
+      const normalizedBirthdate = normalizeDateString(response.gebdat);
+      updateNameCache(id, { gebdat: normalizedBirthdate });
+      const display = normalizedBirthdate ? computeAgeDisplay(normalizedBirthdate, arrivalDate) : 'n/a';
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) {
+        const ageCell = row.querySelector('.age-cell');
+        if (ageCell) {
+          ageCell.textContent = display || 'n/a';
+          if (normalizedBirthdate) {
+            ageCell.setAttribute('title', `Geburtsdatum: ${normalizedBirthdate}`);
+          } else {
+            ageCell.removeAttribute('title');
+          }
+        }
+      }
+
+      closeAgeModal();
+    } catch (error) {
+      console.error('Geburtsdatum speichern fehlgeschlagen:', error);
+      alert('Fehler beim Speichern des Geburtsdatums: ' + (error.message || error));
+    } finally {
+      updateBulkButtonStates();
+    }
+  }
+
+  if (ageModalCancel) {
+    ageModalCancel.addEventListener('click', (event) => {
+      event.preventDefault();
+      closeAgeModal();
+    });
+  }
+
+  if (closeAgeModalBtn) {
+    closeAgeModalBtn.addEventListener('click', () => closeAgeModal());
+  }
+
+  if (ageModalBackdrop) {
+    ageModalBackdrop.addEventListener('click', () => closeAgeModal());
+  }
+
+  if (ageModalBirthdate) {
+    ageModalBirthdate.addEventListener('input', () => {
+      if (!ageModalBirthdate.value || !ageModalAgeInput) return;
+      const arrivalDate = getArrivalDateUTC();
+      if (!(arrivalDate instanceof Date)) {
+        ageModalAgeInput.value = '';
+        return;
+      }
+      const computed = computeAgeDisplay(ageModalBirthdate.value, arrivalDate);
+      ageModalAgeInput.value = computed === 'n/a' ? '' : computed;
+    });
+  }
+
+  function appendAgeDigit(digit) {
+    if (!ageModalAgeInput) return;
+    const maxDigits = 3;
+    let current = ageModalAgeInput.value.replace(/\D/g, '');
+    if (current.length >= maxDigits) return;
+    current = `${current}${digit}`.replace(/^0+(\d)/, '$1');
+    ageModalAgeInput.value = current;
+    if (ageModalBirthdate) {
+      ageModalBirthdate.value = '';
+    }
+  }
+
+  function ageBackspace() {
+    if (!ageModalAgeInput) return;
+    ageModalAgeInput.value = ageModalAgeInput.value.slice(0, -1);
+  }
+
+  function ageClear() {
+    if (!ageModalAgeInput) return;
+    ageModalAgeInput.value = '';
+  }
+
+  if (ageKeypadButtons.length) {
+    ageKeypadButtons.forEach((btn) => {
+      const digit = btn.dataset.digit;
+      const action = btn.dataset.action;
+      if (digit !== undefined) {
+        btn.addEventListener('click', () => appendAgeDigit(digit));
+      } else if (action === 'back') {
+        btn.addEventListener('click', () => ageBackspace());
+      } else if (action === 'clear') {
+        btn.addEventListener('click', () => ageClear());
+      }
+    });
+  }
+
+  if (ageModalSave) {
+    ageModalSave.addEventListener('click', async () => {
+      if (!ageModalState.id) {
+        closeAgeModal();
+        return;
+      }
+
+      const dateValue = ageModalBirthdate ? ageModalBirthdate.value.trim() : '';
+      const ageValueRaw = ageModalAgeInput ? ageModalAgeInput.value.trim() : '';
+      let isoBirthdate = null;
+
+      if (dateValue) {
+        isoBirthdate = dateValue;
+      } else if (ageValueRaw) {
+        const ageNumber = parseInt(ageValueRaw, 10);
+        if (!Number.isFinite(ageNumber) || ageNumber < 0 || ageNumber > 130) {
+          alert('Bitte ein gültiges Alter zwischen 0 und 130 eingeben.');
+          return;
+        }
+        const arrivalDate = getArrivalDateUTC();
+        if (!(arrivalDate instanceof Date)) {
+          alert('Anreisedatum ist nicht verfügbar.');
+          return;
+        }
+        const birthYear = arrivalDate.getUTCFullYear() - ageNumber;
+        isoBirthdate = `${String(birthYear).padStart(4, '0')}-01-01`;
+      } else {
+        alert('Bitte Geburtsdatum auswählen oder Alter eingeben.');
+        return;
+      }
+
+      await persistBirthdate(ageModalState.id, isoBirthdate);
+    });
+  }
+
+  if (ageModalRemove) {
+    ageModalRemove.addEventListener('click', async () => {
+      if (!ageModalState.id) {
+        closeAgeModal();
+        return;
+      }
+      await persistBirthdate(ageModalState.id, null);
+    });
+  }
+
   // Initial state
   updateBulkButtonStates();
 
@@ -2283,6 +2571,11 @@ document.addEventListener('DOMContentLoaded', () => {
       openArrModal([id], newLabel => {
         arrCell.textContent = newLabel;
       });
+      return;
+    }
+    const ageCell = e.target.closest('td.age-cell');
+    if (ageCell && row.dataset.id) {
+      openAgeModal(row.dataset.id);
       return;
     }
     // Logis inline: Klick auf ganze Zelle
