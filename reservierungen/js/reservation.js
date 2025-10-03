@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteBtn = document.getElementById('deleteBtn');
   const printBtn = document.getElementById('printBtn');
   const arrBtn = document.getElementById('arrangementBtn');
+  const logisBtn = document.getElementById('logisBtn');
   const dietBtn = document.getElementById('dietBtn');
   const backBtn = document.getElementById('backBtn');
   const importBtn = document.getElementById('importNamesBtn');
@@ -948,6 +949,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // AV-Zelle vorbereiten
       const isAv = n.av === true || n.av === 1 || n.av === '1' || n.av === 'true';
 
+      const logisLabel = n.logis_label || '–';
+
       tr.innerHTML = `
         <td><input type="checkbox" class="rowCheckbox"></td>
         <td class="name-cell">${n.nachname || ''} ${n.vorname || ''}</td>
@@ -961,6 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${isAv ? `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">` : '<span class="av-icon">○</span>'}
         </td>
         <td class="arr-cell">${n.arr || '–'}</td>
+        <td class="logis-cell">${logisLabel}</td>
         <td class="diet-cell">${n.diet_text || '–'}</td>
         <td class="noshow-cell" style="text-align: center; cursor: pointer;">
           <span class="noshow-indicator ${n.NoShow ? 'noshow-yes' : 'noshow-no'}" 
@@ -1045,6 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="av-icon" style="opacity: 0.3;">○</span>
             </td>
             <td class="arr-cell">–</td>
+            <td class="logis-cell">–</td>
             <td class="diet-cell">–</td>
             <td class="noshow-cell" style="text-align: center;">
               <span class="noshow-indicator noshow-no" style="opacity: 0.3;">✓</span>
@@ -1461,6 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteBtn.disabled = true;
       printBtn.disabled = true;
       arrBtn.disabled = true;
+      if (logisBtn) logisBtn.disabled = true;
       dietBtn.disabled = true;
       return;
     }
@@ -1529,6 +1535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Arrangement und Diät sind immer aktiv (arbeiten mit Auswahl oder allen)
     arrBtn.disabled = false;
+    if (logisBtn) logisBtn.disabled = false;
     dietBtn.disabled = false;
 
     // AV Toggle Button logic - immer aktiv
@@ -2161,6 +2168,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       return;
     }
+    // Logis inline: Klick auf ganze Zelle
+    const logisCell = e.target.closest('td.logis-cell');
+    if (logisCell) {
+      openLogisModal([id], newLabel => {
+        logisCell.textContent = newLabel;
+      });
+      return;
+    }
     // Diet inline: Klick auf ganze Zelle
     const dietCell = e.target.closest('td.diet-cell');
     if (dietCell) {
@@ -2602,6 +2617,25 @@ document.addEventListener('DOMContentLoaded', () => {
     openArrModal(ids, loadNames);
   });
 
+  if (logisBtn) {
+    logisBtn.addEventListener('click', () => {
+      const selectedIds = Array.from(document.querySelectorAll('.rowCheckbox:checked'))
+        .map(cb => cb.closest('tr').dataset.id);
+
+      const ids = selectedIds.length > 0
+        ? selectedIds
+        : Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'))
+          .map(row => row.dataset.id);
+
+      if (!ids.length) {
+        alert('Keine Namen vorhanden.');
+        return;
+      }
+
+      openLogisModal(ids, loadNames);
+    });
+  }
+
   function openArrModal(ids, onDone) {
     const modal = document.getElementById('arrangementModal');
     const container = document.getElementById('arrButtonsContainer');
@@ -2648,6 +2682,120 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('arrangementModal').classList.add('hidden');
       })
       .catch(e => alert('Fehler beim Speichern: ' + e.message));
+  }
+
+  function openLogisModal(ids, onDone) {
+    const modal = document.getElementById('logisModal');
+    const container = document.getElementById('logisButtonsContainer');
+    if (!modal || !container) {
+      console.error('Logis-Modal-Elemente nicht gefunden.');
+      return;
+    }
+
+    container.innerHTML = '';
+
+    const loadLogis = () => fetch(resApiPath('getLogis.php'))
+      .then(r => {
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+        return r.json();
+      });
+
+    const handleLogis = (logisList) => {
+      if (!Array.isArray(logisList) || logisList.length === 0) {
+        container.innerHTML = '<p>Keine Logis-Daten verfügbar.</p>';
+        modal.classList.remove('hidden');
+        return;
+      }
+
+      logisList.forEach(item => {
+        const btn = document.createElement('button');
+        btn.textContent = item.kbez || `#${item.id}`;
+        if (item.bez) {
+          btn.title = item.bez;
+        }
+        btn.addEventListener('click', () => {
+          applyLogis(item.id, item.kbez || `#${item.id}`, ids, onDone);
+        });
+        container.appendChild(btn);
+      });
+
+      modal.classList.remove('hidden');
+    };
+
+    if (window.LoadingOverlay) {
+      LoadingOverlay.wrapFetch(loadLogis, 'Logis')
+        .then(handleLogis)
+        .catch(err => {
+          console.error('Fehler beim Laden der Logis:', err);
+          alert('Fehler beim Laden der Logis-Daten.');
+        });
+    } else {
+      loadLogis()
+        .then(handleLogis)
+        .catch(err => {
+          console.error('Fehler beim Laden der Logis:', err);
+          alert('Fehler beim Laden der Logis-Daten.');
+        });
+    }
+  }
+
+  const closeLogisModal = document.getElementById('closeLogisModal');
+  if (closeLogisModal) {
+    closeLogisModal.addEventListener('click', () => {
+      const modal = document.getElementById('logisModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    });
+  }
+
+  const logisBackdrop = document.querySelector('#logisModal .modal-backdrop');
+  if (logisBackdrop) {
+    logisBackdrop.addEventListener('click', () => {
+      const modal = document.getElementById('logisModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    });
+  }
+
+  function applyLogis(logisId, label, ids, onDone) {
+    fetch(resApiPath('updateReservationNamesLogis.php'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, logis: logisId })
+    })
+      .then(r => {
+        if (!r.ok) {
+          return r.text().then(t => { throw new Error(t); });
+        }
+        return r.json();
+      })
+      .then(j => {
+        if (!j.success) {
+          throw new Error(j.error || 'Unbekannter Fehler');
+        }
+
+        if (ids.length === 1) {
+          const cell = document.querySelector(`tr[data-id="${ids[0]}"] .logis-cell`);
+          if (cell) {
+            cell.textContent = label;
+          }
+        } else if (typeof onDone === 'function') {
+          onDone();
+        }
+
+        const modal = document.getElementById('logisModal');
+        if (modal) {
+          modal.classList.add('hidden');
+        }
+      })
+      .catch(err => {
+        console.error('Fehler beim Aktualisieren der Logis:', err);
+        alert('Fehler beim Speichern der Logis-Auswahl: ' + err.message);
+      });
   }
 
   // Funktion um Reservierungs-Arrangement allen Namen zuzuweisen

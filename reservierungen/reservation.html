@@ -226,6 +226,7 @@
       <button id="addNewNamesBtn" class="btn-add-names">+ Namen</button>
       <button id="bulkAvToggleBtn" class="btn-bulk-av" disabled>AV Toggle</button>
       <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
+      <button id="logisBtn" class="btn-arrangement">Logis…</button>
       <button id="dietBtn" class="btn-diet">Diät…</button>
       <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
       <button id="bulkCheckoutBtn" class="btn-bulk" disabled>Bulk Check-out</button>
@@ -245,6 +246,7 @@
             <th>BF</th>
             <th>AV</th>
             <th>Arr</th>
+            <th>Logis</th>
             <th>Diät</th>
             <th>No-Show</th>
             <th>Check-in</th>
@@ -264,6 +266,16 @@
         <span id="closeArrModal" class="modal-close">&times;</span>
         <h2>Arrangement wählen</h2>
         <div id="arrButtonsContainer" class="arr-buttons"></div>
+      </div>
+    </div>
+
+    <!-- Logis Modal -->
+    <div id="logisModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <span id="closeLogisModal" class="modal-close">&times;</span>
+        <h2>Logis wählen</h2>
+        <div id="logisButtonsContainer" class="arr-buttons"></div>
       </div>
     </div>
 

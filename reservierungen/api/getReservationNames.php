@@ -24,7 +24,23 @@ if (!ctype_digit($id)) {
     exit;
 }
 
-// === 4) SELECT: Namen + dynamische Altersgruppe ===
+// === 4) Prüfen, ob Logis-Spalte vorhanden ist
+$logisColumnExists = false;
+$columnCheck = $mysqli->query("SHOW COLUMNS FROM `AV-ResNamen` LIKE 'logis'");
+if ($columnCheck) {
+    $logisColumnExists = $columnCheck->num_rows > 0;
+    $columnCheck->free();
+}
+
+// === 5) SELECT: Namen + dynamische Altersgruppe ===
+$logisSelect = $logisColumnExists
+    ? "  n.logis AS logis_id,\n  l.kbez AS logis_label,\n"
+    : "  NULL AS logis_id,\n  NULL AS logis_label,\n";
+
+$logisJoin = $logisColumnExists
+    ? "LEFT JOIN `logis` AS l ON l.id = NULLIF(n.logis, 0)\n"
+    : '';
+
 $sql = "
 SELECT
   n.id AS id,
@@ -35,7 +51,7 @@ SELECT
   n.bem AS bem,
   n.guide AS guide,
   n.av AS av,
-  n.NoShow AS NoShow,
+" . $logisSelect . "  n.NoShow AS NoShow,
   a.kbez AS arr,
   d.bez AS diet_text,
   n.dietInfo,
@@ -60,7 +76,7 @@ FROM `AV-ResNamen` AS n
 JOIN `AV-Res` AS r ON r.id = n.av_id
 LEFT JOIN `countries` AS o ON n.herkunft = o.id
 LEFT JOIN `arr` AS a ON a.id = COALESCE(NULLIF(n.arr, 0), 5)
-LEFT JOIN `diet` AS d ON d.id = COALESCE(NULLIF(n.diet, 0), 1)
+" . $logisJoin . "LEFT JOIN `diet` AS d ON d.id = COALESCE(NULLIF(n.diet, 0), 1)
 LEFT JOIN `Ages` AS ag ON TIMESTAMPDIFF(YEAR, n.gebdat, CURDATE()) BETWEEN ag.von AND ag.bis
 
 WHERE n.av_id = ?
@@ -90,12 +106,16 @@ if ($res === false) {
     exit;
 }
 
-// === 5) Ergebnis aufbauen ===
+// === 6) Ergebnis aufbauen ===
 $data = [];
 while ($row = $res->fetch_assoc()) {
     // Boolean cast für JS
     $row['guide'] = (bool)$row['guide'];
     $row['NoShow'] = (bool)$row['NoShow'];
+
+    if (array_key_exists('logis_id', $row)) {
+        $row['logis_id'] = $row['logis_id'] !== null ? (int)$row['logis_id'] : null;
+    }
     
     // Check-in/Check-out-Werte normalisieren
     // NULL, leerer String oder 0000-00-00 00:00:00 = nicht eingecheckt
@@ -116,7 +136,7 @@ while ($row = $res->fetch_assoc()) {
 }
 $stmt->close();
 
-// === 6) Ausgabe ===
+// === 7) Ausgabe ===
 // Debug: Zeige die ersten 2 Datensätze zur Kontrolle
 if (count($data) > 0) {
     $debugInfo = [
