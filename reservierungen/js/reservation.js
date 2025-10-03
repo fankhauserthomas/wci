@@ -118,9 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectAll = document.getElementById('selectAll');
   const deleteBtn = document.getElementById('deleteBtn');
   const printBtn = document.getElementById('printBtn');
-  const arrBtn = document.getElementById('arrangementBtn');
-  const logisBtn = document.getElementById('logisBtn');
-  const dietBtn = document.getElementById('dietBtn');
+  const arrBtn = document.getElementById('arrHeaderBtn');
+  const logisBtn = document.getElementById('logisHeaderBtn');
+  const dietBtn = document.getElementById('dietHeaderBtn');
+  const noShowHeaderBtn = document.getElementById('noshowHeaderBtn');
+  const bulkCheckinBtn = document.getElementById('checkinHeaderBtn');
+  const bulkCheckoutBtn = document.getElementById('checkoutHeaderBtn');
+  const bulkAvToggleBtn = document.getElementById('avHeaderBtn');
   const backBtn = document.getElementById('backBtn');
   const importBtn = document.getElementById('importNamesBtn');
   const newArea = document.getElementById('newNamesTextarea');
@@ -963,8 +967,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="av-cell">
           ${isAv ? `<img src="${resAssetPath}AV.svg" alt="AV" style="width: 16px; height: 16px;">` : '<span class="av-icon">○</span>'}
         </td>
-        <td class="arr-cell">${n.arr || '–'}</td>
         <td class="logis-cell">${logisLabel}</td>
+        <td class="arr-cell">${n.arr || '–'}</td>
         <td class="diet-cell">${n.diet_text || '–'}</td>
         <td class="noshow-cell" style="text-align: center; cursor: pointer;">
           <span class="noshow-indicator ${n.NoShow ? 'noshow-yes' : 'noshow-no'}" 
@@ -1048,8 +1052,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <td class="av-cell">
               <span class="av-icon" style="opacity: 0.3;">○</span>
             </td>
-            <td class="arr-cell">–</td>
             <td class="logis-cell">–</td>
+            <td class="arr-cell">–</td>
             <td class="diet-cell">–</td>
             <td class="noshow-cell" style="text-align: center;">
               <span class="noshow-indicator noshow-no" style="opacity: 0.3;">✓</span>
@@ -1441,37 +1445,64 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBulkButtonStates();
   });
 
-  // 3.5) Bulk Check-in/Check-out Toggle Funktionalität
-  const bulkCheckinBtn = document.getElementById('bulkCheckinBtn');
-  const bulkCheckoutBtn = document.getElementById('bulkCheckoutBtn');
-  const bulkAvToggleBtn = document.getElementById('bulkAvToggleBtn');
+  // 3.5) Bulk Header Button Verwaltung
+  [arrBtn, logisBtn, dietBtn, noShowHeaderBtn, bulkCheckinBtn, bulkCheckoutBtn, bulkAvToggleBtn].forEach(btn => {
+    if (btn && typeof btn.dataset.defaultTitle === 'undefined') {
+      btn.dataset.defaultTitle = btn.title || '';
+    }
+  });
+
+  function setHeaderButtonState(button, { disabled = false, mode = '', title = '' } = {}) {
+    if (!button) return;
+    button.disabled = !!disabled;
+    if (mode) {
+      button.dataset.mode = mode;
+    } else {
+      delete button.dataset.mode;
+    }
+    if (title) {
+      button.title = title;
+    } else if (button.dataset.defaultTitle) {
+      button.title = button.dataset.defaultTitle;
+    } else {
+      button.removeAttribute('title');
+    }
+  }
 
   function updateBulkButtonStates() {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
     const hasSelection = selectedRows.length > 0;
-
-    // Verwende ausgewählte Zeilen oder alle Zeilen falls keine Auswahl
     const targetRows = hasSelection ? selectedRows : allRows;
 
+    const selectionLabel = hasSelection
+      ? `${selectedRows.length} ausgewählte Gäste`
+      : `alle ${allRows.length} Gäste`;
+
     if (targetRows.length === 0) {
-      // Keine Zeilen vorhanden - alle Buttons deaktivieren
-      bulkCheckinBtn.disabled = true;
-      bulkCheckinBtn.textContent = 'Bulk Check-in';
-      bulkCheckoutBtn.disabled = true;
-      bulkCheckoutBtn.textContent = 'Bulk Check-out';
-      bulkAvToggleBtn.disabled = true;
-      bulkAvToggleBtn.textContent = 'AV Toggle';
-      bulkAvToggleBtn.className = 'btn-bulk-av';
+      setHeaderButtonState(bulkCheckinBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      setHeaderButtonState(bulkCheckoutBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      setHeaderButtonState(bulkAvToggleBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      setHeaderButtonState(noShowHeaderBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+
+      if (arrBtn) {
+        arrBtn.disabled = true;
+        setHeaderButtonState(arrBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      }
+      if (logisBtn) {
+        logisBtn.disabled = true;
+        setHeaderButtonState(logisBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      }
+      if (dietBtn) {
+        dietBtn.disabled = true;
+        setHeaderButtonState(dietBtn, { disabled: true, mode: 'disable', title: 'Keine Gäste vorhanden' });
+      }
+
       deleteBtn.disabled = true;
       printBtn.disabled = true;
-      arrBtn.disabled = true;
-      if (logisBtn) logisBtn.disabled = true;
-      dietBtn.disabled = true;
       return;
     }
 
-    // Analyze target guests to determine button states
     const checkinStates = targetRows.map(row => {
       const checkinCell = row.querySelector('.checkin-cell');
       const checkoutCell = row.querySelector('.checkout-cell');
@@ -1483,85 +1514,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const allCheckedIn = checkinStates.every(state => state.isCheckedIn);
     const noneCheckedIn = checkinStates.every(state => !state.isCheckedIn);
-    const someCheckedIn = checkinStates.some(state => state.isCheckedIn);
-
     const allCheckedOut = checkinStates.every(state => state.isCheckedOut);
-    const noneCheckedOut = checkinStates.every(state => !state.isCheckedOut);
-    const someCheckedOut = checkinStates.some(state => state.isCheckedOut);
-
-    // Check-in button logic - immer aktiv
-    bulkCheckinBtn.disabled = false;
-    const selectionText = hasSelection ? ` (${selectedRows.length})` : ` (alle ${allRows.length})`;
-
-    if (allCheckedIn) {
-      bulkCheckinBtn.textContent = `Undo Check-in${selectionText}`;
-      bulkCheckinBtn.className = 'btn-bulk btn-undo';
-    } else if (noneCheckedIn) {
-      bulkCheckinBtn.textContent = `Check-in${selectionText}`;
-      bulkCheckinBtn.className = 'btn-bulk';
-    } else {
-      bulkCheckinBtn.textContent = `Toggle Check-in${selectionText}`;
-      bulkCheckinBtn.className = 'btn-bulk btn-mixed';
-    }
-
-    // Check-out button logic - immer aktiv wenn möglich
     const eligibleForCheckout = checkinStates.filter(state => state.isCheckedIn && !state.isCheckedOut).length;
     const eligibleForUndoCheckout = checkinStates.filter(state => state.isCheckedOut).length;
 
-    if (eligibleForCheckout === 0 && eligibleForUndoCheckout === 0) {
-      bulkCheckoutBtn.disabled = true;
-      bulkCheckoutBtn.textContent = 'Bulk Check-out';
-      bulkCheckoutBtn.className = 'btn-bulk';
-    } else {
-      bulkCheckoutBtn.disabled = false;
-      if (allCheckedOut) {
-        bulkCheckoutBtn.textContent = `Undo Check-out${selectionText}`;
-        bulkCheckoutBtn.className = 'btn-bulk btn-undo';
-      } else if (eligibleForCheckout > 0 && eligibleForUndoCheckout === 0) {
-        bulkCheckoutBtn.textContent = `Check-out${selectionText}`;
-        bulkCheckoutBtn.className = 'btn-bulk';
-      } else if (eligibleForCheckout === 0 && eligibleForUndoCheckout > 0) {
-        bulkCheckoutBtn.textContent = `Undo Check-out${selectionText}`;
-        bulkCheckoutBtn.className = 'btn-bulk btn-undo';
+    if (bulkCheckinBtn) {
+      const mode = allCheckedIn ? 'undo' : (noneCheckedIn ? 'checkin' : 'toggle');
+      const title = mode === 'undo'
+        ? `Check-in für ${selectionLabel} zurücknehmen`
+        : mode === 'checkin'
+          ? `Check-in für ${selectionLabel}`
+          : `Check-in für ${selectionLabel} durchführen (gemischter Status)`;
+      setHeaderButtonState(bulkCheckinBtn, { disabled: false, mode, title });
+    }
+
+    if (bulkCheckoutBtn) {
+      if (eligibleForCheckout === 0 && eligibleForUndoCheckout === 0) {
+        setHeaderButtonState(bulkCheckoutBtn, {
+          disabled: true,
+          mode: 'disable',
+          title: 'Kein Check-out möglich – Gäste müssen eingecheckt sein'
+        });
       } else {
-        bulkCheckoutBtn.textContent = `Toggle Check-out${selectionText}`;
-        bulkCheckoutBtn.className = 'btn-bulk btn-mixed';
+        let mode = 'checkout';
+        if (eligibleForCheckout === 0 && eligibleForUndoCheckout > 0) {
+          mode = 'undo';
+        } else if (eligibleForCheckout > 0 && eligibleForUndoCheckout > 0) {
+          mode = 'toggle';
+        } else if (allCheckedOut) {
+          mode = 'undo';
+        }
+        const title = mode === 'undo'
+          ? `Check-out für ${selectionLabel} zurücknehmen`
+          : mode === 'checkout'
+            ? `Check-out für ${selectionLabel}`
+            : `Check-out für ${selectionLabel} durchführen (gemischter Status)`;
+        setHeaderButtonState(bulkCheckoutBtn, { disabled: false, mode, title });
       }
     }
 
-    // Nur Löschen und Drucken erfordern eine Auswahl
+    if (bulkAvToggleBtn) {
+      const avStates = targetRows.map(row => {
+        const avCell = row.querySelector('.av-cell');
+        const hasAvImg = avCell && avCell.querySelector('img[src*="AV.svg"]');
+        return hasAvImg ? 1 : 0;
+      });
+
+      const allAv = avStates.every(state => state === 1);
+      const noneAv = avStates.every(state => state === 0);
+      const mode = allAv ? 'remove' : (noneAv ? 'add' : 'toggle');
+      const title = mode === 'remove'
+        ? `AV-Status für ${selectionLabel} entfernen`
+        : mode === 'add'
+          ? `AV-Status für ${selectionLabel} aktivieren`
+          : `AV-Status für ${selectionLabel} umschalten`;
+      setHeaderButtonState(bulkAvToggleBtn, { disabled: false, mode, title });
+    }
+
+    if (noShowHeaderBtn) {
+      const noShowStates = targetRows.map(row => {
+        const indicator = row.querySelector('.noshow-indicator');
+        return indicator ? indicator.classList.contains('noshow-yes') : false;
+      });
+
+      const allNoShow = noShowStates.every(Boolean);
+      const noneNoShow = noShowStates.every(state => !state);
+      const mode = allNoShow ? 'clear' : (noneNoShow ? 'mark' : 'toggle');
+      const title = mode === 'clear'
+        ? `No-Show für ${selectionLabel} zurücksetzen`
+        : mode === 'mark'
+          ? `No-Show für ${selectionLabel} markieren`
+          : `No-Show für ${selectionLabel} umschalten`;
+      setHeaderButtonState(noShowHeaderBtn, { disabled: false, mode, title });
+    }
+
+    if (arrBtn) {
+      arrBtn.disabled = false;
+      setHeaderButtonState(arrBtn, { disabled: false, mode: '', title: `Arrangement für ${selectionLabel} wählen` });
+    }
+    if (logisBtn) {
+      logisBtn.disabled = false;
+      setHeaderButtonState(logisBtn, { disabled: false, mode: '', title: `Logis für ${selectionLabel} wählen` });
+    }
+    if (dietBtn) {
+      dietBtn.disabled = false;
+      setHeaderButtonState(dietBtn, { disabled: false, mode: '', title: `Diät für ${selectionLabel} wählen` });
+    }
+
     deleteBtn.disabled = !hasSelection;
     printBtn.disabled = !hasSelection;
-
-    // Arrangement und Diät sind immer aktiv (arbeiten mit Auswahl oder allen)
-    arrBtn.disabled = false;
-    if (logisBtn) logisBtn.disabled = false;
-    dietBtn.disabled = false;
-
-    // AV Toggle Button logic - immer aktiv
-    bulkAvToggleBtn.disabled = false;
-
-    // Analyze AV states for button text
-    const avStates = targetRows.map(row => {
-      const avCell = row.querySelector('.av-cell');
-      // Check if it contains an img with AV.svg (true) or just text content (false)
-      const hasAvImg = avCell && avCell.querySelector('img[src*="AV.svg"]');
-      return hasAvImg ? 1 : 0;
-    });
-
-    const allAv = avStates.every(state => state === 1);
-    const noneAv = avStates.every(state => state === 0);
-
-    if (allAv) {
-      bulkAvToggleBtn.textContent = `AV Off${selectionText}`;
-      bulkAvToggleBtn.className = 'btn-bulk-av btn-undo';
-    } else if (noneAv) {
-      bulkAvToggleBtn.textContent = `AV On${selectionText}`;
-      bulkAvToggleBtn.className = 'btn-bulk-av';
-    } else {
-      bulkAvToggleBtn.textContent = `Toggle AV${selectionText}`;
-      bulkAvToggleBtn.className = 'btn-bulk-av btn-mixed';
-    }
   }
 
   function getSelectedRows() {
@@ -1582,7 +1623,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Bulk Check-in Toggle mit robuster Fehlerbehandlung
-  bulkCheckinBtn.addEventListener('click', async () => {
+  if (bulkCheckinBtn) bulkCheckinBtn.addEventListener('click', async () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
 
@@ -1591,9 +1632,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (targetRows.length === 0) return;
 
-    // Determine what action to take based on current button state
-    const isUndoMode = bulkCheckinBtn.textContent.includes('Undo');
-    const isMixedMode = bulkCheckinBtn.textContent.includes('Toggle');
+    const mode = bulkCheckinBtn.dataset.mode || 'checkin';
+    const isUndoMode = mode === 'undo';
 
     let eligibleRows = [];
     let action = '';
@@ -1617,11 +1657,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (eligibleRows.length === 0) {
-      if (isUndoMode) {
-        alert('Keine Gäste können aus-gecheckt werden (Check-in zurückgenommen werden).');
-      } else {
-        alert('Alle Gäste sind bereits eingecheckt.');
-      }
+      alert(isUndoMode
+        ? 'Keine Gäste können aus-gecheckt werden (Check-in zurückgenommen werden).'
+        : 'Alle Gäste sind bereits eingecheckt.');
       return;
     }
 
@@ -1741,7 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Bulk Check-out Toggle mit robuster Fehlerbehandlung
-  bulkCheckoutBtn.addEventListener('click', async () => {
+  if (bulkCheckoutBtn) bulkCheckoutBtn.addEventListener('click', async () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
 
@@ -1750,9 +1788,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (targetRows.length === 0) return;
 
-    // Determine what action to take based on current button state
-    const isUndoMode = bulkCheckoutBtn.textContent.includes('Undo');
-    const isMixedMode = bulkCheckoutBtn.textContent.includes('Toggle');
+    const mode = bulkCheckoutBtn.dataset.mode || 'checkout';
+    const isUndoMode = mode === 'undo';
 
     let eligibleRows = [];
     let action = '';
@@ -1776,11 +1813,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (eligibleRows.length === 0) {
-      if (isUndoMode) {
-        alert('Keine Gäste können aus-gecheckt werden (Check-out zurückgenommen werden).');
-      } else {
-        alert('Keine Gäste können ausgecheckt werden.\n(Gäste müssen eingecheckt und noch nicht ausgecheckt sein)');
-      }
+      alert(isUndoMode
+        ? 'Keine Gäste können aus-gecheckt werden (Check-out zurückgenommen werden).'
+        : 'Keine Gäste können ausgecheckt werden.\n(Gäste müssen eingecheckt und noch nicht ausgecheckt sein)');
       return;
     }
 
@@ -1897,7 +1932,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Bulk AV Toggle mit robuster Fehlerbehandlung
-  bulkAvToggleBtn.addEventListener('click', async () => {
+  if (bulkAvToggleBtn) bulkAvToggleBtn.addEventListener('click', async () => {
     const selectedRows = getSelectedRows();
     const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
 
@@ -1906,9 +1941,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (targetRows.length === 0) return;
 
-    // Determine action based on current button state
-    const isOffMode = bulkAvToggleBtn.textContent.includes('AV Off');
-    const isMixedMode = bulkAvToggleBtn.textContent.includes('Toggle AV');
+    const mode = bulkAvToggleBtn.dataset.mode || 'toggle';
+    const isOffMode = mode === 'remove';
 
     let eligibleRows = [];
     let action = '';
@@ -1930,11 +1964,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (eligibleRows.length === 0) {
-      if (isOffMode) {
-        alert('Keine Gäste haben AV-Status aktiviert.');
-      } else {
-        alert('Alle Gäste haben bereits AV-Status aktiviert.');
-      }
+      alert(isOffMode
+        ? 'Keine Gäste haben AV-Status aktiviert.'
+        : 'Alle Gäste haben bereits AV-Status aktiviert.');
       return;
     }
 
@@ -2043,6 +2075,91 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Bulk AV Toggle error:', error);
       alert(`❌ Kritischer Fehler beim Batch ${actionText}:\n${error.message}\n\nBitte einzeln versuchen oder Verbindung prüfen.`);
+    } finally {
+      updateBulkButtonStates();
+    }
+  });
+
+  if (noShowHeaderBtn) noShowHeaderBtn.addEventListener('click', async () => {
+    const selectedRows = getSelectedRows();
+    const allRows = Array.from(document.querySelectorAll('#namesTable tbody tr[data-id]'));
+    const targetRows = selectedRows.length > 0 ? selectedRows : allRows;
+
+    if (targetRows.length === 0) return;
+
+    const mode = noShowHeaderBtn.dataset.mode || 'mark';
+
+    const rowsToToggle = targetRows.map(row => {
+      const indicator = row.querySelector('.noshow-indicator');
+      const isMarked = indicator ? indicator.classList.contains('noshow-yes') : false;
+      return { row, indicator, isMarked };
+    }).filter(item => {
+      if (!item.indicator) return false;
+      if (mode === 'clear') return item.isMarked;
+      if (mode === 'mark') return !item.isMarked;
+      return true;
+    });
+
+    if (rowsToToggle.length === 0) {
+      alert(mode === 'clear'
+        ? 'Es sind keine Gäste als No-Show markiert.'
+        : 'Alle Gäste besitzen bereits den gewünschten No-Show Status.');
+      return;
+    }
+
+    if (window.connectionMonitor && !window.connectionMonitor.isOnline()) {
+      alert('Keine Internetverbindung. Bitte Verbindung prüfen und erneut versuchen.');
+      return;
+    }
+
+    const actionLabel = mode === 'clear'
+      ? 'No-Show entfernen'
+      : mode === 'mark' ? 'No-Show markieren' : 'No-Show umschalten';
+
+    const toggleOperation = async () => {
+      const results = await Promise.allSettled(rowsToToggle.map(item =>
+        fetch(resApiPath('toggleNoShow.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.row.dataset.id })
+        }).then(r => r.json())
+      ));
+
+      const errors = [];
+
+      results.forEach((result, index) => {
+        const item = rowsToToggle[index];
+        const indicator = item.indicator;
+        const nameCell = item.row.querySelector('.name-cell');
+        const guestName = nameCell ? nameCell.textContent.trim() : `ID ${item.row.dataset.id}`;
+
+        if (result.status === 'fulfilled' && result.value.success) {
+          const newValue = result.value.newValue === 1;
+          indicator.textContent = newValue ? '❌' : '✓';
+          indicator.className = `noshow-indicator ${newValue ? 'noshow-yes' : 'noshow-no'}`;
+          indicator.title = newValue ? 'No-Show markiert' : 'Klicken für No-Show';
+        } else {
+          const errorMsg = result.status === 'rejected'
+            ? (result.reason?.message || 'Unbekannter Fehler')
+            : (result.value?.error || 'Unbekannter Fehler');
+          errors.push(`${guestName}: ${errorMsg}`);
+        }
+      });
+
+      if (errors.length > 0) {
+        alert(`❌ Fehler bei ${errors.length} ${actionLabel}:\n${errors.join('\n')}`);
+      }
+    };
+
+    try {
+      if (window.LoadingOverlay) {
+        await LoadingOverlay.wrap(toggleOperation, `${actionLabel} für ${rowsToToggle.length} Gäste...`);
+      } else {
+        await toggleOperation();
+      }
+    } catch (error) {
+      console.error('Bulk No-Show operation error:', error);
+      alert(`❌ Fehler beim Aktualisieren des No-Show Status: ${error.message}`);
     } finally {
       updateBulkButtonStates();
     }
@@ -2599,7 +2716,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // 7) Global arrangement
-  arrBtn.addEventListener('click', () => {
+  if (arrBtn) arrBtn.addEventListener('click', () => {
     const selectedIds = Array.from(document.querySelectorAll('.rowCheckbox:checked'))
       .map(cb => cb.closest('tr').dataset.id);
 
@@ -2939,7 +3056,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 8) Global diet
-  dietBtn.addEventListener('click', () => {
+  if (dietBtn) dietBtn.addEventListener('click', () => {
     const selectedIds = Array.from(document.querySelectorAll('.rowCheckbox:checked'))
       .map(cb => cb.closest('tr').dataset.id);
 

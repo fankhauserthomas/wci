@@ -224,12 +224,6 @@
       <button id="deleteBtn">Löschen</button>
       <button id="printBtn">Drucken</button>
       <button id="addNewNamesBtn" class="btn-add-names">+ Namen</button>
-      <button id="bulkAvToggleBtn" class="btn-bulk-av" disabled>AV Toggle</button>
-      <button id="arrangementBtn" class="btn-arrangement">Arrangement…</button>
-      <button id="logisBtn" class="btn-arrangement">Logis…</button>
-      <button id="dietBtn" class="btn-diet">Diät…</button>
-      <button id="bulkCheckinBtn" class="btn-bulk" disabled>Bulk Check-in</button>
-      <button id="bulkCheckoutBtn" class="btn-bulk" disabled>Bulk Check-out</button>
       <button id="backBtn">Zurück zur Liste</button>
     </div>
 
@@ -244,13 +238,13 @@
             <th>Alter</th>
             <th>Bemerkung</th>
             <th>BF</th>
-            <th>AV</th>
-            <th>Arr</th>
-            <th>Logis</th>
-            <th>Diät</th>
-            <th>No-Show</th>
-            <th>Check-in</th>
-            <th>Check-out</th>
+            <th class="col-av"><button type="button" id="avHeaderBtn" class="table-header-button" title="AV-Status umschalten">AV</button></th>
+            <th class="col-logis"><button type="button" id="logisHeaderBtn" class="table-header-button" title="Logis wählen">Logis</button></th>
+            <th class="col-arr"><button type="button" id="arrHeaderBtn" class="table-header-button" title="Arrangement wählen">Arr</button></th>
+            <th class="col-diet"><button type="button" id="dietHeaderBtn" class="table-header-button" title="Diät wählen">Diät</button></th>
+            <th class="col-noshow"><button type="button" id="noshowHeaderBtn" class="table-header-button" title="No-Show markieren">No-Show</button></th>
+            <th class="col-checkin"><button type="button" id="checkinHeaderBtn" class="table-header-button" title="Check-in durchführen">Check-in</button></th>
+            <th class="col-checkout"><button type="button" id="checkoutHeaderBtn" class="table-header-button" title="Check-out durchführen">Check-out</button></th>
           </tr>
         </thead>
         <tbody>

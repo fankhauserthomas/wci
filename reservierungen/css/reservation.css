@@ -515,6 +515,60 @@ html {
   text-decoration: underline;
 }
 
+.table-header-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.1;
+  color: #ecf0f1;
+  background: #2c3e50;
+  border: 1px solid #1f2a35;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+  box-sizing: border-box;
+}
+
+.table-header-button:not(:disabled):hover {
+  background: #375a78;
+  transform: translateY(-1px);
+}
+
+.table-header-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.table-header-button[data-mode="undo"],
+.table-header-button[data-mode="remove"],
+.table-header-button[data-mode="clear"] {
+  background: #8e44ad;
+  border-color: #71368c;
+}
+
+.table-header-button[data-mode="toggle"],
+.table-header-button[data-mode="mark"] {
+  background: #d35400;
+  border-color: #a04000;
+}
+
+.table-header-button[data-mode="add"],
+.table-header-button[data-mode="checkin"],
+.table-header-button[data-mode="checkout"] {
+  background: #27ae60;
+  border-color: #1e8449;
+}
+
+.table-header-button[data-mode="disable"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #4b4b4b;
+  border-color: #3a3a3a;
+}
+
 /* Globaler Diät-Button (lila) */
 .btn-diet {
   padding: 0.5rem 1rem;
