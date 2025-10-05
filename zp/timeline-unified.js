@@ -11,6 +11,9 @@ if (typeof window !== 'undefined') {
     window.histogramSource = histogramSourceData;
     window.histogramStornoSource = histogramStornoSourceData;
     window.histogramAvailability = histogramAvailabilityData;
+    window.reservations = reservations;
+    window.roomDetails = roomDetails;
+    window.rooms = rooms;
 
     // Initialize debug mode from sessionStorage
     if (sessionStorage.getItem('debugStickyNotes') === 'true') {
@@ -1878,7 +1881,14 @@ class TimelineUnifiedRenderer {
             reservation.data?.is_disposed ??
             null;
 
-        return !this.normalizeBoolean(disposedFlag);
+        const isDisposed = this.normalizeBoolean(disposedFlag);
+        if (!isDisposed) {
+            return true;
+        }
+
+        const mismatchInfo = this.getCapacityMismatchInfo(reservation);
+        const hasMismatch = Boolean(mismatchInfo && (mismatchInfo.hasAnyMismatch || mismatchInfo.mismatch || mismatchInfo.dateMismatch));
+        return hasMismatch;
     }
 
     extractMasterReservationIdentifiers(reservation) {
@@ -1916,6 +1926,30 @@ class TimelineUnifiedRenderer {
         identifiers.uniqueId = reservation.id || (resId !== null && resId !== undefined ? `res_${resId}` : null);
 
         return identifiers;
+    }
+
+    findMasterReservationByResId(resId) {
+        const normalizedTarget = this.normalizeReservationId(resId);
+        if (!normalizedTarget || !Array.isArray(reservations)) {
+            return null;
+        }
+
+        return reservations.find(reservation => {
+            const identifiers = this.extractMasterReservationIdentifiers(reservation);
+            const candidateIds = [
+                identifiers.resId,
+                reservation.res_id,
+                reservation.reservation_id,
+                reservation.resid,
+                reservation.id,
+                reservation.data?.res_id,
+                reservation.data?.id,
+                reservation.fullData?.res_id,
+                reservation.fullData?.id
+            ];
+
+            return candidateIds.some(candidate => this.normalizeReservationId(candidate) === normalizedTarget);
+        }) || null;
     }
 
     getReservationCapacityValue(reservation) {
@@ -7648,6 +7682,10 @@ class TimelineUnifiedRenderer {
                     if (data.success) {
                         console.log('✅ Dataset erfolgreich aktualisiert');
 
+                        delete detail._datasetBackup;
+                        delete detail._datasetMasterRef;
+                        delete detail._datasetMasterBackup;
+
                         // Optional: Daten neu laden für vollständige Synchronisation
                         if (formData.isAVReservation) {
                             console.log('🔄 Lade Daten neu wegen AV-Update');
@@ -7682,52 +7720,429 @@ class TimelineUnifiedRenderer {
     }
 
     updateLocalDetailData(detail, formData) {
-        // Sichere aktuelle Daten für Rollback
-        detail._backupData = JSON.parse(JSON.stringify(detail.data || {}));
-
-        if (!detail.data) detail.data = {};
-
-        // Update lokale Daten
-        if (formData.firstname) detail.data.firstname = formData.firstname;
-        if (formData.lastname) {
-            detail.data.lastname = formData.lastname;
-            detail.guest_name = formData.lastname; // Auch Haupt-Property aktualisieren
-        }
-        if (formData.email) detail.data.email = formData.email;
-        if (formData.phone) detail.data.handy = formData.phone;
-        if (formData.group) detail.data.gruppenname = formData.group;
-        if (formData.notes) detail.data.notes = formData.notes;
-
-        // Datumsbereich aktualisieren
-        if (formData.checkin) {
-            const newStart = new Date(formData.checkin + 'T12:00:00');
-            detail.start = newStart;
-            detail.data.start = newStart.toISOString();
-        }
-        if (formData.checkout) {
-            const newEnd = new Date(formData.checkout + 'T12:00:00');
-            detail.end = newEnd;
-            detail.data.end = newEnd.toISOString();
+        if (!detail || !formData) {
+            return;
         }
 
-        // Kapazität aktualisieren
-        if (formData.guests) {
-            detail.capacity = formData.guests;
-            detail.data.capacity = formData.guests;
-            detail.data.anz = formData.guests;
+        const deepClone = (value) => {
+            if (value === undefined || value === null) {
+                return null;
+            }
+            try {
+                return JSON.parse(JSON.stringify(value));
+            } catch (error) {
+                console.warn('Failed to clone value for dataset backup:', error);
+                return null;
+            }
+        };
+
+        if (!detail.data || typeof detail.data !== 'object') {
+            detail.data = {};
+        }
+        if (!detail.fullData || typeof detail.fullData !== 'object') {
+            detail.fullData = {};
+        }
+
+        const originalStart = detail.start instanceof Date
+            ? detail.start.toISOString()
+            : (detail.start ? new Date(detail.start).toISOString() : null);
+        const originalEnd = detail.end instanceof Date
+            ? detail.end.toISOString()
+            : (detail.end ? new Date(detail.end).toISOString() : null);
+
+        detail._datasetBackup = {
+            start: originalStart,
+            end: originalEnd,
+            capacity: detail.capacity ?? null,
+            caption: detail.caption ?? null,
+            guest_name: detail.guest_name ?? null,
+            arrangement_label: detail.arrangement_label ?? null,
+            has_dog: detail.has_dog ?? null,
+            hund: detail.hund ?? null,
+            storno: detail.storno ?? null,
+            data: deepClone(detail.data),
+            fullData: deepClone(detail.fullData)
+        };
+
+        const identifiers = this.extractDetailIdentifiers(detail);
+        const linkedReservation = identifiers.resId ? this.findMasterReservationByResId(identifiers.resId) : null;
+
+        if (linkedReservation) {
+            const masterStart = linkedReservation.start instanceof Date
+                ? linkedReservation.start.toISOString()
+                : (linkedReservation.start ? new Date(linkedReservation.start).toISOString() : null);
+            const masterEnd = linkedReservation.end instanceof Date
+                ? linkedReservation.end.toISOString()
+                : (linkedReservation.end ? new Date(linkedReservation.end).toISOString() : null);
+
+            detail._datasetMasterRef = linkedReservation;
+            detail._datasetMasterBackup = {
+                snapshot: {
+                    start: masterStart,
+                    end: masterEnd,
+                    capacity: linkedReservation.capacity ?? null,
+                    vorname: linkedReservation.vorname ?? null,
+                    nachname: linkedReservation.nachname ?? null,
+                    name: linkedReservation.name ?? null,
+                    guest_name: linkedReservation.guest_name ?? null,
+                    arrangement_name: linkedReservation.arrangement_name ?? null,
+                    arr_kbez: linkedReservation.arr_kbez ?? null,
+                    has_dog: linkedReservation.has_dog ?? null,
+                    hund: linkedReservation.hund ?? null,
+                    storno: linkedReservation.storno ?? null,
+                    data: deepClone(linkedReservation.data),
+                    fullData: deepClone(linkedReservation.fullData)
+                }
+            };
+        } else {
+            delete detail._datasetMasterRef;
+            delete detail._datasetMasterBackup;
+        }
+
+        const toNumber = (value) => {
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric : 0;
+        };
+
+        const safeString = (value) => (value ?? '').toString().trim();
+
+        const parseDateValue = (value) => {
+            if (!value) {
+                return null;
+            }
+
+            const isoCandidate = `${value}T12:00:00`;
+            const primary = new Date(isoCandidate);
+            if (!Number.isNaN(primary.getTime())) {
+                return primary;
+            }
+
+            const fallback = new Date(value);
+            return Number.isNaN(fallback.getTime()) ? null : fallback;
+        };
+
+        const startDate = parseDateValue(formData.anreise);
+        if (startDate) {
+            detail.start = startDate;
+            detail.data.start = startDate.toISOString();
+            detail.data.anreise = formData.anreise;
+            detail.data.von = startDate.toISOString();
+            detail.fullData.start = startDate.toISOString();
+            detail.fullData.anreise = formData.anreise;
+            detail.fullData.von = startDate.toISOString();
+        }
+
+        const endDate = parseDateValue(formData.abreise);
+        if (endDate) {
+            detail.end = endDate;
+            detail.data.end = endDate.toISOString();
+            detail.data.abreise = formData.abreise;
+            detail.data.bis = endDate.toISOString();
+            detail.fullData.end = endDate.toISOString();
+            detail.fullData.abreise = formData.abreise;
+            detail.fullData.bis = endDate.toISOString();
+        }
+
+        const betten = toNumber(formData.betten);
+        const dz = toNumber(formData.dz);
+        const lager = toNumber(formData.lager);
+        const sonder = toNumber(formData.sonder);
+        const totalGuests = betten + dz + lager + sonder;
+
+        detail.capacity = totalGuests > 0 ? totalGuests : (detail.capacity ?? totalGuests);
+        detail.data.capacity = totalGuests;
+        detail.data.anz = totalGuests;
+        detail.data.betten = betten;
+        detail.data.dz = dz;
+        detail.data.lager = lager;
+        detail.data.sonder = sonder;
+        detail.fullData.capacity = totalGuests;
+        detail.fullData.anz = totalGuests;
+        detail.fullData.betten = betten;
+        detail.fullData.dz = dz;
+        detail.fullData.lager = lager;
+        detail.fullData.sonder = sonder;
+
+        const vorname = safeString(formData.vorname);
+        const nachname = safeString(formData.nachname);
+        const fullName = [nachname, vorname].filter(Boolean).join(' ').trim();
+
+        detail.data.vorname = vorname;
+        detail.data.vname = vorname;
+        detail.data.nachname = nachname;
+        detail.data.name = nachname;
+        detail.data.guest_name = fullName;
+        detail.fullData.vorname = vorname;
+        detail.fullData.vname = vorname;
+        detail.fullData.nachname = nachname;
+        detail.fullData.name = nachname;
+        detail.fullData.guest_name = fullName;
+
+        if (fullName) {
+            detail.caption = fullName;
+            detail.guest_name = fullName;
+            detail.name = fullName;
+        }
+
+        const email = safeString(formData.email);
+        const handy = safeString(formData.handy);
+        const gruppe = safeString(formData.gruppe);
+        const bem = formData.bem ?? '';
+        const bemAv = formData.bem_av ?? '';
+
+        detail.data.email = email;
+        detail.data.mail = email;
+        detail.data.handy = handy;
+        detail.data.phone = handy;
+        detail.data.gruppe = gruppe;
+        detail.data.gruppenname = gruppe;
+        detail.data.bem = bem;
+        detail.data.bem_av = bemAv;
+        detail.fullData.email = email;
+        detail.fullData.mail = email;
+        detail.fullData.handy = handy;
+        detail.fullData.phone = handy;
+        detail.fullData.gruppe = gruppe;
+        detail.fullData.gruppenname = gruppe;
+        detail.fullData.bem = bem;
+        detail.fullData.bem_av = bemAv;
+
+        const origin = formData.origin ?? null;
+        detail.data.origin = origin;
+        detail.data.herkunft = origin;
+        detail.fullData.origin = origin;
+        detail.fullData.herkunft = origin;
+
+        const arrangementsSource = Array.isArray(this.arrangementsCatalog) && this.arrangementsCatalog.length > 0
+            ? this.arrangementsCatalog
+            : (Array.isArray(arrangementsCatalog) ? arrangementsCatalog : []);
+        let arrangementLabel = detail.arrangement_label || detail.data?.arrangement || '';
+        if (formData.arr === null || formData.arr === undefined || formData.arr === '') {
+            arrangementLabel = '';
+        } else {
+            const matched = arrangementsSource.find(item => {
+                const candidateIds = [item.id, item.rawId];
+                return candidateIds.some(candidate => this.normalizeReservationId(candidate) === this.normalizeReservationId(formData.arr));
+            });
+            if (matched && matched.label) {
+                arrangementLabel = matched.label;
+            }
+        }
+
+        detail.arrangement_label = arrangementLabel;
+        detail.data.arr = formData.arr ?? null;
+        detail.data.arr_id = formData.arr ?? null;
+        detail.data.arrangement = arrangementLabel;
+        detail.data.arrangement_kbez = arrangementLabel;
+        detail.fullData.arr = formData.arr ?? null;
+        detail.fullData.arr_id = formData.arr ?? null;
+        detail.fullData.arrangement = arrangementLabel;
+        detail.fullData.arrangement_kbez = arrangementLabel;
+
+        const storno = toNumber(formData.storno);
+        detail.storno = storno;
+        detail.data.storno = storno;
+        detail.fullData.storno = storno;
+
+        const hasDog = toNumber(formData.hund) > 0;
+        detail.has_dog = hasDog;
+        detail.hund = hasDog ? 1 : 0;
+        detail.data.has_dog = hasDog;
+        detail.data.hund = detail.hund;
+        detail.fullData.has_dog = hasDog;
+        detail.fullData.hund = detail.hund;
+
+        if (linkedReservation) {
+            if (!linkedReservation.data || typeof linkedReservation.data !== 'object') {
+                linkedReservation.data = {};
+            }
+            if (!linkedReservation.fullData || typeof linkedReservation.fullData !== 'object') {
+                linkedReservation.fullData = {};
+            }
+
+            if (startDate) {
+                linkedReservation.start = startDate;
+                linkedReservation.data.start = startDate.toISOString();
+                linkedReservation.data.anreise = formData.anreise;
+                linkedReservation.data.von = startDate.toISOString();
+                linkedReservation.fullData.start = startDate.toISOString();
+                linkedReservation.fullData.anreise = formData.anreise;
+                linkedReservation.fullData.von = startDate.toISOString();
+            }
+
+            if (endDate) {
+                linkedReservation.end = endDate;
+                linkedReservation.data.end = endDate.toISOString();
+                linkedReservation.data.abreise = formData.abreise;
+                linkedReservation.data.bis = endDate.toISOString();
+                linkedReservation.fullData.end = endDate.toISOString();
+                linkedReservation.fullData.abreise = formData.abreise;
+                linkedReservation.fullData.bis = endDate.toISOString();
+            }
+
+            linkedReservation.capacity = totalGuests > 0 ? totalGuests : (linkedReservation.capacity ?? totalGuests);
+            linkedReservation.data.capacity = totalGuests;
+            linkedReservation.data.anz = totalGuests;
+            linkedReservation.data.betten = betten;
+            linkedReservation.data.dz = dz;
+            linkedReservation.data.lager = lager;
+            linkedReservation.data.sonder = sonder;
+            linkedReservation.fullData.capacity = totalGuests;
+            linkedReservation.fullData.anz = totalGuests;
+            linkedReservation.fullData.betten = betten;
+            linkedReservation.fullData.dz = dz;
+            linkedReservation.fullData.lager = lager;
+            linkedReservation.fullData.sonder = sonder;
+
+            linkedReservation.vorname = vorname;
+            linkedReservation.nachname = nachname;
+            linkedReservation.data.vorname = vorname;
+            linkedReservation.data.vname = vorname;
+            linkedReservation.data.nachname = nachname;
+            linkedReservation.data.name = nachname;
+            linkedReservation.data.guest_name = fullName;
+            linkedReservation.fullData.vorname = vorname;
+            linkedReservation.fullData.vname = vorname;
+            linkedReservation.fullData.nachname = nachname;
+            linkedReservation.fullData.name = nachname;
+            linkedReservation.fullData.guest_name = fullName;
+
+            if (fullName) {
+                linkedReservation.name = fullName;
+                linkedReservation.guest_name = fullName;
+            }
+
+            linkedReservation.arrangement_name = arrangementLabel;
+            linkedReservation.arr_kbez = arrangementLabel;
+            linkedReservation.data.arr = formData.arr ?? null;
+            linkedReservation.data.arr_id = formData.arr ?? null;
+            linkedReservation.data.arrangement = arrangementLabel;
+            linkedReservation.data.arrangement_kbez = arrangementLabel;
+            linkedReservation.fullData.arr = formData.arr ?? null;
+            linkedReservation.fullData.arr_id = formData.arr ?? null;
+            linkedReservation.fullData.arrangement = arrangementLabel;
+            linkedReservation.fullData.arrangement_kbez = arrangementLabel;
+
+            linkedReservation.has_dog = hasDog;
+            linkedReservation.hund = hasDog ? 1 : 0;
+            linkedReservation.data.has_dog = hasDog;
+            linkedReservation.data.hund = linkedReservation.hund;
+            linkedReservation.fullData.has_dog = hasDog;
+            linkedReservation.fullData.hund = linkedReservation.hund;
+
+            linkedReservation.storno = storno;
+            linkedReservation.data.storno = storno;
+            linkedReservation.fullData.storno = storno;
+
+            linkedReservation.data.email = email;
+            linkedReservation.data.mail = email;
+            linkedReservation.data.handy = handy;
+            linkedReservation.data.phone = handy;
+            linkedReservation.data.gruppe = gruppe;
+            linkedReservation.data.gruppenname = gruppe;
+            linkedReservation.data.bem = bem;
+            linkedReservation.data.bem_av = bemAv;
+            linkedReservation.data.origin = origin;
+            linkedReservation.data.herkunft = origin;
+            linkedReservation.fullData.email = email;
+            linkedReservation.fullData.mail = email;
+            linkedReservation.fullData.handy = handy;
+            linkedReservation.fullData.phone = handy;
+            linkedReservation.fullData.gruppe = gruppe;
+            linkedReservation.fullData.gruppenname = gruppe;
+            linkedReservation.fullData.bem = bem;
+            linkedReservation.fullData.bem_av = bemAv;
+            linkedReservation.fullData.origin = origin;
+            linkedReservation.fullData.herkunft = origin;
         }
     }
 
     rollbackLocalDetailData(detail) {
-        if (detail._backupData) {
-            detail.data = detail._backupData;
-            delete detail._backupData;
+        if (!detail) {
+            return;
+        }
 
-            // Auch Haupt-Properties zurücksetzen
-            if (detail.data.lastname) detail.guest_name = detail.data.lastname;
-            if (detail.data.start) detail.start = new Date(detail.data.start);
-            if (detail.data.end) detail.end = new Date(detail.data.end);
-            if (detail.data.capacity) detail.capacity = detail.data.capacity;
+        const clone = (value) => {
+            if (value === undefined || value === null) {
+                return undefined;
+            }
+            try {
+                return JSON.parse(JSON.stringify(value));
+            } catch (error) {
+                console.warn('Failed to clone value during dataset rollback:', error);
+                return undefined;
+            }
+        };
+
+        if (detail._datasetBackup) {
+            const backup = detail._datasetBackup;
+
+            if (backup.data) {
+                detail.data = clone(backup.data) || {};
+            } else {
+                detail.data = {};
+            }
+
+            if (backup.fullData) {
+                detail.fullData = clone(backup.fullData) || {};
+            } else {
+                detail.fullData = {};
+            }
+
+            if (backup.start) {
+                detail.start = new Date(backup.start);
+            }
+            if (backup.end) {
+                detail.end = new Date(backup.end);
+            }
+
+            detail.capacity = backup.capacity ?? detail.capacity;
+            detail.caption = backup.caption ?? detail.caption;
+            detail.guest_name = backup.guest_name ?? detail.guest_name;
+            detail.arrangement_label = backup.arrangement_label ?? detail.arrangement_label;
+            detail.has_dog = backup.has_dog ?? detail.has_dog;
+            detail.hund = backup.hund ?? detail.hund;
+            detail.storno = backup.storno ?? detail.storno;
+
+            delete detail._datasetBackup;
+        }
+
+        if (detail._datasetMasterRef && detail._datasetMasterBackup) {
+            const reservation = detail._datasetMasterRef;
+            const snapshot = detail._datasetMasterBackup.snapshot || {};
+
+            if (snapshot.data) {
+                reservation.data = clone(snapshot.data) || {};
+            } else {
+                reservation.data = {};
+            }
+
+            if (snapshot.fullData) {
+                reservation.fullData = clone(snapshot.fullData) || {};
+            } else {
+                reservation.fullData = {};
+            }
+
+            if (snapshot.start) {
+                reservation.start = new Date(snapshot.start);
+            }
+            if (snapshot.end) {
+                reservation.end = new Date(snapshot.end);
+            }
+
+            reservation.capacity = snapshot.capacity ?? reservation.capacity;
+            reservation.vorname = snapshot.vorname ?? reservation.vorname;
+            reservation.nachname = snapshot.nachname ?? reservation.nachname;
+            reservation.name = snapshot.name ?? reservation.name;
+            reservation.guest_name = snapshot.guest_name ?? reservation.guest_name;
+            reservation.arrangement_name = snapshot.arrangement_name ?? reservation.arrangement_name;
+            reservation.arr_kbez = snapshot.arr_kbez ?? reservation.arr_kbez;
+            reservation.has_dog = snapshot.has_dog ?? reservation.has_dog;
+            reservation.hund = snapshot.hund ?? reservation.hund;
+            reservation.storno = snapshot.storno ?? reservation.storno;
+
+            delete detail._datasetMasterRef;
+            delete detail._datasetMasterBackup;
         }
     }
 
@@ -11139,6 +11554,22 @@ class TimelineUnifiedRenderer {
         // Verwende Theme-Standard-Farbe wenn keine spezifische Farbe gesetzt
         let color = this.getMasterReservationColor(reservation);
 
+        const masterMismatchInfo = this.getCapacityMismatchInfo(reservation);
+        const hasCapacityMismatch = Boolean(masterMismatchInfo && masterMismatchInfo.mismatch);
+        const hasDateMismatch = Boolean(masterMismatchInfo && masterMismatchInfo.dateMismatch);
+        const hasMasterMismatch = Boolean(masterMismatchInfo && (masterMismatchInfo.hasAnyMismatch || hasCapacityMismatch || hasDateMismatch));
+        let mismatchPulse = 0;
+
+        if (hasMasterMismatch) {
+            const pulsePhase = Date.now() / 280;
+            mismatchPulse = (Math.sin(pulsePhase) + 1) / 2;
+            if (typeof color === 'string' && color.startsWith('#')) {
+                const lightenAmount = 8 + mismatchPulse * 12;
+                color = this.lightenColor(color, lightenAmount);
+            }
+            this.scheduleRender('master_mismatch_pulse');
+        }
+
         const renderX = x;
         const renderY = y;
         const renderWidth = width;
@@ -11152,7 +11583,13 @@ class TimelineUnifiedRenderer {
             }
         }
 
-        if (isHovered) {
+        if (hasMasterMismatch) {
+            const glowAlpha = 0.32 + mismatchPulse * 0.4;
+            this.ctx.shadowColor = `rgba(255, 210, 70, ${glowAlpha})`;
+            this.ctx.shadowBlur = 12 + mismatchPulse * 16;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+        } else if (isHovered) {
             if (typeof color === 'string' && color.startsWith('#')) {
                 color = this.lightenColor(color, 20);
             }
@@ -11162,12 +11599,27 @@ class TimelineUnifiedRenderer {
             this.ctx.shadowOffsetY = 1;
         }
 
+        const baseFillAlpha = hasMasterMismatch ? (0.5 + mismatchPulse * 0.25) : 1;
+        this.ctx.globalAlpha = baseFillAlpha;
         this.ctx.fillStyle = color;
         this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
         this.ctx.fill();
+
+        if (hasMasterMismatch) {
+            this.ctx.globalAlpha = 1;
+            const overlayAlpha = 0.25 + mismatchPulse * 0.25;
+            this.ctx.fillStyle = `rgba(255, 196, 0, ${overlayAlpha})`;
+            this.roundedRect(renderX, renderY, renderWidth, renderHeight, 3);
+            this.ctx.fill();
+        }
+
         this.ctx.restore();
 
-        this.ctx.strokeStyle = isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
+        let masterStrokeStyle = isHovered ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)';
+        if (hasMasterMismatch) {
+            masterStrokeStyle = `rgba(255, 183, 48, ${0.45 + mismatchPulse * 0.35})`;
+        }
+        this.ctx.strokeStyle = masterStrokeStyle;
         this.ctx.lineWidth = 1;
         this.ctx.stroke();
 
@@ -12242,6 +12694,12 @@ class TimelineUnifiedRenderer {
         reservations = newReservations || [];
         roomDetails = newRoomDetails || [];
         rooms = newRooms || [];
+
+        if (typeof window !== 'undefined') {
+            window.reservations = reservations;
+            window.roomDetails = roomDetails;
+            window.rooms = rooms;
+        }
 
         this.setArrangementsCatalog(arrangementsCatalog);
         this.setHistogramSource(histogramSourceData, histogramStornoSourceData, histogramAvailabilityData);
