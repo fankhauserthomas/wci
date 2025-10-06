@@ -687,20 +687,25 @@
 
         .assign-grid-inner {
             display: grid;
-            gap: 4px;
+            gap: 1px;
+            grid-auto-rows: 32px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 150px));
         }
 
         .assign-room {
             background: #ffffff;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
-            padding: 8px;
+            padding: 2px 4px;
             display: flex;
             flex-direction: row;
-            align-items: center;
-            gap: 8px;
-            min-height: 38px;
+            align-items: stretch;
+            gap: 0;
+            min-height: 32px;
+            height: 32px;
+            box-sizing: border-box;
             position: relative;
+            width: 100%;
         }
 
         .assign-room.drop-target {
@@ -720,43 +725,58 @@
 
         .assign-room-title {
             display: flex;
-            flex-direction: row;
-            align-items: center;
-            font-size: 10px;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 1px;
+            flex: 0 0 74px;
+            margin-right: 3px;
+        }
+
+        .assign-room-title-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            max-width: 100%;
+        }
+
+        .assign-room-name {
+            font-size: 8px;
             font-weight: 600;
-            min-width: 70px;
             line-height: 1.1;
-            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .assign-room-meta {
             color: #64748b;
-            font-size: 9px;
+            font-size: 7.5px;
             font-weight: 400;
+            line-height: 1;
         }
 
         /* Debug: per-day availability als farbkodierte Ovale */
         .assign-bar-debug {
-            position: absolute;
-            left: 6px;
-            bottom: 0px;
             display: flex;
-            gap: 3px;
+            flex-wrap: wrap;
+            gap: 1px;
             pointer-events: none;
+            margin-top: 1px;
         }
 
         .assign-day-oval {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 14px;
+            min-width: 16px;
+            height: 10px;
             border-radius: 2px;
-            font-size: 9px;
+            font-size: 7px;
             font-weight: 600;
             color: #fff;
             text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
-            padding: 0 4px;
+            padding: 0 2px;
         }
 
         .assign-day-oval.full {
@@ -795,18 +815,20 @@
 
         /* Leere Grid-Zellen */
         .assign-empty-cell {
-            min-height: 38px;
+            min-height: 32px;
             background: transparent;
         }
 
         .assign-bar {
             position: relative;
-            height: 32px;
+            height: 20px;
             border-radius: 4px;
             background: #eef2f7;
             border: 1px solid #dde3ea;
             cursor: ew-resize;
-            flex: 1;
+            flex: 1 1 auto;
+            min-width: 42px;
+            margin-top: 3px;
             overflow: hidden;
         }
 
@@ -852,7 +874,14 @@
 
         .assign-controls {
             display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: stretch;
+            flex-shrink: 0;
+            margin-left: 0;
+            min-width: 24px;
             gap: 2px;
+            padding: 1px 0;
         }
 
         .assign-btn {
@@ -870,10 +899,11 @@
         }
 
         .assign-btn.small {
-            padding: 2px 5px;
-            font-size: 11px;
-            min-width: 20px;
-            height: 20px;
+            padding: 0;
+            font-size: 10px;
+            min-width: 24px;
+            height: 14px;
+            line-height: 14px;
             border-radius: 4px;
         }
 
@@ -2211,7 +2241,7 @@
                 // Rastergröße aus Zimmereditor (px/py)
                 const maxX = Math.max(1, ...rooms.map(r => r.px || 1));
                 const maxY = Math.max(1, ...rooms.map(r => r.py || 1));
-                gridInner.style.gridTemplateColumns = `repeat(${maxX}, minmax(220px, 1fr))`;
+                gridInner.style.gridTemplateColumns = `repeat(${maxX}, 150px)`;
                 const posKey = (r) => `${r.px || 1}_${r.py || 1}`;
                 const map = new Map();
                 rooms.forEach(r => { const k = posKey(r); if (!map.has(k)) map.set(k, []); map.get(k).push(r); });
@@ -2443,9 +2473,24 @@
                             roomWrap.dataset.baselineAssigned = String(baselineAssigned);
                             roomWrap.dataset.otherOccupied = String(baseOtherOccupied);
                             roomWrap.dataset.displayCapacity = String(displayTotalCapacity);
-                            title.innerHTML = initialMetaValue
-                                ? `<span>${roomTitleText}</span> <span class="assign-room-meta">${initialMetaValue}</span>`
-                                : `<span>${roomTitleText}</span>`;
+                            title.innerHTML = '';
+                            const titleLabel = document.createElement('span');
+                            titleLabel.textContent = roomTitleText;
+                            titleLabel.className = 'assign-room-name';
+                            const metaLabel = document.createElement('span');
+                            metaLabel.className = 'assign-room-meta';
+                            if (initialMetaValue) {
+                                metaLabel.textContent = initialMetaValue;
+                                metaLabel.style.display = '';
+                            } else {
+                                metaLabel.textContent = '';
+                                metaLabel.style.display = 'none';
+                            }
+                            const titleStack = document.createElement('div');
+                            titleStack.className = 'assign-room-title-stack';
+                            titleStack.appendChild(titleLabel);
+                            titleStack.appendChild(metaLabel);
+                            title.appendChild(titleStack);
                             // Farb-Akzent links auf Basis der Zimmerfarbe (#RRGGBB oder #AARRGGBB)
                             if (room.col && typeof room.col === 'string') {
                                 let col = room.col.trim();
@@ -2498,6 +2543,8 @@
                                     debugLabel.appendChild(oval);
                                 });
                             }
+
+                            title.appendChild(debugLabel);
 
                             // Bestimme Zimmer-Hintergrundfarbe basierend auf Gesamtverfügbarkeit
                             // Wende Farbklassen direkt auf roomWrap an
@@ -2605,9 +2652,14 @@
                                     ? `${currentOccupied}/${totalCapacity}`
                                     : '';
 
-                                title.innerHTML = metaValue
-                                    ? `<span>${roomTitleText}</span> <span class="assign-room-meta">${metaValue}</span>`
-                                    : `<span>${roomTitleText}</span>`;
+                                titleLabel.textContent = roomTitleText;
+                                if (metaValue) {
+                                    metaLabel.textContent = metaValue;
+                                    metaLabel.style.display = '';
+                                } else {
+                                    metaLabel.textContent = '';
+                                    metaLabel.style.display = 'none';
+                                }
 
                                 btnMinus.disabled = assigned <= 0;
                                 btnPlus.disabled = availableToAddInt <= 0;
@@ -2661,7 +2713,7 @@
                                 }
                             });
 
-                            bar.appendChild(fill); bar.appendChild(label); bar.appendChild(capLabel); bar.appendChild(debugLabel);
+                            bar.appendChild(fill); bar.appendChild(label); bar.appendChild(capLabel);
 
                             roomWrap.appendChild(title);
                             roomWrap.appendChild(bar);

@@ -62,8 +62,315 @@ function isReadOnlyCaption($caption) {
     return mb_strtolower(trim((string)$caption)) === 'ablage';
 }
 
+const ZIMMER_WORKING_TABLE = 'zp_zimmer';
+const ZIMMER_TABLE_PREFIX = 'zp_zimmer_';
+
+function zimmer_config_slug($name) {
+    $slug = trim((string)$name);
+    if ($slug === '') {
+        return '';
+    }
+    $slug = mb_strtolower($slug, 'UTF-8');
+    $slug = preg_replace('/[^a-z0-9]+/u', '_', $slug);
+    $slug = trim($slug, '_');
+    if ($slug === 'zimmer' || $slug === '') {
+        return '';
+    }
+    return $slug;
+}
+
+function zimmer_config_label($slug) {
+    if ($slug === '__working__' || $slug === '' || $slug === null) {
+        return 'Aktive Konfiguration';
+    }
+    $parts = array_filter(explode('_', (string)$slug));
+    $parts = array_map(function ($p) {
+        return mb_convert_case($p, MB_CASE_TITLE, 'UTF-8');
+    }, $parts);
+    return implode(' ', $parts) ?: $slug;
+}
+
+function zimmer_config_table_from_key($key) {
+    if ($key === '__working__' || $key === '' || $key === null) {
+        return ZIMMER_WORKING_TABLE;
+    }
+    return ZIMMER_TABLE_PREFIX . $key;
+}
+
+function zimmer_config_normalize_key($value) {
+    if ($value === null) {
+        return '__working__';
+    }
+    $value = trim((string)$value);
+    if ($value === '' || $value === '__working__') {
+        return '__working__';
+    }
+    if (strpos($value, ZIMMER_TABLE_PREFIX) === 0) {
+        $value = substr($value, strlen(ZIMMER_TABLE_PREFIX));
+    }
+    $slug = zimmer_config_slug($value);
+    if ($slug === '') {
+        return '';
+    }
+    return $slug;
+}
+
+function zimmer_config_table_exists(mysqli $mysqli, $tableName) {
+    $sql = 'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1';
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('s', $tableName);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $exists = $res && $res->num_rows > 0;
+    $stmt->close();
+    return $exists;
+}
+
+function zimmer_config_row_count(mysqli $mysqli, $tableName) {
+    if (!preg_match('/^[a-z0-9_]+$/i', $tableName)) {
+        return 0;
+    }
+    $sql = sprintf('SELECT COUNT(*) AS c FROM `%s`', $tableName);
+    $res = $mysqli->query($sql);
+    if (!$res) {
+        return 0;
+    }
+    $row = $res->fetch_assoc();
+    $res->close();
+    return isset($row['c']) ? (int)$row['c'] : 0;
+}
+
+function zimmer_config_list(mysqli $mysqli) {
+    $configs = [];
+
+    $configs[] = [
+        'key' => '__working__',
+        'label' => zimmer_config_label('__working__'),
+        'table' => ZIMMER_WORKING_TABLE,
+        'rows' => zimmer_config_row_count($mysqli, ZIMMER_WORKING_TABLE),
+        'protected' => true
+    ];
+
+    $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE '" . ZIMMER_TABLE_PREFIX . "%'";
+    $res = $mysqli->query($sql);
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $table = $row['TABLE_NAME'];
+            if ($table === ZIMMER_WORKING_TABLE) {
+                continue;
+            }
+            $suffix = substr($table, strlen(ZIMMER_TABLE_PREFIX));
+            if (!$suffix) {
+                continue;
+            }
+            $configs[] = [
+                'key' => $suffix,
+                'label' => zimmer_config_label($suffix),
+                'table' => $table,
+                'rows' => zimmer_config_row_count($mysqli, $table),
+                'protected' => false
+            ];
+        }
+        $res->close();
+    }
+
+    usort($configs, function ($a, $b) {
+        if ($a['key'] === '__working__') {
+            return -1;
+        }
+        if ($b['key'] === '__working__') {
+            return 1;
+        }
+        return strcasecmp($a['label'], $b['label']);
+    });
+
+    return $configs;
+}
+
+function zimmer_config_create(mysqli $mysqli, $targetSlug, $sourceKey = '__working__', $overwrite = false) {
+    if ($targetSlug === '__working__' || $targetSlug === '' || $targetSlug === null) {
+        throw new Exception('Ungültiger Zielname.');
+    }
+
+    $targetTable = zimmer_config_table_from_key($targetSlug);
+    if (!preg_match('/^[a-z0-9_]+$/', $targetTable)) {
+        throw new Exception('Ungültiger Tabellenname.');
+    }
+
+    $sourceTable = zimmer_config_table_from_key($sourceKey);
+    if (!zimmer_config_table_exists($mysqli, $sourceTable)) {
+        throw new Exception('Quellkonfiguration nicht gefunden.');
+    }
+
+    $alreadyExists = zimmer_config_table_exists($mysqli, $targetTable);
+    if ($alreadyExists && !$overwrite) {
+        throw new Exception('Konfiguration existiert bereits.');
+    }
+
+    $mysqli->begin_transaction();
+    try {
+        if ($alreadyExists && $overwrite) {
+            $sqlDrop = sprintf('DROP TABLE `%s`', $targetTable);
+            if (!$mysqli->query($sqlDrop)) {
+                throw new Exception($mysqli->error);
+            }
+        }
+
+        $sqlCreate = sprintf('CREATE TABLE `%s` LIKE `%s`', $targetTable, $sourceTable);
+        if (!$mysqli->query($sqlCreate)) {
+            throw new Exception($mysqli->error);
+        }
+
+        $sqlInsert = sprintf('INSERT INTO `%s` SELECT * FROM `%s`', $targetTable, $sourceTable);
+        if (!$mysqli->query($sqlInsert)) {
+            throw new Exception($mysqli->error);
+        }
+
+        $mysqli->commit();
+    } catch (Throwable $e) {
+        $mysqli->rollback();
+        throw $e;
+    }
+}
+
+function zimmer_config_load_into_working(mysqli $mysqli, $sourceSlug) {
+    if ($sourceSlug === '__working__' || $sourceSlug === '' || $sourceSlug === null) {
+        return;
+    }
+
+    $sourceTable = zimmer_config_table_from_key($sourceSlug);
+    if (!zimmer_config_table_exists($mysqli, $sourceTable)) {
+        throw new Exception('Konfiguration nicht gefunden.');
+    }
+
+    $mysqli->begin_transaction();
+    try {
+        $sqlTruncate = sprintf('TRUNCATE TABLE `%s`', ZIMMER_WORKING_TABLE);
+        if (!$mysqli->query($sqlTruncate)) {
+            throw new Exception($mysqli->error);
+        }
+
+        $sqlInsert = sprintf('INSERT INTO `%s` SELECT * FROM `%s`', ZIMMER_WORKING_TABLE, $sourceTable);
+        if (!$mysqli->query($sqlInsert)) {
+            throw new Exception($mysqli->error);
+        }
+
+        $mysqli->commit();
+    } catch (Throwable $e) {
+        $mysqli->rollback();
+        throw $e;
+    }
+}
+
+function zimmer_config_delete(mysqli $mysqli, $slug) {
+    if ($slug === '__working__' || $slug === '' || $slug === null) {
+        throw new Exception('Die aktive Konfiguration kann nicht gelöscht werden.');
+    }
+
+    $table = zimmer_config_table_from_key($slug);
+    if (!zimmer_config_table_exists($mysqli, $table)) {
+        throw new Exception('Konfiguration nicht gefunden.');
+    }
+
+    $sql = sprintf('DROP TABLE `%s`', $table);
+    if (!$mysqli->query($sql)) {
+        throw new Exception($mysqli->error);
+    }
+}
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+if ($action === 'config_list') {
+    $configs = zimmer_config_list($mysqli);
+    json_response(['success' => true, 'configs' => $configs]);
+}
+
+if ($action === 'config_create') {
+    $raw = file_get_contents('php://input');
+    $payload = json_decode($raw, true);
+    if (!is_array($payload)) {
+        $payload = $_POST;
+    }
+
+    $targetSlug = zimmer_config_normalize_key($payload['name'] ?? '');
+    if ($targetSlug === '' || $targetSlug === '__working__') {
+        json_response(['success' => false, 'error' => 'Ungültiger Konfigurationsname.'], 422);
+    }
+
+    $sourceKeyRaw = $payload['source'] ?? '__working__';
+    $sourceKey = zimmer_config_normalize_key($sourceKeyRaw);
+    if ($sourceKey === '') {
+        $sourceKey = '__working__';
+    }
+
+    $overwrite = !empty($payload['overwrite']);
+
+    try {
+        zimmer_config_create($mysqli, $targetSlug, $sourceKey, $overwrite);
+    } catch (Throwable $e) {
+        $code = ($e->getMessage() === 'Konfiguration existiert bereits.') ? 409 : 500;
+        json_response(['success' => false, 'error' => $e->getMessage()], $code);
+    }
+
+    $table = zimmer_config_table_from_key($targetSlug);
+    $configs = zimmer_config_list($mysqli);
+    json_response([
+        'success' => true,
+        'created' => [
+            'key' => $targetSlug,
+            'table' => $table,
+            'source' => $sourceKey,
+            'overwrite' => (bool)$overwrite
+        ],
+        'configs' => $configs
+    ]);
+}
+
+if ($action === 'config_load') {
+    $raw = file_get_contents('php://input');
+    $payload = json_decode($raw, true);
+    if (!is_array($payload)) {
+        $payload = $_POST;
+    }
+
+    $slug = zimmer_config_normalize_key($payload['name'] ?? ($payload['key'] ?? ''));
+    if ($slug === '' || $slug === '__working__') {
+        json_response(['success' => false, 'error' => 'Bitte eine gespeicherte Konfiguration wählen.'], 422);
+    }
+
+    try {
+        zimmer_config_load_into_working($mysqli, $slug);
+    } catch (Throwable $e) {
+        json_response(['success' => false, 'error' => $e->getMessage()], 500);
+    }
+
+    json_response(['success' => true, 'loaded' => $slug]);
+}
+
+if ($action === 'config_delete') {
+    $raw = file_get_contents('php://input');
+    $payload = json_decode($raw, true);
+    if (!is_array($payload)) {
+        $payload = $_POST;
+    }
+
+    $slug = zimmer_config_normalize_key($payload['name'] ?? ($payload['key'] ?? ''));
+    if ($slug === '' || $slug === '__working__') {
+        json_response(['success' => false, 'error' => 'Diese Konfiguration kann nicht gelöscht werden.'], 422);
+    }
+
+    try {
+        zimmer_config_delete($mysqli, $slug);
+    } catch (Throwable $e) {
+        json_response(['success' => false, 'error' => $e->getMessage()], 500);
+    }
+
+    $configs = zimmer_config_list($mysqli);
+    json_response(['success' => true, 'deleted' => $slug, 'configs' => $configs]);
+}
 
 if ($action === 'list') {
     // Return all rooms and distinct categories
@@ -199,7 +506,7 @@ if ($action === 'save') {
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Arial}
-    header{display:flex;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:2}
+    header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:2}
     header h1{font-size:16px;margin:0;font-weight:600}
     .spacer{flex:1}
     .btn{appearance:none;border:1px solid var(--border);background:linear-gradient(180deg,#1f2937,#0f172a);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
@@ -208,6 +515,9 @@ if ($action === 'save') {
     .btn.danger{background:linear-gradient(180deg,var(--danger),var(--danger-600));border-color:#b91c1c}
     .toolbar{display:flex;gap:8px;align-items:center}
     .input{background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px}
+    .config-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;min-width:240px}
+    .config-controls select{min-width:180px}
+    .config-info{font-size:12px;color:var(--muted)}
 
     .wrap{display:grid;grid-template-columns: 1.2fr 1fr;gap:12px;padding:12px}
     .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}
@@ -268,10 +578,18 @@ if ($action === 'save') {
         <button id="btnBack" class="btn">⬅️ Zurück</button>
         <button id="btnAdd" class="btn">➕ Neu</button>
         <button id="btnRemove" class="btn danger">🗑 Löschen</button>
-        <button id="btnSave" class="btn primary">💾 Speichern</button>
-        <input id="filter" class="input" placeholder="Filter (Bezeichnung & Kategorie)…" />
+        <button id="btnSave" class="btn primary">Anwenden</button>
+        <input id="filter" class="input" placeholder="Filter (Bezeichnung &amp; Kategorie)…" />
     </div>
     <div class="spacer"></div>
+    <div class="config-controls">
+        <select id="configSelect" class="input">
+            <option value="__working__">Lade Konfigurationen…</option>
+        </select>
+        <button id="btnConfigSaveAs" class="btn" title="Aktuelle Arbeitskopie als neue Konfiguration sichern">Speichern als…</button>
+        <button id="btnConfigDelete" class="btn danger" title="Ausgewählte Konfiguration löschen">Löschen</button>
+        <span id="configInfo" class="config-info"></span>
+    </div>
 </header>
 
 <div class="wrap">
@@ -315,7 +633,10 @@ if ($action === 'save') {
         dirty: { inserted: [], updated: new Set(), deleted: new Set() },
         hitRects: [], // for hit-testing in draw order
         geom: null,   // cached geometry of A4 area
-        ghost: null   // ghost rectangle while dragging
+        ghost: null,  // ghost rectangle while dragging
+        configs: [],
+        selectedConfig: '__working__',
+        loadedConfig: '__working__'
     };
 
     const els = {
@@ -332,6 +653,10 @@ if ($action === 'save') {
         ctx: document.getElementById('preview').getContext('2d'),
         tableWrap: document.getElementById('tableWrap'),
         dragIndicator: document.getElementById('dragIndicator'),
+    configSelect: document.getElementById('configSelect'),
+    btnConfigSaveAs: document.getElementById('btnConfigSaveAs'),
+    btnConfigDelete: document.getElementById('btnConfigDelete'),
+        configInfo: document.getElementById('configInfo'),
     };
 
     // Fixed 5x6 color palette
@@ -377,7 +702,11 @@ if ($action === 'save') {
 
     const API = {
         async list(){
-            const res = await fetch('?action=list', { credentials: 'same-origin' });
+            const res = await fetch(`?action=list&_=${Date.now()}`, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
             if(!res.ok) throw new Error('HTTP '+res.status);
             const j = await res.json();
             if(!j.success) throw new Error(j.error||'Fehler beim Laden');
@@ -395,10 +724,141 @@ if ($action === 'save') {
             console.debug('[Zimmereditor] API.save response', { status: res.status, json: j });
             if(!res.ok || !j.success) throw new Error(j.error || ('HTTP '+res.status));
             return j;
+        },
+        async configList(){
+            const res = await fetch(`?action=config_list&_=${Date.now()}`, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
+            if(!res.ok) throw new Error('HTTP '+res.status);
+            const j = await res.json().catch(()=>({ success:false, error:'Ungültige Antwort' }));
+            if(!j.success) throw new Error(j.error || ('HTTP '+res.status));
+            return j;
+        },
+        async configCreate(payload){
+            const res = await fetch('?action=config_create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            const j = await res.json().catch(()=>({ success:false, error:'Ungültige Antwort' }));
+            if(!res.ok || !j.success) throw new Error(j.error || ('HTTP '+res.status));
+            return j;
+        },
+        async configLoad(payload){
+            const res = await fetch('?action=config_load', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            const j = await res.json().catch(()=>({ success:false, error:'Ungültige Antwort' }));
+            if(!res.ok || !j.success) throw new Error(j.error || ('HTTP '+res.status));
+            return j;
+        },
+        async configDelete(payload){
+            const res = await fetch('?action=config_delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            const j = await res.json().catch(()=>({ success:false, error:'Ungültige Antwort' }));
+            if(!res.ok || !j.success) throw new Error(j.error || ('HTTP '+res.status));
+            return j;
         }
     };
 
     function setStatus(msg){ els.status.textContent = msg || ''; }
+
+    function clearDirtyState(){
+        state.dirty = { inserted: [], updated: new Set(), deleted: new Set() };
+    }
+
+    function hasUnsavedChanges(){
+        return state.dirty.inserted.length > 0 || state.dirty.updated.size > 0 || state.dirty.deleted.size > 0;
+    }
+
+    function findConfigByKey(key){
+        if(!Array.isArray(state.configs)) return null;
+        return state.configs.find(cfg => cfg.key === key) || null;
+    }
+
+    function updateConfigSelect(nextKey){
+        if(!els.configSelect) return;
+        const configs = Array.isArray(state.configs) ? state.configs : [];
+        let targetKey = nextKey;
+        if(!targetKey || !configs.some(c => c.key === targetKey)) {
+            if(configs.some(c => c.key === state.selectedConfig)) {
+                targetKey = state.selectedConfig;
+            } else if (configs.length > 0) {
+                targetKey = configs[0].key;
+            } else {
+                targetKey = '__working__';
+            }
+        }
+        state.selectedConfig = targetKey;
+        els.configSelect.innerHTML = '';
+        configs.forEach(cfg => {
+            const opt = document.createElement('option');
+            opt.value = cfg.key;
+            const rowsSuffix = typeof cfg.rows === 'number' ? ` (${cfg.rows})` : '';
+            opt.textContent = `${cfg.label}${rowsSuffix}`;
+            if(cfg.key === targetKey) opt.selected = true;
+            if(cfg.protected) opt.dataset.protected = '1';
+            els.configSelect.appendChild(opt);
+        });
+        if(configs.length === 0){
+            const opt = document.createElement('option');
+            opt.value = '__working__';
+            opt.textContent = 'Arbeitskopie';
+            opt.selected = true;
+            els.configSelect.appendChild(opt);
+            state.selectedConfig = '__working__';
+        }
+        updateConfigControls();
+    }
+
+    function updateConfigControls(){
+        const cfg = findConfigByKey(state.selectedConfig);
+        const isProtected = !cfg || cfg.protected || cfg.key === '__working__';
+        if(els.btnConfigDelete) els.btnConfigDelete.disabled = isProtected;
+        updateConfigInfo();
+    }
+
+    function updateConfigInfo(){
+        if(!els.configInfo) return;
+        const key = state.loadedConfig || '__working__';
+        const cfg = findConfigByKey(key);
+        if(!cfg || key === '__working__'){
+            els.configInfo.textContent = 'Arbeitskopie aktiv';
+        } else {
+            const rowsSuffix = typeof cfg.rows === 'number' ? ` (${cfg.rows})` : '';
+            els.configInfo.textContent = `Aktiv: ${cfg.label}${rowsSuffix}`;
+        }
+    }
+
+    async function refreshConfigs(preserveSelection = true){
+        try{
+            const data = await API.configList();
+            state.configs = data.configs || [];
+            let nextKey = '__working__';
+            if(preserveSelection && state.selectedConfig && state.configs.some(c => c.key === state.selectedConfig)){
+                nextKey = state.selectedConfig;
+            } else if (state.configs.length > 0) {
+                nextKey = state.configs[0].key;
+            }
+            updateConfigSelect(nextKey);
+            updateConfigInfo();
+        }catch(err){
+            console.error('[Zimmereditor] refreshConfigs()', err);
+            if(els.configInfo){
+                els.configInfo.textContent = 'Konfigurationen konnten nicht geladen werden';
+            }
+        }
+    }
 
     function renderChips(){}
 
@@ -669,6 +1129,155 @@ if ($action === 'save') {
         renderTable();
     }
 
+    async function onConfigSelectChange(){
+        if(!els.configSelect) return;
+        const nextKey = els.configSelect.value || '__working__';
+        const previousSelected = state.selectedConfig;
+
+        const restoreSelection = () => {
+            state.selectedConfig = previousSelected;
+            updateConfigSelect(previousSelected);
+            updateConfigControls();
+        };
+
+        try{
+            if(els.configSelect) els.configSelect.disabled = true;
+
+            state.selectedConfig = previousSelected;
+            updateConfigControls();
+
+            const saved = await save();
+            if(!saved){
+                restoreSelection();
+                return;
+            }
+
+            const persisted = await persistCurrentConfig();
+            if(!persisted){
+                restoreSelection();
+                return;
+            }
+
+            state.selectedConfig = nextKey;
+            updateConfigSelect(nextKey);
+            updateConfigControls();
+
+            await switchToConfig(nextKey);
+        }catch(err){
+            console.error('[Zimmereditor] onConfigSelectChange error', err);
+            alert('Fehler beim Wechseln der Konfiguration: ' + (err && err.message ? err.message : err));
+            restoreSelection();
+        } finally {
+            if(els.configSelect) els.configSelect.disabled = false;
+            setTimeout(()=>setStatus(''), 1500);
+        }
+    }
+
+    async function switchToConfig(targetKey){
+        const key = targetKey || state.selectedConfig || '__working__';
+        const previous = state.loadedConfig || '__working__';
+        if(key === '__working__'){
+            if(previous !== '__working__' || !state.rows.length){
+                setStatus('Arbeitskopie wird geladen…');
+                await load();
+                await refreshConfigs(true);
+            }
+            state.loadedConfig = '__working__';
+            updateConfigInfo();
+            setStatus('Arbeitskopie aktiv.');
+            return;
+        }
+
+        setStatus('Konfiguration wird geladen…');
+        await API.configLoad({ name: key });
+        await load();
+        state.loadedConfig = key;
+        updateConfigInfo();
+        await refreshConfigs(true);
+        setStatus('Konfiguration geladen.');
+    }
+
+    async function persistCurrentConfig(){
+        const currentKey = state.loadedConfig || '__working__';
+        if(currentKey === '__working__'){
+            return true;
+        }
+        try{
+            setStatus('Aktuelle Konfiguration wird gesichert…');
+            const res = await API.configCreate({ name: currentKey, source: '__working__', overwrite: true });
+            if(res.configs){
+                state.configs = res.configs;
+            }
+            await refreshConfigs(true);
+            updateConfigInfo();
+            return true;
+        }catch(err){
+            console.error('[Zimmereditor] persistCurrentConfig error', err);
+            alert('Aktuelle Konfiguration konnte nicht gespeichert werden: ' + (err && err.message ? err.message : err));
+            return false;
+        }
+    }
+
+    async function handleConfigSaveAs(){
+        const suggested = state.selectedConfig !== '__working__' ? state.selectedConfig : '';
+        const name = prompt('Name für neue Konfiguration:', suggested);
+        if(!name){ return; }
+        try{
+            setStatus('Konfiguration wird gespeichert…');
+            const res = await API.configCreate({ name, source: '__working__' });
+            if(res.configs){
+                state.configs = res.configs;
+            }
+            const createdKey = res.created && res.created.key ? res.created.key : null;
+            if(createdKey){
+                state.selectedConfig = createdKey;
+            }
+            updateConfigSelect(state.selectedConfig);
+            updateConfigInfo();
+            setStatus('Konfiguration gespeichert.');
+        }catch(e){
+            console.error(e);
+            alert('Fehler beim Speichern der Konfiguration: '+e.message);
+        } finally {
+            setTimeout(()=>setStatus(''), 1500);
+        }
+    }
+
+
+    async function handleConfigDelete(){
+        const key = state.selectedConfig;
+        if(!key || key === '__working__'){
+            alert('Die Arbeitskopie kann nicht gelöscht werden.');
+            return;
+        }
+        const cfg = findConfigByKey(key);
+        const label = cfg ? cfg.label : key;
+        if(!confirm(`Konfiguration "${label}" wirklich löschen?`)){
+            return;
+        }
+        try{
+            setStatus('Konfiguration wird gelöscht…');
+            const res = await API.configDelete({ name: key });
+            if(res.configs){
+                state.configs = res.configs;
+            } else {
+                state.configs = state.configs.filter(c => c.key !== key);
+            }
+            if(state.loadedConfig === key){
+                state.loadedConfig = '__working__';
+            }
+            state.selectedConfig = '__working__';
+            updateConfigSelect(state.selectedConfig);
+            updateConfigInfo();
+            setStatus('Konfiguration gelöscht.');
+        }catch(e){
+            console.error(e);
+            alert('Fehler beim Löschen: '+e.message);
+        } finally {
+            setTimeout(()=>setStatus(''), 1500);
+        }
+    }
+
     async function save(){
         try{
             setStatus('Speichere…');
@@ -681,13 +1290,17 @@ if ($action === 'save') {
             const res = await API.save(payload);
             console.timeEnd('[Zimmereditor] save:request');
             console.debug('[Zimmereditor] save() result', res);
-                setStatus(`Gespeichert: +${res.inserted} / ~${res.updated} / -${res.deleted}`);
+            setStatus(`Gespeichert: +${res.inserted} / ~${res.updated} / -${res.deleted}`);
             // reload fresh from server after save
-            state.dirty = { inserted: [], updated: new Set(), deleted: new Set() };
+            clearDirtyState();
             await load();
+            await refreshConfigs(true);
+            updateConfigInfo();
+            return true;
         }catch(e){
             console.error(e);
             alert('Fehler beim Speichern: '+e.message);
+            return false;
         } finally {
             setStatus('');
         }
@@ -871,6 +1484,9 @@ if ($action === 'save') {
     els.btnBack.addEventListener('click', ()=>{ if (document.referrer) { history.back(); } else { window.location.href = '../timeline-unified.html'; } });
     els.btnRemove.addEventListener('click', removeSelected);
     els.btnSave.addEventListener('click', save);
+    if(els.configSelect) els.configSelect.addEventListener('change', () => { onConfigSelectChange(); });
+    if(els.btnConfigSaveAs) els.btnConfigSaveAs.addEventListener('click', handleConfigSaveAs);
+    if(els.btnConfigDelete) els.btnConfigDelete.addEventListener('click', handleConfigDelete);
 
     window.addEventListener('resize', () => { syncPreviewHeight(); redrawCanvas(); });
 
@@ -878,21 +1494,28 @@ if ($action === 'save') {
         setStatus('Lade Daten…');
         const data = await API.list();
         console.debug('[Zimmereditor] load() data', data);
-        state.rows = data.data || [];
+    state.rows = (data.data || []).map(r => ({ ...r }));
         state.filtered = [...state.rows];
         state.categories = data.categories || [];
-        state.selection.clear();
+        state.selection = new Set();
+        clearDirtyState();
         renderChips();
         renderTable();
         syncPreviewHeight();
         redrawCanvas();
+        updateConfigInfo();
         setStatus('');
     }
 
     // bootstrap
     // Expose state for quick inspection
+    async function bootstrap(){
+        await refreshConfigs(false);
+        await load();
+    }
+
     Object.defineProperty(window, '__zimmerState', { get(){ return state; } });
-    load().catch(err => { console.error(err); setStatus('Fehler beim Laden: '+err.message); });
+    bootstrap().catch(err => { console.error(err); setStatus('Fehler beim Laden: '+err.message); });
 })();
 </script>
 </body>
