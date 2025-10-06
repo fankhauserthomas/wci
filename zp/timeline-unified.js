@@ -434,6 +434,26 @@ class TimelineUnifiedRenderer {
         this.lastStickyNotesRender = 0; // Timestamp of last sticky notes render
         this.stickyNotesRenderThreshold = 100; // Only re-render sticky notes every 100ms
 
+        // Pointer modality tracking (desktop vs. touch) for helper icon visibility
+        this.prefersTouchHelperIcons = this.detectCoarsePointerPreference();
+        this.pointerPreferenceQuery = null;
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            try {
+                const coarseQuery = window.matchMedia('(pointer: coarse)');
+                this.pointerPreferenceQuery = coarseQuery;
+                const updatePointerPreference = (event) => {
+                    this.prefersTouchHelperIcons = Boolean(event?.matches);
+                };
+                if (typeof coarseQuery.addEventListener === 'function') {
+                    coarseQuery.addEventListener('change', updatePointerPreference);
+                } else if (typeof coarseQuery.addListener === 'function') {
+                    coarseQuery.addListener(updatePointerPreference);
+                }
+            } catch (err) {
+                console.warn('Pointer preference detection failed:', err);
+            }
+        }
+
         // Ghost-Balken für Drag-Feedback
         this.ghostBar = null; // { x, y, width, height, room, mode, visible }
         this.pixelGhostFrame = null; // Pixelgenauer Rahmen der mit Maus mitfährt
@@ -1819,6 +1839,19 @@ class TimelineUnifiedRenderer {
         }
 
         return false;
+    }
+
+    detectCoarsePointerPreference() {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return false;
+        }
+
+        try {
+            return window.matchMedia('(pointer: coarse)').matches;
+        } catch (err) {
+            console.warn('Pointer modality detection failed:', err);
+            return false;
+        }
     }
 
     normalizeReservationId(resId) {
@@ -6645,6 +6678,7 @@ class TimelineUnifiedRenderer {
             { label: 'Bezeichnung', command: 'label', fill: '#00cec9' },
             { label: 'Notiz', command: 'note', fill: '#fdcb6e' },
             { label: 'Hund', command: 'dog', fill: '#b2bec3', textColor: '#2d3436' },
+            { label: 'Zimmer', command: 'rooms', fill: '#0f766e' },
             { label: 'Löschen', command: 'delete', fill: '#ad1457' },
             { label: 'Alle löschen', command: 'delete_all', fill: '#d63031' },
             { label: 'Datensatz', command: 'dataset', fill: '#6c5ce7' }
@@ -6858,6 +6892,9 @@ class TimelineUnifiedRenderer {
                 break;
             case 'dog':
                 this.handleDogCommand(detail);
+                break;
+            case 'rooms':
+                this.handleRoomsCommand(detail);
                 break;
             case 'delete':
                 this.handleDeleteCommand(detail);
@@ -7207,6 +7244,52 @@ class TimelineUnifiedRenderer {
             this.render();
             console.error('Fehler beim Aktualisieren des Hund-Status in der Datenbank');
         });
+    }
+
+    handleRoomsCommand(detail) {
+        if (typeof window.openRoomAssignModal !== 'function') {
+            console.warn('Zimmerzuweisungs-Modal ist nicht verfügbar.');
+            return;
+        }
+
+        const resolvedDetail = this.resolveRoomDetail(detail) || detail || null;
+        const identifiers = this.extractDetailIdentifiers(resolvedDetail || detail || {});
+        let targetDetail = null;
+
+        if (identifiers?.resId) {
+            targetDetail = this.findMasterReservationByResId(identifiers.resId) || null;
+        }
+
+        const fallbackDetail = resolvedDetail || detail || targetDetail;
+
+        if (!targetDetail && fallbackDetail) {
+            targetDetail = fallbackDetail;
+        }
+
+        if (!targetDetail) {
+            console.warn('Kein Datensatz für Zimmerzuweisung gefunden.', detail);
+            return;
+        }
+
+        const mergedDetail = {
+            ...targetDetail,
+            data: {
+                ...(targetDetail?.data || {}),
+                ...(resolvedDetail?.data || {}),
+                ...(detail?.data || {})
+            },
+            fullData: targetDetail?.fullData || resolvedDetail?.fullData || detail?.fullData || targetDetail?.data?.fullData
+        };
+
+        mergedDetail.start = mergedDetail.start || resolvedDetail?.start || detail?.start || mergedDetail.data?.start;
+        mergedDetail.end = mergedDetail.end || resolvedDetail?.end || detail?.end || mergedDetail.data?.end;
+        mergedDetail.name = mergedDetail.name || resolvedDetail?.name || detail?.name || mergedDetail.fullData?.guest_name || mergedDetail.data?.guest_name;
+
+        try {
+            window.openRoomAssignModal(mergedDetail);
+        } catch (error) {
+            console.error('Fehler beim Öffnen des Zimmerzuweisungsmodals:', error);
+        }
     }
 
     async handleDeleteCommand(detail) {
@@ -11625,7 +11708,7 @@ class TimelineUnifiedRenderer {
 
         const shouldRenderTouchHelpers = isFocused && this.focusedReservationSource === 'touch' &&
             !this.isDraggingReservation && renderHeight > 10 && renderWidth > 60;
-        const shouldRenderHoverHelpers = isHovered && !this.isDraggingReservation && renderHeight > 10 && renderWidth > 60;
+        const shouldRenderHoverHelpers = this.prefersTouchHelperIcons && isHovered && !this.isDraggingReservation && renderHeight > 10 && renderWidth > 60;
 
         let helperInsets = { leftInset: 0, rightInset: 0 };
         if (shouldRenderTouchHelpers || shouldRenderHoverHelpers) {
@@ -12093,7 +12176,7 @@ class TimelineUnifiedRenderer {
 
         const shouldRenderTouchHelpers = isFocused && this.focusedReservationSource === 'touch' &&
             !this.isDraggingReservation && !isSourceOfDrag && renderHeight > 10 && renderWidth > 60;
-        const shouldRenderHoverHelpers = isHovered && !this.isDraggingReservation && !isSourceOfDrag && renderHeight > 10 && renderWidth > 60;
+        const shouldRenderHoverHelpers = this.prefersTouchHelperIcons && isHovered && !this.isDraggingReservation && !isSourceOfDrag && renderHeight > 10 && renderWidth > 60;
 
         let helperInsets = { leftInset: 0, rightInset: 0 };
         if (shouldRenderTouchHelpers || shouldRenderHoverHelpers) {
