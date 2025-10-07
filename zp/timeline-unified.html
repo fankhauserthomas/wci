@@ -688,8 +688,8 @@
         .assign-grid-inner {
             display: grid;
             gap: 1px;
-            grid-auto-rows: 32px;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 150px));
+            grid-auto-rows: 40px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 200px));
         }
 
         .assign-room {
@@ -700,9 +700,9 @@
             display: flex;
             flex-direction: row;
             align-items: stretch;
-            gap: 0;
-            min-height: 32px;
-            height: 32px;
+            gap: 6px;
+            min-height: 40px;
+            height: 40px;
             box-sizing: border-box;
             position: relative;
             width: 100%;
@@ -729,8 +729,9 @@
             align-items: flex-start;
             justify-content: center;
             gap: 1px;
-            flex: 0 0 74px;
-            margin-right: 3px;
+            flex: 1 1 auto;
+            min-width: 0;
+            margin-right: 0;
         }
 
         .assign-room-title-stack {
@@ -741,7 +742,7 @@
         }
 
         .assign-room-name {
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 600;
             line-height: 1.1;
             white-space: nowrap;
@@ -760,7 +761,7 @@
         .assign-bar-debug {
             display: flex;
             flex-wrap: wrap;
-            gap: 1px;
+            gap: 0.5px;
             pointer-events: none;
             margin-top: 1px;
         }
@@ -769,14 +770,14 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 16px;
+            min-width: 12px;
             height: 10px;
             border-radius: 2px;
             font-size: 7px;
             font-weight: 600;
             color: #fff;
             text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
-            padding: 0 2px;
+            padding: 0 1px;
         }
 
         .assign-day-oval.full {
@@ -815,20 +816,22 @@
 
         /* Leere Grid-Zellen */
         .assign-empty-cell {
-            min-height: 32px;
+            min-height: 40px;
             background: transparent;
         }
 
         .assign-bar {
             position: relative;
-            height: 20px;
+            height: 15px;
             border-radius: 4px;
             background: #eef2f7;
             border: 1px solid #dde3ea;
             cursor: ew-resize;
-            flex: 1 1 auto;
-            min-width: 42px;
-            margin-top: 3px;
+            flex: 0 0 auto;
+            width: 60px;
+            min-width: 60px;
+            margin-top: 0;
+            align-self: flex-start;
             overflow: hidden;
         }
 
@@ -872,16 +875,22 @@
             pointer-events: none;
         }
 
-        .assign-controls {
+        .assign-room-actions {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            align-items: stretch;
-            flex-shrink: 0;
-            margin-left: 0;
-            min-width: 24px;
+            align-items: flex-end;
+            justify-content: flex-start;
             gap: 2px;
-            padding: 1px 0;
+            flex: 0 0 auto;
+            width: 60px;
+            margin-left: auto;
+        }
+
+        .assign-controls-wrap {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
         }
 
         .assign-btn {
@@ -899,12 +908,16 @@
         }
 
         .assign-btn.small {
-            padding: 0;
+            padding: 0 4px;
             font-size: 10px;
             min-width: 24px;
-            height: 14px;
+            height: 16px;
             line-height: 14px;
             border-radius: 4px;
+        }
+
+        .assign-controls-wrap .assign-btn.small {
+            min-width: 20px;
         }
 
         .assign-btn:hover {
@@ -2054,6 +2067,21 @@
                 return caption.includes('ablage') || caption === 'ablage';
             }
 
+            function isVisibleRoom(room) {
+                if (!room) return false;
+                const raw = room.visible;
+                if (raw === undefined || raw === null) return true;
+                if (typeof raw === 'boolean') return raw;
+                const num = Number(raw);
+                if (!Number.isNaN(num)) return num !== 0;
+                if (typeof raw === 'string') {
+                    const trimmed = raw.trim().toLowerCase();
+                    if (trimmed === '' || trimmed === 'true') return true;
+                    if (trimmed === 'false') return false;
+                }
+                return !!raw;
+            }
+
             function renderAblageRooms(avail, perDay) {
                 const container = document.getElementById('assignAblageRooms');
                 if (!container) return;
@@ -2238,14 +2266,40 @@
             }
 
             function layoutFromRooms(rooms) {
-                // Rastergröße aus Zimmereditor (px/py)
-                const maxX = Math.max(1, ...rooms.map(r => r.px || 1));
-                const maxY = Math.max(1, ...rooms.map(r => r.py || 1));
-                gridInner.style.gridTemplateColumns = `repeat(${maxX}, 150px)`;
-                const posKey = (r) => `${r.px || 1}_${r.py || 1}`;
+                if (!Array.isArray(rooms) || rooms.length === 0) {
+                    gridInner.style.gridTemplateColumns = 'repeat(1, 200px)';
+                    return { minX: 1, minY: 1, width: 1, height: 1, groups: new Map() };
+                }
+
+                const visibleRooms = rooms.filter(r => !isAblageRoom(r) && isVisibleRoom(r));
+                const sourceRooms = visibleRooms.length > 0 ? visibleRooms : rooms;
+
+                const coords = sourceRooms.map(r => ({
+                    x: Number.isFinite(Number(r.px)) ? Number(r.px) : 1,
+                    y: Number.isFinite(Number(r.py)) ? Number(r.py) : 1,
+                    room: r
+                }));
+                const xs = coords.map(c => c.x);
+                const ys = coords.map(c => c.y);
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+                const width = Math.max(1, (maxX - minX) + 1);
+                const height = Math.max(1, (maxY - minY) + 1);
+
+                gridInner.style.gridTemplateColumns = `repeat(${width}, 200px)`;
+
                 const map = new Map();
-                rooms.forEach(r => { const k = posKey(r); if (!map.has(k)) map.set(k, []); map.get(k).push(r); });
-                return { maxX, maxY, groups: map };
+                coords.forEach(({ x, y, room }) => {
+                    const normX = x - minX;
+                    const normY = y - minY;
+                    const key = `${normX}_${normY}`;
+                    if (!map.has(key)) map.set(key, []);
+                    map.get(key).push(room);
+                });
+
+                return { minX, minY, width, height, groups: map };
             }
 
             // Lokales YYYY-MM-DD Format (vermeidet UTC-Verschiebungen)
@@ -2423,8 +2477,8 @@
                 renderAblageRooms(avail, perDay);
 
                 // Dann normale Zimmer ins Grid (ohne Ablage)
-                for (let y = 1; y <= layout.maxY; y++) {
-                    for (let x = 1; x <= layout.maxX; x++) {
+                for (let y = 0; y < layout.height; y++) {
+                    for (let x = 0; x < layout.width; x++) {
                         const group = layout.groups.get(`${x}_${y}`) || [];
                         if (group.length === 0) {
                             // Leere Zelle - einfacher Platzhalter
@@ -2435,7 +2489,13 @@
                         }
 
                         // Filtere Ablage-Zimmer aus dem Grid
-                        const normalRooms = group.filter(room => !isAblageRoom(room));
+                        const normalRooms = group.filter(room => !isAblageRoom(room) && isVisibleRoom(room));
+                        if (normalRooms.length === 0) {
+                            const empty = document.createElement('div');
+                            empty.className = 'assign-empty-cell';
+                            frag.appendChild(empty);
+                            continue;
+                        }
 
                         normalRooms.forEach(room => {
                             const roomWrap = document.createElement('div');
@@ -2563,11 +2623,8 @@
                                     roomWrap.classList.add('room-partial-available');
                                 }
                             }
-                            const controls = document.createElement('div');
-                            controls.className = 'assign-controls';
                             const btnMinus = document.createElement('button'); btnMinus.className = 'assign-btn small'; btnMinus.textContent = '−';
                             const btnPlus = document.createElement('button'); btnPlus.className = 'assign-btn small'; btnPlus.textContent = '+';
-                            controls.appendChild(btnMinus); controls.appendChild(btnPlus);
 
                             const updateBar = () => {
                                 const assignableLimit = roomOwnCapacity;
@@ -2715,9 +2772,18 @@
 
                             bar.appendChild(fill); bar.appendChild(label); bar.appendChild(capLabel);
 
+                            const actionsWrap = document.createElement('div');
+                            actionsWrap.className = 'assign-room-actions';
+                            const controlsWrap = document.createElement('div');
+                            controlsWrap.className = 'assign-controls-wrap';
+                            controlsWrap.appendChild(btnMinus);
+                            controlsWrap.appendChild(btnPlus);
+
+                            actionsWrap.appendChild(bar);
+                            actionsWrap.appendChild(controlsWrap);
+
                             roomWrap.appendChild(title);
-                            roomWrap.appendChild(bar);
-                            roomWrap.appendChild(controls);
+                            roomWrap.appendChild(actionsWrap);
                             // Initialize bar visuals and disabled state
                             updateBar();
                             // Drop target wiring
