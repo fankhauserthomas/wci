@@ -498,55 +498,75 @@ if ($action === 'save') {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Zimmerverwaltung</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
     :root{
-        --bg:#0f172a; --panel:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#9ca3af;
+        --bs-body-bg:#f8fafc;
+        --bs-body-color:#0f172a;
+        --bs-border-color:#e2e8f0;
+        --bg:#f8fafc; --panel:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#64748b;
         --primary:#3b82f6; --primary-600:#2563eb; --danger:#ef4444; --danger-600:#dc2626; --ok:#22c55e;
-        --row-alt:#0b1220; --input:#0b1220; --chip:#1e293b;
+        --row-alt:#f1f5f9; --input:#ffffff; --chip:#e0e7ff;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Arial}
-    header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:2}
-    header h1{font-size:16px;margin:0;font-weight:600}
-    .spacer{flex:1}
-    .btn{appearance:none;border:1px solid var(--border);background:linear-gradient(180deg,#1f2937,#0f172a);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
-    .btn:hover{border-color:#334155}
-    .btn.primary{background:linear-gradient(180deg,var(--primary),var(--primary-600));border-color:#1d4ed8}
-    .btn.danger{background:linear-gradient(180deg,var(--danger),var(--danger-600));border-color:#b91c1c}
-    .toolbar{display:flex;gap:8px;align-items:center}
-    .input{background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px}
-    .config-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-start;width:100%;min-width:100%}
-    .config-controls select{min-width:180px}
-    .config-info{font-size:12px;color:var(--muted)}
+    body{background:var(--bg);color:var(--text);}
+    
+    /* Light theme overrides for Bootstrap */
+    .card{background:var(--panel);border-color:var(--border);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .form-control, .form-select{background:var(--input);color:var(--text);border-color:var(--border);}
+    .form-control:focus, .form-select:focus{background:var(--input);color:var(--text);border-color:var(--primary);box-shadow:0 0 0 0.25rem rgba(59,130,246,0.25);}
+    .table{color:var(--text);}
+    .table thead th{background:#f8fafc;border-color:var(--border);position:sticky;top:0;z-index:1;}
+    .table tbody td{border-color:var(--border);}
+    .table tbody tr:nth-child(odd){background:#ffffff;}
+    .table tbody tr:nth-child(even){background:var(--row-alt);}
+    .table tbody tr.table-active{background:rgba(59,130,246,0.15);outline:2px solid var(--primary);}
+    .btn-primary{background:linear-gradient(180deg,var(--primary),var(--primary-600));border-color:#1d4ed8;color:#ffffff;}
+    .btn-danger{background:linear-gradient(180deg,var(--danger),var(--danger-600));border-color:#b91c1c;color:#ffffff;}
+    .btn-secondary{background:linear-gradient(180deg,#e2e8f0,#cbd5e1);border-color:#94a3b8;color:#0f172a;}
+    .btn-secondary:hover{border-color:#64748b;background:linear-gradient(180deg,#cbd5e1,#94a3b8);}
+    
+    .navbar{background:var(--panel)!important;border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .navbar-brand{color:var(--text)!important;font-size:16px;font-weight:600;}
+    
+    /* Custom styles */
+    .table-wrap{max-height:60vh;overflow-y:auto;overflow-x:hidden;position:relative;}
+    #grid{table-layout:fixed;width:100%;}
+    #grid th, #grid td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #grid input, #grid select{font-size:13px;padding:2px 4px;}
+    .drag-col{width:32px;min-width:32px;}
+    .drag-handle{background:none;border:none;color:#64748b;cursor:grab;font-size:16px;padding:0;width:24px;height:24px;touch-action:none;user-select:none;}
+    .drag-handle:active{cursor:grabbing;}
+    .drag-handle:disabled{opacity:0.4;cursor:not-allowed;}
+    .drag-indicator{position:absolute;left:0;right:0;height:2px;background:var(--primary);box-shadow:0 0 0 1px #1d4ed8;pointer-events:none;z-index:5;display:none;}
+    
+    .vis-toggle{background:none;border:1px solid #cbd5e1;border-radius:6px;width:34px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+    .vis-toggle.on{color:#16a34a;border-color:#86efac;background:#f0fdf4;}
+    .vis-toggle.off{color:#b91c1c;border-color:#fecaca;background:#fef2f2;}
+    
+    .delete-btn{background:none;border:1px solid #fecaca;border-radius:6px;width:34px;height:28px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#dc2626;font-size:16px;transition:all 0.2s;}
+    .delete-btn:hover{background:#fee;border-color:#dc2626;}
+    .delete-btn:disabled{opacity:0.4;cursor:not-allowed;}
+    
+    .color-cell{display:flex;gap:8px;align-items:center;}
+    .color-swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);cursor:pointer;}
+    
+    .color-palette{position:fixed;background:#ffffff;color:#111827;border:1px solid #cbd5e1;box-shadow:0 10px 25px rgba(0,0,0,0.25);padding:8px;border-radius:10px;display:grid;grid-template-columns:repeat(6, 26px);gap:8px;z-index:9999;}
+    .color-palette button{width:26px;height:26px;border-radius:6px;border:1px solid #cbd5e1;cursor:pointer;}
+    .color-palette button:focus{outline:2px solid #2563eb;}
+    
+    #preview{display:block;width:100%;background:#1e293b;}
+    input[readonly]{background:#f3f4f6!important;color:#6b7280!important;}
+    
+    /* Preview card lighter canvas */
+    #previewCard .card-body{background:#ffffff!important;color:#111827;padding:0.5rem!important;}
+    
+    /* Config info styling */
+    .config-info{font-size:12px;color:var(--muted);}
+    
+    /* Hide ID column */
+    #grid th[data-col="id"], #grid td[data-col="id"]{display:none;}
 
-    .wrap{display:grid;grid-template-columns: 1.2fr 1fr;gap:12px;padding:12px}
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .card h2{margin:0;padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px}
-
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--border);padding:6px 6px;text-align:left;font-weight:600;z-index:1}
-    tbody td{padding:4px 6px;border-bottom:1px solid var(--border)}
-    tbody tr:nth-child(odd){background:var(--row-alt)}
-    tbody tr.selected{outline:2px solid var(--primary)}
-    td input, td select{width:100%;background:var(--input);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 6px}
-    td input[type="checkbox"]{width:auto}
-    td.color-cell{display:flex;gap:8px;align-items:center}
-    .color-swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--border);cursor:pointer}
-
-    /* Scrollable table body with sticky header */
-    .table-wrap{ position:relative; max-height:60vh; overflow:auto; }
-    .drag-indicator{ position:absolute; left:0; right:0; height:2px; background:var(--primary); box-shadow:0 0 0 1px #1d4ed8; pointer-events:none; z-index:5; display:none }
-    .drag-col{ width:32px }
-    .drag-handle{ background:none; border:none; color:#64748b; cursor:grab; font-size:16px; line-height:1; padding:0; width:24px; height:24px }
-    .drag-handle:active{ cursor:grabbing }
-    .vis-toggle{ background:none; border:1px solid #cbd5e1; border-radius:6px; width:34px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
-    .vis-toggle.on{ color:#16a34a; border-color:#86efac; background:#f0fdf4 }
-    .vis-toggle.off{ color:#b91c1c; border-color:#fecaca; background:#fef2f2 }
-    .delete-btn{ background:none; border:1px solid #fecaca; border-radius:6px; width:34px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#dc2626; font-size:16px; transition:all 0.2s }
-    .delete-btn:hover{ background:#fee; border-color:#dc2626 }
-    .delete-btn:disabled{ opacity:0.4; cursor:not-allowed }
-
-    canvas{display:block;width:100%;background:#0b1220}
+    canvas{display:block;width:100%;background:#0b1220;touch-action:none;user-select:none;}
     .status{padding:8px 12px;color:var(--muted)}
     .chips{display:none}
     .chip{display:none}
@@ -571,58 +591,66 @@ if ($action === 'save') {
     .color-palette{ position:fixed; background:#ffffff; color:#111827; border:1px solid #cbd5e1; box-shadow:0 10px 25px rgba(0,0,0,0.25); padding:8px; border-radius:10px; display:grid; grid-template-columns:repeat(6, 26px); gap:8px; z-index:9999 }
     .color-palette button{ width:26px; height:26px; border-radius:6px; border:1px solid #cbd5e1; cursor:pointer }
     .color-palette button:focus{ outline:2px solid #2563eb }
-    @media (max-width: 1100px){ .wrap{grid-template-columns: 1fr} }
 </style>
 </head>
 <body>
-<header>
-    <h1>Zimmerverwaltung</h1>
-    <div class="toolbar">
-        <button id="btnAdd" class="btn">➕ Neu</button>
-        <button id="btnSave" class="btn primary">Anwenden</button>
-        <input id="filter" class="input" placeholder="Filter (Bezeichnung &amp; Kategorie)…" />
-    </div>
-    <div class="spacer"></div>
-    <div class="config-controls">
-        <select id="configSelect" class="input">
-            <option value="__working__">Lade Konfigurationen…</option>
-        </select>
-        <button id="btnConfigSaveAs" class="btn" title="Aktuelle Arbeitskopie als neue Konfiguration sichern">Speichern als…</button>
-        <button id="btnConfigDelete" class="btn danger" title="Ausgewählte Konfiguration löschen">Löschen</button>
-        <span id="configInfo" class="config-info"></span>
-    </div>
-</header>
-
-<div class="wrap">
-    <section class="card" id="gridCard">
-        <h2>Zimmerliste</h2>
-        <div class="status" id="status"></div>
-        <div class="table-wrap" id="tableWrap">
-            <table id="grid">
-                <thead>
-                    <tr>
-                        <th class="drag-col"></th>
-                        <th data-col="id" style="width:56px">ID</th>
-                        <th>Bezeichnung</th>
-                        <th style="width:70px">Etage</th>
-                        <th style="width:90px">Kapazität</th>
-                        <th style="width:140px">Kategorie</th>
-                        <th style="width:110px">Farbe</th>
-                        <th style="width:90px">Sichtbar</th>
-                        <th style="width:60px">Aktion</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <div id="dragIndicator" class="drag-indicator"></div>
+<nav class="navbar navbar-dark sticky-top">
+    <div class="container-fluid">
+        <span class="navbar-brand">Zimmerverwaltung</span>
+        <div class="d-flex gap-2 align-items-center flex-wrap w-100">
+            <button id="btnAdd" class="btn btn-secondary btn-sm">➕ Neu</button>
+            <button id="btnSave" class="btn btn-primary btn-sm">Anwenden</button>
+            <input id="filter" class="form-control form-control-sm" style="max-width:300px" placeholder="Filter (Bezeichnung & Kategorie)…" />
+            <div class="flex-grow-1"></div>
+            <select id="configSelect" class="form-select form-select-sm" style="width:auto;min-width:200px;">
+                <option value="__working__">Lade Konfigurationen…</option>
+            </select>
+            <button id="btnConfigSaveAs" class="btn btn-secondary btn-sm" title="Aktuelle Arbeitskopie als neue Konfiguration sichern">Speichern als…</button>
+            <button id="btnConfigDelete" class="btn btn-danger btn-sm" title="Ausgewählte Konfiguration löschen">Löschen</button>
+            <span id="configInfo" class="config-info ms-2"></span>
         </div>
-    <!-- Chips entfernt -->
-    </section>
+    </div>
+</nav>
 
-    <section class="card" id="previewCard">
-        <h2>Vorschau / Layout</h2>
-        <canvas id="preview" width="800" height="520"></canvas>
-    </section>
+<div class="container-fluid mt-3">
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card" id="gridCard">
+                <div class="card-header">Zimmerliste</div>
+                <div class="card-body p-0">
+                    <div id="status"></div>
+                    <div class="table-wrap" id="tableWrap">
+                        <table class="table table-sm mb-0" id="grid">
+                            <thead>
+                                <tr>
+                                    <th class="drag-col"></th>
+                                    <th data-col="id" style="width:56px">ID</th>
+                                    <th>Bezeichnung</th>
+                                    <th style="width:50px">Etage</th>
+                                    <th style="width:50px">Kap.</th>
+                                    <th style="width:130px">Kategorie</th>
+                                    <th style="width:80px">Farbe</th>
+                                    <th style="width:70px">Sicht.</th>
+                                    <th style="width:50px">Akt.</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div id="dragIndicator" class="drag-indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-5">
+            <div class="card" id="previewCard">
+                <div class="card-header">Vorschau / Layout</div>
+                <div class="card-body p-2">
+                    <canvas id="preview" width="800" height="520"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -645,7 +673,6 @@ if ($action === 'save') {
         grid: document.getElementById('grid'),
         tbody: document.querySelector('#grid tbody'),
         status: document.getElementById('status'),
-        chips: document.getElementById('chips'),
         filter: document.getElementById('filter'),
         btnAdd: document.getElementById('btnAdd'),
         btnSave: document.getElementById('btnSave'),
@@ -653,11 +680,22 @@ if ($action === 'save') {
         ctx: document.getElementById('preview').getContext('2d'),
         tableWrap: document.getElementById('tableWrap'),
         dragIndicator: document.getElementById('dragIndicator'),
-    configSelect: document.getElementById('configSelect'),
-    btnConfigSaveAs: document.getElementById('btnConfigSaveAs'),
-    btnConfigDelete: document.getElementById('btnConfigDelete'),
+        configSelect: document.getElementById('configSelect'),
+        btnConfigSaveAs: document.getElementById('btnConfigSaveAs'),
+        btnConfigDelete: document.getElementById('btnConfigDelete'),
         configInfo: document.getElementById('configInfo'),
     };
+
+    function normalizeConfigKey(name){
+        if(!name) return '';
+        const slug = String(name)
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        if(!slug || slug === 'zimmer') return '';
+        return slug;
+    }
 
     // Fixed 5x6 color palette
     const PALETTE_COLORS = [
@@ -881,7 +919,7 @@ if ($action === 'save') {
     function renderRow(r){
         const tr = document.createElement('tr');
         tr.dataset.id = String(r.id);
-        if(state.selection.has(r.id)) tr.classList.add('selected');
+        if(state.selection.has(r.id)) tr.classList.add('table-active');
 
         function cell(content){ const td = document.createElement('td'); td.appendChild(content); return td; }
         function input(val, type='text', width){ const el = document.createElement('input'); el.type=type; el.value = (val ?? ''); if(width) el.style.width=width; return el; }
@@ -894,11 +932,12 @@ if ($action === 'save') {
         const isAblage = String(r.caption).trim().toLowerCase() === 'ablage';
         if(isAblage) { dh.disabled = true; dh.style.opacity = '0.4'; }
         dh.addEventListener('mousedown', (ev) => startRowDrag(ev, r));
+        dh.addEventListener('touchstart', (ev) => startRowDrag(ev, r), { passive: false });
         const dragTd = document.createElement('td'); dragTd.className = 'drag-col'; dragTd.appendChild(dh);
         tr.appendChild(dragTd);
 
         // ID
-        const idInput = input(r.id, 'number'); idInput.readOnly = true; idInput.style.background = '#111827';
+        const idInput = input(r.id, 'number'); idInput.readOnly = true;
         const idTd = cell(idInput); idTd.setAttribute('data-col','id');
         tr.appendChild(idTd);
 
@@ -968,12 +1007,12 @@ if ($action === 'save') {
             deleteBtn.disabled = true;
             deleteBtn.title = 'Ablage kann nicht gelöscht werden';
         }
-        deleteBtn.addEventListener('click', (ev) => {
+        deleteBtn.addEventListener('click', async (ev) => {
             ev.stopPropagation();
             if (isAblage) return;
             
             const roomName = r.caption || 'Zimmer ' + r.id;
-            if (confirm(`Soll das Zimmer "${roomName}" wirklich gelöscht werden?`)) {
+            if (await ModalHelper.confirm(`Soll das Zimmer "${roomName}" wirklich gelöscht werden?`)) {
                 removeRoom(r);
             }
         });
@@ -1062,15 +1101,29 @@ if ($action === 'save') {
         const fromIdx = filtered.findIndex(r => r === row);
         if(fromIdx < 0) return;
         rowDrag = { rowId: row.id, fromIdx, toIdx: fromIdx };
+        
+        // Add both mouse and touch event listeners
         document.addEventListener('mousemove', onRowDragMove);
+        document.addEventListener('touchmove', onRowDragMove, { passive: false });
         document.addEventListener('mouseup', onRowDragEnd, { once: true });
+        document.addEventListener('touchend', onRowDragEnd, { once: true });
+        document.addEventListener('touchcancel', onRowDragEnd, { once: true });
+        
         updateDragIndicator(fromIdx, 'init');
     }
     function onRowDragMove(ev){
         if(!rowDrag) return;
+        
+        // Support both mouse and touch events
+        const y = ev.type.startsWith('touch') ? ev.touches[0].clientY : ev.clientY;
+        
+        // Prevent scrolling on touch devices while dragging
+        if (ev.type.startsWith('touch')) {
+            ev.preventDefault();
+        }
+        
         const rows = Array.from(els.tbody.children);
         const wrapRect = els.tableWrap.getBoundingClientRect();
-        const y = ev.clientY;
         let targetIdx = rows.length; // default to after last
         for(let i=0;i<rows.length;i++){
             const rr = rows[i].getBoundingClientRect();
@@ -1087,7 +1140,14 @@ if ($action === 'save') {
     function onRowDragEnd(){
         if(!rowDrag) return;
         els.dragIndicator.style.display = 'none';
+        
+        // Remove all event listeners
         document.removeEventListener('mousemove', onRowDragMove);
+        document.removeEventListener('touchmove', onRowDragMove);
+        document.removeEventListener('mouseup', onRowDragEnd);
+        document.removeEventListener('touchend', onRowDragEnd);
+        document.removeEventListener('touchcancel', onRowDragEnd);
+        
         const { fromIdx, toIdx } = rowDrag;
         if(toIdx !== fromIdx){
             reorderWithinFiltered(fromIdx, toIdx);
@@ -1144,12 +1204,12 @@ if ($action === 'save') {
         renderTable();
     }
 
-    function removeRoom(room){
+    async function removeRoom(room){
         if(!room || !room.id) return;
         const id = room.id;
         // Prevent deleting Ablage
         if (String(room.caption).trim().toLowerCase() === 'ablage') {
-            alert('Die Zeile "Ablage" kann nicht gelöscht werden.');
+            await ModalHelper.alert('Die Zeile "Ablage" kann nicht gelöscht werden.');
             return;
         }
         
@@ -1164,13 +1224,13 @@ if ($action === 'save') {
         renderTable();
     }
 
-    function removeSelected(){
+    async function removeSelected(){
         const ids = Array.from(state.selection).filter(id => id>0);
-        if(ids.length===0){ alert('Bitte Zeilen auswählen.'); return; }
+        if(ids.length===0){ await ModalHelper.alert('Bitte Zeilen auswählen.'); return; }
         // Prevent deleting Ablage
         const abl = state.rows.find(r => ids.includes(r.id) && String(r.caption).trim().toLowerCase()==='ablage');
-        if(abl){ alert('Die Zeile "Ablage" kann nicht gelöscht werden.'); return; }
-        if(!confirm('Ausgewählte Zeilen wirklich löschen?')) return;
+        if(abl){ await ModalHelper.alert('Die Zeile "Ablage" kann nicht gelöscht werden.'); return; }
+        if(!await ModalHelper.confirm('Ausgewählte Zeilen wirklich löschen?')) return;
         ids.forEach(id => state.dirty.deleted.add(id));
         state.rows = state.rows.filter(r => !ids.includes(r.id));
         state.selection.clear();
@@ -1213,7 +1273,7 @@ if ($action === 'save') {
             await switchToConfig(nextKey);
         }catch(err){
             console.error('[Zimmereditor] onConfigSelectChange error', err);
-            alert('Fehler beim Wechseln der Konfiguration: ' + (err && err.message ? err.message : err));
+            await ModalHelper.alert('Fehler beim Wechseln der Konfiguration: ' + (err && err.message ? err.message : err));
             restoreSelection();
         } finally {
             if(els.configSelect) els.configSelect.disabled = false;
@@ -1261,31 +1321,44 @@ if ($action === 'save') {
             return true;
         }catch(err){
             console.error('[Zimmereditor] persistCurrentConfig error', err);
-            alert('Aktuelle Konfiguration konnte nicht gespeichert werden: ' + (err && err.message ? err.message : err));
+            await ModalHelper.alert('Aktuelle Konfiguration konnte nicht gespeichert werden: ' + (err && err.message ? err.message : err));
             return false;
         }
     }
 
     async function handleConfigSaveAs(){
-        const suggested = state.selectedConfig !== '__working__' ? state.selectedConfig : '';
-        const name = prompt('Name für neue Konfiguration:', suggested);
-        if(!name){ return; }
+        const suggestedKey = state.selectedConfig !== '__working__' ? state.selectedConfig : '';
+        const suggestedConfig = findConfigByKey(suggestedKey);
+        const defaultNewName = suggestedConfig && !suggestedConfig.protected ? `${suggestedConfig.label} Kopie` : '';
+        const result = await ModalHelper.configSaveAs({
+            configs: state.configs,
+            suggestedKey,
+            defaultNewName
+        });
+        if(!result){ return; }
+
+        const targetName = result.name;
+        const overwrite = result.overwrite === true;
+        if(!targetName){ return; }
+
         try{
-            setStatus('Konfiguration wird gespeichert…');
-            const res = await API.configCreate({ name, source: '__working__' });
+            setStatus(overwrite ? 'Konfiguration wird überschrieben…' : 'Konfiguration wird gespeichert…');
+            const payload = { name: targetName, source: '__working__' };
+            if(overwrite){ payload.overwrite = true; }
+            const res = await API.configCreate(payload);
             if(res.configs){
                 state.configs = res.configs;
             }
-            const createdKey = res.created && res.created.key ? res.created.key : null;
-            if(createdKey){
-                state.selectedConfig = createdKey;
+            let targetKey = overwrite ? targetName : (res.created && res.created.key) ? res.created.key : normalizeConfigKey(targetName);
+            if(!targetKey){
+                targetKey = state.selectedConfig || '__working__';
             }
-            updateConfigSelect(state.selectedConfig);
-            updateConfigInfo();
-            setStatus('Konfiguration gespeichert.');
+            state.selectedConfig = targetKey;
+            await refreshConfigs(true);
+            setStatus(overwrite ? 'Konfiguration überschrieben.' : 'Konfiguration gespeichert.');
         }catch(e){
             console.error(e);
-            alert('Fehler beim Speichern der Konfiguration: '+e.message);
+            await ModalHelper.alert('Fehler beim Speichern der Konfiguration: '+e.message);
         } finally {
             setTimeout(()=>setStatus(''), 1500);
         }
@@ -1295,12 +1368,12 @@ if ($action === 'save') {
     async function handleConfigDelete(){
         const key = state.selectedConfig;
         if(!key || key === '__working__'){
-            alert('Die Arbeitskopie kann nicht gelöscht werden.');
+            await ModalHelper.alert('Die Arbeitskopie kann nicht gelöscht werden.');
             return;
         }
         const cfg = findConfigByKey(key);
         const label = cfg ? cfg.label : key;
-        if(!confirm(`Konfiguration "${label}" wirklich löschen?`)){
+        if(!await ModalHelper.confirm(`Konfiguration "${label}" wirklich löschen?`)){
             return;
         }
         try{
@@ -1320,7 +1393,7 @@ if ($action === 'save') {
             setStatus('Konfiguration gelöscht.');
         }catch(e){
             console.error(e);
-            alert('Fehler beim Löschen: '+e.message);
+            await ModalHelper.alert('Fehler beim Löschen: '+e.message);
         } finally {
             setTimeout(()=>setStatus(''), 1500);
         }
@@ -1347,7 +1420,7 @@ if ($action === 'save') {
             return true;
         }catch(e){
             console.error(e);
-            alert('Fehler beim Speichern: '+e.message);
+            await ModalHelper.alert('Fehler beim Speichern: '+e.message);
             return false;
         } finally {
             setStatus('');
@@ -1362,7 +1435,7 @@ if ($action === 'save') {
 
     // Preview rendering (A4-like grid)
     function drawPreview(){
-        const ctx = els.ctx; const canvas = els.canvas; const W = canvas.width; const H = canvas.height;
+    const ctx = els.ctx; const canvas = els.canvas; const W = canvas.width; const H = canvas.height; const dpr = window.devicePixelRatio || 1;
         ctx.clearRect(0,0,W,H);
         // Filtered visible rows (except Ablage)
         const rows = state.filtered.filter(r => !!r.visible && String(r.caption).trim().toLowerCase() !== 'ablage');
@@ -1398,7 +1471,20 @@ if ($action === 'save') {
                 const col = toRGB(r.col || '#FFDDDDDD');
                 ctx.fillStyle = col; ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1;
                 ctx.fillRect(x, y, baseW, baseH); ctx.strokeRect(x, y, baseW, baseH);
-                ctx.fillStyle = '#111827'; ctx.font = '12px Segoe UI, system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                
+                // Responsive font size: derive from CSS pixel height and upscale for high-DPI canvases
+                const isMobile = window.innerWidth < 768;
+                const cssBoxHeight = baseH / dpr;
+                const cssFontSize = isMobile
+                    ? Math.max(cssBoxHeight * 0.6, 20)
+                    : Math.max(cssBoxHeight * 0.45, 16);
+                const fontSize = cssFontSize * dpr;
+
+                ctx.fillStyle = '#111827'; 
+                ctx.font = `600 ${fontSize}px "Inter", "Segoe UI", Arial, sans-serif`; 
+                ctx.textAlign='center'; 
+                ctx.textBaseline='middle';
+                
                 const label = (r.caption||'').toString();
                 ctx.fillText(label, x+baseW/2, y+baseH/2, baseW-8);
                 // attach hit area for dragging
@@ -1421,7 +1507,17 @@ if ($action === 'save') {
         ctx.strokeRect(state.ghost.x, state.ghost.y, state.ghost.w, state.ghost.h);
         ctx.setLineDash([]);
         ctx.fillStyle = '#0b1220';
-        ctx.font = '12px Segoe UI, system-ui';
+
+        // Responsive font size for ghost: match room sizing and account for high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        const isMobile = window.innerWidth < 768;
+        const cssGhostHeight = state.ghost.h / dpr;
+        const cssFontSize = isMobile
+            ? Math.max(cssGhostHeight * 0.6, 20)
+            : Math.max(cssGhostHeight * 0.45, 16);
+        const fontSize = cssFontSize * dpr;
+        ctx.font = `600 ${fontSize}px "Inter", "Segoe UI", Arial, sans-serif`;
+        
         ctx.textAlign='center'; ctx.textBaseline='middle';
         if (state.ghost.label) ctx.fillText(state.ghost.label, state.ghost.x+state.ghost.w/2, state.ghost.y+state.ghost.h/2, state.ghost.w-8);
         ctx.restore();
@@ -1454,20 +1550,40 @@ if ($action === 'save') {
 
     // Simple drag within canvas to change px/py
     let dragInfo = null;
-    els.canvas.addEventListener('mousedown', (e) => {
-        const rect = els.canvas.getBoundingClientRect();
+    
+    // Helper function to get coordinates from mouse or touch event
+    function getEventCoords(e, rect) {
         const scaleX = els.canvas.width / rect.width;
         const scaleY = els.canvas.height / rect.height;
-        const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+    
+    // Canvas mousedown/touchstart handler
+    function onCanvasStart(e) {
+        const rect = els.canvas.getBoundingClientRect();
+        const {x, y} = getEventCoords(e, rect);
         const hit = hitTest(x,y);
         if(hit){
+            if (e.type.startsWith('touch')) {
+                e.preventDefault(); // Prevent scrolling while dragging
+            }
             const rr = hit.row.__rects && hit.row.__rects[0] ? hit.row.__rects[0] : {x: x-60, y: y-20, w: 120, h: 40};
             dragInfo = { row: hit.row, startX: x, startY: y, offsetX: x-rr.x, offsetY: y-rr.y, fromPX: hit.row.px, fromPY: hit.row.py };
             state.ghost = { x: rr.x, y: rr.y, w: rr.w, h: rr.h, color: toRGB(hit.row.col||'#FF93C5FD'), label: hit.row.caption };
             redrawCanvas();
         }
-    });
-    window.addEventListener('mouseup', (e)=> {
+    }
+    
+    els.canvas.addEventListener('mousedown', onCanvasStart);
+    els.canvas.addEventListener('touchstart', onCanvasStart, { passive: false });
+    
+    // Canvas mouseup/touchend handler
+    function onCanvasEnd(e) {
         if(dragInfo && state.geom && state.ghost){
             const { offX, offY, cellW, cellH, maxX, maxY, a4W, a4H } = state.geom;
             const cx = state.ghost.x + state.ghost.w/2;
@@ -1500,20 +1616,32 @@ if ($action === 'save') {
             }
         }
         dragInfo=null; state.ghost=null; redrawCanvas();
-    });
-    window.addEventListener('mousemove', (e) => {
+    }
+    
+    window.addEventListener('mouseup', onCanvasEnd);
+    window.addEventListener('touchend', onCanvasEnd);
+    window.addEventListener('touchcancel', onCanvasEnd);
+    
+    // Canvas mousemove/touchmove handler
+    function onCanvasMove(e) {
         if(!dragInfo) return;
+        
+        if (e.type.startsWith('touch')) {
+            e.preventDefault(); // Prevent scrolling while dragging
+        }
+        
         const rect = els.canvas.getBoundingClientRect();
-        const scaleX = els.canvas.width / rect.width;
-        const scaleY = els.canvas.height / rect.height;
-        const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+        const {x, y} = getEventCoords(e, rect);
         if(!state.geom) return;
         const { offX, offY, a4W, a4H } = state.geom;
         const nx = Math.max(offX, Math.min(offX + a4W - (state.ghost?.w||0), x - dragInfo.offsetX));
         const ny = Math.max(offY, Math.min(offY + a4H - (state.ghost?.h||0), y - dragInfo.offsetY));
         if(state.ghost){ state.ghost.x = nx; state.ghost.y = ny; }
         redrawCanvas();
-    });
+    }
+    
+    window.addEventListener('mousemove', onCanvasMove);
+    window.addEventListener('touchmove', onCanvasMove, { passive: false });
 
     function hitTest(x,y){
         // Hit test topmost-first; slightly inflate rectangles for easier grabbing
@@ -1563,6 +1691,367 @@ if ($action === 'save') {
     Object.defineProperty(window, '__zimmerState', { get(){ return state; } });
     bootstrap().catch(err => { console.error(err); setStatus('Fehler beim Laden: '+err.message); });
 })();
+
+// Bootstrap 5 Modal Helpers
+const ModalHelper = {
+    alertModal: null,
+    confirmModal: null,
+    promptModal: null,
+    saveAsModal: null,
+    
+    createAlertModal() {
+        if (this.alertModal) return;
+        const html = `
+            <div class="modal fade" id="alertModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Hinweis</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="alertModalBody"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+    },
+    
+    createConfirmModal() {
+        if (this.confirmModal) return;
+        const html = `
+            <div class="modal fade" id="confirmModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Bestätigung</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="confirmModalBody"></div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmCancel">Abbrechen</button>
+                            <button type="button" class="btn btn-primary" id="confirmOk">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    },
+    
+    createPromptModal() {
+        if (this.promptModal) return;
+        const html = `
+            <div class="modal fade" id="promptModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="promptModalTitle">Eingabe</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <label id="promptModalLabel" class="form-label"></label>
+                            <input type="text" class="form-control" id="promptModalInput" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="promptCancel">Abbrechen</button>
+                            <button type="button" class="btn btn-primary" id="promptOk">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
+    },
+
+    createSaveAsModal() {
+        if (this.saveAsModal) return;
+        const html = `
+            <div class="modal fade" id="saveAsModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Konfiguration speichern</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="saveAsMode" id="saveAsModeNew" value="new">
+                                <label class="form-check-label" for="saveAsModeNew">Neue Konfiguration anlegen</label>
+                            </div>
+                            <div class="ps-4 mb-3" id="saveAsNewWrap">
+                                <input type="text" class="form-control" id="saveAsNewName" placeholder="Name eingeben…">
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="saveAsMode" id="saveAsModeOverwrite" value="overwrite">
+                                <label class="form-check-label" for="saveAsModeOverwrite">Bestehende Konfiguration überschreiben</label>
+                            </div>
+                            <div class="ps-4" id="saveAsExistingWrap">
+                                <select class="form-select" id="saveAsExistingSelect"></select>
+                            </div>
+                            <div class="form-text text-danger mt-3" id="saveAsError" style="display:none"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="saveAsCancel">Abbrechen</button>
+                            <button type="button" class="btn btn-primary" id="saveAsOk">Speichern</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.saveAsModal = new bootstrap.Modal(document.getElementById('saveAsModal'));
+    },
+    
+    configSaveAs({ configs = [], suggestedKey = '', defaultNewName = '' } = {}) {
+        return new Promise((resolve) => {
+            this.createSaveAsModal();
+
+            const modalEl = document.getElementById('saveAsModal');
+            const radioNew = document.getElementById('saveAsModeNew');
+            const radioOverwrite = document.getElementById('saveAsModeOverwrite');
+            const newWrap = document.getElementById('saveAsNewWrap');
+            const newInput = document.getElementById('saveAsNewName');
+            const existingWrap = document.getElementById('saveAsExistingWrap');
+            const existingSelect = document.getElementById('saveAsExistingSelect');
+            const errorEl = document.getElementById('saveAsError');
+            const btnOk = document.getElementById('saveAsOk');
+            const btnCancel = document.getElementById('saveAsCancel');
+
+            const availableConfigs = (configs || []).filter(cfg => cfg && cfg.key && cfg.key !== '__working__' && !cfg.protected);
+            existingSelect.innerHTML = '';
+            if(availableConfigs.length === 0){
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Keine gespeicherten Konfigurationen';
+                opt.disabled = true;
+                opt.selected = true;
+                existingSelect.appendChild(opt);
+            } else {
+                availableConfigs.forEach(cfg => {
+                    const opt = document.createElement('option');
+                    opt.value = cfg.key;
+                    const rowsSuffix = typeof cfg.rows === 'number' ? ` (${cfg.rows})` : '';
+                    opt.textContent = `${cfg.label}${rowsSuffix}`;
+                    existingSelect.appendChild(opt);
+                });
+            }
+
+            const showError = (msg) => {
+                if(msg){
+                    errorEl.textContent = msg;
+                    errorEl.style.display = 'block';
+                } else {
+                    errorEl.textContent = '';
+                    errorEl.style.display = 'none';
+                }
+            };
+
+            const hasOverwrite = availableConfigs.length > 0;
+            radioOverwrite.disabled = !hasOverwrite;
+            radioNew.disabled = false;
+
+            if(hasOverwrite && availableConfigs.some(cfg => cfg.key === suggestedKey)){
+                existingSelect.value = suggestedKey;
+                radioOverwrite.checked = true;
+                radioNew.checked = false;
+            } else {
+                radioNew.checked = true;
+                radioOverwrite.checked = false;
+                if(hasOverwrite){
+                    existingSelect.value = availableConfigs[0].key;
+                }
+            }
+
+            newInput.value = defaultNewName || '';
+
+            const updateModeUI = () => {
+                const useNew = radioOverwrite.disabled || radioNew.checked;
+                radioNew.checked = useNew;
+                radioOverwrite.checked = !useNew && !radioOverwrite.disabled;
+                const isNew = radioNew.checked;
+                newInput.disabled = !isNew;
+                newWrap.classList.toggle('opacity-50', !isNew);
+                existingSelect.disabled = isNew || !hasOverwrite;
+                existingWrap.classList.toggle('opacity-50', existingSelect.disabled);
+                showError('');
+            };
+
+            updateModeUI();
+
+            let finished = false;
+            const cleanup = () => {
+                radioNew.removeEventListener('change', updateModeUI);
+                radioOverwrite.removeEventListener('change', updateModeUI);
+                btnOk.removeEventListener('click', handleOk);
+                btnCancel.removeEventListener('click', handleCancel);
+                modalEl.removeEventListener('hidden.bs.modal', handleHide);
+                modalEl.removeEventListener('shown.bs.modal', handleShown);
+                newInput.removeEventListener('keypress', handleEnter);
+                existingSelect.removeEventListener('keypress', handleEnter);
+            };
+
+            const finish = (value) => {
+                if(finished) return;
+                finished = true;
+                cleanup();
+                resolve(value);
+            };
+
+            const handleOk = () => {
+                const isNew = radioNew.checked || radioOverwrite.disabled;
+                if(isNew){
+                    const val = newInput.value.trim();
+                    if(!val){
+                        showError('Bitte einen Namen eingeben.');
+                        newInput.focus();
+                        return;
+                    }
+                    finish({ name: val, overwrite: false });
+                    this.saveAsModal.hide();
+                } else {
+                    const val = existingSelect.value;
+                    if(!val){
+                        showError('Bitte eine Konfiguration auswählen.');
+                        existingSelect.focus();
+                        return;
+                    }
+                    finish({ name: val, overwrite: true });
+                    this.saveAsModal.hide();
+                }
+            };
+
+            const handleCancel = () => {
+                finish(null);
+                this.saveAsModal.hide();
+            };
+
+            const handleHide = () => {
+                finish(null);
+            };
+
+            const handleShown = () => {
+                const isNew = radioNew.checked || radioOverwrite.disabled;
+                setTimeout(() => {
+                    if(isNew){ newInput.focus(); } else { existingSelect.focus(); }
+                }, 50);
+            };
+
+            const handleEnter = (e) => {
+                if(e.key === 'Enter'){
+                    e.preventDefault();
+                    handleOk();
+                }
+            };
+
+            radioNew.addEventListener('change', updateModeUI);
+            radioOverwrite.addEventListener('change', updateModeUI);
+            btnOk.addEventListener('click', handleOk);
+            btnCancel.addEventListener('click', handleCancel);
+            modalEl.addEventListener('hidden.bs.modal', handleHide, { once: false });
+            modalEl.addEventListener('shown.bs.modal', handleShown, { once: false });
+            newInput.addEventListener('keypress', handleEnter);
+            existingSelect.addEventListener('keypress', handleEnter);
+
+            this.saveAsModal.show();
+        });
+    },
+
+    alert(message) {
+        return new Promise((resolve) => {
+            this.createAlertModal();
+            document.getElementById('alertModalBody').textContent = message;
+            this.alertModal.show();
+            const handleHide = () => {
+                document.getElementById('alertModal').removeEventListener('hidden.bs.modal', handleHide);
+                resolve();
+            };
+            document.getElementById('alertModal').addEventListener('hidden.bs.modal', handleHide);
+        });
+    },
+    
+    confirm(message) {
+        return new Promise((resolve) => {
+            this.createConfirmModal();
+            document.getElementById('confirmModalBody').textContent = message;
+            
+            const handleOk = () => {
+                cleanup();
+                this.confirmModal.hide();
+                resolve(true);
+            };
+            const handleCancel = () => {
+                cleanup();
+                this.confirmModal.hide();
+                resolve(false);
+            };
+            const handleHide = () => {
+                cleanup();
+                resolve(false);
+            };
+            
+            const cleanup = () => {
+                document.getElementById('confirmOk').removeEventListener('click', handleOk);
+                document.getElementById('confirmCancel').removeEventListener('click', handleCancel);
+                document.getElementById('confirmModal').removeEventListener('hidden.bs.modal', handleHide);
+            };
+            
+            document.getElementById('confirmOk').addEventListener('click', handleOk);
+            document.getElementById('confirmCancel').addEventListener('click', handleCancel);
+            document.getElementById('confirmModal').addEventListener('hidden.bs.modal', handleHide);
+            
+            this.confirmModal.show();
+        });
+    },
+    
+    prompt(message, defaultValue = '') {
+        return new Promise((resolve) => {
+            this.createPromptModal();
+            document.getElementById('promptModalLabel').textContent = message;
+            document.getElementById('promptModalInput').value = defaultValue;
+            
+            const handleOk = () => {
+                const value = document.getElementById('promptModalInput').value;
+                cleanup();
+                this.promptModal.hide();
+                resolve(value);
+            };
+            const handleCancel = () => {
+                cleanup();
+                this.promptModal.hide();
+                resolve(null);
+            };
+            const handleHide = () => {
+                cleanup();
+                resolve(null);
+            };
+            const handleEnter = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleOk();
+                }
+            };
+            
+            const cleanup = () => {
+                document.getElementById('promptOk').removeEventListener('click', handleOk);
+                document.getElementById('promptCancel').removeEventListener('click', handleCancel);
+                document.getElementById('promptModal').removeEventListener('hidden.bs.modal', handleHide);
+                document.getElementById('promptModalInput').removeEventListener('keypress', handleEnter);
+            };
+            
+            document.getElementById('promptOk').addEventListener('click', handleOk);
+            document.getElementById('promptCancel').addEventListener('click', handleCancel);
+            document.getElementById('promptModal').addEventListener('hidden.bs.modal', handleHide);
+            document.getElementById('promptModalInput').addEventListener('keypress', handleEnter);
+            
+            this.promptModal.show();
+            setTimeout(() => document.getElementById('promptModalInput').focus(), 100);
+        });
+    }
+};
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
