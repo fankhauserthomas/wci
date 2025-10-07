@@ -481,7 +481,9 @@ try {
             }
         }
 
-        $pdf = new RoomplanPdf('P', 'mm', 'A4');
+    $orientation = ($cols > 3) ? 'L' : 'P';
+
+    $pdf = new RoomplanPdf($orientation, 'mm', 'A4');
         $pdf->SetTitle($pageTitle);
         $pdf->AddPage();
         $pdf->SetAutoPageBreak(false);
@@ -491,8 +493,11 @@ try {
         $marginTop = 20.0;
         $marginBottom = 10.0;
 
-        $usableWidth = 210.0 - $marginLeft - $marginRight;
-        $usableHeight = 297.0 - $marginTop - $marginBottom;
+    $pageWidth = $pdf->GetPageWidth();
+    $pageHeight = $pdf->GetPageHeight();
+
+    $usableWidth = $pageWidth - $marginLeft - $marginRight;
+    $usableHeight = $pageHeight - $marginTop - $marginBottom;
 
         $cellWidth = $usableWidth / max(1, $cols);
         $cellHeight = $usableHeight / max(1, $rows);

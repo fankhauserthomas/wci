@@ -515,7 +515,7 @@ if ($action === 'save') {
     .btn.danger{background:linear-gradient(180deg,var(--danger),var(--danger-600));border-color:#b91c1c}
     .toolbar{display:flex;gap:8px;align-items:center}
     .input{background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px}
-    .config-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;min-width:240px}
+    .config-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-start;width:100%;min-width:100%}
     .config-controls select{min-width:180px}
     .config-info{font-size:12px;color:var(--muted)}
 
@@ -542,6 +542,9 @@ if ($action === 'save') {
     .vis-toggle{ background:none; border:1px solid #cbd5e1; border-radius:6px; width:34px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer }
     .vis-toggle.on{ color:#16a34a; border-color:#86efac; background:#f0fdf4 }
     .vis-toggle.off{ color:#b91c1c; border-color:#fecaca; background:#fef2f2 }
+    .delete-btn{ background:none; border:1px solid #fecaca; border-radius:6px; width:34px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#dc2626; font-size:16px; transition:all 0.2s }
+    .delete-btn:hover{ background:#fee; border-color:#dc2626 }
+    .delete-btn:disabled{ opacity:0.4; cursor:not-allowed }
 
     canvas{display:block;width:100%;background:#0b1220}
     .status{padding:8px 12px;color:var(--muted)}
@@ -575,9 +578,7 @@ if ($action === 'save') {
 <header>
     <h1>Zimmerverwaltung</h1>
     <div class="toolbar">
-        <button id="btnBack" class="btn">⬅️ Zurück</button>
         <button id="btnAdd" class="btn">➕ Neu</button>
-        <button id="btnRemove" class="btn danger">🗑 Löschen</button>
         <button id="btnSave" class="btn primary">Anwenden</button>
         <input id="filter" class="input" placeholder="Filter (Bezeichnung &amp; Kategorie)…" />
     </div>
@@ -608,6 +609,7 @@ if ($action === 'save') {
                         <th style="width:140px">Kategorie</th>
                         <th style="width:110px">Farbe</th>
                         <th style="width:90px">Sichtbar</th>
+                        <th style="width:60px">Aktion</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -646,8 +648,6 @@ if ($action === 'save') {
         chips: document.getElementById('chips'),
         filter: document.getElementById('filter'),
         btnAdd: document.getElementById('btnAdd'),
-    btnBack: document.getElementById('btnBack'),
-        btnRemove: document.getElementById('btnRemove'),
         btnSave: document.getElementById('btnSave'),
         canvas: document.getElementById('preview'),
         ctx: document.getElementById('preview').getContext('2d'),
@@ -904,7 +904,10 @@ if ($action === 'save') {
 
         // Caption
         const cap = input(r.caption);
-        cap.addEventListener('input', () => markUpdated(r, { caption: cap.value }));
+        cap.style.minWidth = '120px';
+        if (!isAblage) {
+            cap.addEventListener('input', () => markUpdated(r, { caption: cap.value }));
+        }
         tr.appendChild(cell(cap));
 
         // Etage
@@ -955,8 +958,33 @@ if ($action === 'save') {
         });
         tr.appendChild(cell(visBtn));
 
+        // Löschen Button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '🗑';
+        deleteBtn.title = 'Zimmer löschen';
+        if (isAblage) {
+            deleteBtn.disabled = true;
+            deleteBtn.title = 'Ablage kann nicht gelöscht werden';
+        }
+        deleteBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (isAblage) return;
+            
+            const roomName = r.caption || 'Zimmer ' + r.id;
+            if (confirm(`Soll das Zimmer "${roomName}" wirklich gelöscht werden?`)) {
+                removeRoom(r);
+            }
+        });
+        tr.appendChild(cell(deleteBtn));
+
         // selection via click
         tr.addEventListener('click', (ev) => {
+            // Ignore clicks on input/select/button elements to allow editing
+            if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT' || ev.target.tagName === 'BUTTON') {
+                return;
+            }
             if(ev.shiftKey || ev.ctrlKey || ev.metaKey){
                 if(state.selection.has(r.id)) state.selection.delete(r.id); else state.selection.add(r.id);
             } else {
@@ -1113,6 +1141,26 @@ if ($action === 'save') {
         const newRow = { id: 0, caption: 'Neues Zimmer', etage: 1, kapazitaet: 1, kategorie: '', col: '#FFDDDDDD', px: 1, py: 1, visible: 1, sort: maxSort+1, __uid: Math.random().toString(36).slice(2) };
         state.rows.push(newRow);
         state.dirty.inserted.push({...newRow});
+        renderTable();
+    }
+
+    function removeRoom(room){
+        if(!room || !room.id) return;
+        const id = room.id;
+        // Prevent deleting Ablage
+        if (String(room.caption).trim().toLowerCase() === 'ablage') {
+            alert('Die Zeile "Ablage" kann nicht gelöscht werden.');
+            return;
+        }
+        
+        // Mark for deletion
+        if (id > 0) {
+            state.dirty.deleted.add(id);
+        }
+        // Remove from rows
+        state.rows = state.rows.filter(r => r.id !== id);
+        // Remove from selection if present
+        state.selection.delete(id);
         renderTable();
     }
 
@@ -1481,8 +1529,6 @@ if ($action === 'save') {
     // wire buttons and filter
     els.filter.addEventListener('input', onFilterChange);
     els.btnAdd.addEventListener('click', addRow);
-    els.btnBack.addEventListener('click', ()=>{ if (document.referrer) { history.back(); } else { window.location.href = '../timeline-unified.html'; } });
-    els.btnRemove.addEventListener('click', removeSelected);
     els.btnSave.addEventListener('click', save);
     if(els.configSelect) els.configSelect.addEventListener('change', () => { onConfigSelectChange(); });
     if(els.btnConfigSaveAs) els.btnConfigSaveAs.addEventListener('click', handleConfigSaveAs);

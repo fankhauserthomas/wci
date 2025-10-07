@@ -2885,30 +2885,48 @@ class TimelineUnifiedRenderer {
 
     shadeWeekendColumns(area, startDate, endDate, options = {}) {
         const weekendConfig = this.themeConfig.weekend || {};
-        const fill = options.fill || weekendConfig.fill || 'rgba(255, 99, 132, 0.08)';
-        if (!fill) return;
+        const baseFill = options.fill || weekendConfig.fill || 'rgba(255, 99, 132, 0.14)';
+        const accentFill = options.accent || weekendConfig.accent || 'rgba(255, 99, 132, 0.05)';
+        if (!baseFill) return;
 
         const barWidth = options.barWidth !== undefined ? options.barWidth : this.DAY_WIDTH;
         const xOffset = options.xOffset || 0;
         const offsetY = options.offsetY !== undefined ? options.offsetY : area.y;
         const height = options.height !== undefined ? options.height : area.height;
         const startX = this.sidebarWidth - this.scrollX;
-        const startTime = startDate.getTime();
-        const endTime = endDate.getTime();
-        if (!(endTime >= startTime)) return;
 
-        const dayCount = Math.max(1, Math.floor((endTime - startTime) / MS_IN_DAY) + 1);
-        for (let dayIndex = 0; dayIndex < dayCount; dayIndex++) {
-            const x = startX + (dayIndex * this.DAY_WIDTH) + xOffset;
-            if (x + barWidth <= this.sidebarWidth || x >= this.canvas.width) {
-                continue;
+        const current = new Date(startDate.getTime());
+        current.setHours(0, 0, 0, 0);
+        const end = new Date(endDate.getTime());
+        end.setHours(0, 0, 0, 0);
+
+        if (current > end) {
+            return;
+        }
+
+        const accentWidth = Math.max(2, Math.min(barWidth * 0.18, 6));
+        let dayIndex = 0;
+
+        while (current <= end) {
+            const x = startX + (dayIndex * barWidth) + xOffset;
+            if (x + barWidth > this.sidebarWidth && x < this.canvas.width) {
+                const day = current.getDay();
+                if (day === 6 || day === 0) {
+                    this.ctx.save();
+                    this.ctx.fillStyle = baseFill;
+                    this.ctx.fillRect(x, offsetY, barWidth, height);
+
+                    if (accentFill) {
+                        this.ctx.fillStyle = accentFill;
+                        this.ctx.fillRect(x, offsetY, accentWidth, height);
+                        this.ctx.fillRect(x + barWidth - accentWidth, offsetY, accentWidth, height);
+                    }
+                    this.ctx.restore();
+                }
             }
-            const dayDate = new Date(startTime + dayIndex * MS_IN_DAY);
-            const day = dayDate.getDay();
-            if (day === 0 || day === 6) {
-                this.ctx.fillStyle = fill;
-                this.ctx.fillRect(x, offsetY, barWidth, height);
-            }
+
+            current.setDate(current.getDate() + 1);
+            dayIndex += 1;
         }
     }
 
