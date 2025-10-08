@@ -5962,6 +5962,18 @@ class TimelineUnifiedRenderer {
         if (mouseY >= this.areas.histogram.y && mouseY <= this.areas.histogram.y + this.areas.histogram.height && mouseX >= this.sidebarWidth) {
             const dayIndex = this.findHistogramDayAt(mouseX);
             if (dayIndex !== null) {
+                // Check if day is closed before allowing selection
+                const dailyDetails = this.histogramCache?.dailyDetails;
+                if (dailyDetails && dailyDetails[dayIndex]) {
+                    const detail = dailyDetails[dayIndex];
+                    const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
+                    if (hutStatus && hutStatus !== 'SERVICED') {
+                        // Day is closed, ignore click
+                        console.log(`⛔ Tag ${dayIndex} ist geschlossen (Status: ${hutStatus}) und kann nicht selektiert werden`);
+                        e.preventDefault();
+                        return;
+                    }
+                }
                 this.handleHistogramDayClick(dayIndex, e);
                 e.preventDefault();
                 return;
@@ -6358,6 +6370,18 @@ class TimelineUnifiedRenderer {
     }
 
     handleHistogramDayClick(dayIndex, event) {
+        // Additional check if the day is closed (safety net)
+        const dailyDetails = this.histogramCache?.dailyDetails;
+        if (dailyDetails && dailyDetails[dayIndex]) {
+            const detail = dailyDetails[dayIndex];
+            const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
+            if (hutStatus && hutStatus !== 'SERVICED') {
+                // Day is closed (UNSERVICED or CLOSED), ignore click
+                console.log(`⛔ Tag ${dayIndex} ist geschlossen (Status: ${hutStatus}) und kann nicht selektiert werden`);
+                return;
+            }
+        }
+
         const isCtrlClick = event.ctrlKey || event.metaKey; // Ctrl (Windows) or Cmd (Mac)
         const isShiftClick = event.shiftKey;
 
@@ -6367,6 +6391,14 @@ class TimelineUnifiedRenderer {
             const end = Math.max(this.lastSelectedDayIndex, dayIndex);
 
             for (let i = start; i <= end; i++) {
+                // Skip closed days in range selection
+                if (dailyDetails && dailyDetails[i]) {
+                    const detail = dailyDetails[i];
+                    const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
+                    if (hutStatus && hutStatus !== 'SERVICED') {
+                        continue; // Skip closed day
+                    }
+                }
                 this.selectedHistogramDays.add(i);
             }
         } else if (isCtrlClick) {
@@ -6434,13 +6466,17 @@ class TimelineUnifiedRenderer {
         this.selectedHistogramDays.forEach(dayIndex => {
             const detail = histogramData.dailyDetails[dayIndex];
             if (detail) {
-                sum += (detail.total || 0);
+                // Include both occupied capacity AND free capacity
+                const occupiedCapacity = detail.total || 0;
+                const freeCapacity = Math.max(0, detail.free_capacity || 0);
+                const totalCapacity = occupiedCapacity + freeCapacity;
+                sum += totalCapacity;
                 count++;
             }
         });
 
         const average = count > 0 ? Math.round(sum / count) : 0;
-        console.log(`📊 Average capacity of ${count} selected days: ${average}`);
+        console.log(`📊 Average total capacity (occupied + free) of ${count} selected days: ${average}`);
         return average;
     }
 
@@ -10735,13 +10771,24 @@ class TimelineUnifiedRenderer {
                 const barHeight = ratio * availableHeight;
                 const barTop = chartBottomY - barHeight;
 
-                const delta = this.histogramTargetValue - totalValue;
+                // Calculate free capacity (FR segment) height to find its top
+                const freeCapacity = Math.max(0, Number(detail.free_capacity) || 0);
+                let freeHeight = 0;
+                if (freeCapacity > 0 && scaledMax > 0) {
+                    freeHeight = (freeCapacity / scaledMax) * availableHeight;
+                }
+                // Arrow should start at the top of the FR segment
+                const frSegmentTop = barTop - freeHeight;
+
+                // Calculate delta using TOTAL capacity (occupied + free)
+                const totalCapacity = totalValue + freeCapacity;
+                const delta = this.histogramTargetValue - totalCapacity;
                 const arrowX = x + (barWidth / 2); // Center of main bar
 
                 // Only draw arrow if there's a meaningful difference
                 if (Math.abs(delta) > 1) {
                     const isUpward = delta > 0;
-                    const arrowStartY = barTop;
+                    const arrowStartY = frSegmentTop; // Start at FR segment top instead of barTop
                     const arrowEndY = targetY;
 
                     // Arrow line
