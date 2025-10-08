@@ -435,9 +435,17 @@ try {
     if ($importer->importDailySummaries($dateFrom, $dateTo)) {
         if ($isWebInterface) {
             $output = ob_get_clean();
+            
+            // Extract imported count from output
+            $importedCount = 0;
+            if (preg_match('/Import completed: (\d+) processed, (\d+) inserted/', $output, $matches)) {
+                $importedCount = (int)$matches[2];
+            }
+            
             echo json_encode([
                 'success' => true,
                 'message' => 'Daily Summary import completed successfully',
+                'imported' => $importedCount,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
                 'log' => $output

@@ -461,6 +461,15 @@ class TimelineUnifiedRenderer {
         // Visual cues for separators
         this.masterSeparatorNeedsAttention = false;
 
+        // Histogram Day Selection (Windows-Style multi-select)
+        this.selectedHistogramDays = new Set(); // Set of day indices
+        this.lastSelectedDayIndex = null; // For shift+click range selection
+        this.isHistogramDaySelectionActive = false;
+
+        // Histogram Target Value Adjustment
+        this.histogramTargetValue = null; // Target capacity value for selected days
+        this.histogramTargetActive = false; // Flag to show target arrows
+
         // Touch-optimierte Fokussteuerung für Zimmer-Balken
         this.focusedReservationKey = null;
         this.focusedReservationAt = 0;
@@ -3711,6 +3720,13 @@ class TimelineUnifiedRenderer {
                                         </div>
                                         <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Leer lassen für automatischen Modus</p>
                                     </div>
+                                    <div class="topbar-menu-section">
+                                        <label>HRS Import für selektierte Tage</label>
+                                        <button id="timeline-hrs-import-btn" class="topbar-link" style="width: 100%; text-align: center; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 4px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;">
+                                            📥 HRS Daten importieren
+                                        </button>
+                                        <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Importiert Daily, Quota & Res für selektierte Tage</p>
+                                    </div>
                                     <div class="topbar-menu-section topbar-menu-links">
                                         <a id="timeline-room-editor-link" class="topbar-link" href="zimmereditor/index.php" target="_blank" rel="noopener">🛏️ Zimmereditor</a>
                                     </div>
@@ -4689,6 +4705,29 @@ class TimelineUnifiedRenderer {
             if (now - this.lastScrollRender < 16) return; // 60 FPS für Scrolling
             this.lastScrollRender = now;
 
+            // HISTOGRAM TARGET VALUE ADJUSTMENT: Wenn Mausrad über selektiertem Histogram-Tag
+            if (mouseY >= this.areas.histogram.y && mouseY <= this.areas.histogram.y + this.areas.histogram.height &&
+                mouseX >= this.sidebarWidth && this.isHistogramDaySelectionActive) {
+                const dayIndex = this.findHistogramDayAt(mouseX);
+
+                // Nur wenn auf einem selektierten Tag
+                if (dayIndex !== null && this.selectedHistogramDays.has(dayIndex)) {
+                    // Berechne Mittelwert wenn noch nicht gesetzt
+                    if (this.histogramTargetValue === null) {
+                        this.histogramTargetValue = this.calculateSelectedDaysAverage();
+                        this.histogramTargetActive = true;
+                    }
+
+                    // Erhöhe/Erniedrige Zielwert
+                    const delta = e.deltaY > 0 ? -5 : 5; // Invertiert: runter scrollen = erhöhen
+                    this.histogramTargetValue = Math.max(0, this.histogramTargetValue + delta);
+
+                    console.log('🎯 Histogram target value adjusted:', this.histogramTargetValue);
+                    this.scheduleRender('histogram_target_adjust');
+                    return;
+                }
+            }
+
             // DAY_WIDTH ändern wenn Maus über Header/Datum-Bereich
             if (mouseY >= this.areas.header.y && mouseY < this.areas.header.y + this.areas.header.height && !e.shiftKey) {
                 const delta = e.deltaY > 0 ? 5 : -5; // Scroll Richtung steuert Zoom
@@ -4839,6 +4878,12 @@ class TimelineUnifiedRenderer {
 
         window.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
+                // Clear histogram selection first
+                if (this.isHistogramDaySelectionActive) {
+                    this.clearHistogramDaySelection();
+                    return;
+                }
+
                 if (this.radialMenu?.isVisible()) {
                     this.radialMenu.hide();
                 }
@@ -5913,6 +5958,16 @@ class TimelineUnifiedRenderer {
             return;
         }
 
+        // Check for histogram day selection (before separator handling)
+        if (mouseY >= this.areas.histogram.y && mouseY <= this.areas.histogram.y + this.areas.histogram.height && mouseX >= this.sidebarWidth) {
+            const dayIndex = this.findHistogramDayAt(mouseX);
+            if (dayIndex !== null) {
+                this.handleHistogramDayClick(dayIndex, e);
+                e.preventDefault();
+                return;
+            }
+        }
+
         // Separator-Handling hat Priorität
         if (this.isOverTopSeparator(mouseY)) {
             this.isDraggingSeparator = true;
@@ -6283,6 +6338,113 @@ class TimelineUnifiedRenderer {
     }
 
     // Dummy handlers for requested actions
+
+    // ===== HISTOGRAM DAY SELECTION =====
+    // Windows-style multi-select for histogram bars
+
+    findHistogramDayAt(mouseX) {
+        const { startDate, endDate } = this.getTimelineDateRange();
+        const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / MS_IN_DAY) + 1;
+        const startX = this.sidebarWidth - this.scrollX;
+
+        // Calculate which day was clicked
+        const relativeX = mouseX - startX;
+        const dayIndex = Math.floor(relativeX / this.DAY_WIDTH);
+
+        if (dayIndex >= 0 && dayIndex < totalDays) {
+            return dayIndex;
+        }
+        return null;
+    }
+
+    handleHistogramDayClick(dayIndex, event) {
+        const isCtrlClick = event.ctrlKey || event.metaKey; // Ctrl (Windows) or Cmd (Mac)
+        const isShiftClick = event.shiftKey;
+
+        if (isShiftClick && this.lastSelectedDayIndex !== null) {
+            // Range selection: Select all days between last selected and current
+            const start = Math.min(this.lastSelectedDayIndex, dayIndex);
+            const end = Math.max(this.lastSelectedDayIndex, dayIndex);
+
+            for (let i = start; i <= end; i++) {
+                this.selectedHistogramDays.add(i);
+            }
+        } else if (isCtrlClick) {
+            // Toggle individual day selection
+            if (this.selectedHistogramDays.has(dayIndex)) {
+                this.selectedHistogramDays.delete(dayIndex);
+            } else {
+                this.selectedHistogramDays.add(dayIndex);
+            }
+            this.lastSelectedDayIndex = dayIndex;
+        } else {
+            // Normal click: Clear selection and select only this day
+            this.selectedHistogramDays.clear();
+            this.selectedHistogramDays.add(dayIndex);
+            this.lastSelectedDayIndex = dayIndex;
+        }
+
+        // Mark selection as active for rendering
+        this.isHistogramDaySelectionActive = this.selectedHistogramDays.size > 0;
+
+        // Calculate initial target value as average when selection changes
+        if (this.selectedHistogramDays.size > 0) {
+            this.histogramTargetValue = this.calculateSelectedDaysAverage();
+            this.histogramTargetActive = true;
+        } else {
+            this.histogramTargetValue = null;
+            this.histogramTargetActive = false;
+        }
+
+        // Re-render to show selection
+        this.render();
+
+        // Log selection for debugging
+        if (this.selectedHistogramDays.size > 0) {
+            const { startDate } = this.getTimelineDateRange();
+            const selectedDates = Array.from(this.selectedHistogramDays).map(idx => {
+                const date = new Date(startDate.getTime() + idx * MS_IN_DAY);
+                return date.toISOString().split('T')[0];
+            });
+            console.log('📅 Histogram days selected:', selectedDates);
+            console.log('🎯 Initial target value:', this.histogramTargetValue);
+        }
+    }
+
+    clearHistogramDaySelection() {
+        this.selectedHistogramDays.clear();
+        this.lastSelectedDayIndex = null;
+        this.isHistogramDaySelectionActive = false;
+        this.histogramTargetValue = null;
+        this.histogramTargetActive = false;
+        this.render();
+    }
+
+    calculateSelectedDaysAverage() {
+        if (this.selectedHistogramDays.size === 0) return 0;
+
+        const { startDate, endDate } = this.getTimelineDateRange();
+        const histogramData = this.getHistogramData(startDate, endDate);
+
+        if (!histogramData || !histogramData.dailyDetails) return 0;
+
+        let sum = 0;
+        let count = 0;
+
+        this.selectedHistogramDays.forEach(dayIndex => {
+            const detail = histogramData.dailyDetails[dayIndex];
+            if (detail) {
+                sum += (detail.total || 0);
+                count++;
+            }
+        });
+
+        const average = count > 0 ? Math.round(sum / count) : 0;
+        console.log(`📊 Average capacity of ${count} selected days: ${average}`);
+        return average;
+    }
+
+    // ===== END HISTOGRAM DAY SELECTION =====
     onMasterMenuDataset(detail) {
         // Open the existing dataset modal flow
         try {
@@ -9677,16 +9839,6 @@ class TimelineUnifiedRenderer {
         this.performanceStats.batchCount = this.renderPipeline.batchOperations.length;
         this.performanceStats.contextSwitches = this.renderPipeline.contextSwitches;
 
-        // Optional: Log performance stats for debugging (can be removed in production)
-        if (Math.random() < 0.01) { // Log 1% of renders to avoid spam
-            console.log('Phase 3 Performance:', {
-                renderTime: this.performanceStats.renderTime.toFixed(2) + 'ms',
-                contextSwitches: this.performanceStats.contextSwitches,
-                cullingBounds: this.viewportCache.cullingBounds,
-                scrollVelocity: this.predictiveCache.scrollVelocity.toFixed(2)
-            });
-        }
-
         this.updateNavigationOverview();
     }
 
@@ -10503,6 +10655,178 @@ class TimelineUnifiedRenderer {
                 this.ctx.font = previousFont;
             }
         });
+
+        // ===== RENDER HISTOGRAM DAY SELECTION FRAMES =====
+        if (this.isHistogramDaySelectionActive && this.selectedHistogramDays.size > 0) {
+            this.ctx.save();
+
+            // Draw selection frames around selected days
+            this.selectedHistogramDays.forEach(dayIndex => {
+                const x = startX + (dayIndex * this.DAY_WIDTH);
+
+                // Skip if outside visible area
+                if (x + totalBarWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+                    return;
+                }
+
+                // Draw a bright frame around the entire day (both bars)
+                const frameX = x - 2;
+                const frameY = area.y + 2;
+                const frameWidth = totalBarWidth + 4;
+                const frameHeight = area.height - 4;
+
+                // Outer glow effect
+                this.ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+                this.ctx.lineWidth = 6;
+                this.ctx.strokeRect(frameX, frameY, frameWidth, frameHeight);
+
+                // Inner bright frame
+                this.ctx.strokeStyle = '#6366f1'; // Indigo-500
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(frameX, frameY, frameWidth, frameHeight);
+
+                // Optional: Subtle highlight overlay
+                this.ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
+                this.ctx.fillRect(frameX, frameY, frameWidth, frameHeight);
+            });
+
+            this.ctx.restore();
+        }
+        // ===== END HISTOGRAM DAY SELECTION FRAMES =====
+
+        // ===== RENDER TARGET VALUE ARROWS =====
+        if (this.histogramTargetActive && this.histogramTargetValue !== null && this.selectedHistogramDays.size > 0) {
+            this.ctx.save();
+
+            // Calculate target Y position based on target value
+            const targetRatio = scaledMax > 0 ? this.histogramTargetValue / scaledMax : 0;
+            const targetY = chartBottomY - (targetRatio * availableHeight);
+
+            // Draw target line across all selected days
+            const sortedDays = Array.from(this.selectedHistogramDays).sort((a, b) => a - b);
+            if (sortedDays.length > 0) {
+                const firstDayX = startX + (sortedDays[0] * this.DAY_WIDTH);
+                const lastDayX = startX + (sortedDays[sortedDays.length - 1] * this.DAY_WIDTH) + totalBarWidth;
+
+                // Target line
+                this.ctx.strokeStyle = '#fbbf24'; // Amber-400
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([8, 4]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(firstDayX, targetY);
+                this.ctx.lineTo(lastDayX, targetY);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+
+            // Draw arrows from each bar top to target
+            dailyDetails.forEach((detail, dayIndex) => {
+                if (!this.selectedHistogramDays.has(dayIndex)) return;
+
+                const x = startX + (dayIndex * this.DAY_WIDTH);
+
+                // Skip if outside visible area
+                if (x + totalBarWidth <= this.sidebarWidth - 100 || x >= this.canvas.width + 100) {
+                    return;
+                }
+
+                const totalValue = detail.total || 0;
+                const ratio = scaledMax > 0 ? totalValue / scaledMax : 0;
+                const barHeight = ratio * availableHeight;
+                const barTop = chartBottomY - barHeight;
+
+                const delta = this.histogramTargetValue - totalValue;
+                const arrowX = x + (barWidth / 2); // Center of main bar
+
+                // Only draw arrow if there's a meaningful difference
+                if (Math.abs(delta) > 1) {
+                    const isUpward = delta > 0;
+                    const arrowStartY = barTop;
+                    const arrowEndY = targetY;
+
+                    // Arrow line
+                    this.ctx.strokeStyle = isUpward ? '#10b981' : '#ef4444'; // Green up, Red down
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(arrowX, arrowStartY);
+                    this.ctx.lineTo(arrowX, arrowEndY);
+                    this.ctx.stroke();
+
+                    // Arrow head
+                    const arrowHeadSize = 6;
+                    this.ctx.fillStyle = this.ctx.strokeStyle;
+                    this.ctx.beginPath();
+                    if (isUpward) {
+                        // Upward arrow head (pointing up)
+                        this.ctx.moveTo(arrowX, arrowEndY);
+                        this.ctx.lineTo(arrowX - arrowHeadSize, arrowEndY + arrowHeadSize);
+                        this.ctx.lineTo(arrowX + arrowHeadSize, arrowEndY + arrowHeadSize);
+                    } else {
+                        // Downward arrow head (pointing down)
+                        this.ctx.moveTo(arrowX, arrowEndY);
+                        this.ctx.lineTo(arrowX - arrowHeadSize, arrowEndY - arrowHeadSize);
+                        this.ctx.lineTo(arrowX + arrowHeadSize, arrowEndY - arrowHeadSize);
+                    }
+                    this.ctx.closePath();
+                    this.ctx.fill();
+
+                    // Delta label
+                    const labelY = (arrowStartY + arrowEndY) / 2;
+                    const labelText = (delta > 0 ? '+' : '') + delta;
+
+                    // Label background
+                    this.ctx.font = 'bold 11px Arial';
+                    const labelMetrics = this.ctx.measureText(labelText);
+                    const labelPadding = 3;
+                    const labelWidth = labelMetrics.width + labelPadding * 2;
+                    const labelHeight = 14;
+                    const labelX = arrowX + 8; // Offset to right of arrow
+
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                    this.roundedRect(labelX, labelY - labelHeight / 2, labelWidth, labelHeight, 3);
+                    this.ctx.fill();
+
+                    // Label text
+                    this.ctx.fillStyle = isUpward ? '#10b981' : '#ef4444';
+                    this.ctx.textAlign = 'left';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(labelText, labelX + labelPadding, labelY);
+                }
+            });
+
+            // Draw target value label at the right end
+            if (sortedDays.length > 0) {
+                const lastDayX = startX + (sortedDays[sortedDays.length - 1] * this.DAY_WIDTH) + totalBarWidth;
+
+                this.ctx.font = 'bold 12px Arial';
+                const targetText = `Ziel: ${this.histogramTargetValue}`;
+                const targetMetrics = this.ctx.measureText(targetText);
+                const targetPadding = 5;
+                const targetWidth = targetMetrics.width + targetPadding * 2;
+                const targetHeight = 18;
+                const targetX = lastDayX + 10;
+                const targetBoxY = targetY - targetHeight / 2;
+
+                // Background
+                this.ctx.fillStyle = 'rgba(251, 191, 36, 0.9)'; // Amber
+                this.roundedRect(targetX, targetBoxY, targetWidth, targetHeight, 4);
+                this.ctx.fill();
+
+                // Border
+                this.ctx.strokeStyle = '#f59e0b';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(targetX, targetBoxY, targetWidth, targetHeight);
+
+                // Text
+                this.ctx.fillStyle = '#000';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(targetText, targetX + targetPadding, targetY);
+            }
+
+            this.ctx.restore();
+        }
+        // ===== END TARGET VALUE ARROWS =====
 
         this.ctx.restore();
     }

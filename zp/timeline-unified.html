@@ -5,6 +5,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timeline Unified - Single Canvas Rendering</title>
+
+    <!-- Bootstrap 5.3.2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+    <!-- Bootstrap 5 Dark Theme Overrides -->
+    <style>
+        /* Bootstrap Modal Dark Theme */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.85);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            border: 1px solid #444;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid #444;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #444;
+        }
+
+        .modal-title {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            color: #e0e0e0;
+        }
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        /* Form Controls Dark Theme */
+        .form-control {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            color: #fff;
+        }
+
+        .form-control:focus {
+            background: #1e1e1e;
+            border-color: #8b5cf6;
+            color: #fff;
+            box-shadow: 0 0 0 0.25rem rgba(139, 92, 246, 0.25);
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8c 100%);
+            border: none;
+        }
+
+        .btn-secondary {
+            background: #555;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #666;
+            border: none;
+        }
+    </style>
+
     <style>
         :root {
             /* Unified modal color system (keine visuellen Änderungen, nur zentralisierte Variablen) */
@@ -1570,6 +1645,212 @@
             console.error('FEHLER: TimelineUnifiedRenderer wurde nicht geladen!');
         }
 
+        // ===== MODAL HELPER (Bootstrap 5) =====
+        /**
+         * ModalHelper - Bootstrap 5 Modal Wrapper
+         * Provides alert, confirm, and prompt dialogs using Bootstrap 5 modals
+         */
+        const ModalHelper = {
+            /**
+             * Show alert dialog
+             * @param {string} message - Message to display
+             * @param {string} title - Dialog title (optional)
+             * @returns {Promise<void>}
+             */
+            alert: function (message, title = 'Information') {
+                return new Promise((resolve) => {
+                    // Remove existing modal if present
+                    const existingModal = document.getElementById('modal-helper-alert');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+
+                    // Create modal HTML
+                    const modalHtml = `
+                        <div class="modal fade" id="modal-helper-alert" tabindex="-1" aria-labelledby="modalAlertTitle" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content" style="background: #2d2d2d; border: 1px solid #444;">
+                                    <div class="modal-header" style="border-bottom: 1px solid #444;">
+                                        <h5 class="modal-title" id="modalAlertTitle" style="color: #fff;">${title}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body" style="color: #e0e0e0; white-space: pre-wrap;">
+                                        ${message}
+                                    </div>
+                                    <div class="modal-footer" style="border-top: 1px solid #444;">
+                                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">OK</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add to DOM
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                    // Initialize and show modal
+                    const modalElement = document.getElementById('modal-helper-alert');
+                    const modal = new bootstrap.Modal(modalElement);
+
+                    // Resolve on close
+                    modalElement.addEventListener('hidden.bs.modal', () => {
+                        modalElement.remove();
+                        resolve();
+                    }, { once: true });
+
+                    modal.show();
+                });
+            },
+
+            /**
+             * Show confirm dialog
+             * @param {string} message - Message to display
+             * @param {string} title - Dialog title (optional)
+             * @returns {Promise<boolean>} - true if confirmed, false if cancelled
+             */
+            confirm: function (message, title = 'Bestätigung') {
+                return new Promise((resolve) => {
+                    // Remove existing modal if present
+                    const existingModal = document.getElementById('modal-helper-confirm');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+
+                    // Create modal HTML
+                    const modalHtml = `
+                        <div class="modal fade" id="modal-helper-confirm" tabindex="-1" aria-labelledby="modalConfirmTitle" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content" style="background: #2d2d2d; border: 1px solid #444;">
+                                    <div class="modal-header" style="border-bottom: 1px solid #444;">
+                                        <h5 class="modal-title" id="modalConfirmTitle" style="color: #fff;">${title}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body" style="color: #e0e0e0; white-space: pre-wrap;">
+                                        ${message}
+                                    </div>
+                                    <div class="modal-footer" style="border-top: 1px solid #444;">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-confirm-cancel" style="background: #555; border: none;">Abbrechen</button>
+                                        <button type="button" class="btn btn-primary" id="modal-confirm-ok" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">OK</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add to DOM
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                    // Initialize modal
+                    const modalElement = document.getElementById('modal-helper-confirm');
+                    const modal = new bootstrap.Modal(modalElement);
+
+                    // Handle buttons
+                    const okBtn = document.getElementById('modal-confirm-ok');
+                    const cancelBtn = document.getElementById('modal-confirm-cancel');
+
+                    okBtn.addEventListener('click', () => {
+                        modal.hide();
+                        resolve(true);
+                    }, { once: true });
+
+                    cancelBtn.addEventListener('click', () => {
+                        modal.hide();
+                        resolve(false);
+                    }, { once: true });
+
+                    // Resolve false on backdrop click or ESC
+                    modalElement.addEventListener('hidden.bs.modal', () => {
+                        modalElement.remove();
+                    }, { once: true });
+
+                    modal.show();
+                });
+            },
+
+            /**
+             * Show prompt dialog
+             * @param {string} message - Message to display
+             * @param {string} defaultValue - Default input value (optional)
+             * @param {string} title - Dialog title (optional)
+             * @returns {Promise<string|null>} - Input value if confirmed, null if cancelled
+             */
+            prompt: function (message, defaultValue = '', title = 'Eingabe') {
+                return new Promise((resolve) => {
+                    // Remove existing modal if present
+                    const existingModal = document.getElementById('modal-helper-prompt');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+
+                    // Create modal HTML
+                    const modalHtml = `
+                        <div class="modal fade" id="modal-helper-prompt" tabindex="-1" aria-labelledby="modalPromptTitle" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content" style="background: #2d2d2d; border: 1px solid #444;">
+                                    <div class="modal-header" style="border-bottom: 1px solid #444;">
+                                        <h5 class="modal-title" id="modalPromptTitle" style="color: #fff;">${title}</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p style="color: #e0e0e0; white-space: pre-wrap; margin-bottom: 12px;">${message}</p>
+                                        <input type="text" class="form-control" id="modal-prompt-input" value="${defaultValue}" style="background: #1e1e1e; border: 1px solid #444; color: #fff;">
+                                    </div>
+                                    <div class="modal-footer" style="border-top: 1px solid #444;">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="modal-prompt-cancel" style="background: #555; border: none;">Abbrechen</button>
+                                        <button type="button" class="btn btn-primary" id="modal-prompt-ok" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">OK</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add to DOM
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                    // Initialize modal
+                    const modalElement = document.getElementById('modal-helper-prompt');
+                    const modal = new bootstrap.Modal(modalElement);
+                    const input = document.getElementById('modal-prompt-input');
+                    const okBtn = document.getElementById('modal-prompt-ok');
+                    const cancelBtn = document.getElementById('modal-prompt-cancel');
+
+                    // Focus input when modal is shown
+                    modalElement.addEventListener('shown.bs.modal', () => {
+                        input.focus();
+                        input.select();
+                    }, { once: true });
+
+                    // Handle OK button
+                    okBtn.addEventListener('click', () => {
+                        modal.hide();
+                        resolve(input.value);
+                    }, { once: true });
+
+                    // Handle Cancel button
+                    cancelBtn.addEventListener('click', () => {
+                        modal.hide();
+                        resolve(null);
+                    }, { once: true });
+
+                    // Handle Enter key in input
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            modal.hide();
+                            resolve(input.value);
+                        }
+                    });
+
+                    // Clean up on close
+                    modalElement.addEventListener('hidden.bs.modal', () => {
+                        modalElement.remove();
+                    }, { once: true });
+
+                    modal.show();
+                });
+            }
+        };
+
         // ===== GLOBAL VARIABLES =====
         let timelineRenderer = null; // Timeline-Renderer-Instanz
         window.arrangementsCatalog = [];
@@ -1830,6 +2111,186 @@
             }
         }
 
+        /**
+         * Create Import Progress Modal (Compact Version)
+         * @param {string} dateFrom - Start date
+         * @param {string} dateTo - End date
+         * @param {number} dayCount - Number of days
+         * @returns {bootstrap.Modal} Modal instance
+         */
+        function createImportProgressModal(dateFrom, dateTo, dayCount) {
+            // Remove existing modal if present
+            const existingModal = document.getElementById('hrs-import-progress-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Create modal HTML (Compact)
+            const modalHtml = `
+                <div class="modal fade" id="hrs-import-progress-modal" tabindex="-1" aria-labelledby="hrsImportProgressTitle" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+                        <div class="modal-content" style="background: #1e1e1e; border: 1px solid #444;">
+                            <div class="modal-header" style="border-bottom: 1px solid #444; padding: 12px 16px;">
+                                <h6 class="modal-title" id="hrsImportProgressTitle" style="color: #fff; margin: 0; font-size: 14px;">
+                                    <span style="color: #8b5cf6;">📥</span> HRS Import: ${dateFrom} - ${dateTo} (${dayCount} Tage)
+                                </h6>
+                            </div>
+                            <div class="modal-body" style="padding: 12px;">
+                                <!-- Progress Steps (Compact) -->
+                                <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+                                    <div class="import-step" data-step="daily" style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 2px solid #666;">
+                                        <span class="step-icon" style="font-size: 14px;">⏸️</span>
+                                        <span class="step-title" style="color: #fff; font-size: 12px; flex: 1;">Daily</span>
+                                        <span class="step-status" style="color: #888; font-size: 11px;">...</span>
+                                    </div>
+                                    <div class="import-step" data-step="quota" style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 2px solid #666;">
+                                        <span class="step-icon" style="font-size: 14px;">⏸️</span>
+                                        <span class="step-title" style="color: #fff; font-size: 12px; flex: 1;">Quota</span>
+                                        <span class="step-status" style="color: #888; font-size: 11px;">...</span>
+                                    </div>
+                                    <div class="import-step" data-step="res" style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 2px solid #666;">
+                                        <span class="step-icon" style="font-size: 14px;">⏸️</span>
+                                        <span class="step-title" style="color: #fff; font-size: 12px; flex: 1;">Reserv.</span>
+                                        <span class="step-status" style="color: #888; font-size: 11px;">...</span>
+                                    </div>
+                                    <div class="import-step" data-step="avcap" style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 2px solid #666;">
+                                        <span class="step-icon" style="font-size: 14px;">⏸️</span>
+                                        <span class="step-title" style="color: #fff; font-size: 12px; flex: 1;">AV Cap</span>
+                                        <span class="step-status" style="color: #888; font-size: 11px;">...</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Live Log (Compact, Auto-Scroll) -->
+                                <div id="import-live-log" style="height: 150px; overflow-y: auto; background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.4;">
+                                    <!-- Log entries will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add to DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Initialize Bootstrap modal
+            const modalElement = document.getElementById('hrs-import-progress-modal');
+            const modal = new bootstrap.Modal(modalElement);
+
+            // Fix aria-hidden warning: Bootstrap sets it but keeps focus inside
+            modalElement.addEventListener('shown.bs.modal', function () {
+                modalElement.removeAttribute('aria-hidden');
+            });
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                modalElement.setAttribute('aria-hidden', 'true');
+            });
+
+            return modal;
+        }
+
+        /**
+         * Update Import Progress
+         * @param {bootstrap.Modal} modal - Modal instance
+         * @param {string} step - Step identifier (daily, quota, res, avcap, complete)
+         * @param {string} status - Status (running, success, error)
+         * @param {string} message - Status message
+         */
+        function updateImportProgress(modal, step, status, message) {
+            const modalElement = document.getElementById('hrs-import-progress-modal');
+            if (!modalElement) return;
+
+            if (step === 'complete') {
+                const overallStatus = modalElement.querySelector('#import-overall-status');
+                if (overallStatus) {
+                    if (status === 'success') {
+                        overallStatus.innerHTML = '✅ ' + message;
+                        overallStatus.style.background = 'rgba(34, 197, 94, 0.1)';
+                        overallStatus.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+                        overallStatus.style.color = '#4ade80';
+                    } else {
+                        overallStatus.innerHTML = '❌ ' + message;
+                        overallStatus.style.background = 'rgba(239, 68, 68, 0.1)';
+                        overallStatus.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                        overallStatus.style.color = '#f87171';
+                    }
+                }
+                return;
+            }
+
+            const stepElement = modalElement.querySelector(`.import-step[data-step="${step}"]`);
+            if (!stepElement) return;
+
+            const icon = stepElement.querySelector('.step-icon');
+            const statusText = stepElement.querySelector('.step-status');
+
+            // Update based on status
+            if (status === 'running') {
+                stepElement.style.borderColor = '#8b5cf6';
+                stepElement.style.background = 'rgba(139, 92, 246, 0.1)';
+                icon.innerHTML = '⏳';
+                statusText.innerHTML = message;
+                statusText.style.color = '#a78bfa';
+            } else if (status === 'success') {
+                stepElement.style.borderColor = '#22c55e';
+                stepElement.style.background = 'rgba(34, 197, 94, 0.1)';
+                icon.innerHTML = '✅';
+                statusText.innerHTML = message;
+                statusText.style.color = '#4ade80';
+            } else if (status === 'error') {
+                stepElement.style.borderColor = '#ef4444';
+                stepElement.style.background = 'rgba(239, 68, 68, 0.1)';
+                icon.innerHTML = '❌';
+                statusText.innerHTML = message;
+                statusText.style.color = '#f87171';
+            }
+        }
+
+        /**
+         * Add log entry to import live log
+         * @param {string} message - Log message
+         * @param {string} type - Log type (info, success, error, warn)
+         */
+        function addImportLog(message, type = 'info') {
+            const logContainer = document.getElementById('import-live-log');
+            if (!logContainer) return;
+
+            // Show log container if hidden
+            if (logContainer.style.display === 'none') {
+                logContainer.style.display = 'block';
+            }
+
+            // Create log entry
+            const timestamp = new Date().toLocaleTimeString('de-DE', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+
+            let color = '#a0a0a0'; // info
+            let icon = '•';
+
+            if (type === 'success') {
+                color = '#4ade80';
+                icon = '✓';
+            } else if (type === 'error') {
+                color = '#f87171';
+                icon = '✗';
+            } else if (type === 'warn') {
+                color = '#fbbf24';
+                icon = '⚠';
+            }
+
+            const logEntry = document.createElement('div');
+            logEntry.style.cssText = `color: ${color}; margin-bottom: 4px; line-height: 1.4;`;
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${icon} ${message}`;
+
+            logContainer.appendChild(logEntry);
+
+            // Auto-scroll to bottom
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
         function setupTimelineToolbar() {
             const renderer = getTimelineRenderer();
             const toolbar = document.getElementById('timeline-toolbar');
@@ -1934,6 +2395,410 @@
             }
             if (weeksFutureInput) {
                 weeksFutureInput.addEventListener('change', handleWeeksChange);
+            }
+
+            // HRS Import Button Handler (with SSE for Daily Summary)
+            const hrsImportBtn = document.getElementById('timeline-hrs-import-btn');
+            if (hrsImportBtn) {
+                hrsImportBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Check if days are selected
+                    if (!renderer?.isHistogramDaySelectionActive || !renderer?.selectedHistogramDays || renderer.selectedHistogramDays.size === 0) {
+                        await ModalHelper.alert('Bitte selektieren Sie zuerst Tage im Histogram (Strg+Klick oder Shift+Klick).');
+                        return;
+                    }
+
+                    // Get date range from selected days
+                    const { startDate } = renderer.getTimelineDateRange();
+                    const selectedIndices = Array.from(renderer.selectedHistogramDays).sort((a, b) => a - b);
+                    const minIndex = selectedIndices[0];
+                    const maxIndex = selectedIndices[selectedIndices.length - 1];
+
+                    const dateFrom = new Date(startDate.getTime() + minIndex * 24 * 60 * 60 * 1000);
+                    const dateTo = new Date(startDate.getTime() + maxIndex * 24 * 60 * 60 * 1000);
+
+                    const dateFromStr = dateFrom.toISOString().split('T')[0];
+                    const dateToStr = dateTo.toISOString().split('T')[0];
+
+                    const confirmed = await ModalHelper.confirm(
+                        `HRS Daten importieren?\n\n` +
+                        `Von: ${dateFromStr}\n` +
+                        `Bis: ${dateToStr}\n` +
+                        `Tage: ${selectedIndices.length}\n\n` +
+                        `Dies importiert:\n` +
+                        `• Daily Summary (Echtzeit-Fortschritt)\n` +
+                        `• Quota (Kapazitäten)\n` +
+                        `• Reservierungen\n` +
+                        `• AV Capacity Update (für diesen Zeitraum)\n\n` +
+                        `Dies kann einige Minuten dauern.`
+                    );
+
+                    if (!confirmed) return;
+
+                    // Create Progress Modal
+                    const progressModal = createImportProgressModal(dateFromStr, dateToStr, selectedIndices.length);
+                    progressModal.show();
+
+                    // Disable import button
+                    hrsImportBtn.disabled = true;
+                    hrsImportBtn.innerHTML = '⏳ Importiere...';
+
+                    try {
+                        // Step 1: Import Daily Summary with SSE (Server-Sent Events)
+                        addImportLog('🚀 Starte Daily Summary Import mit Echtzeit-Updates...', 'info');
+                        updateImportProgress(progressModal, 'daily', 'running', 'Verbinde mit Server...');
+
+                        // Use SSE for Daily Summary
+                        await new Promise((resolve, reject) => {
+                            const eventSource = new EventSource(`../hrs/hrs_imp_daily_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+                            let dailySuccess = false;
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+
+                                    switch (data.type) {
+                                        case 'start':
+                                            addImportLog(data.message, 'info');
+                                            break;
+
+                                        case 'phase':
+                                            updateImportProgress(progressModal, data.step, 'running', data.message);
+                                            addImportLog(`📋 ${data.name}: ${data.message}`, 'info');
+                                            break;
+
+                                        case 'total':
+                                            addImportLog(`📊 ${data.count} Tage zu importieren`, 'info');
+                                            break;
+
+                                        case 'progress':
+                                            const percent = data.percent || Math.round((data.current / data.total) * 100);
+                                            updateImportProgress(progressModal, 'daily', 'running',
+                                                `${data.current}/${data.total} (${percent}%) - ${data.day}`);
+                                            break;
+
+                                        case 'log':
+                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                            const icon = icons[data.level] || '';
+                                            addImportLog(`${icon} ${data.message}`, data.level);
+                                            break;
+
+                                        case 'complete':
+                                            dailySuccess = true;
+                                            updateImportProgress(progressModal, data.step, 'success', data.message);
+                                            addImportLog(`✅ ${data.message}`, 'success');
+                                            break;
+
+                                        case 'finish':
+                                            addImportLog(`🎉 ${data.message}`, 'success');
+                                            eventSource.close();
+                                            resolve();
+                                            break;
+
+                                        case 'error':
+                                            addImportLog(`❌ ${data.message}`, 'error');
+                                            updateImportProgress(progressModal, 'daily', 'error', data.message);
+                                            eventSource.close();
+                                            reject(new Error(data.message));
+                                            break;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing SSE message:', e);
+                                }
+                            };
+
+                            eventSource.onerror = (error) => {
+                                console.error('SSE connection error:', error);
+                                eventSource.close();
+                                if (!dailySuccess) {
+                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                    updateImportProgress(progressModal, 'daily', 'error', 'Verbindungsfehler');
+                                    reject(new Error('SSE connection failed'));
+                                } else {
+                                    // If we already marked as successful, just close gracefully
+                                    resolve();
+                                }
+                            };
+
+                            // Timeout after 5 minutes
+                            setTimeout(() => {
+                                if (!dailySuccess) {
+                                    eventSource.close();
+                                    reject(new Error('Import timeout'));
+                                }
+                            }, 300000);
+                        });
+
+                        // Step 2: Import Quota (SSE)
+                        addImportLog('Starte Quota Import...', 'info');
+
+                        await new Promise((resolve, reject) => {
+                            let quotaSuccess = false;
+                            const eventSource = new EventSource(`../hrs/hrs_imp_quota_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+
+                                    switch (data.type) {
+                                        case 'start':
+                                            addImportLog(data.message, 'info');
+                                            break;
+
+                                        case 'phase':
+                                            updateImportProgress(progressModal, data.step, 'running', data.message);
+                                            break;
+
+                                        case 'total':
+                                            addImportLog(`${data.count} Quota-Einträge zu importieren`, 'info');
+                                            break;
+
+                                        case 'progress':
+                                            const percent = data.percent || 0;
+                                            updateImportProgress(progressModal, 'quota', 'running',
+                                                `${data.current}/${data.total} (${percent}%) - Quota ${data.quota_id}`);
+                                            break;
+
+                                        case 'log':
+                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                            const icon = icons[data.level] || '';
+                                            addImportLog(`${icon} ${data.message}`, data.level);
+                                            break;
+
+                                        case 'complete':
+                                            quotaSuccess = true;
+                                            updateImportProgress(progressModal, data.step, 'success', data.message);
+                                            addImportLog(`✅ ${data.message}`, 'success');
+                                            break;
+
+                                        case 'finish':
+                                            addImportLog(`🎉 ${data.message}`, 'success');
+                                            eventSource.close();
+                                            resolve();
+                                            break;
+
+                                        case 'error':
+                                            addImportLog(`❌ ${data.message}`, 'error');
+                                            updateImportProgress(progressModal, 'quota', 'error', data.message);
+                                            eventSource.close();
+                                            reject(new Error(data.message));
+                                            break;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing SSE message:', e);
+                                }
+                            };
+
+                            eventSource.onerror = (error) => {
+                                console.error('SSE connection error:', error);
+                                eventSource.close();
+                                if (!quotaSuccess) {
+                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                    updateImportProgress(progressModal, 'quota', 'error', 'Verbindungsfehler');
+                                    reject(new Error('SSE connection failed'));
+                                } else {
+                                    resolve();
+                                }
+                            };
+
+                            setTimeout(() => {
+                                if (!quotaSuccess) {
+                                    eventSource.close();
+                                    reject(new Error('Quota import timeout'));
+                                }
+                            }, 300000);
+                        });
+
+                        // Step 3: Import Reservations (SSE)
+                        addImportLog('Starte Reservierungen Import...', 'info');
+
+                        await new Promise((resolve, reject) => {
+                            let resSuccess = false;
+                            const eventSource = new EventSource(`../hrs/hrs_imp_res_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+
+                                    switch (data.type) {
+                                        case 'start':
+                                            addImportLog(data.message, 'info');
+                                            break;
+
+                                        case 'phase':
+                                            updateImportProgress(progressModal, data.step, 'running', data.message);
+                                            break;
+
+                                        case 'total':
+                                            addImportLog(`${data.count} Reservierungen zu importieren`, 'info');
+                                            break;
+
+                                        case 'progress':
+                                            const percent = data.percent || 0;
+                                            updateImportProgress(progressModal, 'res', 'running',
+                                                `${data.current}/${data.total} (${percent}%) - Res ${data.res_id}`);
+                                            break;
+
+                                        case 'log':
+                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                            const icon = icons[data.level] || '';
+                                            addImportLog(`${icon} ${data.message}`, data.level);
+                                            break;
+
+                                        case 'complete':
+                                            resSuccess = true;
+                                            updateImportProgress(progressModal, data.step, 'success', data.message);
+                                            addImportLog(`✅ ${data.message}`, 'success');
+                                            break;
+
+                                        case 'finish':
+                                            addImportLog(`🎉 ${data.message}`, 'success');
+                                            eventSource.close();
+                                            resolve();
+                                            break;
+
+                                        case 'error':
+                                            addImportLog(`❌ ${data.message}`, 'error');
+                                            updateImportProgress(progressModal, 'res', 'error', data.message);
+                                            eventSource.close();
+                                            reject(new Error(data.message));
+                                            break;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing SSE message:', e);
+                                }
+                            };
+
+                            eventSource.onerror = (error) => {
+                                console.error('SSE connection error:', error);
+                                eventSource.close();
+                                if (!resSuccess) {
+                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                    updateImportProgress(progressModal, 'res', 'error', 'Verbindungsfehler');
+                                    reject(new Error('SSE connection failed'));
+                                } else {
+                                    resolve();
+                                }
+                            };
+
+                            setTimeout(() => {
+                                if (!resSuccess) {
+                                    eventSource.close();
+                                    reject(new Error('Reservations import timeout'));
+                                }
+                            }, 300000);
+                        });
+
+                        // Step 4: Update AV Capacity (SSE)
+                        addImportLog('Starte AV Capacity Update...', 'info');
+
+                        await new Promise((resolve, reject) => {
+                            let avCapSuccess = false;
+                            const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=675&von=${dateFromStr}&bis=${dateToStr}`);
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+
+                                    switch (data.type) {
+                                        case 'start':
+                                            addImportLog(data.message, 'info');
+                                            break;
+
+                                        case 'phase':
+                                            updateImportProgress(progressModal, data.step, 'running', data.message);
+                                            break;
+
+                                        case 'total':
+                                            addImportLog(`${data.count} API-Aufrufe nötig`, 'info');
+                                            break;
+
+                                        case 'progress':
+                                            const percent = data.percent || 0;
+                                            updateImportProgress(progressModal, 'avcap', 'running',
+                                                `API-Aufruf ${data.current}/${data.total} (${percent}%)`);
+                                            break;
+
+                                        case 'log':
+                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                            const icon = icons[data.level] || '';
+                                            addImportLog(`${icon} ${data.message}`, data.level);
+                                            break;
+
+                                        case 'complete':
+                                            avCapSuccess = true;
+                                            updateImportProgress(progressModal, data.step, 'success', data.message);
+                                            addImportLog(`✅ ${data.message}`, 'success');
+                                            break;
+
+                                        case 'finish':
+                                            addImportLog(`🎉 ${data.message}`, 'success');
+                                            eventSource.close();
+                                            resolve();
+                                            break;
+
+                                        case 'error':
+                                            addImportLog(`❌ ${data.message}`, 'error');
+                                            updateImportProgress(progressModal, 'avcap', 'error', data.message);
+                                            eventSource.close();
+                                            reject(new Error(data.message));
+                                            break;
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing SSE message:', e);
+                                }
+                            };
+
+                            eventSource.onerror = (error) => {
+                                console.error('SSE connection error:', error);
+                                eventSource.close();
+                                if (!avCapSuccess) {
+                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                    updateImportProgress(progressModal, 'avcap', 'error', 'Verbindungsfehler');
+                                    reject(new Error('SSE connection failed'));
+                                } else {
+                                    resolve();
+                                }
+                            };
+
+                            setTimeout(() => {
+                                if (!avCapSuccess) {
+                                    eventSource.close();
+                                    reject(new Error('AV Capacity timeout'));
+                                }
+                            }, 300000);
+                        });
+
+                        // Show success and reload
+                        addImportLog('Import erfolgreich abgeschlossen!', 'success');
+                        updateImportProgress(progressModal, 'complete', 'success', 'Import erfolgreich abgeschlossen!');
+
+                        // Wait 2 seconds before reload
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+
+                        progressModal.hide();
+
+                        // Reload timeline data
+                        if (typeof window.reloadTimelineData === 'function') {
+                            await window.reloadTimelineData();
+                        } else {
+                            window.location.reload();
+                        }
+
+                    } catch (error) {
+                        console.error('❌ Import failed:', error);
+                        updateImportProgress(progressModal, 'complete', 'error',
+                            `Fehler: ${error.message}`);
+
+                        // Keep modal open on error
+                        setTimeout(() => progressModal.hide(), 5000);
+                    } finally {
+                        hrsImportBtn.disabled = false;
+                        hrsImportBtn.innerHTML = '📥 HRS Daten importieren';
+                    }
+                });
             }
 
             toolbar.dataset.initialized = 'true';
@@ -4565,6 +5430,11 @@
             }, 100); // 100ms Verzögerung
         });
     </script>
+
+    <!-- Bootstrap 5.3.2 JS Bundle (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
 </body>
 
 </html>
