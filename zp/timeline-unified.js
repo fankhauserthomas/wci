@@ -26,6 +26,11 @@ const VERTICAL_GAP = 1;
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 const TIMELINE_RADIAL_MENU_SIZE = 220;
 
+// Stelle sicher dass MS_IN_DAY global verfügbar ist
+if (typeof window !== 'undefined') {
+    window.MS_IN_DAY = MS_IN_DAY;
+}
+
 class TimelineRadialMenu {
     constructor(rootElement, callbacks = {}) {
         this.root = rootElement;
@@ -376,7 +381,7 @@ class TimelineUnifiedRenderer {
         this.container = document.querySelector(containerSelector);
         this.canvas = null;
         this.ctx = null;
-        this.scrollX = 0;
+        this.scrollX = 0; // Wird später aus Cookie geladen
         this.scrollY = 0;
         this.masterScrollY = 0; // Separater Scroll für Master-Bereich
         this.roomsScrollY = 0;  // Separater Scroll für Rooms-Bereich
@@ -717,7 +722,14 @@ class TimelineUnifiedRenderer {
         const weeksFuture = this.themeConfig?.weeksFuture ?? 104;
         const startDate = new Date(now.getTime() - (weeksPast * 7 * MS_IN_DAY));
         const endDate = new Date(now.getTime() + (weeksFuture * 7 * MS_IN_DAY));
-        return { now, startDate, endDate, weeksPast, weeksFuture };
+        // Explizite Rückgabe mit allen Feldern
+        return {
+            now: now,
+            startDate: startDate,
+            endDate: endDate,
+            weeksPast: weeksPast,
+            weeksFuture: weeksFuture
+        };
     }
 
     loadFromCookie(name, defaultValue) {
@@ -4682,6 +4694,9 @@ class TimelineUnifiedRenderer {
         horizontalTrack.addEventListener('scroll', (e) => {
             this.scrollX = e.target.scrollLeft;
 
+            // Speichere Position im Cookie für Reload-Persistenz
+            this.saveToCookie('timelineScrollX', this.scrollX);
+
             // Phase 3: Update viewport cache with predictive loading
             this.updateViewportCache(this.scrollX, this.roomsScrollY);
 
@@ -4694,6 +4709,16 @@ class TimelineUnifiedRenderer {
             this.updateNavigationOverview();
             this.scheduleRender('scroll_h');
         });
+
+        // Stelle gespeicherte Scroll-Position wieder her (nach Page-Reload)
+        const savedScrollX = this.loadFromCookie('timelineScrollX', 0);
+        if (savedScrollX > 0) {
+            console.log('📍 Stelle gespeicherte Scroll-Position wieder her:', savedScrollX);
+            setTimeout(() => {
+                horizontalTrack.scrollLeft = savedScrollX;
+                this.scrollX = savedScrollX;
+            }, 100); // Kurze Verzögerung damit DOM bereit ist
+        }
 
         // Master-Bereich Scroll
         if (masterTrack) {
@@ -7536,6 +7561,8 @@ class TimelineUnifiedRenderer {
     }
 
     async handleDeleteCommand(detail) {
+        console.log('🗑️ handleDeleteCommand called with detail:', detail);
+
         // Verwende modale Bestätigung anstatt confirm()
         const shouldDelete = await showConfirmationModal(
             'Reservierung löschen',
@@ -7544,12 +7571,16 @@ class TimelineUnifiedRenderer {
             'Abbrechen'
         );
 
+        console.log('🗑️ User confirmed deletion:', shouldDelete);
+
         if (shouldDelete) {
             // Detail-ID aus dem Detail-Objekt extrahieren
             const detailId = detail.data?.detail_id || detail.detail_id || detail.ID || detail.id;
 
+            console.log('🗑️ Extracted detailId:', detailId);
+
             if (!detailId) {
-                console.error('Keine Detail-ID gefunden:', detail);
+                console.error('❌ Keine Detail-ID gefunden:', detail);
                 alert('Fehler: Keine gültige Detail-ID gefunden');
                 return;
             }
@@ -7593,6 +7624,8 @@ class TimelineUnifiedRenderer {
     }
 
     async handleDeleteAllCommand(detail) {
+        console.log('🗑️🗑️ handleDeleteAllCommand called with detail:', detail);
+
         // Verwende modale Bestätigung anstatt confirm()
         const shouldDelete = await showConfirmationModal(
             'Alle Zimmer-Zuweisungen löschen',
@@ -7601,12 +7634,16 @@ class TimelineUnifiedRenderer {
             'Abbrechen'
         );
 
+        console.log('🗑️🗑️ User confirmed deletion all:', shouldDelete);
+
         if (shouldDelete) {
             // Reservierungs-ID aus dem Detail-Objekt extrahieren
             const resId = detail.data?.res_id || detail.res_id || detail.resid;
 
+            console.log('🗑️🗑️ Extracted resId:', resId);
+
             if (!resId) {
-                console.error('Keine Reservierungs-ID gefunden:', detail);
+                console.error('❌ Keine Reservierungs-ID gefunden:', detail);
                 alert('Fehler: Keine gültige Reservierungs-ID gefunden');
                 return;
             }
@@ -9805,13 +9842,29 @@ class TimelineUnifiedRenderer {
         this.updateViewportCache(this.scrollX, this.roomsScrollY);
 
         // Datums-Logik: konfigurierbare Wochen Vergangenheit/Zukunft (auf 0 Uhr fixiert)
-        const { now, startDate, endDate } = this.getTimelineDateRange();
+        // Nur einmal berechnen, dann cachen um Endlosschleife zu vermeiden
+        if (!this.currentRange || !this.currentRange.now) {
+            const dateRange = this.getTimelineDateRange();
+            if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
+                console.error('❌ getTimelineDateRange() returned invalid data:', dateRange);
+                return;
+            }
+            // Fallback: wenn now fehlt, berechne es EINMAL
+            let { now, startDate, endDate } = dateRange;
+            if (!now) {
+                console.warn('⚠️ now fehlt in dateRange, berechne Fallback (EINMALIG)');
+                now = new Date();
+                now.setHours(0, 0, 0, 0);
+            }
 
-        this.currentRange = {
-            startDate: new Date(startDate.getTime()),
-            endDate: new Date(endDate.getTime()),
-            now: new Date(now.getTime())
-        };
+            this.currentRange = {
+                startDate: new Date(startDate.getTime()),
+                endDate: new Date(endDate.getTime()),
+                now: new Date(now.getTime())
+            };
+        }
+
+        const { now, startDate, endDate } = this.currentRange;
 
         // Pre-calculate room heights for correct scrollbar sizing
         this.preCalculateRoomHeights(startDate, endDate);

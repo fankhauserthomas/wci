@@ -100,7 +100,18 @@ try {
         // KORREKTUR: date_to immer +1 Tag von date_from
         $date_to_corrected = date('Y-m-d', strtotime($date_from . ' +1 day'));
         
-        $log_messages[] = "Erstelle Quota: $quota_title ($date_from bis $date_to_corrected, Kapazität: $capacity)";
+        // Kategorien extrahieren (falls vorhanden)
+        $categories = isset($quota['categories']) ? $quota['categories'] : [];
+        $lager = isset($categories['lager']) ? (int)$categories['lager'] : (int)$capacity_raw;
+        $betten = isset($categories['betten']) ? (int)$categories['betten'] : 0;
+        $dz = isset($categories['dz']) ? (int)$categories['dz'] : 0;
+        $sonder = isset($categories['sonder']) ? (int)$categories['sonder'] : 0;
+        
+        // 🔍 DEBUG: Eingangsdaten loggen
+        $log_messages[] = "📊 INPUT für $quota_title: capacity_raw=$capacity_raw, categories=" . json_encode($categories);
+        $log_messages[] = "📊 BERECHNET: Lager=$lager, Betten=$betten, DZ=$dz, Sonder=$sonder (Total=" . ($lager+$betten+$dz+$sonder) . ")";
+        
+        $log_messages[] = "Erstelle Quota: $quota_title ($date_from bis $date_to_corrected, Lager=$lager, Betten=$betten, DZ=$dz, Sonder=$sonder)";
         
         try {
             // Payload bauen (exakt wie im VB.NET Code)
@@ -115,10 +126,10 @@ try {
                     array('language' => 'EN', 'description' => '')
                 ),
                 'hutBedCategoryDTOs' => array(
-                    array('categoryId' => 1958, 'totalBeds' => $capacity), // Lager
-                    array('categoryId' => 2293, 'totalBeds' => 0),         // Betten
-                    array('categoryId' => 2381, 'totalBeds' => 0),         // DZ
-                    array('categoryId' => 6106, 'totalBeds' => 0)          // Sonder
+                    array('categoryId' => 1958, 'totalBeds' => $lager),  // Lager (ML)
+                    array('categoryId' => 2293, 'totalBeds' => $betten), // Betten (MBZ)
+                    array('categoryId' => 2381, 'totalBeds' => $dz),     // DZ (2BZ)
+                    array('categoryId' => 6106, 'totalBeds' => $sonder)  // Sonder (SK)
                 ),
                 'monday' => null,
                 'tuesday' => null,
@@ -138,6 +149,10 @@ try {
             );
             
             $json_payload = json_encode($payload);
+            
+            // 🔍 DEBUG: Payload in Console loggen
+            $log_messages[] = "📤 HRS CREATE PAYLOAD für $quota_title:";
+            $log_messages[] = $json_payload;
             
             // HRS API Call - Quota erstellen (korrigierte URL)
             $hut_id = 675; // Franzsenhütte HUT-ID
@@ -177,6 +192,10 @@ try {
             $curl_error = curl_error($ch);
             curl_close($ch);
             
+            // 🔍 DEBUG: Response in Console loggen
+            $log_messages[] = "📥 HRS CREATE RESPONSE (HTTP $http_code) für $quota_title:";
+            $log_messages[] = $response;
+            
             if ($curl_error) {
                 throw new Exception("CURL-Fehler: $curl_error");
             }
@@ -189,8 +208,15 @@ try {
             $response_data = json_decode($response, true);
             if ($response_data && isset($response_data['messageId']) && $response_data['messageId'] == 120) {
                 $success_count++;
-                $log_messages[] = "✅ Quota '$quota_title' erfolgreich erstellt (MessageID: 120)";
+                
+                // Extrahiere HRS-ID aus Response (falls vorhanden)
+                $hrs_id = isset($response_data['param1']) ? (int)$response_data['param1'] : null;
+                
+                $log_messages[] = "✅ Quota '$quota_title' erfolgreich erstellt (MessageID: 120, HRS-ID: $hrs_id)";
                 $results[] = array(
+                    'success' => true,
+                    'db_id' => isset($quota['db_id']) ? $quota['db_id'] : null,
+                    'hrs_id' => $hrs_id,
                     'title' => $quota_title,
                     'date' => $date_from,
                     'capacity' => $capacity,
@@ -200,12 +226,14 @@ try {
             } else {
                 throw new Exception("Unerwartete Antwort: " . $response);
             }
-            
-        } catch (Exception $quota_error) {
+                    } catch (Exception $quota_error) {
             $error_count++;
             $error_msg = $quota_error->getMessage();
             $log_messages[] = "❌ Quota '$quota_title' Fehler: $error_msg";
             $results[] = array(
+                'success' => false,
+                'db_id' => isset($quota['db_id']) ? $quota['db_id'] : null,
+                'hrs_id' => null,
                 'title' => $quota_title,
                 'date' => $date_from,
                 'capacity' => $capacity,

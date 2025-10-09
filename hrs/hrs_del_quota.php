@@ -209,7 +209,8 @@ class HRSQuotaDeleter {
 // ===== AJAX ENDPOINT =====
 // Wenn diese Datei direkt aufgerufen wird, als AJAX-Endpoint fungieren
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Nur ausführen wenn dieses File direkt aufgerufen wird (nicht als include)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && basename($_SERVER['SCRIPT_FILENAME']) === 'hrs_del_quota.php') {
     header('Content-Type: application/json');
     
     try {

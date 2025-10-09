@@ -1370,74 +1370,93 @@
     <div id="timeline-radial-menu" class="radial-menu"></div>
 
     <!-- Confirmation Modal -->
-    <div id="confirmation-modal" class="modal-overlay">
+    <!-- Confirmation Modal (Bootstrap) -->
+    <div class="modal fade" id="confirmation-modal" tabindex="-1" aria-labelledby="confirmationModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-header">
-                <span class="icon">⚠️</span>
-                <span id="modal-title">Bestätigung erforderlich</span>
-            </div>
-            <div class="modal-body">
-                <p id="modal-message">Sind Sie sicher, dass Sie diese Aktion ausführen möchten?</p>
-            </div>
-            <div class="modal-actions">
-                <button id="modal-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
-                <button id="modal-confirm" class="modal-button modal-button-danger">Löschen</button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationModalLabel">
+                        <span class="icon">⚠️</span>
+                        <span id="modal-title">Bestätigung erforderlich</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modal-message">Sind Sie sicher, dass Sie diese Aktion ausführen möchten?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="modal-cancel"
+                        data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger" id="modal-confirm">Löschen</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Designation Edit Modal -->
-    <div id="designation-modal" class="modal-overlay">
+    <!-- Designation Edit Modal (Bootstrap) -->
+    <div class="modal fade" id="designation-modal" tabindex="-1" aria-labelledby="designationModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-header">
-                <span class="icon">✏️</span>
-                <span>Bezeichnung bearbeiten</span>
-            </div>
-            <div class="modal-body">
-                <label for="designation-input"
-                    style="color: #cccccc; font-size: 14px; display: block; margin-bottom: 8px;">
-                    Neue Bezeichnung:
-                </label>
-                <input type="text" id="designation-input" class="modal-input" placeholder="Bezeichnung eingeben...">
-
-                <div id="designation-multiple-options" class="modal-checkbox-group" style="display: none;">
-                    <input type="checkbox" id="designation-update-all" class="modal-checkbox">
-                    <label for="designation-update-all" class="modal-checkbox-label">
-                        Alle Zimmer-Zuweisungen dieser Reservierung aktualisieren
-                    </label>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="designationModalLabel">
+                        <span class="icon">✏️</span>
+                        <span>Bezeichnung bearbeiten</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            <div class="modal-actions">
-                <button id="designation-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
-                <button id="designation-save" class="modal-button modal-button-primary">Speichern</button>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="designation-input" class="form-label">Neue Bezeichnung:</label>
+                        <input type="text" id="designation-input" class="form-control"
+                            placeholder="Bezeichnung eingeben...">
+                    </div>
+
+                    <div id="designation-multiple-options" class="form-check" style="display: none;">
+                        <input type="checkbox" id="designation-update-all" class="form-check-input">
+                        <label for="designation-update-all" class="form-check-label">
+                            Alle Zimmer-Zuweisungen dieser Reservierung aktualisieren
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="designation-cancel"
+                        data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="designation-save">Speichern</button>
+                </div>
             </div>
         </div>
     </div>
+    </div>
+    </div>
+    </div>
 
-    <!-- Notes Edit Modal -->
-    <div id="notes-modal" class="modal-overlay">
+    <!-- Notes Edit Modal (Bootstrap) -->
+    <div class="modal fade" id="notes-modal" tabindex="-1" aria-labelledby="notesModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-header">
-                <span>Notiz</span>
-            </div>
-            <div class="modal-body">
-                <label for="notes-textarea"
-                    style="color: #cccccc; font-size: 14px; display: block; margin-bottom: 8px;">
-                    Notiz-Text:
-                </label>
-                <textarea id="notes-textarea" class="modal-textarea" placeholder="Ihre Notiz hier eingeben..."
-                    rows="4"></textarea>
-
-                <div class="modal-char-counter"
-                    style="text-align: right; color: #999; font-size: 11px; margin-top: -8px; margin-bottom: 8px;">
-                    <span id="notes-char-count">0</span> Zeichen
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notesModalLabel">📝 Notiz</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            <div class="modal-actions">
-                <button id="notes-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
-                <button id="notes-clear" class="modal-button modal-button-secondary"
-                    style="display: none;">Löschen</button>
-                <button id="notes-save" class="modal-button modal-button-primary">Speichern</button>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="notes-textarea" class="form-label">Notiz-Text:</label>
+                        <textarea id="notes-textarea" class="form-control" placeholder="Ihre Notiz hier eingeben..."
+                            rows="4"></textarea>
+                        <div class="form-text text-end">
+                            <span id="notes-char-count">0</span> Zeichen
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="notes-cancel"
+                        data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-warning" id="notes-clear"
+                        style="display: none;">Löschen</button>
+                    <button type="button" class="btn btn-primary" id="notes-save">Speichern</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1642,7 +1661,8 @@
     <button id="debug-toggle" class="debug-toggle">Debug Console</button>
 
     <!-- Scripts -->
-    <script src="timeline-unified.js"></script>
+    <script src="timeline-unified.js?v=20251009-24"></script>
+    </script>
     <script>
         if (typeof TimelineUnifiedRenderer === 'undefined') {
             console.error('FEHLER: TimelineUnifiedRenderer wurde nicht geladen!');
@@ -1856,6 +1876,7 @@
 
         // ===== GLOBAL VARIABLES =====
         let timelineRenderer = null; // Timeline-Renderer-Instanz
+        window.renderer = null; // Globale Referenz für Quota Modal
         window.arrangementsCatalog = [];
         window.histogramSource = [];
         window.histogramStornoSource = [];
@@ -3966,10 +3987,10 @@
             }
         })();
 
-        // Modal Confirmation Function
+        // Modal Confirmation Function (Bootstrap)
         function showConfirmationModal(title, message, confirmText = 'Bestätigen', cancelText = 'Abbrechen') {
             return new Promise((resolve) => {
-                const modal = document.getElementById('confirmation-modal');
+                const modalElement = document.getElementById('confirmation-modal');
                 const modalTitle = document.getElementById('modal-title');
                 const modalMessage = document.getElementById('modal-message');
                 const modalCancel = document.getElementById('modal-cancel');
@@ -3981,18 +4002,20 @@
                 modalCancel.textContent = cancelText;
                 modalConfirm.textContent = confirmText;
 
-                // Show modal
-                modal.classList.add('active');
+                // Create Bootstrap modal instance
+                const modal = new bootstrap.Modal(modalElement);
 
                 // Handle button clicks
                 const onCancel = () => {
-                    modal.classList.remove('active');
+                    console.log('❌ CANCEL button clicked');
+                    modal.hide();
                     resolve(false);
                     cleanup();
                 };
 
                 const onConfirm = () => {
-                    modal.classList.remove('active');
+                    console.log('✅ CONFIRM button clicked');
+                    modal.hide();
                     resolve(true);
                     cleanup();
                 };
@@ -4000,25 +4023,21 @@
                 const cleanup = () => {
                     modalCancel.removeEventListener('click', onCancel);
                     modalConfirm.removeEventListener('click', onConfirm);
-                    modal.removeEventListener('click', onOverlayClick);
                 };
 
-                const onOverlayClick = (e) => {
-                    if (e.target === modal) {
-                        onCancel();
-                    }
-                };
-
+                console.log('📋 Modal setup complete - adding event listeners');
                 modalCancel.addEventListener('click', onCancel);
                 modalConfirm.addEventListener('click', onConfirm);
-                modal.addEventListener('click', onOverlayClick);
+
+                // Show modal
+                modal.show();
             });
         }
 
-        // Designation Edit Modal Function
+        // Designation Edit Modal Function (Bootstrap)
         function showDesignationModal(currentDesignation, hasMultipleDetails = false) {
             return new Promise((resolve) => {
-                const modal = document.getElementById('designation-modal');
+                const modalElement = document.getElementById('designation-modal');
                 const designationInput = document.getElementById('designation-input');
                 const designationCancel = document.getElementById('designation-cancel');
                 const designationSave = document.getElementById('designation-save');
@@ -4030,20 +4049,18 @@
 
                 // Show/hide multiple options based on whether there are multiple details
                 if (hasMultipleDetails) {
-                    multipleOptions.style.display = 'flex';
+                    multipleOptions.style.display = 'block';
                     updateAllCheckbox.checked = false; // Default: nur der betreffende Balken
                 } else {
                     multipleOptions.style.display = 'none';
                 }
 
-                // Show modal
-                modal.classList.add('active');
-                designationInput.focus();
-                designationInput.select();
+                // Create Bootstrap modal instance
+                const modal = new bootstrap.Modal(modalElement);
 
                 // Handle button clicks
                 const onCancel = () => {
-                    modal.classList.remove('active');
+                    modal.hide();
                     resolve(null);
                     cleanup();
                 };
@@ -4052,7 +4069,7 @@
                     const newDesignation = designationInput.value.trim();
                     const updateAll = hasMultipleDetails ? updateAllCheckbox.checked : false;
 
-                    modal.classList.remove('active');
+                    modal.hide();
                     resolve({
                         designation: newDesignation,
                         updateAll: updateAll
@@ -4072,26 +4089,27 @@
                     designationCancel.removeEventListener('click', onCancel);
                     designationSave.removeEventListener('click', onSave);
                     designationInput.removeEventListener('keydown', onKeyPress);
-                    modal.removeEventListener('click', onOverlayClick);
-                };
-
-                const onOverlayClick = (e) => {
-                    if (e.target === modal) {
-                        onCancel();
-                    }
                 };
 
                 designationCancel.addEventListener('click', onCancel);
                 designationSave.addEventListener('click', onSave);
                 designationInput.addEventListener('keydown', onKeyPress);
-                modal.addEventListener('click', onOverlayClick);
+
+                // Show modal and focus input
+                modal.show();
+
+                // Focus input after modal animation
+                modalElement.addEventListener('shown.bs.modal', () => {
+                    designationInput.focus();
+                    designationInput.select();
+                }, { once: true });
             });
         }
 
-        // Notes Edit Modal Function
+        // Notes Edit Modal Function (Bootstrap)
         function showNotesModal(currentNote = '') {
             return new Promise((resolve) => {
-                const modal = document.getElementById('notes-modal');
+                const modalElement = document.getElementById('notes-modal');
                 const notesTextarea = document.getElementById('notes-textarea');
                 const notesCancel = document.getElementById('notes-cancel');
                 const notesClear = document.getElementById('notes-clear');
@@ -4114,28 +4132,26 @@
                     notesClear.style.display = 'none';
                 }
 
-                // Show modal
-                modal.classList.add('active');
-                notesTextarea.focus();
-                notesTextarea.select();
+                // Create Bootstrap modal instance
+                const modal = new bootstrap.Modal(modalElement);
 
                 // Event handlers
                 const onCancel = () => {
                     cleanup();
-                    modal.classList.remove('active');
+                    modal.hide();
                     resolve(null);
                 };
 
                 const onSave = () => {
                     const newNote = notesTextarea.value.trim();
                     cleanup();
-                    modal.classList.remove('active');
+                    modal.hide();
                     resolve(newNote);
                 };
 
                 const onClear = () => {
                     cleanup();
-                    modal.classList.remove('active');
+                    modal.hide();
                     resolve(''); // Empty string to clear the note
                 };
 
@@ -4153,13 +4169,6 @@
                     notesSave.removeEventListener('click', onSave);
                     notesTextarea.removeEventListener('keydown', onKeyPress);
                     notesTextarea.removeEventListener('input', updateCharCount);
-                    modal.removeEventListener('click', onOverlayClick);
-                };
-
-                const onOverlayClick = (e) => {
-                    if (e.target === modal) {
-                        onCancel();
-                    }
                 };
 
                 notesCancel.addEventListener('click', onCancel);
@@ -4167,7 +4176,15 @@
                 notesSave.addEventListener('click', onSave);
                 notesTextarea.addEventListener('keydown', onKeyPress);
                 notesTextarea.addEventListener('input', updateCharCount);
-                modal.addEventListener('click', onOverlayClick);
+
+                // Show modal and focus textarea
+                modal.show();
+
+                // Focus textarea after modal animation
+                modalElement.addEventListener('shown.bs.modal', () => {
+                    notesTextarea.focus();
+                    notesTextarea.select();
+                }, { once: true });
             });
         }
 
@@ -5140,14 +5157,29 @@
 
                         if (histogramJson && histogramJson.success && histogramJson.data) {
                             if (Array.isArray(histogramJson.data.histogram)) {
-                                histogramSource = histogramJson.data.histogram.map(entry => ({
-                                    id: Number(entry.id),
-                                    av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
-                                    start: entry.start,
-                                    end: entry.end,
-                                    guest_name: entry.guest_name || '',
-                                    capacity_details: entry.capacity_details || {}
-                                }));
+                                histogramSource = histogramJson.data.histogram.map(entry => {
+                                    const capacityDetails = entry.capacity_details || {};
+                                    const dz = Number(capacityDetails.dz) || 0;
+                                    const betten = Number(capacityDetails.betten) || 0;
+                                    const lager = Number(capacityDetails.lager) || 0;
+                                    const sonder = Number(capacityDetails.sonder) || 0;
+                                    const total = dz + betten + lager + sonder;
+
+                                    return {
+                                        id: Number(entry.id),
+                                        av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
+                                        start: entry.start,
+                                        end: entry.end,
+                                        guest_name: entry.guest_name || '',
+                                        capacity_details: {
+                                            dz: dz,
+                                            betten: betten,
+                                            lager: lager,
+                                            sonder: sonder,
+                                            total: total  // ✅ Berechnet aus Einzelkategorien
+                                        }
+                                    };
+                                });
                                 console.log(`✅ ${histogramSource.length} Histogramm-Einträge verarbeitet`);
                             } else {
                                 console.warn('❌ Histogramm JSON hat keine gültige Struktur (histogram fehlt):', histogramJson);
@@ -5281,6 +5313,7 @@
 
             if (timelineRenderer) {
                 console.debug('Aktualisiere bestehende Timeline-Instanz.');
+                window.renderer = timelineRenderer; // Globale Referenz aktualisieren
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource, window.histogramAvailability);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
@@ -5288,6 +5321,7 @@
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
                 timelineRenderer = new TimelineUnifiedRenderer('.main-areas-container');
+                window.renderer = timelineRenderer; // Globale Referenz für Quota Modal
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource, window.histogramAvailability);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
@@ -5458,6 +5492,37 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
         crossorigin="anonymous"></script>
+
+    <!-- Quota Management System -->
+    <script>
+        // Lade Modal-HTML dynamisch
+        fetch('/wci/zp/quota-input-modal.html?v=28')
+            .then(response => response.text())
+            .then(html => {
+                const div = document.createElement('div');
+                div.innerHTML = html;
+
+                // Extrahiere und führe Script-Tags manuell aus
+                const scripts = div.querySelectorAll('script');
+                document.body.appendChild(div);
+                console.log('✅ Quota Modal geladen');
+
+                // Führe Scripts aus
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) {
+                        newScript.src = script.src;
+                    } else {
+                        newScript.textContent = script.textContent;
+                    }
+                    document.body.appendChild(newScript);
+                });
+
+                console.log(`🚀 ${scripts.length} Script(s) ausgeführt`);
+            })
+            .catch(error => console.error('❌ Fehler beim Laden des Quota Modals:', error));
+    </script>
+    <script src="quota-management-integration.js?v=29"></script>
 </body>
 
 </html>

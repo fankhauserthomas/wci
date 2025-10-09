@@ -1,0 +1,658 @@
+<!-- ==================== QUOTA INPUT MODAL ==================== -->
+<div class="modal fade" id="quotaInputModal" tabindex="-1" aria-labelledby="quotaInputModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quotaInputModalLabel">📊 Quota bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quotaForm">
+                    <!-- Zeitraum Anzeige -->
+                    <div class="alert alert-info mb-4">
+                        <strong>Selektierte Tage:</strong> <span id="quotaDateRange"></span><br>
+                        <strong>Aktuelle Belegung:</strong> <span id="currentOccupancy">--</span> Plätze
+                    </div>
+
+                    <!-- Zielkapazität -->
+                    <div class="mb-4">
+                        <label for="targetCapacity" class="form-label">
+                            <strong>Zielauslastung (Gesamt)</strong>
+                        </label>
+                        <div class="row align-items-center">
+                            <div class="col-9">
+                                <input type="range" class="form-range" id="targetCapacity" min="0" max="200" value="28"
+                                    step="1">
+                            </div>
+                            <div class="col-3">
+                                <input type="number" class="form-control" id="targetCapacityValue" min="0" max="200"
+                                    value="28" step="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Prioritäten -->
+                    <h6 class="mb-3">Prioritäten (höchste zuerst)</h6>
+
+                    <!-- Priorität 1 -->
+                    <div class="row mb-3 priority-row" data-priority="1">
+                        <div class="col-1 text-center">
+                            <span class="badge bg-primary">1</span>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select category-select" data-priority="1">
+                                <option value="lager" selected>Matratzenlager (ML)</option>
+                                <option value="betten">Mehrbettzimmer (MBZ)</option>
+                                <option value="dz">Zweibettzimmer (2BZ)</option>
+                                <option value="sonder">Sonderkategorie (SK)</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <input type="text" class="form-control" value="(Rest)" disabled readonly
+                                style="background-color: #e9ecef; color: #6c757d;">
+                        </div>
+                    </div>
+
+                    <!-- Priorität 2 -->
+                    <div class="row mb-3 priority-row" data-priority="2">
+                        <div class="col-1 text-center">
+                            <span class="badge bg-secondary">2</span>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select category-select" data-priority="2">
+                                <option value="betten" selected>Mehrbettzimmer (MBZ)</option>
+                                <option value="lager">Matratzenlager (ML)</option>
+                                <option value="dz">Zweibettzimmer (2BZ)</option>
+                                <option value="sonder">Sonderkategorie (SK)</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
+                                min="0" data-priority="2">
+                        </div>
+                    </div>
+
+                    <!-- Priorität 3 -->
+                    <div class="row mb-3 priority-row" data-priority="3">
+                        <div class="col-1 text-center">
+                            <span class="badge bg-secondary">3</span>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select category-select" data-priority="3">
+                                <option value="dz" selected>Zweibettzimmer (2BZ)</option>
+                                <option value="lager">Matratzenlager (ML)</option>
+                                <option value="betten">Mehrbettzimmer (MBZ)</option>
+                                <option value="sonder">Sonderkategorie (SK)</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
+                                min="0" data-priority="3">
+                        </div>
+                    </div>
+
+                    <!-- Priorität 4 -->
+                    <div class="row mb-3 priority-row" data-priority="4">
+                        <div class="col-1 text-center">
+                            <span class="badge bg-secondary">4</span>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select category-select" data-priority="4">
+                                <option value="sonder" selected>Sonderkategorie (SK)</option>
+                                <option value="lager">Matratzenlager (ML)</option>
+                                <option value="betten">Mehrbettzimmer (MBZ)</option>
+                                <option value="dz">Zweibettzimmer (2BZ)</option>
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
+                                min="0" data-priority="4">
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Live-Preview berechneter Quotas -->
+                    <div class="alert alert-success" id="quotaPreview">
+                        <h6 class="mb-3">📊 Berechnete Quotas (pro Tag):</h6>
+                        <div id="quotaPreviewDays">
+                            <!-- Wird dynamisch gefüllt mit Quotas für jeden Tag -->
+                        </div>
+                    </div>
+
+                    <!-- Warnung bei Überbelegung -->
+                    <div class="alert alert-warning d-none" id="overbookingWarning">
+                        ⚠️ <strong>Warnung:</strong> Bei einigen Tagen überschreitet die Belegung die Zielkapazität!<br>
+                        Für diese Tage werden alle Quotas auf 0 gesetzt.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="saveQuotaBtn">💾 Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * Quota Input Modal Manager
+     * =========================
+     * Verwaltet das Quota-Eingabe-Modal mit Prioritäts-basierter Verteilung
+     */
+    class QuotaInputModal {
+        constructor(renderer) {
+            this.renderer = renderer;
+            this.modal = new bootstrap.Modal(document.getElementById('quotaInputModal'));
+            this.selectedDays = [];
+            this.currentOccupancy = 0;
+
+            this.initializeEventListeners();
+        }
+
+        initializeEventListeners() {
+            // Slider <-> Input Sync
+            const slider = document.getElementById('targetCapacity');
+            const input = document.getElementById('targetCapacityValue');
+
+            slider.addEventListener('input', () => {
+                input.value = slider.value;
+                this.updatePreview();
+            });
+
+            input.addEventListener('input', () => {
+                slider.value = input.value;
+                this.updatePreview();
+            });
+
+            // Priorität-Änderungen
+            document.querySelectorAll('.category-select, .max-value-input').forEach(el => {
+                el.addEventListener('change', () => this.updatePreview());
+                el.addEventListener('input', () => this.updatePreview());
+                el.addEventListener('keyup', () => this.updatePreview()); // Auch bei Tastatur-Eingabe
+            });
+
+            // Save Button
+            document.getElementById('saveQuotaBtn').addEventListener('click', () => this.save());
+        }
+
+        /**
+         * Öffne Modal für selektierte Tage
+         */
+        show(selectedDays) {
+            console.log('🎯 Modal.show() aufgerufen mit selectedDays:', selectedDays);
+            this.selectedDays = selectedDays;
+
+            // Datum-Bereich anzeigen (YYYY-MM-DD Strings zu lokalen Dates)
+            const parseDateString = (dateStr) => {
+                console.log('   📅 Parse:', dateStr);
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const parsed = new Date(year, month - 1, day);
+                console.log('   → Parsed Date:', parsed, 'Display:', parsed.toLocaleDateString('de-DE'));
+                return parsed;
+            };
+
+            const dates = selectedDays.map(parseDateString);
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+
+            console.log('📆 Min:', minDate.toLocaleDateString('de-DE'), 'Max:', maxDate.toLocaleDateString('de-DE'));
+
+            const dateRange = selectedDays.length === 1
+                ? minDate.toLocaleDateString('de-DE')
+                : `${minDate.toLocaleDateString('de-DE')} - ${maxDate.toLocaleDateString('de-DE')}`;
+
+            console.log('📋 Final dateRange:', dateRange);
+            document.getElementById('quotaDateRange').textContent = dateRange + ` (${selectedDays.length} Tage)`;
+
+            // Hole aktuellen Histogram-Target-Wert vom Renderer
+            if (this.renderer && this.renderer.histogramTargetValue) {
+                const histogramTarget = this.renderer.histogramTargetValue;
+                console.log('🎯 Übernehme Histogram Target:', histogramTarget);
+                document.getElementById('targetCapacity').value = histogramTarget;
+                document.getElementById('targetCapacityValue').value = histogramTarget;
+            }
+
+            // Aktuelle Belegung laden (TODO: Von API holen)
+            this.currentOccupancy = 0; // Placeholder
+            document.getElementById('currentOccupancy').textContent = this.currentOccupancy;
+
+            // Preview aktualisieren
+            this.updatePreview();
+
+            // Modal anzeigen
+            this.modal.show();
+        }
+
+        /**
+         * Berechnet Quota-Verteilung nach Prioritäten
+         * NEUE LOGIK: Quota = Ziel + AV - Intern (aber min. 0)
+         * 
+         * @param {number} targetCapacity - Ziel-Gesamtkapazität
+         * @param {object} occupancy - { av, internal, total }
+         */
+        calculateQuotaDistribution(targetCapacity, occupancy) {
+            const { av, internal, total } = occupancy;
+
+            // ✅ NEUE FORMEL: Quota = Ziel + AV - Intern
+            let availableQuota = targetCapacity + av - internal;
+
+            // ✅ WICHTIG: Nie negativ!
+            if (availableQuota < 0) {
+                availableQuota = 0;
+            }
+
+            console.log(`🧮 calculateQuotaDistribution: target=${targetCapacity}, av=${av}, intern=${internal}`);
+            console.log(`   → Quota = ${targetCapacity} + ${av} - ${internal} = ${availableQuota}`);
+
+            // Sonderfall: Keine Quota verfügbar
+            if (availableQuota === 0) {
+                console.log(`⚠️ Keine Quota verfügbar → Alle Kategorien = 0`);
+                return { lager: 0, betten: 0, dz: 0, sonder: 0 };
+            }
+
+            // Lese Prioritäten (2-4 haben Max-Werte, 1 bekommt den Rest)
+            const priorities = [];
+            for (let i = 1; i <= 4; i++) {
+                const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
+                if (!categorySelect) {
+                    console.error(`❌ Category-Select für Priorität ${i} nicht gefunden!`);
+                    continue;
+                }
+
+                const category = categorySelect.value;
+
+                let maxValue;
+                if (i === 1) {
+                    // Priorität 1 hat keinen Max-Input, bekommt immer den Rest
+                    maxValue = Infinity;
+                } else {
+                    const maxInput = document.querySelector(`.max-value-input[data-priority="${i}"]`);
+                    if (!maxInput) {
+                        console.error(`❌ Max-Input für Priorität ${i} nicht gefunden!`);
+                        maxValue = Infinity; // Fallback
+                    } else {
+                        maxValue = (maxInput.value === '' || maxInput.value === '0') ? Infinity : parseInt(maxInput.value);
+                    }
+                }
+
+                priorities.push({ priority: i, category, max: maxValue });
+            }
+
+            // Initialisiere Quotas
+            const result = { lager: 0, betten: 0, dz: 0, sonder: 0 };
+            let remaining = availableQuota;
+
+            // Sequentielle Zuteilung nach Priorität
+            for (const p of priorities) {
+                if (remaining <= 0) break;
+
+                const allocated = Math.min(p.max, remaining);
+                result[p.category] += allocated;
+                remaining -= allocated;
+            }
+
+            // Rest zu Priorität 1 addieren
+            if (remaining > 0 && priorities.length > 0) {
+                result[priorities[0].category] += remaining;
+            }
+
+            console.log(`   → Verteilung: ML=${result.lager}, MBZ=${result.betten}, 2BZ=${result.dz}, SK=${result.sonder}`);
+
+            return result;
+        }
+
+        /**
+         * Aktualisiert Live-Preview - berechnet für JEDEN TAG individuell
+         */
+        async updatePreview() {
+            const targetCapacity = parseInt(document.getElementById('targetCapacity').value);
+            const previewContainer = document.getElementById('quotaPreviewDays');
+            previewContainer.innerHTML = '';
+
+            let hasOverbooking = false;
+
+            // Für jeden selektierten Tag
+            for (const dateStr of this.selectedDays) {
+                // Hole Belegung (AV + Intern getrennt)
+                const occupancy = await this.getOccupancyForDate(dateStr);
+
+                // ✅ Berechne Quotas mit neuer Formel: Ziel + AV - Intern
+                const quotas = this.calculateQuotaDistribution(targetCapacity, occupancy);
+
+                console.log(`💡 ${dateStr}: AV=${occupancy.av}, Intern=${occupancy.internal}, Quotas=${JSON.stringify(quotas)}`);
+
+                // Check Overbooking (wenn keine Quota mehr verfügbar)
+                const availableQuota = targetCapacity + occupancy.av - occupancy.internal;
+                if (availableQuota <= 0) {
+                    hasOverbooking = true;
+                }
+
+                // Parse Datum für Anzeige
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                const dateDisplay = date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+                // Erstelle Preview-Zeile
+                const row = document.createElement('div');
+                row.className = 'mb-2 pb-2 border-bottom';
+                row.innerHTML = `
+                <div class="row align-items-center" style="font-size: 0.9em;">
+                    <div class="col-3">
+                        <strong>${dateDisplay}</strong><br>
+                        <small class="text-muted">
+                            AV: ${occupancy.av} | Int: ${occupancy.internal}<br>
+                            Quota: ${Math.max(0, targetCapacity + occupancy.av - occupancy.internal)}
+                        </small>
+                    </div>
+                    <div class="col-9">
+                        <div class="row">
+                            <div class="col-3">
+                                <strong>ML:</strong> <span class="${quotas.lager > 0 ? 'text-success' : 'text-muted'}">${quotas.lager}</span>
+                            </div>
+                            <div class="col-3">
+                                <strong>MBZ:</strong> <span class="${quotas.betten > 0 ? 'text-success' : 'text-muted'}">${quotas.betten}</span>
+                            </div>
+                            <div class="col-3">
+                                <strong>2BZ:</strong> <span class="${quotas.dz > 0 ? 'text-success' : 'text-muted'}">${quotas.dz}</span>
+                            </div>
+                            <div class="col-3">
+                                <strong>SK:</strong> <span class="${quotas.sonder > 0 ? 'text-success' : 'text-muted'}">${quotas.sonder}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+                previewContainer.appendChild(row);
+            }
+
+            // Overbooking Warning
+            const warning = document.getElementById('overbookingWarning');
+            if (hasOverbooking) {
+                warning.classList.remove('d-none');
+                warning.innerHTML = `⚠️ <strong>Warnung:</strong> Bei einigen Tagen ist keine Quota mehr verfügbar (Ziel + AV - Intern ≤ 0)!<br>Für diese Tage werden alle Quotas auf 0 gesetzt.`;
+            } else {
+                warning.classList.add('d-none');
+            }
+        }
+
+
+        /**
+         * Hole aktuelle Belegung für ein bestimmtes Datum
+         * Unterscheidet zwischen AV-Reservierungen (av_id > 0) und internen (av_id = 0)
+         */
+        async getOccupancyForDate(dateStr) {
+            let avReservations = 0;      // Reservierungen VOM AV-System (av_id > 0)
+            let internalReservations = 0; // Interne Reservierungen (av_id = 0)
+
+            if (!this.renderer) {
+                console.error('❌ renderer nicht verfügbar!');
+                return { av: 0, internal: 0, total: 0 };
+            }
+
+            const { startDate, endDate } = this.renderer.getTimelineDateRange();
+            const histogramData = this.renderer.getHistogramData(startDate, endDate);
+
+            if (!histogramData || !histogramData.dailyDetails) {
+                console.error('❌ histogramData nicht verfügbar!');
+                return { av: 0, internal: 0, total: 0 };
+            }
+
+            // Berechne Day-Index aus dateStr
+            const date = new Date(dateStr);
+            const dayIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+
+            const detail = histogramData.dailyDetails[dayIndex];
+
+            if (detail) {
+                // detail.total = GESAMT BELEGTE Kapazität
+                // Wir müssen die Einzelreservierungen durchgehen um AV vs. Intern zu trennen
+
+                // Hole Reservierungen aus histogramSource für dieses Datum
+                if (window.histogramSource) {
+                    const reservationsForDate = window.histogramSource.filter(res => {
+                        const resStart = res.anreise || res.start_date || res.start;
+                        const resEnd = res.abreise || res.end_date || res.end;
+                        return resStart && resEnd && resStart <= dateStr && dateStr < resEnd;
+                    });
+
+                    reservationsForDate.forEach(res => {
+                        const persons = res.capacity_details?.total || res.anz_pers || res.pax || 0;
+
+                        if (res.av_id && res.av_id > 0) {
+                            avReservations += persons;
+                        } else {
+                            internalReservations += persons;
+                        }
+                    });
+                }
+
+                const total = avReservations + internalReservations;
+                console.log(`📊 ${dateStr} (dayIndex ${dayIndex}): AV=${avReservations}, Intern=${internalReservations}, Total=${total}`);
+            } else {
+                console.warn(`⚠️ Kein dailyDetail für ${dateStr} (dayIndex ${dayIndex})`);
+            }
+
+            return { av: avReservations, internal: internalReservations, total: avReservations + internalReservations };
+        }
+
+        /**
+         * Hole bereits gebuchte AV-Kategorien für ein bestimmtes Datum
+         * WICHTIG: Nur Reservierungen mit av_id > 0 zählen!
+```        /**
+         * Hole bereits gebuchte AV-Kategorien für ein bestimmtes Datum
+         * WICHTIG: Nur Reservierungen mit av_id > 0 zählen!
+         */
+        async getBookedCategoriesForDate(dateStr) {
+            const booked = { lager: 0, betten: 0, dz: 0, sonder: 0 };
+
+            // Hole Reservierungen aus histogramSource (nicht storno!)
+            if (!window.histogramSource) {
+                console.warn('⚠️ window.histogramSource nicht verfügbar');
+                return booked;
+            }
+
+            // Filtere Reservierungen für dieses Datum mit av_id > 0
+            const reservationsForDate = window.histogramSource.filter(res => {
+                if (!res.av_id || res.av_id <= 0) return false; // Nur AV-Reservierungen
+
+                // Prüfe ob Datum im Reservierungs-Zeitraum liegt
+                const resStart = res.anreise || res.start_date;
+                const resEnd = res.abreise || res.end_date;
+
+                return dateStr >= resStart && dateStr < resEnd;
+            });
+
+            console.log(`🔍 AV-Reservierungen für ${dateStr}:`, reservationsForDate.length);
+
+            // Zähle nach Kategorien
+            reservationsForDate.forEach(res => {
+                const avId = res.av_id;
+
+                // Map av_id zu Kategorie (TODO: Korrekte Zuordnung!)
+                // 1958 = Lager, 2293 = Betten, 2381 = DZ, 6106 = Sonder
+                if (avId === 1958) {
+                    booked.lager += (res.anz_pers || res.pax || 1);
+                } else if (avId === 2293) {
+                    booked.betten += (res.anz_pers || res.pax || 1);
+                } else if (avId === 2381) {
+                    booked.dz += (res.anz_pers || res.pax || 1);
+                } else if (avId === 6106) {
+                    booked.sonder += (res.anz_pers || res.pax || 1);
+                } else {
+                    console.warn(`⚠️ Unbekannte av_id: ${avId}`);
+                }
+            });
+
+            console.log(`📦 Gebuchte Kategorien für ${dateStr}:`, booked);
+            return booked;
+        }
+
+        /**
+         * Validierung
+         */
+        validate() {
+            // Prüfe auf Duplikate
+            const categories = [];
+            for (let i = 1; i <= 4; i++) {
+                const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
+                if (!categorySelect) {
+                    alert(`❌ Fehler: Category-Select für Priorität ${i} nicht gefunden!`);
+                    return false;
+                }
+                categories.push(categorySelect.value);
+            }
+
+            const uniqueCategories = [...new Set(categories)];
+            if (categories.length !== uniqueCategories.length) {
+                alert('❌ Fehler: Kategorie-Duplikate nicht erlaubt!');
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+         * Speichert Quotas via API
+         */
+        async save() {
+            if (!this.validate()) return;
+
+            const saveBtn = document.getElementById('saveQuotaBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '⏳ Speichern...';
+
+            try {
+                const targetCapacity = parseInt(document.getElementById('targetCapacityValue').value) || 0;
+
+                // Sammle Prioritäten
+                const priorities = [];
+                for (let i = 1; i <= 4; i++) {
+                    const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
+                    const maxInputElement = document.querySelector(`.max-value-input[data-priority="${i}"]`);
+
+                    if (!categorySelect || !maxInputElement) {
+                        console.error(`❌ Elemente für Priorität ${i} nicht gefunden!`);
+                        continue;
+                    }
+
+                    const category = categorySelect.value;
+                    const maxInputValue = maxInputElement.value;
+                    const max = maxInputValue === '' ? null : parseInt(maxInputValue);
+
+                    priorities.push({ category, max });
+                }
+
+                // ✅ Berechne für jeden Tag individuell mit NEUER FORMEL
+                const dailyQuotas = [];
+                for (const dateStr of this.selectedDays) {
+                    const occupancy = await this.getOccupancyForDate(dateStr);
+                    const quotas = this.calculateQuotaDistribution(targetCapacity, occupancy);
+
+                    dailyQuotas.push({
+                        date: dateStr,
+                        quotas: quotas,
+                        targetCapacity: targetCapacity,
+                        avReservations: occupancy.av,
+                        internalReservations: occupancy.internal,
+                        calculatedQuota: Math.max(0, targetCapacity + occupancy.av - occupancy.internal)
+                    });
+                }
+
+                // API Call
+                const requestBody = {
+                    selectedDays: this.selectedDays,
+                    targetCapacity: targetCapacity,
+                    priorities: priorities,
+                    dailyQuotas: dailyQuotas,  // ✅ Sende tägliche Quotas mit AV
+                    operation: 'update'
+                };
+
+                console.log('📤 Sending to API:', requestBody);
+
+                const response = await fetch('/wci/hrs/hrs_update_quota_timeline.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                console.log('📥 Response status:', response.status);
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('❌ Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response: ' + text.substring(0, 200));
+                }
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    console.error('❌ API Error Response:', result);
+                    throw new Error(result.error || result.message || 'Unknown server error');
+                }
+
+                if (result.success) {
+                    alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${result.createdQuotas.length} Quotas\nGelöscht: ${result.deletedQuotas.length} Quotas`);
+
+                    // Timeline neu laden
+                    if (this.renderer && typeof this.renderer.reloadHistogramData === 'function') {
+                        await this.renderer.reloadHistogramData();
+                    }
+
+                    this.modal.hide();
+                } else {
+                    alert(`❌ Fehler beim Speichern:\n\n${result.error}`);
+                }
+
+            } catch (error) {
+                console.error('Quota save error:', error);
+                alert(`❌ Netzwerkfehler:\n\n${error.message}`);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 Speichern';
+            }
+        }
+    }
+
+    // Globale Instanz erstellen (wird von timeline-unified.js genutzt)
+    window.quotaInputModal = null;
+
+    // Initialisierungs-Funktion (wird nach dem Laden des HTML aufgerufen)
+    window.initQuotaInputModal = function () {
+        console.log('📋 initQuotaInputModal aufgerufen');
+
+        // Warte auf renderer-Initialisierung
+        const checkRenderer = setInterval(() => {
+            if (typeof window.renderer !== 'undefined' && window.renderer) {
+                window.quotaInputModal = new QuotaInputModal(window.renderer);
+                console.log('✅ Quota Input Modal initialized mit renderer:', window.renderer);
+                clearInterval(checkRenderer);
+            } else {
+                console.log('⏳ Warte auf window.renderer...');
+            }
+        }, 100);
+
+        // Timeout nach 10 Sekunden
+        setTimeout(() => {
+            if (!window.quotaInputModal) {
+                console.warn('⚠️ Quota Modal konnte nicht initialisiert werden - renderer nicht gefunden');
+                console.log('window.renderer ist:', window.renderer);
+            }
+        }, 10000);
+    };
+
+    // Wenn DOMContentLoaded schon vorbei ist (bei dynamischem Laden), sofort initialisieren
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', window.initQuotaInputModal);
+    } else {
+        // DOM ist bereits bereit, sofort initialisieren
+        window.initQuotaInputModal();
+    }
+</script>

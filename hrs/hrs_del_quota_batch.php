@@ -23,17 +23,61 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/hrs_login.php';
 
 try {
-    // Parameter validieren
-    $quota_db_ids_json = isset($_POST['quota_db_ids']) ? $_POST['quota_db_ids'] : '';
+    // Parameter validieren - unterstützt sowohl $_POST als auch raw JSON
+    $quota_db_ids_json = '';
+    $quota_hrs_ids = null; // Direkte HRS-IDs (optional)
     
-    if (empty($quota_db_ids_json)) {
-        throw new Exception('Keine Quota-IDs angegeben');
+    // Prüfe ob raw JSON Body
+    $rawInput = file_get_contents('php://input');
+    if (!empty($rawInput)) {
+        $jsonData = json_decode($rawInput, true);
+        if (is_array($jsonData)) {
+            // Unterstütze beide Formate: quota_db_ids oder quota_hrs_ids
+            if (isset($jsonData['quota_hrs_ids']) && is_array($jsonData['quota_hrs_ids'])) {
+                $quota_hrs_ids = $jsonData['quota_hrs_ids'];
+            } elseif (isset($jsonData['quota_db_ids'])) {
+                $quota_db_ids_json = is_string($jsonData['quota_db_ids']) ? $jsonData['quota_db_ids'] : json_encode($jsonData['quota_db_ids']);
+            }
+        }
     }
     
-    $quota_db_ids = json_decode($quota_db_ids_json, true);
-    if (!is_array($quota_db_ids) || empty($quota_db_ids)) {
-        throw new Exception('Ungültige Quota-IDs: ' . $quota_db_ids_json);
+    // Fallback auf $_POST
+    if (empty($quota_db_ids_json) && !$quota_hrs_ids) {
+        $quota_db_ids_json = isset($_POST['quota_db_ids']) ? $_POST['quota_db_ids'] : '';
     }
+    
+    // Wenn direkte HRS-IDs übergeben wurden, überspringe DB-Lookup
+    if ($quota_hrs_ids) {
+        if (!is_array($quota_hrs_ids) || empty($quota_hrs_ids)) {
+            throw new Exception('Ungültige quota_hrs_ids: ' . json_encode($quota_hrs_ids));
+        }
+        
+        echo json_encode(array(
+            'status' => 'info',
+            'message' => "Starte Batch-Löschung für " . count($quota_hrs_ids) . " Quotas (direkte HRS-IDs)"
+        )) . "\n";
+        
+        // Baue quotas_to_delete Array direkt
+        $quotas_to_delete = array();
+        foreach ($quota_hrs_ids as $hrs_id) {
+            $quotas_to_delete[] = array(
+                'db_id' => null,
+                'hrs_id' => $hrs_id,
+                'name' => "HRS-ID $hrs_id",
+                'datum_von' => null,
+                'datum_bis' => null
+            );
+        }
+    } else {
+        // Alte Logik: Hole HRS-IDs aus DB
+        if (empty($quota_db_ids_json)) {
+            throw new Exception('Keine Quota-IDs angegeben');
+        }
+        
+        $quota_db_ids = json_decode($quota_db_ids_json, true);
+        if (!is_array($quota_db_ids) || empty($quota_db_ids)) {
+            throw new Exception('Ungültige Quota-IDs: ' . $quota_db_ids_json);
+        }
     
     echo json_encode(array(
         'status' => 'info',
@@ -87,6 +131,9 @@ try {
         'status' => 'info',
         'message' => count($quotas_to_delete) . ' HRS-Quotas gefunden zum Löschen'
     )) . "\n";
+    } // Ende else-Block (DB-Lookup)
+    
+    // Ab hier gemeinsamer Code für beide Pfade
     
     // Einmaliger HRS Login für alle Löschvorgänge
     echo json_encode(array(
