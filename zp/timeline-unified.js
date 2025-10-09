@@ -2857,7 +2857,12 @@ class TimelineUnifiedRenderer {
                 normalizedAvailability = source.availability.map(entry => ({
                     datum: entry?.datum ?? entry?.date ?? entry?.day,
                     free_places: Number(entry?.free_places ?? entry?.free_place ?? 0),
-                    hut_status: entry?.hut_status || ''
+                    hut_status: entry?.hut_status || '',
+                    // Quota-Felder MÜSSEN erhalten bleiben!
+                    quota_dz: Number(entry?.quota_dz ?? 0),
+                    quota_betten: Number(entry?.quota_betten ?? 0),
+                    quota_lager: Number(entry?.quota_lager ?? 0),
+                    quota_sonder: Number(entry?.quota_sonder ?? 0)
                 }));
             }
         }
@@ -2872,7 +2877,12 @@ class TimelineUnifiedRenderer {
             normalizedAvailability = availabilitySource.map(entry => ({
                 datum: entry?.datum ?? entry?.date ?? entry?.day,
                 free_places: Number(entry?.free_places ?? entry?.free_place ?? 0),
-                hut_status: entry?.hut_status || ''
+                hut_status: entry?.hut_status || '',
+                // Quota-Felder MÜSSEN erhalten bleiben!
+                quota_dz: Number(entry?.quota_dz ?? 0),
+                quota_betten: Number(entry?.quota_betten ?? 0),
+                quota_lager: Number(entry?.quota_lager ?? 0),
+                quota_sonder: Number(entry?.quota_sonder ?? 0)
             }));
         }
 
@@ -3039,7 +3049,8 @@ class TimelineUnifiedRenderer {
                 total: 0
             },
             free_capacity: 0,
-            hut_status: 'SERVICED'
+            hut_status: 'SERVICED',
+            quota: null // Quota-Daten pro Tag
         }));
 
         const addReservationToHistogram = (reservation) => {
@@ -3153,6 +3164,17 @@ class TimelineUnifiedRenderer {
             dailyDetails[index].free_capacity = Math.max(0, freeValue);
             if (entry?.hut_status !== undefined && entry?.hut_status !== null) {
                 dailyDetails[index].hut_status = String(entry.hut_status);
+            }
+
+            // Quota-Daten aus availability entry (falls vorhanden)
+            if (entry?.quota_lager !== undefined || entry?.quota_betten !== undefined ||
+                entry?.quota_dz !== undefined || entry?.quota_sonder !== undefined) {
+                dailyDetails[index].quota = {
+                    dz: Number(entry.quota_dz) || 0,
+                    betten: Number(entry.quota_betten) || 0,
+                    lager: Number(entry.quota_lager) || 0,
+                    sonder: Number(entry.quota_sonder) || 0
+                };
             }
         });
 
@@ -10570,6 +10592,56 @@ class TimelineUnifiedRenderer {
                     this.ctx.globalAlpha = 1;
                 }
             }
+
+            // ===== QUOTA-VISUALISIERUNG (5px schmal, linksbündig, gestapelt) =====
+            // WICHTIG: Wird NACH Storno gezeichnet, damit er nicht überdeckt wird
+            const quotaWidth = 5;
+            const quotaX = x - 6; // 6px nach links verschoben (außerhalb des Hauptbalkens)
+            const quotaData = detail.quota || null;
+
+            // DEBUG: Log wenn Quota-Daten vorhanden
+            if (quotaData && dayIndex < 5) {
+                console.log(`[QUOTA DEBUG] Day ${dayIndex}: `, quotaData);
+            }
+
+            if (quotaData && scaledMax > 0) {
+                const quotaDz = Number(quotaData.dz) || 0;
+                const quotaBetten = Number(quotaData.betten) || 0;
+                const quotaLager = Number(quotaData.lager) || 0;
+                const quotaSonder = Number(quotaData.sonder) || 0;
+
+                // Start von oben (Oberkante FR-Segment oder Oberkante Balken)
+                const freeCapacity = Math.max(0, Number(detail.free_capacity) || 0);
+                let freeHeight = 0;
+                if (freeCapacity > 0 && scaledMax > 0) {
+                    freeHeight = (freeCapacity / scaledMax) * availableHeight;
+                }
+                const quotaStartY = freeHeight > 0 ? (barY - freeHeight) : barY;
+                let quotaCurrentTop = quotaStartY;
+
+                // Gestapelt nach Kategorien (von oben nach unten: DZ, Betten, Lager, Sonder)
+                const quotaCategories = [
+                    { key: 'dz', value: quotaDz, color: categoryColors.dz || '#1f78ff' },
+                    { key: 'betten', value: quotaBetten, color: categoryColors.betten || '#2ecc71' },
+                    { key: 'lager', value: quotaLager, color: categoryColors.lager || '#f1c40f' },
+                    { key: 'sonder', value: quotaSonder, color: categoryColors.sonder || '#8e44ad' }
+                ];
+
+                quotaCategories.forEach(category => {
+                    if (category.value > 0) {
+                        const segmentHeight = (category.value / scaledMax) * availableHeight;
+                        if (segmentHeight > 0.5) {
+                            this.ctx.fillStyle = category.color;
+                            this.ctx.globalAlpha = 1.0; // Volle Deckkraft für Quota
+                            this.ctx.fillRect(quotaX, quotaCurrentTop, quotaWidth, segmentHeight);
+                            quotaCurrentTop += segmentHeight;
+                        }
+                    }
+                });
+
+                this.ctx.globalAlpha = 1;
+            }
+            // ===== END QUOTA-VISUALISIERUNG =====
 
             const previousAlign = this.ctx.textAlign;
             const previousBaseline = this.ctx.textBaseline;

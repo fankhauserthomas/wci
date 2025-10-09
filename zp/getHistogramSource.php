@@ -182,6 +182,87 @@ try {
 
     $stmt->close();
 
+    // === QUOTA-DATEN LADEN (nach Kategorien) ===
+    $quotaSql = "WITH 
+        -- 1. Date Range generieren
+        date_range AS (
+            SELECT 
+                DATE(?) + INTERVAL (a.a + (10 * b.a) + (100 * c.a)) DAY as datum
+            FROM 
+                (SELECT 0 as a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) as a
+                CROSS JOIN (SELECT 0 as a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) as b
+                CROSS JOIN (SELECT 0 as a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) as c
+            WHERE 
+                DATE(?) + INTERVAL (a.a + (10 * b.a) + (100 * c.a)) DAY <= DATE(?)
+        ),
+        
+        -- 2. Quota-Kategorien mit Mapping
+        quota_categories AS (
+            SELECT 
+                hq.id as quota_id,
+                hq.date_from,
+                hq.date_to,
+                SUM(CASE WHEN hqc.category_id = 1958 THEN COALESCE(hqc.total_beds, 0) ELSE 0 END) as quota_lager,
+                SUM(CASE WHEN hqc.category_id = 2293 THEN COALESCE(hqc.total_beds, 0) ELSE 0 END) as quota_betten,
+                SUM(CASE WHEN hqc.category_id = 2381 THEN COALESCE(hqc.total_beds, 0) ELSE 0 END) as quota_dz,
+                SUM(CASE WHEN hqc.category_id = 6106 THEN COALESCE(hqc.total_beds, 0) ELSE 0 END) as quota_sonder
+            FROM hut_quota hq
+            LEFT JOIN hut_quota_categories hqc ON hq.id = hqc.hut_quota_id
+            GROUP BY hq.id, hq.date_from, hq.date_to
+        )
+        
+        -- 3. Aktive Quotas pro Tag
+        SELECT 
+            dr.datum,
+            COALESCE(SUM(qc.quota_lager), 0) as quota_lager,
+            COALESCE(SUM(qc.quota_betten), 0) as quota_betten,
+            COALESCE(SUM(qc.quota_dz), 0) as quota_dz,
+            COALESCE(SUM(qc.quota_sonder), 0) as quota_sonder
+        FROM date_range dr
+        LEFT JOIN quota_categories qc ON dr.datum >= qc.date_from AND dr.datum < qc.date_to
+        GROUP BY dr.datum
+        ORDER BY dr.datum";
+
+    $stmt = $mysqli->prepare($quotaSql);
+    if (!$stmt) {
+        throw new Exception('Quota SQL prepare failed: ' . $mysqli->error);
+    }
+
+    $stmt->bind_param('sss', $startDate, $startDate, $endDate);
+    if (!$stmt->execute()) {
+        throw new Exception('Quota SQL execution failed: ' . $stmt->error);
+    }
+
+    $result = $stmt->get_result();
+    $quotaDataByDate = [];
+
+    while ($row = $result->fetch_assoc()) {
+        $quotaDataByDate[$row['datum']] = [
+            'quota_lager' => (int)$row['quota_lager'],
+            'quota_betten' => (int)$row['quota_betten'],
+            'quota_dz' => (int)$row['quota_dz'],
+            'quota_sonder' => (int)$row['quota_sonder']
+        ];
+    }
+
+    $stmt->close();
+
+    // Merge Quota-Daten in Availability
+    foreach ($availabilityData as &$entry) {
+        $date = $entry['datum'];
+        if (isset($quotaDataByDate[$date])) {
+            $entry = array_merge($entry, $quotaDataByDate[$date]);
+        } else {
+            // Fallback: 0 wenn keine Quota
+            $entry['quota_lager'] = 0;
+            $entry['quota_betten'] = 0;
+            $entry['quota_dz'] = 0;
+            $entry['quota_sonder'] = 0;
+        }
+    }
+    unset($entry); // Break reference
+    // === END QUOTA-DATEN ===
+
     echo json_encode([
         'success' => true,
         'data' => [

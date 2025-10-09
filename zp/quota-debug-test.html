@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Quota Debug Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        pre {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .warning {
+            color: #fbbf24;
+        }
+
+        h2 {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Quota-Daten Debug Test</h1>
+
+    <h2>1. API Response Check</h2>
+    <div id="api-check">Loading...</div>
+
+    <h2>2. Parsed Availability Data</h2>
+    <div id="parsed-check">Loading...</div>
+
+    <h2>3. Histogram Cache Check</h2>
+    <div id="cache-check">Waiting for timeline load...</div>
+
+    <script>
+        async function testQuotaData() {
+            try {
+                // 1. API Check
+                const response = await fetch('http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=2026-03-01&end=2026-03-05');
+                const data = await response.json();
+
+                const apiDiv = document.getElementById('api-check');
+                if (data.success && data.data.availability) {
+                    const quotaDays = data.data.availability.filter(d =>
+                        d.quota_lager > 0 || d.quota_betten > 0 || d.quota_dz > 0 || d.quota_sonder > 0
+                    );
+
+                    if (quotaDays.length > 0) {
+                        apiDiv.innerHTML = '<span class="success">✓ API liefert Quota-Daten</span><pre>' +
+                            JSON.stringify(quotaDays.slice(0, 3), null, 2) + '</pre>';
+                    } else {
+                        apiDiv.innerHTML = '<span class="error">✗ Keine Quota-Daten in API Response</span>';
+                    }
+                } else {
+                    apiDiv.innerHTML = '<span class="error">✗ API Fehler</span><pre>' +
+                        JSON.stringify(data, null, 2) + '</pre>';
+                }
+
+                // 2. Parsed Data Check
+                const parsedDiv = document.getElementById('parsed-check');
+                const testEntry = data.data.availability[0];
+
+                const parsed = {
+                    datum: testEntry.datum,
+                    free_places: Number(testEntry.free_places ?? testEntry.free_place ?? 0),
+                    hut_status: testEntry.hut_status || '',
+                    quota_dz: Number(testEntry.quota_dz ?? 0),
+                    quota_betten: Number(testEntry.quota_betten ?? 0),
+                    quota_lager: Number(testEntry.quota_lager ?? 0),
+                    quota_sonder: Number(testEntry.quota_sonder ?? 0)
+                };
+
+                const hasQuota = parsed.quota_lager > 0 || parsed.quota_betten > 0 ||
+                    parsed.quota_dz > 0 || parsed.quota_sonder > 0;
+
+                if (hasQuota) {
+                    parsedDiv.innerHTML = '<span class="success">✓ Quota-Felder korrekt geparst</span><pre>' +
+                        JSON.stringify(parsed, null, 2) + '</pre>';
+                } else {
+                    parsedDiv.innerHTML = '<span class="error">✗ Quota-Felder = 0 nach Parsing</span><pre>' +
+                        JSON.stringify(parsed, null, 2) + '</pre>';
+                }
+
+            } catch (error) {
+                console.error('Test failed:', error);
+                document.getElementById('api-check').innerHTML =
+                    '<span class="error">✗ Error: ' + error.message + '</span>';
+            }
+        }
+
+        // Run test
+        testQuotaData();
+
+        // Check timeline data after 3 seconds
+        setTimeout(() => {
+            const cacheDiv = document.getElementById('cache-check');
+
+            if (typeof window.histogramAvailability !== 'undefined') {
+                const marchData = window.histogramAvailability.filter(d =>
+                    d.datum && d.datum.startsWith('2026-03')
+                ).slice(0, 3);
+
+                if (marchData.length > 0) {
+                    const hasQuota = marchData.some(d =>
+                        d.quota_lager > 0 || d.quota_betten > 0 || d.quota_dz > 0 || d.quota_sonder > 0
+                    );
+
+                    if (hasQuota) {
+                        cacheDiv.innerHTML = '<span class="success">✓ window.histogramAvailability enthält Quota-Daten</span><pre>' +
+                            JSON.stringify(marchData, null, 2) + '</pre>';
+                    } else {
+                        cacheDiv.innerHTML = '<span class="error">✗ window.histogramAvailability hat keine Quota-Daten</span><pre>' +
+                            JSON.stringify(marchData, null, 2) + '</pre>';
+                    }
+                } else {
+                    cacheDiv.innerHTML = '<span class="warning">⚠ Keine März-Daten in histogramAvailability</span>';
+                }
+            } else {
+                cacheDiv.innerHTML = '<span class="error">✗ window.histogramAvailability nicht definiert</span>';
+            }
+        }, 3000);
+    </script>
+</body>
+
+</html>

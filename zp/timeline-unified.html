@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Timeline Unified - Single Canvas Rendering</title>
 
     <!-- Bootstrap 5.3.2 CSS -->
@@ -4919,9 +4922,12 @@
                 console.log(`Konfigurierte Zeitspanne: ${weekRange.past} Wochen zurück, ${weekRange.future} Wochen voraus`);
                 console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
 
+                // Cache-Buster für Quota-Feature
+                const cacheBuster = `?cb=${Date.now()}`;
+
                 const roomsFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
                 const arrangementsFetchPromise = fetch('http://192.168.15.14:8080/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
-                const histogramFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
+                const histogramFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
 
                 console.log('Fetching main data...');
                 const dataResponse = await fetch(`http://192.168.15.14:8080/wci/zp/getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
@@ -5148,11 +5154,22 @@
                             }
 
                             if (Array.isArray(histogramJson.data.availability)) {
+                                // DEBUG: Log first raw entry
+                                console.log('🔍 RAW AVAILABILITY ENTRY:', histogramJson.data.availability[0]);
+
                                 histogramAvailabilitySource = histogramJson.data.availability.map(entry => ({
                                     datum: entry.datum,
                                     free_places: Number(entry.free_places ?? entry.free_place ?? 0),
-                                    hut_status: entry.hut_status || ''
+                                    hut_status: entry.hut_status || '',
+                                    // Quota-Daten nach Kategorien
+                                    quota_dz: Number(entry.quota_dz ?? 0),
+                                    quota_betten: Number(entry.quota_betten ?? 0),
+                                    quota_lager: Number(entry.quota_lager ?? 0),
+                                    quota_sonder: Number(entry.quota_sonder ?? 0)
                                 }));
+
+                                // DEBUG: Log first parsed entry
+                                console.log('🔍 PARSED AVAILABILITY ENTRY:', histogramAvailabilitySource[0]);
                                 console.log(`✅ ${histogramAvailabilitySource.length} Verfügbarkeits-Einträge verarbeitet`);
                             }
 
@@ -5183,6 +5200,11 @@
                 window.histogramSource = histogramSource;
                 window.histogramStornoSource = histogramStornoSource;
                 window.histogramAvailability = histogramAvailabilitySource;
+
+                // DEBUG: Verify assignment worked
+                console.log('🔍 AFTER ASSIGNMENT - window.histogramAvailability[0]:', window.histogramAvailability[0]);
+                console.log('🔍 AFTER ASSIGNMENT - März 2026:', window.histogramAvailability.find(d => d.datum === '2026-03-01'));
+
                 histogramSourceData = window.histogramSource;
                 histogramStornoSourceData = window.histogramStornoSource;
                 histogramAvailabilityData = window.histogramAvailability;
