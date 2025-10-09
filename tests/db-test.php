@@ -19,7 +19,7 @@
         
         <?php
         try {
-            require_once 'config-simple.php';
+            require_once __DIR__ . '/../config.php';
             
             if (isset($mysqli) && $mysqli instanceof mysqli) {
                 echo '<p class="success">✅ Datenbankverbindung erfolgreich!</p>';

@@ -7,8 +7,8 @@ echo "<h1>Dashboard Statistiken Test</h1>";
 
 echo "<h3>1. Config-Test:</h3>";
 try {
-    require_once __DIR__ . '/config-simple.php';
-    echo "✅ config-simple.php geladen<br>";
+    require_once __DIR__ . '/../config.php';
+    echo "✅ config.php geladen<br>";
     
     if (isset($mysqli) && $mysqli instanceof mysqli) {
         echo "✅ MySQL-Verbindung vorhanden<br>";

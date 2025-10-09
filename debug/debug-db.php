@@ -8,7 +8,7 @@ echo "<p>Zeit: " . date('Y-m-d H:i:s') . "</p>";
 
 echo "<h3>1. Config laden:</h3>";
 try {
-    require_once __DIR__ . '/config-simple.php';
+    require_once __DIR__ . '/../config.php';
     echo "✅ config-simple.php geladen<br>";
 } catch (Exception $e) {
     echo "❌ Config-Fehler: " . $e->getMessage() . "<br>";

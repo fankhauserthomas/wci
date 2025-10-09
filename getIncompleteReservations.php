@@ -3,7 +3,7 @@
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
-require_once __DIR__ . '/config-simple.php';
+require_once __DIR__ . '/config.php';
 
 // MySQL Error Mode lockern
 $mysqli->query("SET sql_mode = 'ALLOW_INVALID_DATES'");

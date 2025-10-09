@@ -14,7 +14,7 @@
 #
 ################################################################################
 
-set -e  # Exit on error
+# NICHT "set -e" verwenden - wir wollen bei fehlenden Dateien weitermachen!
 
 # Farben für Output
 RED='\033[0;31m'
@@ -68,11 +68,17 @@ safe_move() {
         local target="${target_dir}/${filename}"
         
         echo -e "  ${YELLOW}→${NC} ${file} → ${target_dir}/"
-        mv "$file" "$target"
         
-        # Log
-        echo "[$(date '+%H:%M:%S')] MOVED: $file → $target" >> "$LOG_FILE"
-        ((MOVED_COUNT++))
+        # Versuche zu verschieben, fange Fehler ab
+        if mv "$file" "$target" 2>/dev/null; then
+            # Log
+            echo "[$(date '+%H:%M:%S')] MOVED: $file → $target" >> "$LOG_FILE"
+            ((MOVED_COUNT++))
+        else
+            echo -e "  ${RED}✗${NC} Fehler beim Verschieben von ${file}"
+            echo "[$(date '+%H:%M:%S')] ERROR: Failed to move $file" >> "$LOG_FILE"
+            ((ERROR_COUNT++))
+        fi
     else
         echo -e "  ${BLUE}⊘${NC} ${file} (nicht gefunden, übersprungen)"
         ((SKIPPED_COUNT++))

@@ -3,7 +3,7 @@
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
-require_once __DIR__ . '/config-simple.php';
+require_once __DIR__ . '/config.php';
 
 // GET-Parameter: date (YYYY-MM-DD) für das Referenzdatum
 $date = $_GET['date'] ?? date('Y-m-d');
