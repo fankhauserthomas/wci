@@ -1,0 +1,205 @@
+================================================================================
+  WCI PROJEKT AUDIT - SCHNELL-ZUSAMMENFASSUNG
+  Erstellt: 2025-10-09 | Version: 2.0 (mit HP-DB Korrektur)
+================================================================================
+
+📚 DOKUMENTATION
+--------------------------------------------------------------------------------
+1. PROJECT_CONFIGURATION_AUDIT_README.md  - Vollständiger Audit-Bericht
+2. DATABASE_ARCHITECTURE.md                - Datenbank-Architektur (2 DBs!)
+3. AUDIT_CORRECTION_HP_DB.md               - Wichtig: HP-DB Klarstellung
+4. DOCUMENTATION_INDEX.md                  - Übersicht aller Dokumente
+
+================================================================================
+🎯 HAUPTERGEBNISSE
+================================================================================
+
+1️⃣  HRS-ZUGANGSDATEN
+   Status:    🔴 KRITISCH - 13 Duplikate gefunden!
+   Problem:   Credentials an 13 Stellen verteilt
+   Lösung:    Neue zentrale /hrs/hrs_credentials.php erstellen
+   
+2️⃣  HUT ID (675)
+   Status:    🔴 KRITISCH - 50+ Hardcoded-Stellen!
+   Problem:   HutID überall im Code verstreut
+   Lösung:    define('HUT_ID', 675) in /config.php
+   
+3️⃣  DATENBANK-KONFIGURATIONEN
+   Status:    🟢 GUT (2 Master) + 🔴 4+ Duplikate
+   Master 1:  /config.php          → Booking-DB (192.168.15.14)
+   Master 2:  /hp-db-config.php    → HP-DB (192.168.2.81) ✅ WICHTIG!
+   Duplikate: config-simple, config-safe, test-config → LÖSCHEN!
+
+================================================================================
+⚠️  WICHTIGE KORREKTUR (2025-10-09)
+================================================================================
+
+   /hp-db-config.php ist PRODUKTIV und WICHTIG!
+   
+   ✅ Separate Halbpensions-Datenbank auf 192.168.2.81
+   ✅ Verwendet in 20+ Dateien
+   ✅ NICHT löschen!
+   
+   Details: siehe AUDIT_CORRECTION_HP_DB.md
+
+================================================================================
+🗑️  LÖSCHBARE DATEIEN
+================================================================================
+
+Kategorie              | Anzahl | Größe (ca.) | Sicherheit
+-----------------------|--------|-------------|---------------------------
+Backup-Dateien         |   15+  |   ~20 MB    | 🟢 100% SICHER
+Papierkorb-Dateien     |   37   |   ~15 MB    | 🟢 37 von 39 sicher
+Alte Versionen (_old)  |   10+  |    ~5 MB    | 🟢 100% SICHER
+Output/Logs            |   10+  |   ~50 MB    | 🟢 100% SICHER
+Config-Duplikate       |    4   |    ~1 KB    | 🟢 100% SICHER
+-----------------------|--------|-------------|---------------------------
+GESAMT                 |   75+  |   ~90 MB    | 
+
+================================================================================
+🔧 SOFORT-MASSNAHMEN (Quick Commands)
+================================================================================
+
+BACKUP ERSTELLEN (WICHTIG!)
+----------------------------
+cd /home/vadmin/lemp/html/wci
+tar -czf ../wci_backup_$(date +%Y%m%d_%H%M%S).tar.gz .
+
+
+CONFIG-DUPLIKATE LÖSCHEN
+-------------------------
+cd /home/vadmin/lemp/html/wci
+# WICHTIG: hp-db-config.php NICHT löschen!
+rm -f config-simple.php config-safe.php test-config.php tests/config-simple.php
+
+
+BACKUP-DATEIEN LÖSCHEN
+-----------------------
+find . -name "*.backup" -delete
+find . -name "*backup_20*" -delete
+rm -rf backups/
+
+
+ALTE VERSIONEN LÖSCHEN
+-----------------------
+rm -f api/imps/get_av_cap_old.php
+rm -f addReservationNames-old.php
+rm -f addReservationNames-legacy.php
+rm -f addReservationNames-backup*.php
+
+
+PAPIERKORB ARCHIVIEREN
+-----------------------
+# Option 1: Dokumentation sichern, Rest löschen
+mkdir -p docs/archive
+mv papierkorb/*.md docs/archive/ 2>/dev/null
+rm -rf papierkorb/
+
+# Option 2: Vorsichtig umbenennen
+mv papierkorb papierkorb_ARCHIV_$(date +%Y%m%d)
+
+================================================================================
+✅ NIEMALS LÖSCHEN (Produktiv)
+================================================================================
+
+✓ /config.php                              - Booking-DB Master
+✓ /hp-db-config.php                        - HP-DB Master (WICHTIG!)
+✓ /hrs/hrs_login.php                       - HRS-Login
+✓ /hrs/hrs_imp_*_stream.php                - HRS-Importer
+✓ /api/imps/get_av_cap_range_stream.php    - API-Endpunkt
+✓ /zp/timeline-unified.js                  - Hauptanwendung
+✓ /zp/timeline-unified.html                - Hauptanwendung
+✓ /index.php                               - Hauptseite
+
+================================================================================
+📊 DATENBANK-ÜBERSICHT
+================================================================================
+
+Datenbank 1: BOOKING (Zimmerplan & Reservierungen)
+---------------------------------------------------
+Config:    /config.php
+Server:    192.168.15.14 (lokal)
+User:      root
+Database:  booking_franzsen
+Tabellen:  AV-Res, av_belegung, hut_quota, Zimmer, ...
+
+Datenbank 2: HALBPENSION (HP & Tischplanung)
+---------------------------------------------
+Config:    /hp-db-config.php
+Server:    192.168.2.81 (SEPARATER Server!)
+User:      fsh
+Database:  fsh-res
+Tabellen:  hp_arrangements, tisch_planung, ...
+Funktion:  getHpDbConnection()
+
+⚠️  WICHTIG: Zwei verschiedene Server, zwei verschiedene Datenbanken!
+            Details siehe DATABASE_ARCHITECTURE.md
+
+================================================================================
+📈 STATISTIKEN
+================================================================================
+
+Gesamte Dateien analysiert:        430+
+PHP-Dateien:                        280+
+Config-Dateien gefunden:            9
+  - Master (OK):                    2  ✅
+  - Duplikate (löschen):            4+ ❌
+  
+HRS-Credentials-Duplikate:          13 ❌
+HUT_ID Hardcoded:                   50+ ❌
+Löschbare Dateien:                  75+
+Platzersparnis möglich:             ~90 MB
+
+================================================================================
+🏁 CHECKLISTE
+================================================================================
+
+[ ] Backup erstellt (tar -czf ...)
+[ ] Dokumentation gelesen:
+    [ ] PROJECT_CONFIGURATION_AUDIT_README.md
+    [ ] DATABASE_ARCHITECTURE.md
+    [ ] AUDIT_CORRECTION_HP_DB.md
+[ ] /hrs/hrs_credentials.php erstellt (zentrale HRS-Credentials)
+[ ] HUT_ID in /config.php definiert
+[ ] Config-Duplikate gelöscht (NICHT hp-db-config.php!)
+[ ] Backup-Dateien gelöscht
+[ ] Alte Versionen gelöscht
+[ ] Papierkorb aufgeräumt
+[ ] System getestet:
+    [ ] HRS-Import funktioniert
+    [ ] Zimmerplan funktioniert
+    [ ] HP-Arrangements funktionieren
+    [ ] Datenbank-Verbindungen OK
+
+================================================================================
+📞 SUPPORT
+================================================================================
+
+Für Details zu:
+- HRS-System:        siehe PROJECT_CONFIGURATION_AUDIT_README.md → Abschnitt 1
+- Hut ID:            siehe PROJECT_CONFIGURATION_AUDIT_README.md → Abschnitt 2
+- Datenbanken:       siehe DATABASE_ARCHITECTURE.md
+- HP-Datenbank:      siehe AUDIT_CORRECTION_HP_DB.md
+- Löschbare Dateien: siehe PROJECT_CONFIGURATION_AUDIT_README.md → Appendix A-D
+
+Quick-Suche in Dokumentation:
+  grep -n "THEMA" *.md
+
+Alle Markdown-Dateien:
+  ls -lh *.md
+
+================================================================================
+⚠️  SICHERHEITSHINWEIS
+================================================================================
+
+DIESE DATEI UND ALLE .md DATEIEN ENTHALTEN PASSWÖRTER!
+
+Nach Verwendung:
+  chmod 600 *.md *.txt     # Schützen
+  # ODER
+  rm AUDIT_*.md *.txt      # Löschen
+
+================================================================================
+Ende der Schnell-Zusammenfassung
+Version 2.0 | 2025-10-09 | GitHub Copilot AI Assistant
+================================================================================
