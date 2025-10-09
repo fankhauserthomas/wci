@@ -10647,23 +10647,23 @@ class TimelineUnifiedRenderer {
 
                 // Verbindungslinien zum nächsten Tag (NUR für mehrtägige Quotas!)
                 const isMultiDay = quotaData.isMultiDay || false;
-                
+
                 if (isMultiDay) {
                     const nextDayIndex = dayIndex + 1;
                     if (nextDayIndex < dailyDetails.length) {
                         const nextDetail = dailyDetails[nextDayIndex];
                         const nextQuotaData = nextDetail?.quota || null;
-                        
+
                         if (nextQuotaData && nextQuotaData.isMultiDay && scaledMax > 0) {
                             const nextX = startX + (nextDayIndex * this.DAY_WIDTH) + xOffsetBase;
                             const nextQuotaX = nextX - 6;
-                            
+
                             // Nächste Gesamtbalken-Position berechnen (für barY)
                             const nextTotalValue = nextDetail.total || 0;
                             const nextRatio = scaledMax > 0 ? nextTotalValue / scaledMax : 0;
                             const nextBarHeight = nextRatio * availableHeight;
                             const nextBarY = chartBottomY - nextBarHeight;
-                            
+
                             // Nächste Quota-Startposition berechnen (Oberkante FR-Segment)
                             const nextFreeCapacity = Math.max(0, Number(nextDetail.free_capacity) || 0);
                             let nextFreeHeight = 0;
@@ -10671,37 +10671,37 @@ class TimelineUnifiedRenderer {
                                 nextFreeHeight = (nextFreeCapacity / scaledMax) * availableHeight;
                             }
                             const nextQuotaStartY = nextFreeHeight > 0 ? (nextBarY - nextFreeHeight) : nextBarY;
-                            
+
                             // Verbindungslinien pro Kategorie zeichnen
                             let currentTop = quotaStartY;
                             let nextTop = nextQuotaStartY;
-                            
+
                             quotaCategories.forEach(category => {
                                 const currentValue = category.value;
                                 const nextValue = Number(nextQuotaData[category.key]) || 0;
-                                
+
                                 const currentHeight = currentValue > 0 ? (currentValue / scaledMax) * availableHeight : 0;
                                 const nextHeight = nextValue > 0 ? (nextValue / scaledMax) * availableHeight : 0;
-                                
+
                                 // Obere & Untere Verbindungslinie (wenn beide Werte > 0)
                                 if (currentValue > 0 && nextValue > 0) {
                                     this.ctx.strokeStyle = category.color;
                                     this.ctx.globalAlpha = 0.5;
                                     this.ctx.lineWidth = 1.5;
-                                    
+
                                     // Obere Linie: Von rechter Kante aktueller Balken zu linker Kante nächster Balken
                                     this.ctx.beginPath();
                                     this.ctx.moveTo(quotaX + quotaWidth, currentTop);
                                     this.ctx.lineTo(nextQuotaX, nextTop);
                                     this.ctx.stroke();
-                                    
+
                                     // Untere Linie: Von rechter Unterkante zu linker Unterkante
                                     this.ctx.beginPath();
                                     this.ctx.moveTo(quotaX + quotaWidth, currentTop + currentHeight);
                                     this.ctx.lineTo(nextQuotaX, nextTop + nextHeight);
                                     this.ctx.stroke();
                                 }
-                                
+
                                 // Position für nächste Kategorie aktualisieren
                                 if (currentValue > 0) currentTop += currentHeight;
                                 if (nextValue > 0) nextTop += nextHeight;
