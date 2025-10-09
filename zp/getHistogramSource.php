@@ -217,7 +217,10 @@ try {
             COALESCE(SUM(qc.quota_lager), 0) as quota_lager,
             COALESCE(SUM(qc.quota_betten), 0) as quota_betten,
             COALESCE(SUM(qc.quota_dz), 0) as quota_dz,
-            COALESCE(SUM(qc.quota_sonder), 0) as quota_sonder
+            COALESCE(SUM(qc.quota_sonder), 0) as quota_sonder,
+            -- Mehrtägige Quota-Marker: MIN date_from und MAX date_to aller aktiven Quotas
+            MIN(qc.date_from) as quota_date_from,
+            MAX(qc.date_to) as quota_date_to
         FROM date_range dr
         LEFT JOIN quota_categories qc ON dr.datum >= qc.date_from AND dr.datum < qc.date_to
         GROUP BY dr.datum
@@ -237,11 +240,24 @@ try {
     $quotaDataByDate = [];
 
     while ($row = $result->fetch_assoc()) {
+        $dateFrom = $row['quota_date_from'];
+        $dateTo = $row['quota_date_to'];
+        
+        // Berechne ob Quota mehrtägig ist
+        $isMultiDay = false;
+        if ($dateFrom && $dateTo) {
+            $fromTs = strtotime($dateFrom);
+            $toTs = strtotime($dateTo);
+            $daysDiff = ($toTs - $fromTs) / 86400; // Sekunden pro Tag
+            $isMultiDay = $daysDiff > 1;
+        }
+        
         $quotaDataByDate[$row['datum']] = [
             'quota_lager' => (int)$row['quota_lager'],
             'quota_betten' => (int)$row['quota_betten'],
             'quota_dz' => (int)$row['quota_dz'],
-            'quota_sonder' => (int)$row['quota_sonder']
+            'quota_sonder' => (int)$row['quota_sonder'],
+            'quota_is_multi_day' => $isMultiDay
         ];
     }
 
@@ -258,6 +274,7 @@ try {
             $entry['quota_betten'] = 0;
             $entry['quota_dz'] = 0;
             $entry['quota_sonder'] = 0;
+            $entry['quota_is_multi_day'] = false;
         }
     }
     unset($entry); // Break reference
