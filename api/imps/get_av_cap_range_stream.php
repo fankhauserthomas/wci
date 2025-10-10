@@ -113,41 +113,22 @@ class AVCapacityUpdaterSSE {
     }
     
     private function calculateApiRequestDates($vonDate, $bisDate) {
-        $start = new DateTime($vonDate);
-        $end = new DateTime($bisDate);
-        $diff = $start->diff($end)->days;
+        // WICHTIG: Die HRS-API ignoriert den 'from' Parameter komplett!
+        // Sie gibt IMMER ~466 Tage ab HEUTE zurück, unabhängig vom angeforderten Datum.
+        // Daher benötigen wir nur EINEN API-Call und filtern die Daten clientseitig.
+        
+        sendSSE('log', ['level' => 'info', 'message' => 'API gibt ~466 Tage ab heute zurück (from-Parameter wird ignoriert)']);
         
         $ranges = [];
-        
-        if ($diff <= 11) {
-            // Single API call
-            $ranges[] = ['von' => $vonDate, 'bis' => $bisDate];
-        } else {
-            // Multiple API calls (11-day chunks)
-            $current = clone $start;
-            while ($current <= $end) {
-                $chunkEnd = clone $current;
-                $chunkEnd->add(new DateInterval('P10D'));
-                
-                if ($chunkEnd > $end) {
-                    $chunkEnd = clone $end;
-                }
-                
-                $ranges[] = [
-                    'von' => $current->format('Y-m-d'),
-                    'bis' => $chunkEnd->format('Y-m-d')
-                ];
-                
-                $current->add(new DateInterval('P11D'));
-            }
-        }
+        $ranges[] = ['von' => $vonDate, 'bis' => $bisDate];
         
         return $ranges;
     }
     
     private function fetchAvailabilityFromApi($vonDate, $bisDate) {
-        // Wichtig: Diese API braucht KEINE Authentifizierung und verwendet nur 'from' Parameter
-        // Die API gibt immer mindestens 10-11 Tage zurück
+        // WICHTIG: Diese API braucht KEINE Authentifizierung
+        // Der 'from' Parameter wird ignoriert - API gibt immer ~466 Tage ab HEUTE zurück
+        // Wir senden trotzdem den Parameter für zukünftige API-Versionen
         $apiUrl = "https://www.hut-reservation.org/api/v1/reservation/getHutAvailability?hutId={$this->hutID}&step=WIZARD&from={$vonDate}";
         
         sendSSE('log', ['level' => 'debug', 'message' => "API URL: $apiUrl"]);

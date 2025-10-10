@@ -103,7 +103,10 @@ class HRSQuotaImporterSSE {
                     sendSSE('log', ['level' => 'error', 'message' => "✗ Fehler bei Quota " . ($quota['id'] ?? 'unknown')]);
                 }
                 
-                usleep(30000); // 30ms Pause für UI
+                // Pause NUR wenn nicht letztes Item
+                if ($index < $totalQuotas - 1) {
+                    usleep(30000); // 30ms Pause für UI
+                }
             }
             
             sendSSE('complete', [

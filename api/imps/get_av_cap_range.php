@@ -140,30 +140,17 @@ function outputResponse($data, $httpCode = 200) {
  * @return array - Array of dates to request from API
  */
 function calculateApiRequestDates($vonDate, $bisDate) {
-    $von = new DateTime($vonDate);
-    $bis = new DateTime($bisDate);
-    $apiMinDays = 11; // API returns minimum 10-11 days
+    // WICHTIG: Die HRS-API ignoriert den 'from' Parameter komplett!
+    // Sie gibt IMMER ~466 Tage ab HEUTE zurück, unabhängig vom angeforderten Datum.
+    // Daher benötigen wir nur EINEN API-Call und filtern die Daten clientseitig.
+    
+    global $isCLI;
+    if ($isCLI) {
+        echo "ℹ️  API gibt ~466 Tage ab heute zurück (from-Parameter wird ignoriert)\n";
+    }
     
     $requestDates = [];
-    
-    // Calculate total days in range
-    $interval = $von->diff($bis);
-    $totalDays = $interval->days + 1;
-    
-    if ($totalDays <= $apiMinDays) {
-        // Single API call is sufficient
-        $requestDates[] = $vonDate;
-    } else {
-        // Multiple API calls needed
-        $currentDate = clone $von;
-        
-        while ($currentDate <= $bis) {
-            $requestDates[] = $currentDate->format('Y-m-d');
-            
-            // Move forward by apiMinDays
-            $currentDate->modify("+{$apiMinDays} days");
-        }
-    }
+    $requestDates[] = $vonDate; // Senden trotzdem das Datum für zukünftige API-Versionen
     
     return $requestDates;
 }
@@ -171,9 +158,12 @@ function calculateApiRequestDates($vonDate, $bisDate) {
 /**
  * Fetch availability data from HRS API for a specific date
  * 
+ * WICHTIG: Diese API ignoriert den 'from' Parameter und gibt immer ~466 Tage ab HEUTE zurück!
+ * Die Filterung auf den gewünschten Zeitraum erfolgt clientseitig.
+ * 
  * @param string $hutId - Hut ID
- * @param string $fromDate - Start date for API request (YYYY-MM-DD)
- * @return array - API response data
+ * @param string $fromDate - Start date (wird von API ignoriert, aber trotzdem mitgesendet)
+ * @return array - API response data (~466 Tage ab heute)
  */
 function fetchAvailabilityFromApi($hutId, $fromDate) {
     global $isCLI;

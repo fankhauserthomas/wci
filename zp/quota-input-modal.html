@@ -229,33 +229,69 @@
 
         /**
          * Berechnet Quota-Verteilung nach Prioritäten
-         * NEUE LOGIK: Quota = Ziel + AV - Intern (aber min. 0)
+         * 
+         * STRATEGIE:
+         * 1. Sammle alle Eingangsvariablen übersichtlich
+         * 2. Berechne zu erstellende Quotas pro Kategorie
          * 
          * @param {number} targetCapacity - Ziel-Gesamtkapazität
          * @param {object} occupancy - { av, internal, total }
+         * @param {string} dateStr - Datum (YYYY-MM-DD) für Detail-Analysen
          */
-        calculateQuotaDistribution(targetCapacity, occupancy) {
-            const { av, internal, total } = occupancy;
+        async calculateQuotaDistribution(targetCapacity, occupancy, dateStr = null) {
+            console.log(`\n${'='.repeat(80)}`);
+            console.log(`🧮 QUOTA-BERECHNUNG${dateStr ? ' für ' + dateStr : ''}`);
+            console.log(`${'='.repeat(80)}\n`);
 
-            // ✅ NEUE FORMEL: Quota = Ziel + AV - Intern
-            let availableQuota = targetCapacity + av - internal;
+            // ========================================================================
+            // SCHRITT 1: EINGANGSVARIABLEN VORBEREITEN
+            // ========================================================================
 
-            // ✅ WICHTIG: Nie negativ!
-            if (availableQuota < 0) {
-                availableQuota = 0;
-            }
+            // 1.1 Belegung von AV-Reservierungen (av_id > 0, storno = false)
+            const avOccupancy = await this.getBookedCategoriesForDate(dateStr, true); // nur AV
+            console.log('📥 AV-Belegung (av_id > 0):');
+            console.log(`   Sonder: ${avOccupancy.sonder}`);
+            console.log(`   Lager:  ${avOccupancy.lager}`);
+            console.log(`   Betten: ${avOccupancy.betten}`);
+            console.log(`   DZ:     ${avOccupancy.dz}`);
+            console.log(`   TOTAL:  ${avOccupancy.sonder + avOccupancy.lager + avOccupancy.betten + avOccupancy.dz}\n`);
 
-            console.log(`🧮 calculateQuotaDistribution: target=${targetCapacity}, av=${av}, intern=${internal}`);
-            console.log(`   → Quota = ${targetCapacity} + ${av} - ${internal} = ${availableQuota}`);
+            // 1.2 Belegung von internen Reservierungen (av_id = 0, storno = false)
+            const internalOccupancy = await this.getBookedCategoriesForDate(dateStr, false); // nur Intern
+            console.log('📥 Interne Belegung (av_id = 0):');
+            console.log(`   Sonder: ${internalOccupancy.sonder}`);
+            console.log(`   Lager:  ${internalOccupancy.lager}`);
+            console.log(`   Betten: ${internalOccupancy.betten}`);
+            console.log(`   DZ:     ${internalOccupancy.dz}`);
+            console.log(`   TOTAL:  ${internalOccupancy.sonder + internalOccupancy.lager + internalOccupancy.betten + internalOccupancy.dz}\n`);
 
-            // Sonderfall: Keine Quota verfügbar
-            if (availableQuota === 0) {
-                console.log(`⚠️ Keine Quota verfügbar → Alle Kategorien = 0`);
-                return { lager: 0, betten: 0, dz: 0, sonder: 0 };
-            }
+            // 1.3 Aktuelle Quota des Tages (falls vorhanden)
+            const currentQuota = await this.getCurrentQuotaForDate(dateStr);
+            console.log('📊 Aktuelle Quota des Tages:');
+            console.log(`   Free Places: ${currentQuota.freePlaces || 0}`);
+            console.log(`   Sonder:      ${currentQuota.sonder}`);
+            console.log(`   Lager:       ${currentQuota.lager}`);
+            console.log(`   Betten:      ${currentQuota.betten}`);
+            console.log(`   DZ:          ${currentQuota.dz}`);
+            console.log(`   TOTAL:       ${currentQuota.sonder + currentQuota.lager + currentQuota.betten + currentQuota.dz}\n`);
 
-            // Lese Prioritäten (2-4 haben Max-Werte, 1 bekommt den Rest)
+            // 1.4 HRS Daily Summary Daten (WICHTIG für korrekte Berechnung!)
+            const dailySummary = await this.getDailySummaryForDate(dateStr);
+            console.log('📅 HRS Daily Summary (vom HRS):');
+            console.log(`   Total Gäste: ${dailySummary.totalGuests}`);
+            console.log('   Freie Plätze pro Kategorie (HRS):');
+            console.log(`     ML (Lager):  ${dailySummary.categories.lager.freePlaces} frei, ${dailySummary.categories.lager.assigned} belegt`);
+            console.log(`     MBZ (Betten): ${dailySummary.categories.betten.freePlaces} frei, ${dailySummary.categories.betten.assigned} belegt`);
+            console.log(`     2BZ (DZ):     ${dailySummary.categories.dz.freePlaces} frei, ${dailySummary.categories.dz.assigned} belegt`);
+            console.log(`     SK (Sonder):  ${dailySummary.categories.sonder.freePlaces} frei, ${dailySummary.categories.sonder.assigned} belegt\n`);
+
+            // 1.5 Zielauslastung gesamt
+            console.log('🎯 Zielauslastung gesamt: ' + targetCapacity + ' Betten\n');
+
+            // 1.6 Prioritäten auslesen
             const priorities = [];
+            console.log('📋 Prioritäten:');
+
             for (let i = 1; i <= 4; i++) {
                 const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
                 if (!categorySelect) {
@@ -264,43 +300,68 @@
                 }
 
                 const category = categorySelect.value;
+                const categoryLabels = {
+                    'sonder': 'SK (Sonder)',
+                    'lager': 'ML (Lager)',
+                    'betten': 'MBZ (Betten)',
+                    'dz': '2BZ (DZ)'
+                };
 
                 let maxValue;
                 if (i === 1) {
                     // Priorität 1 hat keinen Max-Input, bekommt immer den Rest
                     maxValue = Infinity;
+                    console.log(`   Priorität ${i}: ${categoryLabels[category]} = REST (keine Begrenzung)`);
                 } else {
                     const maxInput = document.querySelector(`.max-value-input[data-priority="${i}"]`);
                     if (!maxInput) {
                         console.error(`❌ Max-Input für Priorität ${i} nicht gefunden!`);
-                        maxValue = Infinity; // Fallback
+                        maxValue = Infinity;
                     } else {
                         maxValue = (maxInput.value === '' || maxInput.value === '0') ? Infinity : parseInt(maxInput.value);
+                        console.log(`   Priorität ${i}: ${categoryLabels[category]} = max ${maxValue === Infinity ? '∞' : maxValue}`);
                     }
                 }
 
                 priorities.push({ priority: i, category, max: maxValue });
             }
 
-            // Initialisiere Quotas
+            console.log(`\n${'='.repeat(80)}`);
+            console.log('📐 BERECHNUNGSVORBEREITUNG ABGESCHLOSSEN');
+            console.log(`${'='.repeat(80)}\n`);
+
+            // ========================================================================
+            // SCHRITT 2: QUOTA-BERECHNUNG (HIER KOMMT DIE FORMEL)
+            // ========================================================================
+
+            console.log('🔧 TODO: Formel für Quota-Berechnung implementieren');
+            console.log('   Input-Variablen sind bereit!\n');
+
+            // PLACEHOLDER - Alte einfache Logik (wird ersetzt)
+            const { av, internal, total } = occupancy;
+            let availableQuota = targetCapacity - av - internal;
+            if (availableQuota < 0) availableQuota = 0;
+
             const result = { lager: 0, betten: 0, dz: 0, sonder: 0 };
             let remaining = availableQuota;
 
-            // Sequentielle Zuteilung nach Priorität
             for (const p of priorities) {
                 if (remaining <= 0) break;
-
                 const allocated = Math.min(p.max, remaining);
                 result[p.category] += allocated;
                 remaining -= allocated;
             }
 
-            // Rest zu Priorität 1 addieren
             if (remaining > 0 && priorities.length > 0) {
                 result[priorities[0].category] += remaining;
             }
 
-            console.log(`   → Verteilung: ML=${result.lager}, MBZ=${result.betten}, 2BZ=${result.dz}, SK=${result.sonder}`);
+            console.log(`📤 Berechnete Quota-Verteilung:`);
+            console.log(`   Sonder: ${result.sonder}`);
+            console.log(`   Lager:  ${result.lager}`);
+            console.log(`   Betten: ${result.betten}`);
+            console.log(`   DZ:     ${result.dz}`);
+            console.log(`   TOTAL:  ${result.sonder + result.lager + result.betten + result.dz}\n`);
 
             return result;
         }
@@ -320,13 +381,13 @@
                 // Hole Belegung (AV + Intern getrennt)
                 const occupancy = await this.getOccupancyForDate(dateStr);
 
-                // ✅ Berechne Quotas mit neuer Formel: Ziel + AV - Intern
-                const quotas = this.calculateQuotaDistribution(targetCapacity, occupancy);
+                // ✅ Berechne Quotas mit allen Detail-Informationen
+                const quotas = await this.calculateQuotaDistribution(targetCapacity, occupancy, dateStr);
 
                 console.log(`💡 ${dateStr}: AV=${occupancy.av}, Intern=${occupancy.internal}, Quotas=${JSON.stringify(quotas)}`);
 
                 // Check Overbooking (wenn keine Quota mehr verfügbar)
-                const availableQuota = targetCapacity + occupancy.av - occupancy.internal;
+                const availableQuota = targetCapacity - occupancy.av - occupancy.internal;
                 if (availableQuota <= 0) {
                     hasOverbooking = true;
                 }
@@ -383,6 +444,7 @@
         /**
          * Hole aktuelle Belegung für ein bestimmtes Datum
          * Unterscheidet zwischen AV-Reservierungen (av_id > 0) und internen (av_id = 0)
+         * WICHTIG: Zählt ALLE Betten (lager + betten + dz + sonder)!
          */
         async getOccupancyForDate(dateStr) {
             let avReservations = 0;      // Reservierungen VOM AV-System (av_id > 0)
@@ -408,9 +470,6 @@
             const detail = histogramData.dailyDetails[dayIndex];
 
             if (detail) {
-                // detail.total = GESAMT BELEGTE Kapazität
-                // Wir müssen die Einzelreservierungen durchgehen um AV vs. Intern zu trennen
-
                 // Hole Reservierungen aus histogramSource für dieses Datum
                 if (window.histogramSource) {
                     const reservationsForDate = window.histogramSource.filter(res => {
@@ -420,18 +479,23 @@
                     });
 
                     reservationsForDate.forEach(res => {
-                        const persons = res.capacity_details?.total || res.anz_pers || res.pax || 0;
+                        // Zähle ALLE Betten (nicht nur Personen!)
+                        const details = res.capacity_details || {};
+                        const totalBeds = parseInt(details.lager || 0) +
+                            parseInt(details.betten || 0) +
+                            parseInt(details.dz || 0) +
+                            parseInt(details.sonder || 0);
 
                         if (res.av_id && res.av_id > 0) {
-                            avReservations += persons;
+                            avReservations += totalBeds;
                         } else {
-                            internalReservations += persons;
+                            internalReservations += totalBeds;
                         }
                     });
                 }
 
                 const total = avReservations + internalReservations;
-                console.log(`📊 ${dateStr} (dayIndex ${dayIndex}): AV=${avReservations}, Intern=${internalReservations}, Total=${total}`);
+                console.log(`📊 ${dateStr} (dayIndex ${dayIndex}): AV=${avReservations} Betten, Intern=${internalReservations} Betten, Total=${total}`);
             } else {
                 console.warn(`⚠️ Kein dailyDetail für ${dateStr} (dayIndex ${dayIndex})`);
             }
@@ -443,52 +507,141 @@
          * Hole bereits gebuchte AV-Kategorien für ein bestimmtes Datum
          * WICHTIG: Nur Reservierungen mit av_id > 0 zählen!
 ```        /**
-         * Hole bereits gebuchte AV-Kategorien für ein bestimmtes Datum
-         * WICHTIG: Nur Reservierungen mit av_id > 0 zählen!
+         * Hole bereits gebuchte Kategorien für ein bestimmtes Datum
+         * 
+         * @param {string} dateStr - Datum (YYYY-MM-DD)
+         * @param {boolean} onlyAV - true = nur AV-Reservierungen (av_id > 0), false = nur Intern (av_id = 0)
+         * @returns {object} - { sonder, lager, betten, dz }
          */
-        async getBookedCategoriesForDate(dateStr) {
-            const booked = { lager: 0, betten: 0, dz: 0, sonder: 0 };
+        async getBookedCategoriesForDate(dateStr, onlyAV = true) {
+            const booked = { sonder: 0, lager: 0, betten: 0, dz: 0 };
 
-            // Hole Reservierungen aus histogramSource (nicht storno!)
-            if (!window.histogramSource) {
-                console.warn('⚠️ window.histogramSource nicht verfügbar');
+            if (!dateStr || !window.histogramSource) {
                 return booked;
             }
 
-            // Filtere Reservierungen für dieses Datum mit av_id > 0
+            // Filtere Reservierungen für dieses Datum
             const reservationsForDate = window.histogramSource.filter(res => {
-                if (!res.av_id || res.av_id <= 0) return false; // Nur AV-Reservierungen
+                // Filter nach AV oder Intern
+                if (onlyAV) {
+                    if (!res.av_id || res.av_id <= 0) return false; // Nur AV-Reservierungen
+                } else {
+                    if (res.av_id && res.av_id > 0) return false; // Nur interne Reservierungen
+                }
 
                 // Prüfe ob Datum im Reservierungs-Zeitraum liegt
-                const resStart = res.anreise || res.start_date;
-                const resEnd = res.abreise || res.end_date;
+                const resStart = res.anreise || res.start_date || res.start;
+                const resEnd = res.abreise || res.end_date || res.end;
 
                 return dateStr >= resStart && dateStr < resEnd;
             });
 
-            console.log(`🔍 AV-Reservierungen für ${dateStr}:`, reservationsForDate.length);
-
-            // Zähle nach Kategorien
+            // Zähle nach Kategorien (aus capacity_details)
             reservationsForDate.forEach(res => {
-                const avId = res.av_id;
+                const details = res.capacity_details || {};
 
-                // Map av_id zu Kategorie (TODO: Korrekte Zuordnung!)
-                // 1958 = Lager, 2293 = Betten, 2381 = DZ, 6106 = Sonder
-                if (avId === 1958) {
-                    booked.lager += (res.anz_pers || res.pax || 1);
-                } else if (avId === 2293) {
-                    booked.betten += (res.anz_pers || res.pax || 1);
-                } else if (avId === 2381) {
-                    booked.dz += (res.anz_pers || res.pax || 1);
-                } else if (avId === 6106) {
-                    booked.sonder += (res.anz_pers || res.pax || 1);
-                } else {
-                    console.warn(`⚠️ Unbekannte av_id: ${avId}`);
-                }
+                booked.sonder += parseInt(details.sonder || 0);
+                booked.lager += parseInt(details.lager || 0);
+                booked.betten += parseInt(details.betten || 0);
+                booked.dz += parseInt(details.dz || 0);
             });
 
-            console.log(`📦 Gebuchte Kategorien für ${dateStr}:`, booked);
             return booked;
+        }
+
+        /**
+         * Hole aktuelle Quota für ein bestimmtes Datum (falls bereits gesetzt)
+         * 
+         * @param {string} dateStr - Datum (YYYY-MM-DD)
+         * @returns {object} - { freePlaces, sonder, lager, betten, dz }
+         */
+        async getCurrentQuotaForDate(dateStr) {
+            const quota = { freePlaces: 0, sonder: 0, lager: 0, betten: 0, dz: 0 };
+
+            if (!dateStr || !this.renderer) {
+                return quota;
+            }
+
+            const { startDate } = this.renderer.getTimelineDateRange();
+            const date = new Date(dateStr);
+            const dayIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+
+            // Hole Availability-Daten (enthält Quota-Informationen)
+            const histogramData = this.renderer.getHistogramData(startDate, new Date(dateStr));
+
+            if (histogramData && histogramData.availabilityData && histogramData.availabilityData[dayIndex]) {
+                const avData = histogramData.availabilityData[dayIndex];
+
+                quota.freePlaces = avData.free_places || 0;
+                quota.sonder = avData.quota_sonder || 0;
+                quota.lager = avData.quota_lager || 0;
+                quota.betten = avData.quota_betten || 0;
+                quota.dz = avData.quota_dz || 0;
+            }
+
+            return quota;
+        }
+
+        /**
+         * Hole HRS Daily Summary Daten für ein bestimmtes Datum
+         * Diese Daten sind ESSENTIELL für die korrekte Quota-Berechnung!
+         * 
+         * @param {string} dateStr - Datum (YYYY-MM-DD)
+         * @returns {object} - { totalGuests, categories: { lager, betten, dz, sonder } }
+         */
+        async getDailySummaryForDate(dateStr) {
+            const result = {
+                totalGuests: 0,
+                categories: {
+                    lager: { freePlaces: 0, assigned: 0 },
+                    betten: { freePlaces: 0, assigned: 0 },
+                    dz: { freePlaces: 0, assigned: 0 },
+                    sonder: { freePlaces: 0, assigned: 0 }
+                }
+            };
+
+            if (!dateStr) {
+                return result;
+            }
+
+            try {
+                // Lade Daily Summary aus DB via API
+                const response = await fetch(`/wci/zp/getDailySummary.php?date=${dateStr}`);
+                if (!response.ok) {
+                    console.warn(`⚠️ getDailySummary failed: ${response.status}`);
+                    return result;
+                }
+
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    result.totalGuests = data.data.total_guests || 0;
+
+                    // Mappe Kategorien
+                    const categoryMap = {
+                        'ML': 'lager',
+                        'MBZ': 'betten',
+                        '2BZ': 'dz',
+                        'SK': 'sonder'
+                    };
+
+                    if (data.data.categories) {
+                        data.data.categories.forEach(cat => {
+                            const mappedName = categoryMap[cat.category_type];
+                            if (mappedName) {
+                                result.categories[mappedName] = {
+                                    freePlaces: parseInt(cat.free_places || 0),
+                                    assigned: parseInt(cat.assigned_guests || 0)
+                                };
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error loading daily summary:', error);
+            }
+
+            return result;
         }
 
         /**
@@ -546,11 +699,11 @@
                     priorities.push({ category, max });
                 }
 
-                // ✅ Berechne für jeden Tag individuell mit NEUER FORMEL
+                // ✅ Berechne für jeden Tag individuell mit KORRIGIERTER FORMEL
                 const dailyQuotas = [];
                 for (const dateStr of this.selectedDays) {
                     const occupancy = await this.getOccupancyForDate(dateStr);
-                    const quotas = this.calculateQuotaDistribution(targetCapacity, occupancy);
+                    const quotas = await this.calculateQuotaDistribution(targetCapacity, occupancy, dateStr);
 
                     dailyQuotas.push({
                         date: dateStr,
@@ -558,7 +711,7 @@
                         targetCapacity: targetCapacity,
                         avReservations: occupancy.av,
                         internalReservations: occupancy.internal,
-                        calculatedQuota: Math.max(0, targetCapacity + occupancy.av - occupancy.internal)
+                        calculatedQuota: Math.max(0, targetCapacity - occupancy.av - occupancy.internal)
                     });
                 }
 

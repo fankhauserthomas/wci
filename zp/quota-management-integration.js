@@ -103,6 +103,33 @@
 
             menu.appendChild(quotaButton);
 
+            // Separator
+            const separator1 = document.createElement('div');
+            separator1.style.cssText = `
+                height: 1px;
+                background: #444;
+                margin: 4px 0;
+            `;
+            menu.appendChild(separator1);
+
+            // Button: HRS Daten importieren
+            const hrsImportButton = document.createElement('button');
+            hrsImportButton.innerHTML = `📥 HRS Daten importieren`;
+            hrsImportButton.style.cssText = quotaButton.style.cssText;
+            hrsImportButton.onmouseover = () => hrsImportButton.style.background = 'rgba(139,92,246,0.2)';
+            hrsImportButton.onmouseout = () => hrsImportButton.style.background = 'none';
+            hrsImportButton.onclick = () => {
+                this.openHRSImportDialog();
+                menu.remove();
+            };
+
+            menu.appendChild(hrsImportButton);
+
+            // Separator
+            const separator2 = document.createElement('div');
+            separator2.style.cssText = separator1.style.cssText;
+            menu.appendChild(separator2);
+
             // Button: Selektion aufheben
             const clearButton = document.createElement('button');
             clearButton.innerHTML = `❌ Selektion aufheben`;
@@ -228,6 +255,50 @@
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
+        };
+
+        /**
+         * Öffnet HRS-Import Dialog
+         */
+        proto.openHRSImportDialog = async function () {
+            // Prüfe ob Tage selektiert sind
+            if (!this.selectedHistogramDays || this.selectedHistogramDays.size === 0) {
+                alert('Bitte selektieren Sie zuerst Tage im Histogram (Strg+Klick oder Shift+Klick).');
+                return;
+            }
+
+            // Get date range from selected days
+            const { startDate } = this.getTimelineDateRange();
+            const selectedIndices = Array.from(this.selectedHistogramDays).sort((a, b) => a - b);
+            const minIndex = selectedIndices[0];
+            const maxIndex = selectedIndices[selectedIndices.length - 1];
+
+            const dateFrom = new Date(startDate.getTime() + minIndex * 24 * 60 * 60 * 1000);
+            const dateTo = new Date(startDate.getTime() + maxIndex * 24 * 60 * 60 * 1000);
+
+            const dateFromStr = dateFrom.toISOString().split('T')[0];
+            const dateToStr = dateTo.toISOString().split('T')[0];
+
+            const confirmed = confirm(
+                `HRS Daten importieren?\n\n` +
+                `Von: ${dateFromStr}\n` +
+                `Bis: ${dateToStr}\n` +
+                `Tage: ${selectedIndices.length}\n\n` +
+                `Dies importiert:\n` +
+                `• Daily Summary (Echtzeit-Fortschritt)\n` +
+                `• Quota (Kapazitäten)\n` +
+                `• Reservierungen\n` +
+                `• AV Capacity Update (für diesen Zeitraum)\n\n` +
+                `Dies kann einige Minuten dauern.`
+            );
+
+            if (!confirmed) return;
+
+            // Trigger HRS Import Event (wird von timeline-unified.html verarbeitet)
+            const event = new CustomEvent('hrs-import-requested', {
+                detail: { dateFrom: dateFromStr, dateTo: dateToStr, dayCount: selectedIndices.length }
+            });
+            window.dispatchEvent(event);
         };
 
         /**

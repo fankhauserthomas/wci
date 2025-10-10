@@ -2421,6 +2421,375 @@
                 weeksFutureInput.addEventListener('change', handleWeeksChange);
             }
 
+            // HRS Import function (wiederverwendbar für Button und Context Menu)
+            async function executeHRSImport(dateFromStr, dateToStr, dayCount, buttonRef = null) {
+                // Create Progress Modal
+                const progressModal = createImportProgressModal(dateFromStr, dateToStr, dayCount);
+                progressModal.show();
+
+                // Disable import button if provided
+                if (buttonRef) {
+                    buttonRef.disabled = true;
+                    buttonRef.innerHTML = '⏳ Importiere...';
+                }
+
+                try {
+                    // Step 1: Import Daily Summary with SSE (Server-Sent Events)
+                    addImportLog('🚀 Starte Daily Summary Import mit Echtzeit-Updates...', 'info');
+                    updateImportProgress(progressModal, 'daily', 'running', 'Verbinde mit Server...');
+
+                    // Use SSE for Daily Summary
+                    await new Promise((resolve, reject) => {
+                        const eventSource = new EventSource(`../hrs/hrs_imp_daily_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+                        let dailySuccess = false;
+
+                        eventSource.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        addImportLog(data.message, 'info');
+                                        break;
+
+                                    case 'phase':
+                                        updateImportProgress(progressModal, data.step, 'running', data.message);
+                                        addImportLog(`📋 ${data.name}: ${data.message}`, 'info');
+                                        break;
+
+                                    case 'total':
+                                        addImportLog(`📊 ${data.count} Tage zu importieren`, 'info');
+                                        break;
+
+                                    case 'progress':
+                                        const percent = data.percent || Math.round((data.current / data.total) * 100);
+                                        updateImportProgress(progressModal, 'daily', 'running',
+                                            `${data.current}/${data.total} (${percent}%) - ${data.day}`);
+                                        break;
+
+                                    case 'log':
+                                        const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                        const icon = icons[data.level] || '';
+                                        addImportLog(`${icon} ${data.message}`, data.level);
+                                        break;
+
+                                    case 'complete':
+                                        dailySuccess = true;
+                                        updateImportProgress(progressModal, data.step, 'success', data.message);
+                                        addImportLog(`✅ ${data.message}`, 'success');
+                                        break;
+
+                                    case 'finish':
+                                        addImportLog(`🎉 ${data.message}`, 'success');
+                                        eventSource.close();
+                                        resolve();
+                                        break;
+
+                                    case 'error':
+                                        addImportLog(`❌ ${data.message}`, 'error');
+                                        updateImportProgress(progressModal, 'daily', 'error', data.message);
+                                        eventSource.close();
+                                        reject(new Error(data.message));
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE message:', e);
+                            }
+                        };
+
+                        eventSource.onerror = (error) => {
+                            console.error('SSE connection error:', error);
+                            eventSource.close();
+                            if (!dailySuccess) {
+                                addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                updateImportProgress(progressModal, 'daily', 'error', 'Verbindungsfehler');
+                                reject(new Error('SSE connection failed'));
+                            } else {
+                                // If we already marked as successful, just close gracefully
+                                resolve();
+                            }
+                        };
+
+                        // Timeout after 5 minutes
+                        setTimeout(() => {
+                            if (!dailySuccess) {
+                                eventSource.close();
+                                reject(new Error('Import timeout'));
+                            }
+                        }, 300000);
+                    });
+
+                    // Step 2: Import Quota (SSE)
+                    addImportLog('Starte Quota Import...', 'info');
+
+                    await new Promise((resolve, reject) => {
+                        let quotaSuccess = false;
+                        const eventSource = new EventSource(`../hrs/hrs_imp_quota_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+
+                        eventSource.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        addImportLog(data.message, 'info');
+                                        break;
+
+                                    case 'phase':
+                                        updateImportProgress(progressModal, data.step, 'running', data.message);
+                                        break;
+
+                                    case 'total':
+                                        addImportLog(`${data.count} Quota-Einträge zu importieren`, 'info');
+                                        break;
+
+                                    case 'progress':
+                                        const percent = data.percent || 0;
+                                        updateImportProgress(progressModal, 'quota', 'running',
+                                            `${data.current}/${data.total} (${percent}%) - Quota ${data.quota_id}`);
+                                        break;
+
+                                    case 'log':
+                                        const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                        const icon = icons[data.level] || '';
+                                        addImportLog(`${icon} ${data.message}`, data.level);
+                                        break;
+
+                                    case 'complete':
+                                        quotaSuccess = true;
+                                        updateImportProgress(progressModal, data.step, 'success', data.message);
+                                        addImportLog(`✅ ${data.message}`, 'success');
+                                        break;
+
+                                    case 'finish':
+                                        addImportLog(`🎉 ${data.message}`, 'success');
+                                        eventSource.close();
+                                        resolve();
+                                        break;
+
+                                    case 'error':
+                                        addImportLog(`❌ ${data.message}`, 'error');
+                                        updateImportProgress(progressModal, 'quota', 'error', data.message);
+                                        eventSource.close();
+                                        reject(new Error(data.message));
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE message:', e);
+                            }
+                        };
+
+                        eventSource.onerror = (error) => {
+                            console.error('SSE connection error:', error);
+                            eventSource.close();
+                            if (!quotaSuccess) {
+                                addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                updateImportProgress(progressModal, 'quota', 'error', 'Verbindungsfehler');
+                                reject(new Error('SSE connection failed'));
+                            } else {
+                                resolve();
+                            }
+                        };
+
+                        setTimeout(() => {
+                            if (!quotaSuccess) {
+                                eventSource.close();
+                                reject(new Error('Quota import timeout'));
+                            }
+                        }, 300000);
+                    });
+
+                    // Step 3: Import Reservations (SSE)
+                    addImportLog('Starte Reservierungen Import...', 'info');
+
+                    await new Promise((resolve, reject) => {
+                        let resSuccess = false;
+                        const eventSource = new EventSource(`../hrs/hrs_imp_res_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+
+                        eventSource.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        addImportLog(data.message, 'info');
+                                        break;
+
+                                    case 'phase':
+                                        updateImportProgress(progressModal, data.step, 'running', data.message);
+                                        break;
+
+                                    case 'total':
+                                        addImportLog(`${data.count} Reservierungen zu importieren`, 'info');
+                                        break;
+
+                                    case 'progress':
+                                        const percent = data.percent || 0;
+                                        updateImportProgress(progressModal, 'res', 'running',
+                                            `${data.current}/${data.total} (${percent}%) - Res ${data.res_id}`);
+                                        break;
+
+                                    case 'log':
+                                        const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                        const icon = icons[data.level] || '';
+                                        addImportLog(`${icon} ${data.message}`, data.level);
+                                        break;
+
+                                    case 'complete':
+                                        resSuccess = true;
+                                        updateImportProgress(progressModal, data.step, 'success', data.message);
+                                        addImportLog(`✅ ${data.message}`, 'success');
+                                        break;
+
+                                    case 'finish':
+                                        addImportLog(`🎉 ${data.message}`, 'success');
+                                        eventSource.close();
+                                        resolve();
+                                        break;
+
+                                    case 'error':
+                                        addImportLog(`❌ ${data.message}`, 'error');
+                                        updateImportProgress(progressModal, 'res', 'error', data.message);
+                                        eventSource.close();
+                                        reject(new Error(data.message));
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE message:', e);
+                            }
+                        };
+
+                        eventSource.onerror = (error) => {
+                            console.error('SSE connection error:', error);
+                            eventSource.close();
+                            if (!resSuccess) {
+                                addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                updateImportProgress(progressModal, 'res', 'error', 'Verbindungsfehler');
+                                reject(new Error('SSE connection failed'));
+                            } else {
+                                resolve();
+                            }
+                        };
+
+                        setTimeout(() => {
+                            if (!resSuccess) {
+                                eventSource.close();
+                                reject(new Error('Reservations import timeout'));
+                            }
+                        }, 300000);
+                    });
+
+                    // Step 4: Update AV Capacity (SSE)
+                    addImportLog('Starte AV Capacity Update...', 'info');
+
+                    await new Promise((resolve, reject) => {
+                        let avCapSuccess = false;
+                        const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=675&von=${dateFromStr}&bis=${dateToStr}`);
+
+                        eventSource.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        addImportLog(data.message, 'info');
+                                        break;
+
+                                    case 'phase':
+                                        updateImportProgress(progressModal, data.step, 'running', data.message);
+                                        break;
+
+                                    case 'total':
+                                        addImportLog(`${data.count} API-Aufrufe nötig`, 'info');
+                                        break;
+
+                                    case 'progress':
+                                        const percent = data.percent || 0;
+                                        updateImportProgress(progressModal, 'avcap', 'running',
+                                            `API-Aufruf ${data.current}/${data.total} (${percent}%)`);
+                                        break;
+
+                                    case 'log':
+                                        const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
+                                        const icon = icons[data.level] || '';
+                                        addImportLog(`${icon} ${data.message}`, data.level);
+                                        break;
+
+                                    case 'complete':
+                                        avCapSuccess = true;
+                                        updateImportProgress(progressModal, data.step, 'success', data.message);
+                                        addImportLog(`✅ ${data.message}`, 'success');
+                                        break;
+
+                                    case 'finish':
+                                        addImportLog(`🎉 ${data.message}`, 'success');
+                                        eventSource.close();
+                                        resolve();
+                                        break;
+
+                                    case 'error':
+                                        addImportLog(`❌ ${data.message}`, 'error');
+                                        updateImportProgress(progressModal, 'avcap', 'error', data.message);
+                                        eventSource.close();
+                                        reject(new Error(data.message));
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE message:', e);
+                            }
+                        };
+
+                        eventSource.onerror = (error) => {
+                            console.error('SSE connection error:', error);
+                            eventSource.close();
+                            if (!avCapSuccess) {
+                                addImportLog('❌ Verbindung zum Server verloren', 'error');
+                                updateImportProgress(progressModal, 'avcap', 'error', 'Verbindungsfehler');
+                                reject(new Error('SSE connection failed'));
+                            } else {
+                                resolve();
+                            }
+                        };
+
+                        setTimeout(() => {
+                            if (!avCapSuccess) {
+                                eventSource.close();
+                                reject(new Error('AV Capacity timeout'));
+                            }
+                        }, 300000);
+                    });
+
+                    // Show success and reload
+                    addImportLog('Import erfolgreich abgeschlossen!', 'success');
+                    updateImportProgress(progressModal, 'complete', 'success', 'Import erfolgreich abgeschlossen!');
+
+                    // Wait 2 seconds before reload
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
+                    progressModal.hide();
+
+                    // Reload timeline data
+                    if (typeof window.reloadTimelineData === 'function') {
+                        await window.reloadTimelineData();
+                    } else {
+                        window.location.reload();
+                    }
+
+                } catch (error) {
+                    console.error('❌ Import failed:', error);
+                    updateImportProgress(progressModal, 'complete', 'error',
+                        `Fehler: ${error.message}`);
+
+                    // Keep modal open on error
+                    setTimeout(() => progressModal.hide(), 5000);
+                } finally {
+                    if (buttonRef) {
+                        buttonRef.disabled = false;
+                        buttonRef.innerHTML = '📥 HRS Daten importieren';
+                    }
+                }
+            }
+
             // HRS Import Button Handler (with SSE for Daily Summary)
             const hrsImportBtn = document.getElementById('timeline-hrs-import-btn');
             if (hrsImportBtn) {
@@ -2461,369 +2830,16 @@
 
                     if (!confirmed) return;
 
-                    // Create Progress Modal
-                    const progressModal = createImportProgressModal(dateFromStr, dateToStr, selectedIndices.length);
-                    progressModal.show();
-
-                    // Disable import button
-                    hrsImportBtn.disabled = true;
-                    hrsImportBtn.innerHTML = '⏳ Importiere...';
-
-                    try {
-                        // Step 1: Import Daily Summary with SSE (Server-Sent Events)
-                        addImportLog('🚀 Starte Daily Summary Import mit Echtzeit-Updates...', 'info');
-                        updateImportProgress(progressModal, 'daily', 'running', 'Verbinde mit Server...');
-
-                        // Use SSE for Daily Summary
-                        await new Promise((resolve, reject) => {
-                            const eventSource = new EventSource(`../hrs/hrs_imp_daily_stream.php?from=${dateFromStr}&to=${dateToStr}`);
-                            let dailySuccess = false;
-
-                            eventSource.onmessage = (event) => {
-                                try {
-                                    const data = JSON.parse(event.data);
-
-                                    switch (data.type) {
-                                        case 'start':
-                                            addImportLog(data.message, 'info');
-                                            break;
-
-                                        case 'phase':
-                                            updateImportProgress(progressModal, data.step, 'running', data.message);
-                                            addImportLog(`📋 ${data.name}: ${data.message}`, 'info');
-                                            break;
-
-                                        case 'total':
-                                            addImportLog(`📊 ${data.count} Tage zu importieren`, 'info');
-                                            break;
-
-                                        case 'progress':
-                                            const percent = data.percent || Math.round((data.current / data.total) * 100);
-                                            updateImportProgress(progressModal, 'daily', 'running',
-                                                `${data.current}/${data.total} (${percent}%) - ${data.day}`);
-                                            break;
-
-                                        case 'log':
-                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
-                                            const icon = icons[data.level] || '';
-                                            addImportLog(`${icon} ${data.message}`, data.level);
-                                            break;
-
-                                        case 'complete':
-                                            dailySuccess = true;
-                                            updateImportProgress(progressModal, data.step, 'success', data.message);
-                                            addImportLog(`✅ ${data.message}`, 'success');
-                                            break;
-
-                                        case 'finish':
-                                            addImportLog(`🎉 ${data.message}`, 'success');
-                                            eventSource.close();
-                                            resolve();
-                                            break;
-
-                                        case 'error':
-                                            addImportLog(`❌ ${data.message}`, 'error');
-                                            updateImportProgress(progressModal, 'daily', 'error', data.message);
-                                            eventSource.close();
-                                            reject(new Error(data.message));
-                                            break;
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing SSE message:', e);
-                                }
-                            };
-
-                            eventSource.onerror = (error) => {
-                                console.error('SSE connection error:', error);
-                                eventSource.close();
-                                if (!dailySuccess) {
-                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
-                                    updateImportProgress(progressModal, 'daily', 'error', 'Verbindungsfehler');
-                                    reject(new Error('SSE connection failed'));
-                                } else {
-                                    // If we already marked as successful, just close gracefully
-                                    resolve();
-                                }
-                            };
-
-                            // Timeout after 5 minutes
-                            setTimeout(() => {
-                                if (!dailySuccess) {
-                                    eventSource.close();
-                                    reject(new Error('Import timeout'));
-                                }
-                            }, 300000);
-                        });
-
-                        // Step 2: Import Quota (SSE)
-                        addImportLog('Starte Quota Import...', 'info');
-
-                        await new Promise((resolve, reject) => {
-                            let quotaSuccess = false;
-                            const eventSource = new EventSource(`../hrs/hrs_imp_quota_stream.php?from=${dateFromStr}&to=${dateToStr}`);
-
-                            eventSource.onmessage = (event) => {
-                                try {
-                                    const data = JSON.parse(event.data);
-
-                                    switch (data.type) {
-                                        case 'start':
-                                            addImportLog(data.message, 'info');
-                                            break;
-
-                                        case 'phase':
-                                            updateImportProgress(progressModal, data.step, 'running', data.message);
-                                            break;
-
-                                        case 'total':
-                                            addImportLog(`${data.count} Quota-Einträge zu importieren`, 'info');
-                                            break;
-
-                                        case 'progress':
-                                            const percent = data.percent || 0;
-                                            updateImportProgress(progressModal, 'quota', 'running',
-                                                `${data.current}/${data.total} (${percent}%) - Quota ${data.quota_id}`);
-                                            break;
-
-                                        case 'log':
-                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
-                                            const icon = icons[data.level] || '';
-                                            addImportLog(`${icon} ${data.message}`, data.level);
-                                            break;
-
-                                        case 'complete':
-                                            quotaSuccess = true;
-                                            updateImportProgress(progressModal, data.step, 'success', data.message);
-                                            addImportLog(`✅ ${data.message}`, 'success');
-                                            break;
-
-                                        case 'finish':
-                                            addImportLog(`🎉 ${data.message}`, 'success');
-                                            eventSource.close();
-                                            resolve();
-                                            break;
-
-                                        case 'error':
-                                            addImportLog(`❌ ${data.message}`, 'error');
-                                            updateImportProgress(progressModal, 'quota', 'error', data.message);
-                                            eventSource.close();
-                                            reject(new Error(data.message));
-                                            break;
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing SSE message:', e);
-                                }
-                            };
-
-                            eventSource.onerror = (error) => {
-                                console.error('SSE connection error:', error);
-                                eventSource.close();
-                                if (!quotaSuccess) {
-                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
-                                    updateImportProgress(progressModal, 'quota', 'error', 'Verbindungsfehler');
-                                    reject(new Error('SSE connection failed'));
-                                } else {
-                                    resolve();
-                                }
-                            };
-
-                            setTimeout(() => {
-                                if (!quotaSuccess) {
-                                    eventSource.close();
-                                    reject(new Error('Quota import timeout'));
-                                }
-                            }, 300000);
-                        });
-
-                        // Step 3: Import Reservations (SSE)
-                        addImportLog('Starte Reservierungen Import...', 'info');
-
-                        await new Promise((resolve, reject) => {
-                            let resSuccess = false;
-                            const eventSource = new EventSource(`../hrs/hrs_imp_res_stream.php?from=${dateFromStr}&to=${dateToStr}`);
-
-                            eventSource.onmessage = (event) => {
-                                try {
-                                    const data = JSON.parse(event.data);
-
-                                    switch (data.type) {
-                                        case 'start':
-                                            addImportLog(data.message, 'info');
-                                            break;
-
-                                        case 'phase':
-                                            updateImportProgress(progressModal, data.step, 'running', data.message);
-                                            break;
-
-                                        case 'total':
-                                            addImportLog(`${data.count} Reservierungen zu importieren`, 'info');
-                                            break;
-
-                                        case 'progress':
-                                            const percent = data.percent || 0;
-                                            updateImportProgress(progressModal, 'res', 'running',
-                                                `${data.current}/${data.total} (${percent}%) - Res ${data.res_id}`);
-                                            break;
-
-                                        case 'log':
-                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
-                                            const icon = icons[data.level] || '';
-                                            addImportLog(`${icon} ${data.message}`, data.level);
-                                            break;
-
-                                        case 'complete':
-                                            resSuccess = true;
-                                            updateImportProgress(progressModal, data.step, 'success', data.message);
-                                            addImportLog(`✅ ${data.message}`, 'success');
-                                            break;
-
-                                        case 'finish':
-                                            addImportLog(`🎉 ${data.message}`, 'success');
-                                            eventSource.close();
-                                            resolve();
-                                            break;
-
-                                        case 'error':
-                                            addImportLog(`❌ ${data.message}`, 'error');
-                                            updateImportProgress(progressModal, 'res', 'error', data.message);
-                                            eventSource.close();
-                                            reject(new Error(data.message));
-                                            break;
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing SSE message:', e);
-                                }
-                            };
-
-                            eventSource.onerror = (error) => {
-                                console.error('SSE connection error:', error);
-                                eventSource.close();
-                                if (!resSuccess) {
-                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
-                                    updateImportProgress(progressModal, 'res', 'error', 'Verbindungsfehler');
-                                    reject(new Error('SSE connection failed'));
-                                } else {
-                                    resolve();
-                                }
-                            };
-
-                            setTimeout(() => {
-                                if (!resSuccess) {
-                                    eventSource.close();
-                                    reject(new Error('Reservations import timeout'));
-                                }
-                            }, 300000);
-                        });
-
-                        // Step 4: Update AV Capacity (SSE)
-                        addImportLog('Starte AV Capacity Update...', 'info');
-
-                        await new Promise((resolve, reject) => {
-                            let avCapSuccess = false;
-                            const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=675&von=${dateFromStr}&bis=${dateToStr}`);
-
-                            eventSource.onmessage = (event) => {
-                                try {
-                                    const data = JSON.parse(event.data);
-
-                                    switch (data.type) {
-                                        case 'start':
-                                            addImportLog(data.message, 'info');
-                                            break;
-
-                                        case 'phase':
-                                            updateImportProgress(progressModal, data.step, 'running', data.message);
-                                            break;
-
-                                        case 'total':
-                                            addImportLog(`${data.count} API-Aufrufe nötig`, 'info');
-                                            break;
-
-                                        case 'progress':
-                                            const percent = data.percent || 0;
-                                            updateImportProgress(progressModal, 'avcap', 'running',
-                                                `API-Aufruf ${data.current}/${data.total} (${percent}%)`);
-                                            break;
-
-                                        case 'log':
-                                            const icons = { info: 'ℹ️', success: '✓', error: '✗', warn: '⚠' };
-                                            const icon = icons[data.level] || '';
-                                            addImportLog(`${icon} ${data.message}`, data.level);
-                                            break;
-
-                                        case 'complete':
-                                            avCapSuccess = true;
-                                            updateImportProgress(progressModal, data.step, 'success', data.message);
-                                            addImportLog(`✅ ${data.message}`, 'success');
-                                            break;
-
-                                        case 'finish':
-                                            addImportLog(`🎉 ${data.message}`, 'success');
-                                            eventSource.close();
-                                            resolve();
-                                            break;
-
-                                        case 'error':
-                                            addImportLog(`❌ ${data.message}`, 'error');
-                                            updateImportProgress(progressModal, 'avcap', 'error', data.message);
-                                            eventSource.close();
-                                            reject(new Error(data.message));
-                                            break;
-                                    }
-                                } catch (e) {
-                                    console.error('Error parsing SSE message:', e);
-                                }
-                            };
-
-                            eventSource.onerror = (error) => {
-                                console.error('SSE connection error:', error);
-                                eventSource.close();
-                                if (!avCapSuccess) {
-                                    addImportLog('❌ Verbindung zum Server verloren', 'error');
-                                    updateImportProgress(progressModal, 'avcap', 'error', 'Verbindungsfehler');
-                                    reject(new Error('SSE connection failed'));
-                                } else {
-                                    resolve();
-                                }
-                            };
-
-                            setTimeout(() => {
-                                if (!avCapSuccess) {
-                                    eventSource.close();
-                                    reject(new Error('AV Capacity timeout'));
-                                }
-                            }, 300000);
-                        });
-
-                        // Show success and reload
-                        addImportLog('Import erfolgreich abgeschlossen!', 'success');
-                        updateImportProgress(progressModal, 'complete', 'success', 'Import erfolgreich abgeschlossen!');
-
-                        // Wait 2 seconds before reload
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-
-                        progressModal.hide();
-
-                        // Reload timeline data
-                        if (typeof window.reloadTimelineData === 'function') {
-                            await window.reloadTimelineData();
-                        } else {
-                            window.location.reload();
-                        }
-
-                    } catch (error) {
-                        console.error('❌ Import failed:', error);
-                        updateImportProgress(progressModal, 'complete', 'error',
-                            `Fehler: ${error.message}`);
-
-                        // Keep modal open on error
-                        setTimeout(() => progressModal.hide(), 5000);
-                    } finally {
-                        hrsImportBtn.disabled = false;
-                        hrsImportBtn.innerHTML = '📥 HRS Daten importieren';
-                    }
+                    // Execute import with button reference
+                    await executeHRSImport(dateFromStr, dateToStr, selectedIndices.length, hrsImportBtn);
                 });
             }
+
+            // Event Listener für Context Menu HRS Import
+            window.addEventListener('hrs-import-requested', async (event) => {
+                const { dateFrom, dateTo, dayCount } = event.detail;
+                await executeHRSImport(dateFrom, dateTo, dayCount, null);
+            });
 
             toolbar.dataset.initialized = 'true';
         }
