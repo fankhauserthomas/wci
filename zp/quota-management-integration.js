@@ -77,6 +77,7 @@
                 box-shadow: 0 4px 12px rgba(0,0,0,0.5);
                 z-index: 10000;
                 min-width: 200px;
+                visibility: hidden;
             `;
 
             const selectedCount = this.selectedHistogramDays.size;
@@ -145,6 +146,35 @@
             menu.appendChild(clearButton);
 
             document.body.appendChild(menu);
+
+            // Positioniere Menu innerhalb des Viewports
+            const menuRect = menu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let finalX = x;
+            let finalY = y;
+
+            // Verhindere horizontales Hinausragen
+            if (finalX + menuRect.width > viewportWidth) {
+                finalX = viewportWidth - menuRect.width - 10;
+            }
+            if (finalX < 10) {
+                finalX = 10;
+            }
+
+            // Verhindere vertikales Hinausragen (nach unten)
+            if (finalY + menuRect.height > viewportHeight) {
+                finalY = viewportHeight - menuRect.height - 10;
+            }
+            if (finalY < 10) {
+                finalY = 10;
+            }
+
+            // Setze finale Position und mache sichtbar
+            menu.style.left = `${finalX}px`;
+            menu.style.top = `${finalY}px`;
+            menu.style.visibility = 'visible';
 
             // Schließe Menu bei Klick außerhalb
             const closeMenu = (e) => {
@@ -344,18 +374,10 @@
                 if (window.renderer && window.renderer.selectedHistogramDays &&
                     window.renderer.selectedHistogramDays.size > 0) {
 
-                    const rect = e.target.getBoundingClientRect();
-                    const mouseY = e.clientY - rect.top;
-
-                    // Prüfe ob Klick im Histogram-Bereich (grobe Prüfung)
-                    if (window.renderer.areas && window.renderer.areas.histogram) {
-                        const histogramArea = window.renderer.areas.histogram;
-                        if (mouseY >= histogramArea.y &&
-                            mouseY <= histogramArea.y + histogramArea.height) {
-                            e.preventDefault(); // Unterdrücke Browser-Kontextmenü
-                            return false;
-                        }
-                    }
+                    // IMMER preventDefault wenn Histogram-Tage selektiert sind
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
                 }
             }
         });

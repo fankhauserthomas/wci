@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dataset Modal Test</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Dataset Modal Test</h1>
+    <button onclick="testModal()">📋 Stammdaten Modal öffnen (Test)</button>
+
+    <div id="log" style="margin-top: 20px; padding: 10px; background: #2a2a2a; border-radius: 4px;"></div>
+
+    <script>
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            logEl.innerHTML += `<div style="margin: 5px 0; padding: 5px; background: #3a3a3a; border-radius: 3px;">${msg}</div>`;
+            console.log(msg);
+        }
+
+        function testModal() {
+            log('🔍 Teste Dataset Modal...');
+
+            // Prüfe ob showDatasetModal existiert
+            if (typeof showDatasetModal !== 'function') {
+                log('❌ FEHLER: showDatasetModal ist keine Funktion!');
+                log('   Typ: ' + typeof showDatasetModal);
+
+                // Prüfe ob im window
+                if (typeof window.showDatasetModal !== 'function') {
+                    log('❌ FEHLER: Auch window.showDatasetModal existiert nicht!');
+                } else {
+                    log('✅ Aber window.showDatasetModal existiert');
+                }
+                return;
+            }
+
+            log('✅ showDatasetModal gefunden');
+
+            // Test-Daten
+            const testDetail = {
+                data: {
+                    res_id: 9198  // Existierende AV-Res ID
+                }
+            };
+
+            log(`📤 Rufe Modal auf mit res_id: ${testDetail.data.res_id}`);
+
+            try {
+                showDatasetModal(testDetail).then(result => {
+                    if (result === null) {
+                        log('⚠️ Modal abgebrochen');
+                    } else {
+                        log('✅ Modal-Daten erhalten:');
+                        log(JSON.stringify(result, null, 2));
+                    }
+                }).catch(error => {
+                    log('❌ Promise-Fehler: ' + error.message);
+                    console.error(error);
+                });
+            } catch (error) {
+                log('❌ Synchroner Fehler: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // Auto-Check beim Laden
+        window.addEventListener('load', () => {
+            log('🚀 Seite geladen');
+            log('📦 showDatasetModal verfügbar: ' + (typeof showDatasetModal !== 'undefined'));
+            log('📦 window.showDatasetModal verfügbar: ' + (typeof window.showDatasetModal !== 'undefined'));
+
+            // Liste alle globalen Modal-Funktionen
+            const modalFunctions = Object.keys(window).filter(key => key.includes('modal') || key.includes('Modal'));
+            log('🔎 Gefundene Modal-Funktionen: ' + modalFunctions.join(', '));
+        });
+    </script>
+</body>
+
+</html>

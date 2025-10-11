@@ -4884,7 +4884,20 @@ class TimelineUnifiedRenderer {
         this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
         this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
 
-        this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
+        // DOPPELTER SCHUTZ: Beide Listener um Browser-Kontextmenü zu verhindern
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this.handleContextMenu(e);
+            return false;
+        }, { capture: true });
+
+        // Zusätzlicher Fallback: Fange ALLE contextmenu Events auf dem Canvas
+        this.canvas.oncontextmenu = (e) => {
+            e.preventDefault();
+            return false;
+        };
 
         document.addEventListener('click', (event) => {
             // Close radial menu if open and click outside
@@ -6106,7 +6119,12 @@ class TimelineUnifiedRenderer {
     }
 
     handleContextMenu(e) {
-        if (!this.canvas) return;
+        // WICHTIG: Verhindere IMMER das Browser-Kontextmenü auf dem Canvas
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        if (!this.canvas) return false;
 
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;

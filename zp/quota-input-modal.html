@@ -1,6 +1,31 @@
-<!-- ==================== QUOTA INPUT MODAL ==================== -->
+<!-- ==================== QUOTA INPUT MODAL V3.0 ==================== -->
+<!-- Multi-Day Quota Support - MANAGEMENT API (BEWÄHRT!) -->
+<script>
+    console.log('🔄 Quota Modal V3.0 loaded - Management API');
+    console.log('📍 Using endpoint: /wci/hrs/hrs_write_quota_v3.php');
+    console.log('🔧 API: /api/v1/manage/hutQuota/{hutId} (BEWÄHRT wie hrs_del_quota_batch.php)');
+</script>
+<style>
+    /* Custom Modal Breite: 2,5x breiter als modal-xl */
+    #quotaInputModal .modal-dialog {
+        max-width: 95vw !important;
+        width: 95vw !important;
+    }
+
+    #quotaInputModal .modal-body {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    /* Tabelle responsiv */
+    #quotaInputModal table {
+        width: 100%;
+        white-space: nowrap;
+    }
+</style>
+
 <div class="modal fade" id="quotaInputModal" tabindex="-1" aria-labelledby="quotaInputModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="quotaInputModalLabel">📊 Quota bearbeiten</h5>
@@ -33,82 +58,50 @@
 
                     <hr class="my-4">
 
-                    <!-- Prioritäten -->
-                    <h6 class="mb-3">Prioritäten (höchste zuerst)</h6>
+                    <!-- Kategorie-Verteilung (fix, ohne Prioritäten) -->
+                    <h6 class="mb-3">Kategorie-Verteilung</h6>
 
-                    <!-- Priorität 1 -->
-                    <div class="row mb-3 priority-row" data-priority="1">
-                        <div class="col-1 text-center">
-                            <span class="badge bg-primary">1</span>
+                    <!-- ML (Lager) - bekommt immer den REST -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-6">
+                            <strong>ML - Matratzenlager</strong>
                         </div>
                         <div class="col-6">
-                            <select class="form-select category-select" data-priority="1">
-                                <option value="lager" selected>Matratzenlager (ML)</option>
-                                <option value="betten">Mehrbettzimmer (MBZ)</option>
-                                <option value="dz">Zweibettzimmer (2BZ)</option>
-                                <option value="sonder">Sonderkategorie (SK)</option>
-                            </select>
-                        </div>
-                        <div class="col-5">
-                            <input type="text" class="form-control" value="(Rest)" disabled readonly
-                                style="background-color: #e9ecef; color: #6c757d;">
+                            <input type="text" class="form-control" value="(bekommt REST)" disabled readonly
+                                style="background-color: #d1ecf1; color: #0c5460; font-weight: bold;">
                         </div>
                     </div>
 
-                    <!-- Priorität 2 -->
-                    <div class="row mb-3 priority-row" data-priority="2">
-                        <div class="col-1 text-center">
-                            <span class="badge bg-secondary">2</span>
+                    <!-- MBZ (Betten) - Max-Wert -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-6">
+                            <strong>MBZ - Mehrbettzimmer</strong>
                         </div>
                         <div class="col-6">
-                            <select class="form-select category-select" data-priority="2">
-                                <option value="betten" selected>Mehrbettzimmer (MBZ)</option>
-                                <option value="lager">Matratzenlager (ML)</option>
-                                <option value="dz">Zweibettzimmer (2BZ)</option>
-                                <option value="sonder">Sonderkategorie (SK)</option>
-                            </select>
-                        </div>
-                        <div class="col-5">
-                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
-                                min="0" data-priority="2">
+                            <input type="number" class="form-control max-value-input" placeholder="0 = keine" value="0"
+                                min="0" data-category="betten" id="max-mbz">
                         </div>
                     </div>
 
-                    <!-- Priorität 3 -->
-                    <div class="row mb-3 priority-row" data-priority="3">
-                        <div class="col-1 text-center">
-                            <span class="badge bg-secondary">3</span>
+                    <!-- 2BZ (DZ) - Max-Wert -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-6">
+                            <strong>2BZ - Zweibettzimmer</strong>
                         </div>
                         <div class="col-6">
-                            <select class="form-select category-select" data-priority="3">
-                                <option value="dz" selected>Zweibettzimmer (2BZ)</option>
-                                <option value="lager">Matratzenlager (ML)</option>
-                                <option value="betten">Mehrbettzimmer (MBZ)</option>
-                                <option value="sonder">Sonderkategorie (SK)</option>
-                            </select>
-                        </div>
-                        <div class="col-5">
-                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
-                                min="0" data-priority="3">
+                            <input type="number" class="form-control max-value-input" placeholder="0 = keine" value="0"
+                                min="0" data-category="dz" id="max-2bz">
                         </div>
                     </div>
 
-                    <!-- Priorität 4 -->
-                    <div class="row mb-3 priority-row" data-priority="4">
-                        <div class="col-1 text-center">
-                            <span class="badge bg-secondary">4</span>
+                    <!-- SK (Sonder) - Max-Wert -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-6">
+                            <strong>SK - Sonderkategorie</strong>
                         </div>
                         <div class="col-6">
-                            <select class="form-select category-select" data-priority="4">
-                                <option value="sonder" selected>Sonderkategorie (SK)</option>
-                                <option value="lager">Matratzenlager (ML)</option>
-                                <option value="betten">Mehrbettzimmer (MBZ)</option>
-                                <option value="dz">Zweibettzimmer (2BZ)</option>
-                            </select>
-                        </div>
-                        <div class="col-5">
-                            <input type="number" class="form-control max-value-input" placeholder="Max (leer = ∞)"
-                                min="0" data-priority="4">
+                            <input type="number" class="form-control max-value-input" placeholder="0 = keine" value="0"
+                                min="0" data-category="sonder" id="max-sk">
                         </div>
                     </div>
 
@@ -151,6 +144,14 @@
             this.currentOccupancy = 0;
 
             this.initializeEventListeners();
+
+            // WICHTIG: Verhindere Browser-Kontextmenü im Modal
+            const modalElement = document.getElementById('quotaInputModal');
+            modalElement.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }, { capture: true });
         }
 
         initializeEventListeners() {
@@ -168,11 +169,20 @@
                 this.updatePreview();
             });
 
-            // Priorität-Änderungen
-            document.querySelectorAll('.category-select, .max-value-input').forEach(el => {
-                el.addEventListener('change', () => this.updatePreview());
-                el.addEventListener('input', () => this.updatePreview());
-                el.addEventListener('keyup', () => this.updatePreview()); // Auch bei Tastatur-Eingabe
+            // Event-Delegation für Prioritäten (funktioniert auch nach DOM-Updates)
+            document.getElementById('quotaForm').addEventListener('change', (e) => {
+                if (e.target.classList.contains('category-select') ||
+                    e.target.classList.contains('max-value-input')) {
+                    console.log('🔄 Priorität geändert (change):', e.target.className, e.target.value);
+                    this.updatePreview();
+                }
+            });
+
+            document.getElementById('quotaForm').addEventListener('input', (e) => {
+                if (e.target.classList.contains('max-value-input')) {
+                    console.log('🔄 Priorität Input:', e.target.className, e.target.value);
+                    this.updatePreview();
+                }
             });
 
             // Save Button
@@ -228,6 +238,18 @@
         }
 
         /**
+         * Helper-Funktion: Liest Max-Wert aus Input-Feld
+         * @returns {number} Infinity wenn leer, sonst geparster Wert (auch 0!)
+         */
+        getMaxValue(elementId) {
+            const input = document.getElementById(elementId);
+            if (!input || !input.value || input.value === '') return Infinity;
+            const val = parseInt(input.value);
+            return isNaN(val) ? Infinity : val;
+        }
+
+
+        /**
          * Berechnet Quota-Verteilung nach Prioritäten
          * 
          * STRATEGIE:
@@ -275,93 +297,72 @@
             console.log(`   DZ:          ${currentQuota.dz}`);
             console.log(`   TOTAL:       ${currentQuota.sonder + currentQuota.lager + currentQuota.betten + currentQuota.dz}\n`);
 
-            // 1.4 HRS Daily Summary Daten (WICHTIG für korrekte Berechnung!)
-            const dailySummary = await this.getDailySummaryForDate(dateStr);
-            console.log('📅 HRS Daily Summary (vom HRS):');
-            console.log(`   Total Gäste: ${dailySummary.totalGuests}`);
-            console.log('   Freie Plätze pro Kategorie (HRS):');
-            console.log(`     ML (Lager):  ${dailySummary.categories.lager.freePlaces} frei, ${dailySummary.categories.lager.assigned} belegt`);
-            console.log(`     MBZ (Betten): ${dailySummary.categories.betten.freePlaces} frei, ${dailySummary.categories.betten.assigned} belegt`);
-            console.log(`     2BZ (DZ):     ${dailySummary.categories.dz.freePlaces} frei, ${dailySummary.categories.dz.assigned} belegt`);
-            console.log(`     SK (Sonder):  ${dailySummary.categories.sonder.freePlaces} frei, ${dailySummary.categories.sonder.assigned} belegt\n`);
+            // 1.4 HRS Daily Summary Daten werden NICHT mehr geladen (zu viele API-Calls)
+            // Die Berechnung basiert nur auf AV + Intern Belegung
 
             // 1.5 Zielauslastung gesamt
             console.log('🎯 Zielauslastung gesamt: ' + targetCapacity + ' Betten\n');
 
-            // 1.6 Prioritäten auslesen
-            const priorities = [];
-            console.log('📋 Prioritäten:');
+            // 1.6 Max-Werte für Kategorien auslesen (fixe Reihenfolge, keine Prioritäten!)
+            const maxMBZ = this.getMaxValue('max-mbz');
+            const max2BZ = this.getMaxValue('max-2bz');
+            const maxSK = this.getMaxValue('max-sk');
 
-            for (let i = 1; i <= 4; i++) {
-                const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
-                if (!categorySelect) {
-                    console.error(`❌ Category-Select für Priorität ${i} nicht gefunden!`);
-                    continue;
-                }
-
-                const category = categorySelect.value;
-                const categoryLabels = {
-                    'sonder': 'SK (Sonder)',
-                    'lager': 'ML (Lager)',
-                    'betten': 'MBZ (Betten)',
-                    'dz': '2BZ (DZ)'
-                };
-
-                let maxValue;
-                if (i === 1) {
-                    // Priorität 1 hat keinen Max-Input, bekommt immer den Rest
-                    maxValue = Infinity;
-                    console.log(`   Priorität ${i}: ${categoryLabels[category]} = REST (keine Begrenzung)`);
-                } else {
-                    const maxInput = document.querySelector(`.max-value-input[data-priority="${i}"]`);
-                    if (!maxInput) {
-                        console.error(`❌ Max-Input für Priorität ${i} nicht gefunden!`);
-                        maxValue = Infinity;
-                    } else {
-                        maxValue = (maxInput.value === '' || maxInput.value === '0') ? Infinity : parseInt(maxInput.value);
-                        console.log(`   Priorität ${i}: ${categoryLabels[category]} = max ${maxValue === Infinity ? '∞' : maxValue}`);
-                    }
-                }
-
-                priorities.push({ priority: i, category, max: maxValue });
-            }
+            console.log('📋 Max-Werte für Kategorien:');
+            console.log(`   MBZ (Betten): ${maxMBZ === Infinity ? '∞' : maxMBZ}`);
+            console.log(`   2BZ (DZ):     ${max2BZ === Infinity ? '∞' : max2BZ}`);
+            console.log(`   SK (Sonder):  ${maxSK === Infinity ? '∞' : maxSK}`);
+            console.log(`   ML (Lager):   REST\n`);
 
             console.log(`\n${'='.repeat(80)}`);
             console.log('📐 BERECHNUNGSVORBEREITUNG ABGESCHLOSSEN');
             console.log(`${'='.repeat(80)}\n`);
 
             // ========================================================================
-            // SCHRITT 2: QUOTA-BERECHNUNG (HIER KOMMT DIE FORMEL)
+            // SCHRITT 2: QUOTA-BERECHNUNG - VEREINFACHTE LOGIK
             // ========================================================================
 
-            console.log('🔧 TODO: Formel für Quota-Berechnung implementieren');
-            console.log('   Input-Variablen sind bereit!\n');
+            console.log('💡 QUOTA-FORMEL:\n');
 
-            // PLACEHOLDER - Alte einfache Logik (wird ersetzt)
-            const { av, internal, total } = occupancy;
-            let availableQuota = targetCapacity - av - internal;
-            if (availableQuota < 0) availableQuota = 0;
+            // 2.1 Berechne Gesamtgäste im Haus (AV + Intern)
+            const totalGuestsInHouse =
+                avOccupancy.sonder + avOccupancy.lager + avOccupancy.betten + avOccupancy.dz +
+                internalOccupancy.sonder + internalOccupancy.lager + internalOccupancy.betten + internalOccupancy.dz;
 
+            console.log(`👥 Gesamtgäste im Haus: ${totalGuestsInHouse}`);
+            console.log(`   (AV: ${avOccupancy.sonder + avOccupancy.lager + avOccupancy.betten + avOccupancy.dz} + Intern: ${internalOccupancy.sonder + internalOccupancy.lager + internalOccupancy.betten + internalOccupancy.dz})\n`);
+
+            // 2.2 Erforderliche Gesamtquota (Qerf)
+            // Formel: Qerf = Zielauslastung - Anzahl ALLER Gäste im Haus
+            let Qerf = targetCapacity - totalGuestsInHouse;
+            if (Qerf < 0) Qerf = 0;
+
+            console.log(`📊 Erforderliche Gesamtquota (Qerf):`);
+            console.log(`   Qerf = ${targetCapacity} (Zielauslastung) - ${totalGuestsInHouse} (Gäste) = ${Qerf}\n`);
+
+            // 2.3 Quota-Verteilung (EINFACH)
             const result = { lager: 0, betten: 0, dz: 0, sonder: 0 };
-            let remaining = availableQuota;
 
-            for (const p of priorities) {
-                if (remaining <= 0) break;
-                const allocated = Math.min(p.max, remaining);
-                result[p.category] += allocated;
-                remaining -= allocated;
-            }
+            console.log('🎯 Quota-Verteilung:\n');
 
-            if (remaining > 0 && priorities.length > 0) {
-                result[priorities[0].category] += remaining;
-            }
+            // Verteile zuerst MBZ, 2BZ, SK mit ihren Max-Werten
+            result.betten = Math.min(maxMBZ, Qerf);
+            result.dz = Math.min(max2BZ, Qerf);
+            result.sonder = Math.min(maxSK, Qerf);
 
-            console.log(`📤 Berechnete Quota-Verteilung:`);
-            console.log(`   Sonder: ${result.sonder}`);
-            console.log(`   Lager:  ${result.lager}`);
-            console.log(`   Betten: ${result.betten}`);
-            console.log(`   DZ:     ${result.dz}`);
-            console.log(`   TOTAL:  ${result.sonder + result.lager + result.betten + result.dz}\n`);
+            console.log(`   MBZ (Betten): ${result.betten} (max ${maxMBZ === Infinity ? '∞' : maxMBZ})`);
+            console.log(`   2BZ (DZ):     ${result.dz} (max ${max2BZ === Infinity ? '∞' : max2BZ})`);
+            console.log(`   SK (Sonder):  ${result.sonder} (max ${maxSK === Infinity ? '∞' : maxSK})`);
+
+            // ML bekommt den REST
+            const usedByOthers = result.betten + result.dz + result.sonder;
+            result.lager = Math.max(0, Qerf - usedByOthers);
+
+            console.log(`   ML (Lager):   ${result.lager} (REST: ${Qerf} - ${usedByOthers} = ${result.lager})`);
+
+            const totalQuota = result.sonder + result.lager + result.betten + result.dz;
+            console.log(`   TOTAL:        ${totalQuota} (sollte ${Qerf} sein)`);
+            console.log(`${'='.repeat(80)}\n`);
 
             return result;
         }
@@ -370,71 +371,112 @@
          * Aktualisiert Live-Preview - berechnet für JEDEN TAG individuell
          */
         async updatePreview() {
+            console.log('🔄 updatePreview() START');
             const targetCapacity = parseInt(document.getElementById('targetCapacity').value);
             const previewContainer = document.getElementById('quotaPreviewDays');
-            previewContainer.innerHTML = '';
+            console.log('📦 previewContainer:', previewContainer);
+            console.log('🎯 targetCapacity:', targetCapacity);
+            console.log('📅 selectedDays:', this.selectedDays);
 
             let hasOverbooking = false;
+            const tableData = [];
 
-            // Für jeden selektierten Tag
+            // Sammle Daten für alle Tage
+            console.log('🔄 Starte Datensammlung für', this.selectedDays.length, 'Tage...');
             for (const dateStr of this.selectedDays) {
-                // Hole Belegung (AV + Intern getrennt)
+                console.log('  📅 Verarbeite Tag:', dateStr);
+                // Berechne Quota-Verteilung (diese Funktion holt sich intern die Belegungen)
+                const quotas = await this.calculateQuotaDistribution(targetCapacity, null, dateStr);
+                console.log('  ✅ Quotas berechnet:', quotas);
+
+                // Hole Belegungsdaten für die Anzeige
                 const occupancy = await this.getOccupancyForDate(dateStr);
 
-                // ✅ Berechne Quotas mit allen Detail-Informationen
-                const quotas = await this.calculateQuotaDistribution(targetCapacity, occupancy, dateStr);
+                // Parse Datum
+                const [year, month, day] = dateStr.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
+                const dateDisplay = date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-                console.log(`💡 ${dateStr}: AV=${occupancy.av}, Intern=${occupancy.internal}, Quotas=${JSON.stringify(quotas)}`);
+                // Berechne Gesamtgäste
+                const totalGuests = occupancy.av + occupancy.internal;
+                const availableQuota = Math.max(0, targetCapacity - totalGuests);
 
-                // Check Overbooking (wenn keine Quota mehr verfügbar)
-                const availableQuota = targetCapacity - occupancy.av - occupancy.internal;
                 if (availableQuota <= 0) {
                     hasOverbooking = true;
                 }
 
-                // Parse Datum für Anzeige
-                const [year, month, day] = dateStr.split('-').map(Number);
-                const date = new Date(year, month - 1, day);
-                const dateDisplay = date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                tableData.push({
+                    date: dateDisplay,
+                    av: occupancy.av,
+                    internal: occupancy.internal,
+                    total: totalGuests,
+                    quota: availableQuota,
+                    ml: quotas.lager,
+                    mbz: quotas.betten,
+                    bz2: quotas.dz,
+                    sk: quotas.sonder,
+                    totalQuota: quotas.lager + quotas.betten + quotas.dz + quotas.sonder,
+                    isOverbooked: availableQuota <= 0
+                });
+            }
 
-                // Erstelle Preview-Zeile
-                const row = document.createElement('div');
-                row.className = 'mb-2 pb-2 border-bottom';
-                row.innerHTML = `
-                <div class="row align-items-center" style="font-size: 0.9em;">
-                    <div class="col-3">
-                        <strong>${dateDisplay}</strong><br>
-                        <small class="text-muted">
-                            AV: ${occupancy.av} | Int: ${occupancy.internal}<br>
-                            Quota: ${Math.max(0, targetCapacity + occupancy.av - occupancy.internal)}
-                        </small>
-                    </div>
-                    <div class="col-9">
-                        <div class="row">
-                            <div class="col-3">
-                                <strong>ML:</strong> <span class="${quotas.lager > 0 ? 'text-success' : 'text-muted'}">${quotas.lager}</span>
-                            </div>
-                            <div class="col-3">
-                                <strong>MBZ:</strong> <span class="${quotas.betten > 0 ? 'text-success' : 'text-muted'}">${quotas.betten}</span>
-                            </div>
-                            <div class="col-3">
-                                <strong>2BZ:</strong> <span class="${quotas.dz > 0 ? 'text-success' : 'text-muted'}">${quotas.dz}</span>
-                            </div>
-                            <div class="col-3">
-                                <strong>SK:</strong> <span class="${quotas.sonder > 0 ? 'text-success' : 'text-muted'}">${quotas.sonder}</span>
-                            </div>
-                        </div>
-                    </div>
+            // Erstelle Excel-Style Tabelle
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table class="table table-sm table-bordered table-hover" style="font-size: 0.85em; margin: 0;">
+                        <thead class="table-dark" style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th style="min-width: 130px;">Datum</th>
+                                <th class="text-center" style="min-width: 50px;" title="AV-Reservierungen">AV</th>
+                                <th class="text-center" style="min-width: 50px;" title="Interne Reservierungen">Int</th>
+                                <th class="text-center" style="min-width: 60px;" title="Gesamt Gäste">Total</th>
+                                <th class="text-center" style="min-width: 60px; background-color: #2d5a3f;" title="Erforderliche Gesamtquota">Qerf</th>
+                                <th class="text-center" style="min-width: 50px; background-color: #1a4d2e;">ML</th>
+                                <th class="text-center" style="min-width: 50px; background-color: #1a4d2e;">MBZ</th>
+                                <th class="text-center" style="min-width: 50px; background-color: #1a4d2e;">2BZ</th>
+                                <th class="text-center" style="min-width: 50px; background-color: #1a4d2e;">SK</th>
+                                <th class="text-center" style="min-width: 60px; background-color: #2d5a3f;" title="Summe Quotas">Σ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (const row of tableData) {
+                const rowClass = row.isOverbooked ? 'table-danger' : '';
+                const quotaClass = row.quota > 0 ? 'text-success fw-bold' : 'text-danger';
+
+                html += `
+                    <tr class="${rowClass}">
+                        <td><strong>${row.date}</strong></td>
+                        <td class="text-center">${row.av}</td>
+                        <td class="text-center">${row.internal}</td>
+                        <td class="text-center"><strong>${row.total}</strong></td>
+                        <td class="text-center ${quotaClass}"><strong>${row.quota}</strong></td>
+                        <td class="text-center ${row.ml > 0 ? 'bg-success bg-opacity-25' : ''}">${row.ml}</td>
+                        <td class="text-center ${row.mbz > 0 ? 'bg-success bg-opacity-25' : ''}">${row.mbz}</td>
+                        <td class="text-center ${row.bz2 > 0 ? 'bg-success bg-opacity-25' : ''}">${row.bz2}</td>
+                        <td class="text-center ${row.sk > 0 ? 'bg-success bg-opacity-25' : ''}">${row.sk}</td>
+                        <td class="text-center"><strong>${row.totalQuota}</strong></td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                        </tbody>
+                    </table>
                 </div>
             `;
-                previewContainer.appendChild(row);
-            }
+
+            console.log('📊 TableData:', tableData);
+            console.log('📝 HTML Length:', html.length);
+            console.log('🎯 Setting innerHTML...');
+            previewContainer.innerHTML = html;
+            console.log('✅ innerHTML gesetzt! previewContainer.children:', previewContainer.children.length);
 
             // Overbooking Warning
             const warning = document.getElementById('overbookingWarning');
             if (hasOverbooking) {
                 warning.classList.remove('d-none');
-                warning.innerHTML = `⚠️ <strong>Warnung:</strong> Bei einigen Tagen ist keine Quota mehr verfügbar (Ziel + AV - Intern ≤ 0)!<br>Für diese Tage werden alle Quotas auf 0 gesetzt.`;
             } else {
                 warning.classList.add('d-none');
             }
@@ -648,20 +690,17 @@
          * Validierung
          */
         validate() {
-            // Prüfe auf Duplikate
-            const categories = [];
-            for (let i = 1; i <= 4; i++) {
-                const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
-                if (!categorySelect) {
-                    alert(`❌ Fehler: Category-Select für Priorität ${i} nicht gefunden!`);
-                    return false;
-                }
-                categories.push(categorySelect.value);
+            // Einfache Validierung: Prüfe ob targetCapacity gesetzt ist
+            const targetCapacity = parseInt(document.getElementById('targetCapacity').value);
+
+            if (!targetCapacity || targetCapacity <= 0) {
+                alert('❌ Fehler: Zielauslastung muss größer als 0 sein!');
+                return false;
             }
 
-            const uniqueCategories = [...new Set(categories)];
-            if (categories.length !== uniqueCategories.length) {
-                alert('❌ Fehler: Kategorie-Duplikate nicht erlaubt!');
+            // Prüfe ob Tage selektiert sind
+            if (!this.selectedDays || this.selectedDays.length === 0) {
+                alert('❌ Fehler: Keine Tage ausgewählt!');
                 return false;
             }
 
@@ -681,52 +720,48 @@
             try {
                 const targetCapacity = parseInt(document.getElementById('targetCapacityValue').value) || 0;
 
-                // Sammle Prioritäten
-                const priorities = [];
-                for (let i = 1; i <= 4; i++) {
-                    const categorySelect = document.querySelector(`.category-select[data-priority="${i}"]`);
-                    const maxInputElement = document.querySelector(`.max-value-input[data-priority="${i}"]`);
-
-                    if (!categorySelect || !maxInputElement) {
-                        console.error(`❌ Elemente für Priorität ${i} nicht gefunden!`);
-                        continue;
-                    }
-
-                    const category = categorySelect.value;
-                    const maxInputValue = maxInputElement.value;
-                    const max = maxInputValue === '' ? null : parseInt(maxInputValue);
-
-                    priorities.push({ category, max });
-                }
-
-                // ✅ Berechne für jeden Tag individuell mit KORRIGIERTER FORMEL
+                // Berechne für jeden Tag individuell
                 const dailyQuotas = [];
                 for (const dateStr of this.selectedDays) {
-                    const occupancy = await this.getOccupancyForDate(dateStr);
-                    const quotas = await this.calculateQuotaDistribution(targetCapacity, occupancy, dateStr);
+                    // 1. Berechne die neuen Quota-Werte (Q_berechnet)
+                    const calculatedQuotas = await this.calculateQuotaDistribution(targetCapacity, null, dateStr);
+
+                    // 2. Hole bereits gebuchte AV-Gäste pro Kategorie (assigned_guests)
+                    const assignedGuestsAV = await this.getBookedCategoriesForDate(dateStr, true);
+
+                    // 3. WICHTIG: Berechne die zu schreibenden Werte für HRS
+                    // Formel: Q_write = assigned_guests + Q_berechnet
+                    const quotasToWrite = {
+                        lager: assignedGuestsAV.lager + calculatedQuotas.lager,
+                        betten: assignedGuestsAV.betten + calculatedQuotas.betten,
+                        dz: assignedGuestsAV.dz + calculatedQuotas.dz,
+                        sonder: assignedGuestsAV.sonder + calculatedQuotas.sonder
+                    };
+
+                    console.log(`📊 ${dateStr}:`);
+                    console.log(`   Assigned AV: L=${assignedGuestsAV.lager}, B=${assignedGuestsAV.betten}, DZ=${assignedGuestsAV.dz}, S=${assignedGuestsAV.sonder}`);
+                    console.log(`   Calculated Q: L=${calculatedQuotas.lager}, B=${calculatedQuotas.betten}, DZ=${calculatedQuotas.dz}, S=${calculatedQuotas.sonder}`);
+                    console.log(`   → Write to HRS: L=${quotasToWrite.lager}, B=${quotasToWrite.betten}, DZ=${quotasToWrite.dz}, S=${quotasToWrite.sonder}`);
 
                     dailyQuotas.push({
                         date: dateStr,
-                        quotas: quotas,
-                        targetCapacity: targetCapacity,
-                        avReservations: occupancy.av,
-                        internalReservations: occupancy.internal,
-                        calculatedQuota: Math.max(0, targetCapacity - occupancy.av - occupancy.internal)
+                        quota_lager: quotasToWrite.lager,
+                        quota_betten: quotasToWrite.betten,
+                        quota_dz: quotasToWrite.dz,
+                        quota_sonder: quotasToWrite.sonder,
+                        targetCapacity: targetCapacity
                     });
                 }
 
                 // API Call
                 const requestBody = {
-                    selectedDays: this.selectedDays,
-                    targetCapacity: targetCapacity,
-                    priorities: priorities,
-                    dailyQuotas: dailyQuotas,  // ✅ Sende tägliche Quotas mit AV
+                    quotas: dailyQuotas,
                     operation: 'update'
                 };
 
-                console.log('📤 Sending to API:', requestBody);
+                console.log('📤 Sending to HRS API:', requestBody);
 
-                const response = await fetch('/wci/hrs/hrs_update_quota_timeline.php', {
+                const response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -736,15 +771,19 @@
 
                 console.log('📥 Response status:', response.status);
 
-                // Check if response is JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('❌ Non-JSON response:', text);
-                    throw new Error('Server returned non-JSON response: ' + text.substring(0, 200));
-                }
+                // Read response as text first
+                const responseText = await response.text();
+                console.log('📄 Response body (first 500 chars):', responseText.substring(0, 500));
 
-                const result = await response.json();
+                // Check if response is JSON
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('❌ JSON Parse Error:', e.message);
+                    console.error('📄 Full response:', responseText);
+                    throw new Error('Server returned invalid JSON. Response: ' + responseText.substring(0, 200));
+                }
 
                 if (!response.ok) {
                     console.error('❌ API Error Response:', result);
@@ -752,7 +791,10 @@
                 }
 
                 if (result.success) {
-                    alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${result.createdQuotas.length} Quotas\nGelöscht: ${result.deletedQuotas.length} Quotas`);
+                    const createdCount = Array.isArray(result.createdQuotas) ? result.createdQuotas.length : 0;
+                    const deletedCount = Array.isArray(result.deletedQuotas) ? result.deletedQuotas.length : 0;
+
+                    alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${createdCount} Quotas\nGelöscht: ${deletedCount} Quotas`);
 
                     // Timeline neu laden
                     if (this.renderer && typeof this.renderer.reloadHistogramData === 'function') {

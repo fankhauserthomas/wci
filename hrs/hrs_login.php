@@ -126,7 +126,8 @@ class HRSLogin {
      */
     public function debug($message) {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
-        echo "[$timestamp] $message\n";
+        $logMessage = "[$timestamp] $message";
+        error_log($logMessage); // Nur error_log, kein echo!
     }
     
     /**
@@ -136,7 +137,8 @@ class HRSLogin {
      */
     public function debugError($message) {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
-        echo "[$timestamp] ❌ ERROR: $message\n";
+        $logMessage = "[$timestamp] ❌ ERROR: $message";
+        error_log($logMessage); // Nur error_log, kein echo!
     }
     
     /**
@@ -146,7 +148,8 @@ class HRSLogin {
      */
     public function debugSuccess($message) {
         $timestamp = date('H:i:s.') . sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
-        echo "[$timestamp] ✅ SUCCESS: $message\n";
+        $logMessage = "[$timestamp] ✅ SUCCESS: $message";
+        error_log($logMessage); // Nur error_log, kein echo!
     }
     
     /**

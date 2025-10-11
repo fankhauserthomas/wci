@@ -1462,138 +1462,146 @@
     </div>
 
     <!-- Dataset Edit Modal -->
-    <div id="dataset-modal" class="modal-overlay">
-        <div class="modal-dialog" style="max-width: 900px; width: 95vw;">
-            <div class="modal-header">
-                <span class="icon">📋</span>
-                <span>AV-Res Stammdaten bearbeiten</span>
-                <div id="dataset-av-indicator"
-                    style="display: none; margin-left: auto; background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                    AV-Reservierung (av_id: <span id="dataset-av-id-display"></span>)
+    <!-- Dataset (Stammdaten) Modal - Bootstrap 5 Version -->
+    <div class="modal fade" id="dataset-modal" tabindex="-1" aria-labelledby="datasetModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" style="max-width: 900px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="datasetModalLabel">
+                        <span class="icon">📋</span>
+                        AV-Res Stammdaten bearbeiten
+                    </h5>
+                    <div id="dataset-av-indicator"
+                        style="display: none; margin-left: auto; background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 10px;">
+                        AV-Reservierung (av_id: <span id="dataset-av-id-display"></span>)
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-            <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+                <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
 
-                <!-- Grunddaten -->
-                <div class="dataset-section">
-                    <h3 class="dataset-section-title">📋 Grunddaten</h3>
-                    <div class="dataset-grid">
-                        <div class="dataset-field">
-                            <label for="dataset-av-id">AV-ID:</label>
-                            <input type="text" id="dataset-av-id" class="modal-input" readonly>
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-storno">Storno:</label>
-                            <select id="dataset-storno" class="modal-input">
-                                <option value="0">Aktiv</option>
-                                <option value="1">Storniert</option>
-                            </select>
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-hund">Hund:</label>
-                            <select id="dataset-hund" class="modal-input">
-                                <option value="0">Nein</option>
-                                <option value="1">Ja</option>
-                            </select>
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-arr">Arrangement:</label>
-                            <select id="dataset-arr" class="modal-input">
-                                <option value="">Kein Arrangement</option>
-                                <!-- Wird dynamisch befüllt -->
-                            </select>
+                    <!-- Grunddaten -->
+                    <div class="dataset-section">
+                        <h3 class="dataset-section-title">📋 Grunddaten</h3>
+                        <div class="dataset-grid">
+                            <div class="dataset-field">
+                                <label for="dataset-av-id">AV-ID:</label>
+                                <input type="text" id="dataset-av-id" class="modal-input form-control" readonly>
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-storno">Storno:</label>
+                                <select id="dataset-storno" class="modal-input form-select">
+                                    <option value="0">Aktiv</option>
+                                    <option value="1">Storniert</option>
+                                </select>
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-hund">Hund:</label>
+                                <select id="dataset-hund" class="modal-input form-select">
+                                    <option value="0">Nein</option>
+                                    <option value="1">Ja</option>
+                                </select>
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-arr">Arrangement:</label>
+                                <select id="dataset-arr" class="modal-input form-select">
+                                    <option value="">Kein Arrangement</option>
+                                    <!-- Wird dynamisch befüllt -->
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Aufenthaltsdaten -->
-                <div class="dataset-section">
-                    <h3 class="dataset-section-title">🏨 Aufenthaltsdaten</h3>
-                    <div class="dataset-grid">
-                        <div class="dataset-field">
-                            <label for="dataset-anreise">Anreise:</label>
-                            <input type="date" id="dataset-anreise" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-abreise">Abreise:</label>
-                            <input type="date" id="dataset-abreise" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-lager">Lager:</label>
-                            <input type="number" id="dataset-lager" class="modal-input" min="0">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-betten">Betten:</label>
-                            <input type="number" id="dataset-betten" class="modal-input" min="0">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-dz">Doppelzimmer:</label>
-                            <input type="number" id="dataset-dz" class="modal-input" min="0">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-sonder">Plätze:</label>
-                            <input type="number" id="dataset-sonder" class="modal-input" min="0">
+                    <!-- Aufenthaltsdaten -->
+                    <div class="dataset-section">
+                        <h3 class="dataset-section-title">🏨 Aufenthaltsdaten</h3>
+                        <div class="dataset-grid">
+                            <div class="dataset-field">
+                                <label for="dataset-anreise">Anreise:</label>
+                                <input type="date" id="dataset-anreise" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-abreise">Abreise:</label>
+                                <input type="date" id="dataset-abreise" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-lager">Lager:</label>
+                                <input type="number" id="dataset-lager" class="modal-input form-control" min="0">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-betten">Betten:</label>
+                                <input type="number" id="dataset-betten" class="modal-input form-control" min="0">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-dz">Doppelzimmer:</label>
+                                <input type="number" id="dataset-dz" class="modal-input form-control" min="0">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-sonder">Plätze:</label>
+                                <input type="number" id="dataset-sonder" class="modal-input form-control" min="0">
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Gästeinformationen -->
-                <div class="dataset-section">
-                    <h3 class="dataset-section-title">👤 Gästeinformationen</h3>
-                    <div class="dataset-grid">
-                        <div class="dataset-field">
-                            <label for="dataset-vorname">Vorname:</label>
-                            <input type="text" id="dataset-vorname" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-nachname">Nachname:</label>
-                            <input type="text" id="dataset-nachname" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-email">E-Mail:</label>
-                            <input type="email" id="dataset-email" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-handy">Handy:</label>
-                            <input type="tel" id="dataset-handy" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-email-date">Email-Datum:</label>
-                            <input type="text" id="dataset-email-date" class="modal-input" placeholder="dd.mm.yyyy">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-origin">Herkunft:</label>
-                            <select id="dataset-origin" class="modal-input">
-                                <option value="">Keine Herkunft</option>
-                                <!-- Wird dynamisch befüllt -->
-                            </select>
+                    <!-- Gästeinformationen -->
+                    <div class="dataset-section">
+                        <h3 class="dataset-section-title">👤 Gästeinformationen</h3>
+                        <div class="dataset-grid">
+                            <div class="dataset-field">
+                                <label for="dataset-vorname">Vorname:</label>
+                                <input type="text" id="dataset-vorname" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-nachname">Nachname:</label>
+                                <input type="text" id="dataset-nachname" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-email">E-Mail:</label>
+                                <input type="email" id="dataset-email" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-handy">Handy:</label>
+                                <input type="tel" id="dataset-handy" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-email-date">Email-Datum:</label>
+                                <input type="text" id="dataset-email-date" class="modal-input form-control"
+                                    placeholder="dd.mm.yyyy">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-origin">Herkunft:</label>
+                                <select id="dataset-origin" class="modal-input form-select">
+                                    <option value="">Keine Herkunft</option>
+                                    <!-- Wird dynamisch befüllt -->
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Zusatzinformationen -->
-                <div class="dataset-section">
-                    <h3 class="dataset-section-title">ℹ️ Zusatzinformationen</h3>
-                    <div class="dataset-grid">
-                        <div class="dataset-field">
-                            <label for="dataset-gruppe">Gruppenname:</label>
-                            <input type="text" id="dataset-gruppe" class="modal-input">
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-bem">Bemerkungen (allgemein):</label>
-                            <textarea id="dataset-bem" class="modal-input" rows="3"></textarea>
-                        </div>
-                        <div class="dataset-field">
-                            <label for="dataset-bem-av">Bemerkungen (AV):</label>
-                            <textarea id="dataset-bem-av" class="modal-input" rows="3"></textarea>
+                    <!-- Zusatzinformationen -->
+                    <div class="dataset-section">
+                        <h3 class="dataset-section-title">ℹ️ Zusatzinformationen</h3>
+                        <div class="dataset-grid">
+                            <div class="dataset-field">
+                                <label for="dataset-gruppe">Gruppenname:</label>
+                                <input type="text" id="dataset-gruppe" class="modal-input form-control">
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-bem">Bemerkungen (allgemein):</label>
+                                <textarea id="dataset-bem" class="modal-input form-control" rows="3"></textarea>
+                            </div>
+                            <div class="dataset-field">
+                                <label for="dataset-bem-av">Bemerkungen (AV):</label>
+                                <textarea id="dataset-bem-av" class="modal-input form-control" rows="3"></textarea>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-            </div>
-            <div class="modal-actions">
-                <button id="dataset-cancel" class="modal-button modal-button-cancel">Abbrechen</button>
-                <button id="dataset-save" class="modal-button modal-button-primary">Speichern</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="dataset-cancel" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" id="dataset-save" class="btn btn-primary">Speichern</button>
+                </div>
             </div>
         </div>
     </div>
@@ -4389,13 +4397,14 @@
                         }
                     }
 
-                    // Show modal
-                    modal.classList.add('active');
+                    // Show modal with Bootstrap 5
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
 
                     // Event handlers
                     const onCancel = () => {
                         cleanup();
-                        modal.classList.remove('active');
+                        bsModal.hide();
                         resolve(null);
                     };
 
@@ -4436,7 +4445,7 @@
                         };
 
                         cleanup();
-                        modal.classList.remove('active');
+                        bsModal.hide();
                         resolve(formData);
                     };
 
@@ -4643,13 +4652,14 @@
                     // Setze Editierbarkeit basierend auf AV-Status
                     setFieldsEditability(isAVReservation);
 
-                    // Show modal
-                    modal.classList.add('active');
+                    // Show modal with Bootstrap 5
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
 
                     // Event handlers
                     const onCancel = () => {
                         cleanup();
-                        modal.classList.remove('active');
+                        bsModal.hide();
                         resolve(null);
                     };
 
@@ -4687,7 +4697,7 @@
                         };
 
                         cleanup();
-                        modal.classList.remove('active');
+                        bsModal.hide();
                         resolve(formData);
                     };
 
@@ -5511,8 +5521,8 @@
 
     <!-- Quota Management System -->
     <script>
-        // Lade Modal-HTML dynamisch
-        fetch('/wci/zp/quota-input-modal.html?v=28')
+        // Lade Modal-HTML dynamisch (V3.0 - Management API)
+        fetch('/wci/zp/quota-input-modal.html?v=36')
             .then(response => response.text())
             .then(html => {
                 const div = document.createElement('div');
