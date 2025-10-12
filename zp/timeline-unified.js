@@ -10715,15 +10715,37 @@ class TimelineUnifiedRenderer {
                     { key: 'sonder', value: quotaSonder, color: categoryColors.sonder || '#8e44ad' }
                 ];
 
-                // Quota-Balken zeichnen
+                // Quota-Balken zeichnen (aufgeteilt: disponiert + verfügbar)
                 quotaCategories.forEach(category => {
                     if (category.value > 0) {
                         const segmentHeight = (category.value / scaledMax) * availableHeight;
                         if (segmentHeight > 0.5) {
-                            this.ctx.fillStyle = category.color;
-                            this.ctx.globalAlpha = 1.0; // Volle Deckkraft für Quota
-                            this.ctx.fillRect(quotaX, quotaCurrentTop, quotaWidth, segmentHeight);
-                            quotaCurrentTop += segmentHeight;
+                            // Disponierte Menge aus detail holen (bereits gebuchte Betten)
+                            const disposedValue = Number(detail[category.key]) || 0;
+                            const availableValue = Math.max(0, category.value - disposedValue);
+
+                            // Disponierter Teil (dunklere Farbe) - unten
+                            if (disposedValue > 0) {
+                                const disposedHeight = (disposedValue / scaledMax) * availableHeight;
+                                if (disposedHeight > 0.5) {
+                                    // Dunklere Farbe: 60% Helligkeit der Originalfarbe
+                                    this.ctx.fillStyle = this.darkenColor(category.color, 0.6);
+                                    this.ctx.globalAlpha = 1.0;
+                                    this.ctx.fillRect(quotaX, quotaCurrentTop, quotaWidth, disposedHeight);
+                                    quotaCurrentTop += disposedHeight;
+                                }
+                            }
+
+                            // Verfügbarer Teil (normale Farbe) - oben
+                            if (availableValue > 0) {
+                                const availableSegmentHeight = (availableValue / scaledMax) * availableHeight;
+                                if (availableSegmentHeight > 0.5) {
+                                    this.ctx.fillStyle = category.color;
+                                    this.ctx.globalAlpha = 1.0;
+                                    this.ctx.fillRect(quotaX, quotaCurrentTop, quotaWidth, availableSegmentHeight);
+                                    quotaCurrentTop += availableSegmentHeight;
+                                }
+                            }
                         }
                     }
                 });
@@ -10826,14 +10848,14 @@ class TimelineUnifiedRenderer {
                 const safeStorno = Math.max(0, stornoTotal);
 
                 const infoLines = [
-                    { text: `ST:${safeStorno}`, color: histogramTheme.stornoText || '#ff8c8c', bold: false },
-                    { text: `SU:${safeTotalValue}`, color: histogramTheme.sumText || '#fada5e', bold: true }
+                    { text: `ST:${safeStorno}`, color: '#ffffff', bold: false },
+                    { text: `SU:${safeTotalValue}`, color: '#ffffff', bold: true }
                 ];
-                if (safeSonder) infoLines.push({ text: `PL:${safeSonder}`, color: textColor, bold: false });
-                if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: textColor, bold: false });
-                if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: textColor, bold: false });
-                if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: textColor, bold: false });
-                infoLines.push({ text: `FR:${safeFree}`, color: histogramTheme.freeText || '#00ffff', bold: false });
+                if (safeSonder) infoLines.push({ text: `SO:${safeSonder}`, color: '#b565d8', bold: false }); // Aufgehelltes Lila
+                if (safeLager) infoLines.push({ text: `LA:${safeLager}`, color: categoryColors.lager || '#f1c40f', bold: false });
+                if (safeBetten) infoLines.push({ text: `BE:${safeBetten}`, color: categoryColors.betten || '#2ecc71', bold: false });
+                if (safeDz) infoLines.push({ text: `DZ:${safeDz}`, color: '#4a9dff', bold: false }); // Aufgehelltes Blau
+                infoLines.push({ text: `FR:${safeFree}`, color: '#ffffff', bold: false });
 
                 if (infoLines.length === 0) {
                     return;
@@ -10851,7 +10873,7 @@ class TimelineUnifiedRenderer {
                     });
                     this.ctx.font = `${currentFontSize}px Arial`;
                     return {
-                        width: width + blockInnerPadding * 2,
+                        width: width + blockInnerPadding * 1.5, // Schmäler: 1.5 statt 2
                         height: infoLines.length * lineHeight + blockInnerPadding * 2
                     };
                 };
@@ -10904,6 +10926,23 @@ class TimelineUnifiedRenderer {
                 let textY = blockBottom - blockInnerPadding;
                 infoLines.forEach(line => {
                     this.ctx.font = `${line.bold ? 'bold ' : ''}${currentFontSize}px Arial`;
+
+                    // Wenn bgColor vorhanden, zeichne farbigen Hintergrund
+                    if (line.bgColor) {
+                        const textWidth = this.ctx.measureText(line.text).width;
+                        const bgPadding = 2;
+                        const bgHeight = lineHeight - 2;
+                        const bgY = textY - bgHeight + 2;
+
+                        this.ctx.fillStyle = line.bgColor;
+                        this.ctx.fillRect(
+                            blockLeft + blockInnerPadding - bgPadding,
+                            bgY,
+                            textWidth + bgPadding * 2,
+                            bgHeight
+                        );
+                    }
+
                     this.ctx.fillStyle = line.color || textColor;
                     this.ctx.fillText(line.text, blockLeft + blockInnerPadding, textY);
                     textY -= lineHeight;
@@ -13371,6 +13410,15 @@ class TimelineUnifiedRenderer {
         const { r, g, b } = this.hexToRgb(hex);
         const safeAlpha = Math.min(1, Math.max(0, alpha));
         return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
+    }
+
+    /**
+     * Darken a color by a factor (0.0 = black, 1.0 = original)
+     */
+    darkenColor(hex, factor = 0.6) {
+        const { r, g, b } = this.hexToRgb(hex);
+        const clampedFactor = Math.min(1, Math.max(0, factor));
+        return this.rgbToHex(r * clampedFactor, g * clampedFactor, b * clampedFactor);
     }
 
     getContrastColor(hexColor) {
