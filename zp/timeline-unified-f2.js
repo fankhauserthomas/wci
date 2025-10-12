@@ -556,7 +556,7 @@ class TimelineUnifiedRenderer {
             isVisible: false,
             masterDataLookup: {} // Lookup-Tabelle für Stammdaten
         };
-        
+
         console.log('🎯 Constructor: Initialisiere Tooltip-System...');
         this.initTooltip();
         console.log('✅ Constructor: Tooltip-System initialisiert');
@@ -13694,10 +13694,10 @@ class TimelineUnifiedRenderer {
     }
 
     // ===== TOOLTIP SYSTEM =====
-    
+
     initTooltip() {
         console.log('🎯 initTooltip() START');
-        
+
         // Erstelle Tooltip-Element (Bootstrap-Stil)
         const tooltipEl = document.createElement('div');
         tooltipEl.id = 'reservation-tooltip';
@@ -13711,17 +13711,17 @@ class TimelineUnifiedRenderer {
             font-size: 13px;
             pointer-events: auto;
         `;
-        
+
         tooltipEl.innerHTML = `
             <div class="tooltip-arrow"></div>
             <div class="tooltip-inner" style="text-align: left; padding: 12px; max-width: 400px;"></div>
         `;
-        
+
         document.body.appendChild(tooltipEl);
         this.tooltip.element = tooltipEl;
-        
+
         console.log('✅ Tooltip-Element erstellt');
-        
+
         // Event-Listener für E-Mail-Kopieren
         document.body.addEventListener('click', (e) => {
             if (e.target.classList.contains('tooltip-email-copy')) {
@@ -13744,9 +13744,9 @@ class TimelineUnifiedRenderer {
                 this.hideTooltip();
             }
         });
-        
+
         console.log('✅ Click-Handler registriert');
-        
+
         // F2-Taste Handler
         document.addEventListener('keydown', (e) => {
             console.log('🔑 Taste:', e.key);
@@ -13756,36 +13756,36 @@ class TimelineUnifiedRenderer {
                 this.toggleTooltipAtMouse();
             }
         });
-        
+
         console.log('✅ F2-Handler registriert');
-        
+
         // Lade Stammdaten initial
         this.loadMasterData();
         console.log('🎯 initTooltip() ENDE');
     }
-    
+
     toggleTooltipAtMouse() {
         console.log('🔍 toggleTooltipAtMouse() aufgerufen, mouseX:', this.mouseX, 'mouseY:', this.mouseY);
-        
+
         if (this.tooltip.isVisible) {
             console.log('❌ Tooltip schließen');
             this.hideTooltip();
             return;
         }
-        
+
         // Suche Reservierung unter Maus
         let reservation = null;
-        
+
         // Prüfe zuerst Master-Bereich (ohne strikte Height-Beschränkung)
         reservation = this.findMasterReservationAt(this.mouseX, this.mouseY);
         console.log('🔍 Master-Suche Ergebnis:', reservation ? 'GEFUNDEN' : 'nicht gefunden');
-        
+
         // Wenn keine Master-Reservierung gefunden, prüfe Rooms-Bereich
         if (!reservation && this.mouseY >= this.areas.rooms.y) {
             reservation = this.findReservationAt(this.mouseX, this.mouseY);
             console.log('🔍 Rooms-Suche Ergebnis:', reservation ? 'GEFUNDEN' : 'nicht gefunden');
         }
-        
+
         if (reservation) {
             console.log('✅ Zeige Tooltip für:', reservation.name || reservation.guest_name);
             this.showTooltip(reservation);
@@ -13793,12 +13793,12 @@ class TimelineUnifiedRenderer {
             console.log('⚠️ Keine Reservierung gefunden!');
         }
     }
-    
+
     async loadMasterData() {
         try {
             // Verwende bereits geladene Reservierungs-Daten
             this.tooltip.masterDataLookup = {};
-            
+
             if (typeof reservations !== 'undefined' && Array.isArray(reservations)) {
                 reservations.forEach(reservation => {
                     // Verschiedene ID-Formate unterstützen
@@ -13808,7 +13808,7 @@ class TimelineUnifiedRenderer {
                         reservation.reservation_id,
                         reservation.av_id
                     ].filter(id => id !== undefined && id !== null);
-                    
+
                     // Erweiterte Daten für Tooltip erstellen
                     const masterData = {
                         id: reservation.id || reservation.res_id,
@@ -13832,7 +13832,7 @@ class TimelineUnifiedRenderer {
                         sonder: reservation.capacity_sonder || 0,
                         total_capacity: reservation.total_capacity || reservation.capacity || 1
                     };
-                    
+
                     // Name aufteilen wenn möglich
                     if (masterData.nachname && masterData.nachname.includes(' ') && !masterData.vorname) {
                         const parts = masterData.nachname.split(' ');
@@ -13841,13 +13841,13 @@ class TimelineUnifiedRenderer {
                             masterData.vorname = parts.slice(1).join(' ');
                         }
                     }
-                    
+
                     // In Lookup eintragen mit allen möglichen IDs
                     ids.forEach(id => {
                         this.tooltip.masterDataLookup[id] = masterData;
                     });
                 });
-                
+
                 console.log('✅ Master-Daten aus Reservierungen erstellt:', Object.keys(this.tooltip.masterDataLookup).length, 'Einträge');
             } else {
                 console.warn('⚠️ Keine reservations Variable gefunden');
@@ -13856,19 +13856,19 @@ class TimelineUnifiedRenderer {
             console.error('Fehler beim Erstellen der Master-Daten:', error);
         }
     }
-    
+
     showTooltip(reservation) {
         if (!reservation || !this.tooltip.element) return;
-        
+
         const resId = reservation.res_id || reservation.id || reservation.av_id;
         console.log('🔍 showTooltip für resId:', resId, 'reservation:', reservation);
-        
+
         let masterData = null;
         if (resId) {
             masterData = this.tooltip.masterDataLookup[resId];
             console.log('🔍 Master-Data gefunden:', masterData ? 'JA' : 'NEIN');
         }
-        
+
         // Fallback: Zeige einfaches Tooltip mit verfügbaren Daten
         if (!masterData) {
             console.log('⚠️ Keine Master-Daten, zeige Fallback-Tooltip');
@@ -13894,17 +13894,17 @@ class TimelineUnifiedRenderer {
             const content = this.formatTooltipContent(masterData);
             this.tooltip.element.querySelector('.tooltip-inner').innerHTML = content;
         }
-        
+
         this.positionTooltip();
         this.tooltip.element.style.display = 'block';
         this.tooltip.element.classList.add('show');
         this.tooltip.isVisible = true;
         this.tooltip.currentReservation = reservation;
     }
-    
+
     hideTooltip() {
         if (!this.tooltip.isVisible) return;
-        
+
         this.tooltip.element.classList.remove('show');
         setTimeout(() => {
             this.tooltip.element.style.display = 'none';
@@ -13912,19 +13912,19 @@ class TimelineUnifiedRenderer {
         this.tooltip.isVisible = false;
         this.tooltip.currentReservation = null;
     }
-    
+
     formatTooltipContent(data) {
         // === BEREICH 1: Nachname, Vorname, Gruppenname ===
         const fullName = `${data.nachname}${data.vorname ? ', ' + data.vorname : ''}`;
         const gruppenname = data.gruppenname || '';
-        
+
         // === BEREICH 1: E-Mail, Telefon ===
         const email = data.email || 'Keine E-Mail';
         const telefon = data.telefon || 'Keine Telefon';
-        
+
         // === BEREICH 2: Anreise, Abreise, Arrangement ===
         const arrangement = data.arrangement_kbez || data.arrangement_bez || 'Nicht zugewiesen';
-        
+
         // === BEREICH 2: Komplettanzahl (DZ, Betten, Lager, Sonder extra aufgeführt), Hund ===
         const totalCapacity = data.total_capacity || 0;
         const capacityParts = [];
@@ -13934,17 +13934,17 @@ class TimelineUnifiedRenderer {
         if (data.sonder > 0) capacityParts.push(`Sonder: ${data.sonder}`);
         const capacityText = capacityParts.length > 0 ? capacityParts.join(', ') : 'Keine Details';
         const hund = data.hund ? ' 🐕' : '';
-        
+
         // === BEREICH 3: Herkunft, Bemerkungen ===
         const herkunft = data.herkunft || 'Keine Angabe';
         const bemerkungIntern = data.bemerkung_intern || '';
         const bemerkungAV = data.bemerkung_av || '';
-        
+
         // E-Mail-Funktionalität
         const resNr = data.av_id > 0 ? `${data.id}/${data.av_id}` : `${data.id}`;
         const emailSubject = `ihr aufenthalt vom ${data.anreise} - ${data.abreise} (ResNr: ${resNr})`;
         const emailSubjectEncoded = encodeURIComponent(emailSubject);
-        
+
         return `
             <div style="line-height: 1.6; font-family: Arial, sans-serif; background: #fff; color: #000; padding: 4px;">
                 
@@ -13983,17 +13983,17 @@ class TimelineUnifiedRenderer {
             </div>
         `;
     }
-    
+
     positionTooltip() {
         const rect = this.canvas.getBoundingClientRect();
         const tooltipEl = this.tooltip.element;
         const tooltipRect = tooltipEl.getBoundingClientRect();
-        
+
         let left = rect.left + this.mouseX - (tooltipRect.width / 2);
         let top = rect.top + this.mouseY - tooltipRect.height - 15;
-        
+
         const padding = 10;
-        
+
         if (left < padding) {
             left = padding;
         } else if (left + tooltipRect.width > window.innerWidth - padding) {
@@ -14005,7 +14005,7 @@ class TimelineUnifiedRenderer {
         } else {
             tooltipEl.className = 'tooltip bs-tooltip-top fade show';
         }
-        
+
         tooltipEl.style.left = `${left}px`;
         tooltipEl.style.top = `${top}px`;
     }
