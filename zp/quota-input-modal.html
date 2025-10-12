@@ -47,11 +47,11 @@
                         <div class="row align-items-center">
                             <div class="col-9">
                                 <input type="range" class="form-range" id="targetCapacity" min="0" max="200" value="28"
-                                    step="1">
+                                    step="5">
                             </div>
                             <div class="col-3">
                                 <input type="number" class="form-control" id="targetCapacityValue" min="0" max="200"
-                                    value="28" step="1">
+                                    value="28" step="5">
                             </div>
                         </div>
                     </div>
@@ -125,6 +125,28 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                 <button type="button" class="btn btn-primary" id="saveQuotaBtn">💾 Speichern</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Status Modal -->
+<div class="modal fade" id="quotaStatusModal" tabindex="-1" aria-labelledby="quotaStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quotaStatusModalLabel">Quota Deploy</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100" data-role="quota-status-progress"></div>
+                </div>
+                <ul class="list-group" data-role="quota-status-steps"></ul>
+                <div class="alert mt-3 d-none" role="alert" data-role="quota-status-summary"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-role="quota-status-close" disabled>Schließen</button>
             </div>
         </div>
     </div>
@@ -142,8 +164,17 @@
             this.modal = new bootstrap.Modal(document.getElementById('quotaInputModal'));
             this.selectedDays = [];
             this.currentOccupancy = 0;
+            this.lastTargetCapacityFineAdjust = false;
+            this.statusModal = null;
+            this.statusModalInstance = null;
+            this.statusProgressBar = null;
+            this.statusStepsContainer = null;
+            this.statusSummary = null;
+            this.statusCloseBtn = null;
+            this.statusSteps = [];
 
             this.initializeEventListeners();
+            this.initializeStatusModal();
 
             // WICHTIG: Verhindere Browser-Kontextmenü im Modal
             const modalElement = document.getElementById('quotaInputModal');
@@ -154,20 +185,298 @@
             }, { capture: true });
         }
 
+        initializeStatusModal() {
+            this.statusModal = document.getElementById('quotaStatusModal');
+            if (!this.statusModal) {
+                console.warn('Quota status modal not found. Falling back to alerts.');
+                return;
+            }
+
+            this.statusModalInstance = new bootstrap.Modal(this.statusModal, {
+                backdrop: 'static',
+                keyboard: false
+            });
+            this.statusProgressBar = this.statusModal.querySelector('[data-role="quota-status-progress"]');
+            this.statusStepsContainer = this.statusModal.querySelector('[data-role="quota-status-steps"]');
+            this.statusSummary = this.statusModal.querySelector('[data-role="quota-status-summary"]');
+            this.statusCloseBtn = this.statusModal.querySelector('[data-role="quota-status-close"]');
+
+            this.statusModal.addEventListener('hidden.bs.modal', () => {
+                this.resetStatusModal();
+            });
+        }
+
+        resetStatusModal() {
+            if (!this.statusModal) return;
+
+            if (this.statusStepsContainer) {
+                this.statusStepsContainer.innerHTML = '';
+            }
+
+            if (this.statusProgressBar) {
+                this.statusProgressBar.style.width = '0%';
+                this.statusProgressBar.classList.remove('bg-danger', 'bg-warning');
+                this.statusProgressBar.classList.add('bg-success');
+            }
+
+            if (this.statusSummary) {
+                this.statusSummary.textContent = '';
+                this.statusSummary.classList.add('d-none');
+                this.statusSummary.classList.remove('alert-success', 'alert-warning', 'alert-danger');
+            }
+
+            if (this.statusCloseBtn) {
+                this.statusCloseBtn.disabled = true;
+            }
+
+            this.statusSteps = [];
+        }
+
+        startStatusWorkflow(stepLabels = []) {
+            if (!this.statusModalInstance) {
+                return false;
+            }
+
+            const steps = stepLabels.length ? stepLabels : [
+                'Sende Daten an HRS',
+                'Quotas schreiben',
+                'Import aktualisieren'
+            ];
+
+            this.resetStatusModal();
+
+            this.statusSteps = steps.map(label => ({
+                label,
+                state: 'pending',
+                element: null
+            }));
+
+            const fragment = document.createDocumentFragment();
+            this.statusSteps.forEach((step, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.dataset.index = index;
+
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'status-label';
+                labelSpan.textContent = step.label;
+
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-secondary rounded-pill status-pill';
+                badge.textContent = 'Wartet';
+
+                li.appendChild(labelSpan);
+                li.appendChild(badge);
+                fragment.appendChild(li);
+                step.element = li;
+            });
+
+            if (this.statusStepsContainer) {
+                this.statusStepsContainer.appendChild(fragment);
+            }
+
+            this.statusModalInstance.show();
+            this.setStatusStep(0, 'active');
+            return true;
+        }
+
+        updateStatusProgress() {
+            if (!this.statusProgressBar || !this.statusSteps.length) return;
+            const completed = this.statusSteps.filter(step => step.state === 'success').length;
+            const total = this.statusSteps.length;
+            const percent = Math.max(5, Math.round((completed / total) * 100));
+            this.statusProgressBar.style.width = `${percent}%`;
+        }
+
+        setStatusStep(index, state, detail = '') {
+            if (!this.statusSteps[index]) return;
+            const step = this.statusSteps[index];
+            step.state = state;
+
+            const li = step.element;
+            if (!li) return;
+
+            const badge = li.querySelector('.status-pill');
+
+            li.classList.remove('list-group-item-warning', 'list-group-item-success', 'list-group-item-danger', 'list-group-item-info');
+            if (badge) {
+                badge.classList.remove('bg-secondary', 'bg-info', 'bg-success', 'bg-danger');
+            }
+
+            switch (state) {
+                case 'active':
+                    li.classList.add('list-group-item-info');
+                    if (badge) {
+                        badge.classList.add('bg-info');
+                        badge.textContent = 'Aktiv';
+                    }
+                    break;
+                case 'success':
+                    li.classList.add('list-group-item-success');
+                    if (badge) {
+                        badge.classList.add('bg-success');
+                        badge.textContent = 'Fertig';
+                    }
+                    break;
+                case 'error':
+                    li.classList.add('list-group-item-danger');
+                    if (badge) {
+                        badge.classList.add('bg-danger');
+                        badge.textContent = 'Fehler';
+                    }
+                    break;
+                default:
+                    if (badge) {
+                        badge.classList.add('bg-secondary');
+                        badge.textContent = 'Wartet';
+                    }
+                    break;
+            }
+
+            if (detail && li.querySelector('.status-detail')) {
+                li.querySelector('.status-detail').textContent = detail;
+            } else if (detail) {
+                const detailSpan = document.createElement('div');
+                detailSpan.className = 'status-detail small mt-1 text-muted';
+                detailSpan.textContent = detail;
+                li.appendChild(detailSpan);
+            }
+
+            if (state === 'error' && this.statusProgressBar) {
+                this.statusProgressBar.classList.remove('bg-success');
+                this.statusProgressBar.classList.add('bg-danger');
+            }
+
+            this.updateStatusProgress();
+        }
+
+        completeStatusWorkflow(success, summaryText, autoClose = true) {
+            if (!this.statusModalInstance) return;
+
+            if (this.statusProgressBar) {
+                this.statusProgressBar.style.width = '100%';
+                this.statusProgressBar.classList.remove('bg-danger');
+                this.statusProgressBar.classList.add(success ? 'bg-success' : 'bg-warning');
+            }
+
+            if (this.statusSummary) {
+                this.statusSummary.textContent = summaryText || '';
+                this.statusSummary.classList.remove('d-none', 'alert-warning', 'alert-danger', 'alert-success');
+                this.statusSummary.classList.add(success ? 'alert-success' : 'alert-warning');
+            }
+
+            if (this.statusCloseBtn) {
+                this.statusCloseBtn.disabled = false;
+            }
+
+            if (autoClose && success) {
+                setTimeout(() => {
+                    try {
+                        this.statusModalInstance.hide();
+                    } catch (err) {
+                        console.warn('Status modal hide failed:', err);
+                    }
+                }, 1200);
+            }
+        }
+
+        failStatusWorkflow(errorMessage) {
+            if (!this.statusModalInstance) return;
+            let targetIndex = this.statusSteps.findIndex(step => step.state === 'active');
+            if (targetIndex === -1) {
+                targetIndex = this.statusSteps.length ? this.statusSteps.length - 1 : 0;
+            }
+            this.setStatusStep(targetIndex, 'error', errorMessage);
+
+            if (this.statusProgressBar) {
+                this.statusProgressBar.classList.remove('bg-success');
+                this.statusProgressBar.classList.add('bg-danger');
+            }
+
+            if (this.statusSummary) {
+                this.statusSummary.textContent = errorMessage;
+                this.statusSummary.classList.remove('d-none', 'alert-success', 'alert-warning');
+                this.statusSummary.classList.add('alert-danger');
+            }
+
+            if (this.statusCloseBtn) {
+                this.statusCloseBtn.disabled = false;
+            }
+        }
+
         initializeEventListeners() {
             // Slider <-> Input Sync
             const slider = document.getElementById('targetCapacity');
             const input = document.getElementById('targetCapacityValue');
 
             slider.addEventListener('input', () => {
+                this.lastTargetCapacityFineAdjust = false;
                 input.value = slider.value;
                 this.updatePreview();
             });
 
             input.addEventListener('input', () => {
-                slider.value = input.value;
+                this.lastTargetCapacityFineAdjust = false;
+
+                if (input.value === '') {
+                    return;
+                }
+
+                let numericValue = parseInt(input.value, 10);
+                if (isNaN(numericValue)) {
+                    return;
+                }
+
+                const min = parseInt(slider.min, 10) || 0;
+                const max = parseInt(slider.max, 10) || 0;
+                numericValue = Math.max(min, Math.min(max, numericValue));
+
+                slider.value = numericValue;
+                if (numericValue !== parseInt(input.value, 10)) {
+                    input.value = numericValue;
+                }
                 this.updatePreview();
             });
+
+            input.addEventListener('change', () => {
+                let numericValue = parseInt(input.value, 10);
+                const min = parseInt(slider.min, 10) || 0;
+                const max = parseInt(slider.max, 10) || 0;
+
+                if (isNaN(numericValue)) {
+                    numericValue = min;
+                }
+
+                numericValue = Math.max(min, Math.min(max, numericValue));
+
+                if (!this.lastTargetCapacityFineAdjust && numericValue % 5 !== 0) {
+                    numericValue = Math.round(numericValue / 5) * 5;
+                }
+
+                numericValue = Math.max(min, Math.min(max, numericValue));
+
+                slider.value = numericValue;
+                input.value = numericValue;
+                this.lastTargetCapacityFineAdjust = false;
+                this.updatePreview();
+            });
+
+            const handleTargetCapacityKey = (event) => {
+                const increaseKeys = ['ArrowUp', 'ArrowRight'];
+                const decreaseKeys = ['ArrowDown', 'ArrowLeft'];
+                if (!increaseKeys.includes(event.key) && !decreaseKeys.includes(event.key)) {
+                    return;
+                }
+
+                if (event.ctrlKey) {
+                    event.preventDefault();
+                    const delta = increaseKeys.includes(event.key) ? 1 : -1;
+                    this.adjustTargetCapacity(delta, true);
+                }
+            };
+
+            slider.addEventListener('keydown', handleTargetCapacityKey);
+            input.addEventListener('keydown', handleTargetCapacityKey);
 
             // Event-Delegation für Prioritäten (funktioniert auch nach DOM-Updates)
             document.getElementById('quotaForm').addEventListener('change', (e) => {
@@ -189,12 +498,55 @@
             document.getElementById('saveQuotaBtn').addEventListener('click', () => this.save());
         }
 
+        adjustTargetCapacity(delta, fineAdjust = false) {
+            const slider = document.getElementById('targetCapacity');
+            const input = document.getElementById('targetCapacityValue');
+            if (!slider || !input) {
+                return;
+            }
+
+            const min = parseInt(slider.min, 10) || 0;
+            const max = parseInt(slider.max, 10) || 0;
+            let current = parseInt(slider.value, 10);
+            if (isNaN(current)) {
+                current = min;
+            }
+
+            let nextValue;
+            if (fineAdjust) {
+                nextValue = current + delta;
+            } else {
+                const baseStep = 5;
+                const direction = delta === 0 ? 0 : (delta > 0 ? 1 : -1);
+                if (direction > 0) {
+                    nextValue = Math.floor(current / baseStep) * baseStep + baseStep;
+                } else if (direction < 0) {
+                    nextValue = Math.ceil(current / baseStep) * baseStep - baseStep;
+                } else {
+                    nextValue = Math.round(current / baseStep) * baseStep;
+                }
+            }
+
+            nextValue = Math.max(min, Math.min(max, nextValue));
+
+            if (nextValue === current) {
+                this.lastTargetCapacityFineAdjust = fineAdjust;
+                return;
+            }
+
+            slider.value = nextValue;
+            input.value = nextValue;
+            this.lastTargetCapacityFineAdjust = fineAdjust;
+            this.updatePreview();
+        }
+
         /**
          * Öffne Modal für selektierte Tage
          */
         show(selectedDays) {
             console.log('🎯 Modal.show() aufgerufen mit selectedDays:', selectedDays);
             this.selectedDays = selectedDays;
+            this.lastTargetCapacityFineAdjust = false;
 
             // Datum-Bereich anzeigen (YYYY-MM-DD Strings zu lokalen Dates)
             const parseDateString = (dateStr) => {
@@ -224,6 +576,7 @@
                 console.log('🎯 Übernehme Histogram Target:', histogramTarget);
                 document.getElementById('targetCapacity').value = histogramTarget;
                 document.getElementById('targetCapacityValue').value = histogramTarget;
+                this.lastTargetCapacityFineAdjust = histogramTarget % 5 !== 0;
             }
 
             // Aktuelle Belegung laden (TODO: Von API holen)
@@ -717,6 +1070,12 @@
             saveBtn.disabled = true;
             saveBtn.innerHTML = '⏳ Speichern...';
 
+            const statusEnabled = this.startStatusWorkflow([
+                'Sende Daten an HRS',
+                'Quotas schreiben',
+                'Import aktualisieren'
+            ]);
+
             try {
                 const targetCapacity = parseInt(document.getElementById('targetCapacityValue').value) || 0;
 
@@ -771,6 +1130,13 @@
 
                 console.log('📥 Response status:', response.status);
 
+                if (statusEnabled) {
+                    this.setStatusStep(0, response.ok ? 'success' : 'error', `HTTP ${response.status}`);
+                    if (response.ok) {
+                        this.setStatusStep(1, 'active');
+                    }
+                }
+
                 // Read response as text first
                 const responseText = await response.text();
                 console.log('📄 Response body (first 500 chars):', responseText.substring(0, 500));
@@ -787,14 +1153,41 @@
 
                 if (!response.ok) {
                     console.error('❌ API Error Response:', result);
+                    if (statusEnabled) {
+                        this.failStatusWorkflow(result.error || result.message || `HTTP ${response.status}`);
+                    }
                     throw new Error(result.error || result.message || 'Unknown server error');
                 }
 
                 if (result.success) {
-                    const createdCount = Array.isArray(result.createdQuotas) ? result.createdQuotas.length : 0;
-                    const deletedCount = Array.isArray(result.deletedQuotas) ? result.deletedQuotas.length : 0;
+                    const createdCount = Number.isFinite(result.createdCount) ? result.createdCount : (Array.isArray(result.createdQuotas) ? result.createdQuotas.length : 0);
+                    const deletedCount = Number.isFinite(result.deletedCount) ? result.deletedCount : (Array.isArray(result.deletedQuotas) ? result.deletedQuotas.length : 0);
+                    const adjustedClosedCount = Number.isFinite(result.adjustedClosedCount) ? result.adjustedClosedCount : (Array.isArray(result.adjustedClosedQuotas) ? result.adjustedClosedQuotas.length : 0);
+                    const importInfo = result.localRefresh || {};
+                    const importHasData = importInfo && Object.keys(importInfo).length > 0;
+                    const importSuccess = importHasData && typeof importInfo.success === 'boolean' ? importInfo.success : true;
 
-                    alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${createdCount} Quotas\nGelöscht: ${deletedCount} Quotas`);
+                    if (statusEnabled) {
+                        this.setStatusStep(1, 'success', `${createdCount} erstellt, ${deletedCount} gelöscht${adjustedClosedCount ? `, ${adjustedClosedCount} geschlossen angepasst` : ''}`);
+                        if (this.statusSteps.length >= 3) {
+                            if (importHasData && importInfo.success === false) {
+                                this.setStatusStep(2, 'error', importInfo.error || 'Import fehlgeschlagen');
+                            } else {
+                                let importDetail = 'Kein Import erforderlich';
+                                if (importHasData) {
+                                    if (importInfo.success === true) {
+                                        importDetail = 'Import aktualisiert';
+                                    } else if (Array.isArray(importInfo.logs)) {
+                                        importDetail = `${importInfo.logs.length} Log-Einträge`;
+                                    }
+                                }
+                                this.setStatusStep(2, 'success', importDetail);
+                            }
+                        }
+                        this.completeStatusWorkflow(importSuccess !== false, result.message || 'Fertig.');
+                    } else {
+                        alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${createdCount} Quotas\nGelöscht: ${deletedCount} Quotas`);
+                    }
 
                     // Timeline neu laden
                     if (this.renderer && typeof this.renderer.reloadHistogramData === 'function') {
@@ -803,12 +1196,20 @@
 
                     this.modal.hide();
                 } else {
-                    alert(`❌ Fehler beim Speichern:\n\n${result.error}`);
+                    if (statusEnabled) {
+                        this.failStatusWorkflow(result.error || 'Unbekannter Fehler');
+                    } else {
+                        alert(`❌ Fehler beim Speichern:\n\n${result.error}`);
+                    }
                 }
 
             } catch (error) {
                 console.error('Quota save error:', error);
-                alert(`❌ Netzwerkfehler:\n\n${error.message}`);
+                if (statusEnabled) {
+                    this.failStatusWorkflow(error.message || 'Unbekannter Fehler');
+                } else {
+                    alert(`❌ Netzwerkfehler:\n\n${error.message}`);
+                }
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '💾 Speichern';

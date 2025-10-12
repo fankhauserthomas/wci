@@ -279,7 +279,7 @@ try {
         
         // Add dog icon if rd.hund is set
         if (isset($detail['hund']) && $detail['hund']) {
-            $content .= ' <img src="../pic/dog.svg" alt="🐕" style="height: 12px; width: 12px; vertical-align: middle;">';
+            $content .= ' <img src="/wci/pic/dog.svg" alt="🐕" style="height: 12px; width: 12px; vertical-align: middle;">';
         }
         
         // Create timeline item for room

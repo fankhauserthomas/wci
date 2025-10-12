@@ -1603,10 +1603,6 @@ $quotaData = getQuotaData($mysqli, $startDate, $endDate);
             const webimpBtn = document.getElementById('webimpBtn');
             const dryRunBtn = document.getElementById('dryRunBtn');
             
-            if (!dryRun && !confirm('Sollen die Daten aus der WebImp-Zwischentabelle in die Production-Tabelle AV-Res importiert werden?\n\nDies überschreibt ggf. vorhandene Reservierungen mit gleicher AV-ID!')) {
-                return;
-            }
-            
             // UI Setup
             const targetBtn = dryRun ? dryRunBtn : webimpBtn;
             targetBtn.disabled = true;

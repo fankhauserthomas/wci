@@ -38,6 +38,7 @@ if (isset($_GET['from']) && isset($_GET['to'])) {
 // Datenbankverbindung und HRS Login
 require_once(__DIR__ . '/../config.php');
 require_once(__DIR__ . '/hrs_login.php');
+require_once(__DIR__ . '/webimp_transfer.php');
 
 // JSON Output Capture für Web-Interface
 if ($isWebInterface) {
@@ -57,15 +58,15 @@ class HRSReservationImporter {
         $this->debug("HRS Reservation Importer initialized");
     }
     
-    private function debug($message) {
+    public function debug($message) {
         $this->hrsLogin->debug($message);
     }
     
-    private function debugError($message) {
+    public function debugError($message) {
         $this->hrsLogin->debugError($message);
     }
     
-    private function debugSuccess($message) {
+    public function debugSuccess($message) {
         $this->hrsLogin->debugSuccess($message);
     }
     
@@ -286,31 +287,69 @@ class HRSReservationImporter {
 try {
     $importer = new HRSReservationImporter();
     $success = $importer->importReservations($dateFrom, $dateTo);
-    
+    $transferResult = null;
+
     if ($success) {
+        $transferResult = transferWebImpToProduction($GLOBALS['mysqli'], function ($level, $message) use ($importer) {
+            switch ($level) {
+                case 'error':
+                    $importer->debugError($message);
+                    break;
+                case 'success':
+                    $importer->debugSuccess($message);
+                    break;
+                default:
+                    $importer->debug($message);
+                    break;
+            }
+        });
+
+        $success = $transferResult['success'] ?? false;
+    }
+
+    if ($success) {
+        $transferStats = $transferResult['stats'] ?? ['inserted' => 0, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0];
+        $message = sprintf(
+            'Reservierungen importiert und übertragen (%d neu, %d aktualisiert, %d unverändert, %d übersprungen)',
+            $transferStats['inserted'] ?? 0,
+            $transferStats['updated'] ?? 0,
+            $transferStats['unchanged'] ?? 0,
+            $transferStats['skipped'] ?? 0
+        );
+
         if ($isWebInterface) {
             $output = ob_get_clean();
             echo json_encode([
                 'success' => true,
-                'message' => 'Reservation import completed successfully',
+                'message' => $message,
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
+                'transfer' => $transferResult,
                 'log' => $output
             ]);
         } else {
-            echo "\n✅ Import completed successfully!\n";
+            echo "\n✅ $message\n";
         }
         exit(0);
     } else {
+        $errorMessage = 'Import failed';
+        if ($transferResult && isset($transferResult['stats']) && (($transferResult['stats']['errors'] ?? 0) > 0)) {
+            $errorMessage = 'Transfer fehlgeschlagen';
+        }
+        if ($transferResult && isset($transferResult['raw'])) {
+            $importer->debugError('import_webimp Ausgabe: ' . (is_array($transferResult['raw']) ? json_encode($transferResult['raw']) : $transferResult['raw']));
+        }
+
         if ($isWebInterface) {
             $output = ob_get_clean();
             echo json_encode([
                 'success' => false,
-                'error' => 'Import failed',
+                'error' => $errorMessage,
+                'transfer' => $transferResult,
                 'log' => $output
             ]);
         } else {
-            echo "\n❌ Import failed!\n";
+            echo "\n❌ $errorMessage\n";
         }
         exit(1);
     }

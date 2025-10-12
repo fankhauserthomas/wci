@@ -125,8 +125,11 @@ class HRSQuotaImporterSSE {
     }
     
     private function fetchQuotaData($dateFrom, $dateTo) {
+        // HRS API behandelt dateTo als exklusiv - daher +1 Tag hinzufügen
+        $dateToInclusive = $this->addOneDayToDate($dateTo);
+        
         // Verwende hutQuota API (nicht hut/quota/search)
-        $url = "/api/v1/manage/hutQuota?hutId={$this->hutId}&page=0&size=100&sortList=BeginDate&sortOrder=DESC&open=true&dateFrom={$dateFrom}&dateTo={$dateTo}";
+        $url = "/api/v1/manage/hutQuota?hutId={$this->hutId}&page=0&size=100&sortList=BeginDate&sortOrder=DESC&open=true&dateFrom={$dateFrom}&dateTo={$dateToInclusive}";
         
         $headers = ['X-XSRF-TOKEN: ' . $this->hrsLogin->getCsrfToken()];
         $response = $this->hrsLogin->makeRequest($url, 'GET', null, $headers);
@@ -145,6 +148,18 @@ class HRSQuotaImporterSSE {
         }
         
         return $data['_embedded']['bedCapacityChangeResponseDTOList'];
+    }
+    
+    /**
+     * Add one day to a DD.MM.YYYY date string
+     */
+    private function addOneDayToDate($dateStr) {
+        $dt = DateTime::createFromFormat('d.m.Y', $dateStr);
+        if (!$dt) {
+            return $dateStr; // Fallback
+        }
+        $dt->modify('+1 day');
+        return $dt->format('d.m.Y');
     }
     
     private function deleteExistingQuotas($dateFrom, $dateTo) {

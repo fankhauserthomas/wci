@@ -40,6 +40,7 @@ if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
 
 require_once(__DIR__ . '/../config.php');
 require_once(__DIR__ . '/hrs_login.php');
+require_once(__DIR__ . '/webimp_transfer.php');
 
 sendSSE('start', ['message' => 'Initialisiere Reservierungs-Import...', 'dateFrom' => $dateFrom, 'dateTo' => $dateTo]);
 
@@ -126,193 +127,31 @@ class HRSReservationImporterSSE {
      * Nutzt die bewährte Import-Logik aus import_webimp.php
      */
     private function transferWebImpToProduction() {
-        try {
-            // Lade nur CONFIRMED und DISCARDED Einträge
-            $sourceSql = "SELECT 
-                av_id,
-                anreise,
-                abreise,
-                lager,
-                betten,
-                dz,
-                sonder,
-                hp,
-                vegi,
-                gruppe,
-                bem_av,
-                nachname,
-                vorname,
-                handy,
-                email,
-                email_date,
-                vorgang,
-                COALESCE(timestamp, NOW()) AS timestamp
-            FROM `AV-Res-webImp`
-            WHERE UPPER(TRIM(vorgang)) IN ('CONFIRMED', 'DISCARDED')
-            ORDER BY av_id";
-            
-            $sourceResult = $this->mysqli->query($sourceSql);
-            
-            if (!$sourceResult) {
-                sendSSE('log', ['level' => 'error', 'message' => 'Fehler beim Laden der WebImp-Daten: ' . $this->mysqli->error]);
-                return false;
-            }
-            
-            $totalRecords = $sourceResult->num_rows;
-            sendSSE('log', ['level' => 'info', 'message' => "$totalRecords Datensätze zum Transfer gefunden"]);
-            
-            if ($totalRecords === 0) {
-                sendSSE('log', ['level' => 'info', 'message' => 'Keine Daten zum Transfer vorhanden']);
-                return true;
-            }
-            
-            // Prepared Statements
-            $updateSql = "UPDATE `AV-Res` SET
-                anreise = ?, abreise = ?, lager = ?, betten = ?, dz = ?, sonder = ?,
-                hp = ?, vegi = ?, gruppe = ?, bem_av = ?, nachname = ?, vorname = ?,
-                handy = ?, email = ?, email_date = ?, storno = ?, arr = ?, vorgang = ?, timestamp = ?
-                WHERE av_id = ?";
-            
-            $insertSql = "INSERT INTO `AV-Res` (
-                av_id, anreise, abreise, lager, betten, dz, sonder, hp, vegi,
-                gruppe, bem_av, nachname, vorname, handy, email, email_date,
-                storno, arr, vorgang, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
-            $updateStmt = $this->mysqli->prepare($updateSql);
-            $insertStmt = $this->mysqli->prepare($insertSql);
-            
-            if (!$updateStmt || !$insertStmt) {
-                sendSSE('log', ['level' => 'error', 'message' => 'Fehler beim Vorbereiten der Statements: ' . $this->mysqli->error]);
-                return false;
-            }
-            
-            $this->mysqli->begin_transaction();
-            
-            $stats = ['inserted' => 0, 'updated' => 0, 'unchanged' => 0, 'errors' => 0];
-            $processedCount = 0;
-            
-            while ($row = $sourceResult->fetch_assoc()) {
-                $processedCount++;
-                
-                // Fortschritt anzeigen
-                if ($processedCount % 10 === 0 || $processedCount === $totalRecords) {
-                    $percent = round(($processedCount / $totalRecords) * 100);
-                    sendSSE('progress', [
-                        'current' => $processedCount,
-                        'total' => $totalRecords,
-                        'percent' => $percent
-                    ]);
-                }
-                
-                // Daten normalisieren
-                $av_id = (int)$row['av_id'];
-                $anreise = $row['anreise'] ?: null;
-                $abreise = $row['abreise'] ?: null;
-                $lager = (int)$row['lager'];
-                $betten = (int)$row['betten'];
-                $dz = (int)$row['dz'];
-                $sonder = (int)$row['sonder'];
-                $hp = (int)$row['hp'];
-                $vegi = (int)$row['vegi'];
-                
-                $gruppe = $this->normalizeString($row['gruppe']);
-                $bem_av = $this->normalizeString($row['bem_av']);
-                $nachname = $this->normalizeString($row['nachname']);
-                $vorname = $this->normalizeString($row['vorname']);
-                $handy = $this->normalizeString($row['handy']);
-                $email = $this->normalizeString($row['email']);
-                $email_date = ($row['email_date'] === '' || $row['email_date'] === null || $row['email_date'] === '0000-00-00 00:00:00') ? null : $row['email_date'];
-                $timestamp = $row['timestamp'];
-                
-                // Mapping: vorgang → storno und arr
-                $vorgang_upper = strtoupper(trim($row['vorgang']));
-                $storno = ($vorgang_upper === 'DISCARDED') ? 1 : 0;
-                $arr = ($hp === 1) ? 1 : 5;
-                $vorgang = $row['vorgang']; // Original-Wert beibehalten
-                
-                // Prüfe ob Datensatz existiert
-                $checkSql = "SELECT anreise, abreise, lager, betten, dz, sonder, gruppe, bem_av, handy, email, storno 
-                            FROM `AV-Res` WHERE av_id = ?";
-                $checkStmt = $this->mysqli->prepare($checkSql);
-                $checkStmt->bind_param("i", $av_id);
-                $checkStmt->execute();
-                $checkResult = $checkStmt->get_result();
-                
-                if ($checkResult->num_rows > 0) {
-                    // UPDATE
-                    $existing = $checkResult->fetch_assoc();
-                    
-                    // Prüfe ob Update nötig
-                    $needsUpdate = false;
-                    $fieldsToCompare = ['anreise', 'abreise', 'lager', 'betten', 'dz', 'sonder', 'gruppe', 'bem_av', 'handy', 'email', 'storno'];
-                    $newData = [
-                        'anreise' => $anreise, 'abreise' => $abreise, 'lager' => $lager,
-                        'betten' => $betten, 'dz' => $dz, 'sonder' => $sonder,
-                        'gruppe' => $gruppe, 'bem_av' => $bem_av, 'handy' => $handy,
-                        'email' => $email, 'storno' => $storno
-                    ];
-                    
-                    foreach ($fieldsToCompare as $field) {
-                        if ($existing[$field] != $newData[$field]) {
-                            $needsUpdate = true;
-                            break;
-                        }
-                    }
-                    
-                    if ($needsUpdate) {
-                        $updateStmt->bind_param("ssiiiiiissssssisssi",
-                            $anreise, $abreise, $lager, $betten, $dz, $sonder,
-                            $hp, $vegi, $gruppe, $bem_av, $nachname, $vorname,
-                            $handy, $email, $email_date, $storno, $arr, $vorgang, $timestamp, $av_id
-                        );
-                        
-                        if ($updateStmt->execute()) {
-                            $stats['updated']++;
-                        } else {
-                            $stats['errors']++;
-                            sendSSE('log', ['level' => 'error', 'message' => "Update fehlgeschlagen für av_id=$av_id: " . $updateStmt->error]);
-                        }
-                    } else {
-                        $stats['unchanged']++;
-                    }
-                } else {
-                    // INSERT
-                    $insertStmt->bind_param("issiiiiiissssssisss",
-                        $av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder,
-                        $hp, $vegi, $gruppe, $bem_av, $nachname, $vorname,
-                        $handy, $email, $email_date, $storno, $arr, $vorgang, $timestamp
-                    );
-                    
-                    if ($insertStmt->execute()) {
-                        $stats['inserted']++;
-                    } else {
-                        $stats['errors']++;
-                        sendSSE('log', ['level' => 'error', 'message' => "Insert fehlgeschlagen für av_id=$av_id: " . $insertStmt->error]);
-                    }
-                }
-                
-                $checkStmt->close();
-            }
-            
-            $updateStmt->close();
-            $insertStmt->close();
-            
-            if ($stats['errors'] > 0) {
-                $this->mysqli->rollback();
-                sendSSE('log', ['level' => 'error', 'message' => "Transfer abgebrochen: {$stats['errors']} Fehler"]);
-                return false;
-            } else {
-                $this->mysqli->commit();
-                sendSSE('log', ['level' => 'success', 'message' => "Transfer erfolgreich: {$stats['inserted']} neu, {$stats['updated']} aktualisiert, {$stats['unchanged']} unverändert"]);
-                return true;
-            }
-            
-        } catch (Exception $e) {
-            $this->mysqli->rollback();
-            sendSSE('log', ['level' => 'error', 'message' => 'Transfer-Exception: ' . $e->getMessage()]);
-            return false;
+        $result = transferWebImpToProduction($this->mysqli, function ($level, $message) {
+            sendSSE('log', ['level' => $level, 'message' => $message]);
+        });
+
+        if ($result['success']) {
+            $stats = $result['stats'];
+            sendSSE('log', [
+                'level' => 'info',
+                'message' => sprintf(
+                    'Transfer-Statistik: %d neu, %d aktualisiert, %d unverändert',
+                    $stats['inserted'],
+                    $stats['updated'],
+                    $stats['unchanged']
+                )
+            ]);
+            return true;
         }
+
+        $details = $result['raw'] ?? 'unbekannter Fehler';
+        if (is_array($details)) {
+            $details = json_encode($details);
+        }
+        sendSSE('log', ['level' => 'error', 'message' => 'Transfer fehlgeschlagen: ' . $details]);
+
+        return false;
     }
     
     /**

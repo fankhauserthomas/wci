@@ -1362,6 +1362,48 @@
         #debug-toggle {
             display: none !important;
         }
+
+        /* HRS Import Season Modal Styles */
+        #hrs-import-season-modal .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        #hrs-import-season-modal .alert-info {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #e0e0e0;
+        }
+
+        #hrs-import-season-modal .alert-warning {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #e0e0e0;
+        }
+
+        #hrs-import-season-modal .bg-light {
+            background: #2a2a2a !important;
+            border-color: #444 !important;
+        }
+
+        #hrs-import-season-modal .text-primary {
+            color: #667eea !important;
+        }
+
+        #hrs-import-season-modal .text-muted {
+            color: #aaa !important;
+        }
+
+        #hrs-import-season-modal .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+
+        #hrs-import-season-modal .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #65408b 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
     </style>
 </head>
 
@@ -1389,6 +1431,64 @@
                     <button type="button" class="btn btn-secondary" id="modal-cancel"
                         data-bs-dismiss="modal">Abbrechen</button>
                     <button type="button" class="btn btn-danger" id="modal-confirm">Löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HRS Import Season Modal -->
+    <div class="modal fade" id="hrs-import-season-modal" tabindex="-1" aria-labelledby="hrsImportSeasonModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="hrsImportSeasonModalLabel">
+                        <i class="fas fa-download"></i> HRS Daten Import
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i> <strong>Sichtbare Saison erkannt</strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">📅 Zeitbereich:</label>
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Von:</strong> <span id="hrs-import-date-from" class="text-primary">-</span>
+                                </div>
+                                <div class="mx-3">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                                <div>
+                                    <strong>Bis:</strong> <span id="hrs-import-date-to" class="text-primary">-</span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <strong><span id="hrs-import-day-count">0</span> Tage</strong>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Hinweis:</strong> Es werden <strong>Daily Summary, Quotas und Reservierungen</strong>
+                        importiert.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Abbrechen
+                    </button>
+                    <button type="button" class="btn btn-primary" id="hrs-import-confirm-btn">
+                        <i class="fas fa-download"></i> Import starten
+                    </button>
                 </div>
             </div>
         </div>
@@ -2160,16 +2260,16 @@
             // Create modal HTML (Compact)
             const modalHtml = `
                 <div class="modal fade" id="hrs-import-progress-modal" tabindex="-1" aria-labelledby="hrsImportProgressTitle" data-bs-backdrop="static" data-bs-keyboard="false">
-                    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+                    <div class="modal-dialog" style="max-width: 460px; margin: 10vh auto;">
                         <div class="modal-content" style="background: #1e1e1e; border: 1px solid #444;">
-                            <div class="modal-header" style="border-bottom: 1px solid #444; padding: 12px 16px;">
+                            <div class="modal-header" style="border-bottom: 1px solid #444; padding: 10px 14px;">
                                 <h6 class="modal-title" id="hrsImportProgressTitle" style="color: #fff; margin: 0; font-size: 14px;">
                                     <span style="color: #8b5cf6;">📥</span> HRS Import: ${dateFrom} - ${dateTo} (${dayCount} Tage)
                                 </h6>
                             </div>
-                            <div class="modal-body" style="padding: 12px;">
+                            <div class="modal-body" style="padding: 10px 12px 12px;">
                                 <!-- Progress Steps (Compact) -->
-                                <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+                                <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;">
                                     <div class="import-step" data-step="daily" style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 2px solid #666;">
                                         <span class="step-icon" style="font-size: 14px;">⏸️</span>
                                         <span class="step-title" style="color: #fff; font-size: 12px; flex: 1;">Daily</span>
@@ -2193,7 +2293,7 @@
                                 </div>
                                 
                                 <!-- Live Log (Compact, Auto-Scroll) -->
-                                <div id="import-live-log" style="height: 150px; overflow-y: auto; background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.4;">
+                                <div id="import-live-log" style="height: 90px; overflow-y: auto; background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 6px; font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.35;">
                                     <!-- Log entries will be added here -->
                                 </div>
                             </div>
@@ -2209,8 +2309,8 @@
             const modalElement = document.getElementById('hrs-import-progress-modal');
             const modal = new bootstrap.Modal(modalElement);
 
-            // Fix aria-hidden warning: Bootstrap sets it but keeps focus inside
-            modalElement.addEventListener('shown.bs.modal', function () {
+            // Fix aria-hidden warning: ensure attribute is removed before focus moves inside
+            modalElement.addEventListener('show.bs.modal', function () {
                 modalElement.removeAttribute('aria-hidden');
             });
             modalElement.addEventListener('hidden.bs.modal', function () {
@@ -2798,48 +2898,252 @@
                 }
             }
 
-            // HRS Import Button Handler (with SSE for Daily Summary)
+            // Calculate visible season (days between closed quotas)
+            function calculateVisibleSeason() {
+                const renderer = getTimelineRenderer();
+                if (!renderer) {
+                    console.warn('calculateVisibleSeason: No renderer found');
+                    return null;
+                }
+
+                // Get current visible date range from timeline
+                const dateRange = renderer.getTimelineDateRange();
+                if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
+                    console.warn('calculateVisibleSeason: Invalid date range', dateRange);
+                    return null;
+                }
+
+                const { startDate, endDate } = dateRange;
+
+                // Calculate number of days
+                const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+
+                if (days <= 0) {
+                    console.error('calculateVisibleSeason: Invalid days calculation', { startDate, endDate, days });
+                    return null;
+                }
+
+                console.log('calculateVisibleSeason: Date range', {
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0],
+                    days
+                });
+
+                // Get histogram data with quota information
+                let histogramData;
+                try {
+                    histogramData = renderer.getHistogramData(startDate, endDate);
+                } catch (error) {
+                    console.error('calculateVisibleSeason: Error getting histogram data', error);
+                    return null;
+                }
+
+                const { dailyDetails } = histogramData;
+
+                if (!dailyDetails || dailyDetails.length === 0) {
+                    console.warn('calculateVisibleSeason: No daily details found');
+                    return null;
+                }
+
+                console.log('calculateVisibleSeason: Analyzing', dailyDetails.length, 'days for longest open season');
+
+                // Find all open/closed periods
+                const periods = [];
+                let currentPeriodStart = -1;
+                let currentPeriodEnd = -1;
+                let isCurrentPeriodOpen = false;
+
+                for (let i = 0; i < dailyDetails.length; i++) {
+                    const day = dailyDetails[i];
+                    const dayDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+
+                    // Check if day is OPEN (has quota > 0 or guests)
+                    const hasQuota = day.quota && (
+                        day.quota.lager > 0 ||
+                        day.quota.betten > 0 ||
+                        day.quota.dz > 0 ||
+                        day.quota.sonder > 0
+                    );
+
+                    const hasGuests = day.total > 0 || day.lager > 0 || day.betten > 0 || day.dz > 0 || day.sonder > 0;
+
+                    const isOpen = hasQuota || hasGuests;
+
+                    // Check if day's hut_status is CLOSED
+                    const isClosed = day.hut_status === 'CLOSED';
+
+                    const isDayOpen = isOpen && !isClosed;
+
+                    if (isDayOpen) {
+                        if (currentPeriodStart === -1) {
+                            // Start new open period
+                            currentPeriodStart = i;
+                            currentPeriodEnd = i;
+                            isCurrentPeriodOpen = true;
+                            console.log('📗 New open period starts:', dayDate.toISOString().split('T')[0]);
+                        } else if (isCurrentPeriodOpen) {
+                            // Continue current open period
+                            currentPeriodEnd = i;
+                        } else {
+                            // Was closed, now open - save previous period and start new
+                            if (currentPeriodStart !== -1) {
+                                periods.push({
+                                    start: currentPeriodStart,
+                                    end: currentPeriodEnd,
+                                    length: currentPeriodEnd - currentPeriodStart + 1,
+                                    isOpen: false
+                                });
+                            }
+                            currentPeriodStart = i;
+                            currentPeriodEnd = i;
+                            isCurrentPeriodOpen = true;
+                            console.log('📗 New open period starts after closed:', dayDate.toISOString().split('T')[0]);
+                        }
+                    } else {
+                        if (isCurrentPeriodOpen) {
+                            // Was open, now closed - save open period
+                            periods.push({
+                                start: currentPeriodStart,
+                                end: currentPeriodEnd,
+                                length: currentPeriodEnd - currentPeriodStart + 1,
+                                isOpen: true
+                            });
+                            console.log('📕 Closed period starts:', dayDate.toISOString().split('T')[0],
+                                'Previous open period:', currentPeriodEnd - currentPeriodStart + 1, 'days');
+                            currentPeriodStart = i;
+                            currentPeriodEnd = i;
+                            isCurrentPeriodOpen = false;
+                        } else if (currentPeriodStart !== -1) {
+                            // Continue closed period
+                            currentPeriodEnd = i;
+                        }
+                    }
+                }
+
+                // Save last period
+                if (currentPeriodStart !== -1) {
+                    periods.push({
+                        start: currentPeriodStart,
+                        end: currentPeriodEnd,
+                        length: currentPeriodEnd - currentPeriodStart + 1,
+                        isOpen: isCurrentPeriodOpen
+                    });
+                }
+
+                // Find all OPEN periods
+                const openPeriods = periods.filter(p => p.isOpen);
+
+                if (openPeriods.length === 0) {
+                    console.warn('calculateVisibleSeason: No open periods found');
+                    return null;
+                }
+
+                console.log('calculateVisibleSeason: Found', openPeriods.length, 'open period(s)');
+
+                // Get current VISIBLE center date from timeline scroll position
+                let viewportCenter;
+                let viewportCenterDay;
+
+                try {
+                    // Calculate visible center from scroll position
+                    const viewportPixelWidth = Math.max(1, renderer.canvas.width - renderer.sidebarWidth);
+                    const scrollX = renderer.scrollX || 0;
+                    const DAY_WIDTH = renderer.DAY_WIDTH || 40;
+
+                    // Center of visible viewport in pixels from timeline start
+                    const visibleCenterPixels = scrollX + (viewportPixelWidth / 2);
+
+                    // Convert to days from timeline start
+                    viewportCenterDay = Math.floor(visibleCenterPixels / DAY_WIDTH);
+
+                    // Convert to actual date
+                    viewportCenter = new Date(startDate.getTime() + viewportCenterDay * 24 * 60 * 60 * 1000);
+
+                    console.log('calculateVisibleSeason: Visible viewport center:', viewportCenter.toISOString().split('T')[0], 'Day index:', viewportCenterDay);
+                } catch (error) {
+                    console.warn('calculateVisibleSeason: Could not calculate viewport center, using today', error);
+                    viewportCenter = dateRange.now || new Date();
+                    viewportCenterDay = Math.floor((viewportCenter.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+                }
+
+                // Find period closest to viewport center
+                let closestPeriod = null;
+                let closestDistance = Infinity;
+
+                for (const period of openPeriods) {
+                    const periodCenter = Math.floor((period.start + period.end) / 2);
+                    const distance = Math.abs(periodCenter - viewportCenterDay);
+
+                    console.log('calculateVisibleSeason: Period',
+                        new Date(startDate.getTime() + period.start * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        'to',
+                        new Date(startDate.getTime() + period.end * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        '(' + period.length + ' days)',
+                        'Distance:', distance);
+
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestPeriod = period;
+                    }
+                }
+
+                console.log('calculateVisibleSeason: Selected closest period:', closestPeriod.length, 'days, distance:', closestDistance);
+
+                // Add 1 day to both start and end date (fix off-by-one)
+                const dateFrom = new Date(startDate.getTime() + (closestPeriod.start + 1) * 24 * 60 * 60 * 1000);
+                const dateTo = new Date(startDate.getTime() + (closestPeriod.end + 1) * 24 * 60 * 60 * 1000);
+
+                const result = {
+                    dateFrom: dateFrom.toISOString().split('T')[0],
+                    dateTo: dateTo.toISOString().split('T')[0],
+                    dayCount: closestPeriod.length
+                };
+
+                console.log('calculateVisibleSeason: ✅ Result', result);
+
+                return result;
+            }
+
+            // HRS Import Button Handler - Show Modal with Season Detection
             const hrsImportBtn = document.getElementById('timeline-hrs-import-btn');
             if (hrsImportBtn) {
                 hrsImportBtn.addEventListener('click', async (event) => {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    // Check if days are selected
-                    if (!renderer?.isHistogramDaySelectionActive || !renderer?.selectedHistogramDays || renderer.selectedHistogramDays.size === 0) {
-                        await ModalHelper.alert('Bitte selektieren Sie zuerst Tage im Histogram (Strg+Klick oder Shift+Klick).');
+                    // Calculate visible season
+                    const season = calculateVisibleSeason();
+
+                    if (!season) {
+                        await ModalHelper.alert('Keine sichtbare Saison erkannt. Bitte stellen Sie sicher, dass Quota-Daten geladen sind.');
                         return;
                     }
 
-                    // Get date range from selected days
-                    const { startDate } = renderer.getTimelineDateRange();
-                    const selectedIndices = Array.from(renderer.selectedHistogramDays).sort((a, b) => a - b);
-                    const minIndex = selectedIndices[0];
-                    const maxIndex = selectedIndices[selectedIndices.length - 1];
+                    // Show modal with season info
+                    const modal = new bootstrap.Modal(document.getElementById('hrs-import-season-modal'));
 
-                    const dateFrom = new Date(startDate.getTime() + minIndex * 24 * 60 * 60 * 1000);
-                    const dateTo = new Date(startDate.getTime() + maxIndex * 24 * 60 * 60 * 1000);
+                    // Format dates for display (DD.MM.YYYY)
+                    const formatDate = (dateStr) => {
+                        const [year, month, day] = dateStr.split('-');
+                        return `${day}.${month}.${year}`;
+                    };
 
-                    const dateFromStr = dateFrom.toISOString().split('T')[0];
-                    const dateToStr = dateTo.toISOString().split('T')[0];
+                    document.getElementById('hrs-import-date-from').textContent = formatDate(season.dateFrom);
+                    document.getElementById('hrs-import-date-to').textContent = formatDate(season.dateTo);
+                    document.getElementById('hrs-import-day-count').textContent = season.dayCount;
 
-                    const confirmed = await ModalHelper.confirm(
-                        `HRS Daten importieren?\n\n` +
-                        `Von: ${dateFromStr}\n` +
-                        `Bis: ${dateToStr}\n` +
-                        `Tage: ${selectedIndices.length}\n\n` +
-                        `Dies importiert:\n` +
-                        `• Daily Summary (Echtzeit-Fortschritt)\n` +
-                        `• Quota (Kapazitäten)\n` +
-                        `• Reservierungen\n` +
-                        `• AV Capacity Update (für diesen Zeitraum)\n\n` +
-                        `Dies kann einige Minuten dauern.`
-                    );
+                    // Setup confirm button
+                    const confirmBtn = document.getElementById('hrs-import-confirm-btn');
+                    const newConfirmBtn = confirmBtn.cloneNode(true);
+                    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
-                    if (!confirmed) return;
+                    newConfirmBtn.addEventListener('click', async () => {
+                        modal.hide();
+                        // Execute import with season dates
+                        await executeHRSImport(season.dateFrom, season.dateTo, season.dayCount, hrsImportBtn);
+                    });
 
-                    // Execute import with button reference
-                    await executeHRSImport(dateFromStr, dateToStr, selectedIndices.length, hrsImportBtn);
+                    modal.show();
                 });
             }
 

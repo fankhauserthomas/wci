@@ -31,6 +31,10 @@ header('Cache-Control: no-cache, must-revalidate');
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/hrs_login.php';
+if (!defined('HRS_QUOTA_IMPORTER_NO_MAIN')) {
+    define('HRS_QUOTA_IMPORTER_NO_MAIN', true);
+}
+require_once __DIR__ . '/hrs_imp_quota.php';
 
 class QuotaWriterV3 {
     private $mysqli;
@@ -85,82 +89,399 @@ class QuotaWriterV3 {
         $this->mysqli = $mysqli;
         $this->hrsLogin = $hrsLogin;
     }
+
+    private function normalizeDateString($value) {
+        $dt = $this->parseQuotaDate($value);
+        return $dt ? $dt->format('Y-m-d') : null;
+    }
+
+    private function groupContiguousDateRanges(array $dates) {
+        $ranges = [];
+        if (empty($dates)) {
+            return $ranges;
+        }
+
+        $sorted = array_values(array_unique($dates));
+        sort($sorted);
+
+        $current = [
+            'start' => $sorted[0],
+            'end' => $sorted[0],
+            'dates' => [$sorted[0]]
+        ];
+
+        for ($i = 1, $n = count($sorted); $i < $n; $i++) {
+            $prevDate = new DateTime($current['end']);
+            $prevDate->modify('+1 day');
+            if ($sorted[$i] === $prevDate->format('Y-m-d')) {
+                $current['end'] = $sorted[$i];
+                $current['dates'][] = $sorted[$i];
+            } else {
+                $ranges[] = $current;
+                $current = [
+                    'start' => $sorted[$i],
+                    'end' => $sorted[$i],
+                    'dates' => [$sorted[$i]]
+                ];
+            }
+        }
+
+        $ranges[] = $current;
+        return $ranges;
+    }
+
+    private function expandDayRange(DateTime $start, DateTime $endExclusive) {
+        $days = [];
+        $cursor = clone $start;
+        while ($cursor < $endExclusive) {
+            $days[] = $cursor->format('Y-m-d');
+            $cursor->modify('+1 day');
+        }
+        return $days;
+    }
+
+    private function extractQuotaQuantities(array $quota) {
+        $quantities = [
+            'lager' => 0,
+            'betten' => 0,
+            'dz' => 0,
+            'sonder' => 0
+        ];
+
+        $candidateSets = [];
+        if (isset($quota['hutBedCategoryDTOs']) && is_array($quota['hutBedCategoryDTOs'])) {
+            $candidateSets[] = $quota['hutBedCategoryDTOs'];
+        }
+        if (isset($quota['categories']) && is_array($quota['categories'])) {
+            $candidateSets[] = $quota['categories'];
+        }
+        if (isset($quota['quota']['hutBedCategoryDTOs']) && is_array($quota['quota']['hutBedCategoryDTOs'])) {
+            $candidateSets[] = $quota['quota']['hutBedCategoryDTOs'];
+        }
+        if (isset($quota['quota']['categories']) && is_array($quota['quota']['categories'])) {
+            $candidateSets[] = $quota['quota']['categories'];
+        }
+
+        foreach ($candidateSets as $set) {
+            foreach ($set as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+
+                $categoryId = null;
+                if (isset($entry['categoryId'])) {
+                    $categoryId = $entry['categoryId'];
+                } elseif (isset($entry['category']['id'])) {
+                    $categoryId = $entry['category']['id'];
+                } elseif (isset($entry['bedCategory']['id'])) {
+                    $categoryId = $entry['bedCategory']['id'];
+                } elseif (isset($entry['id'])) {
+                    $categoryId = $entry['id'];
+                }
+
+                if ($categoryId === null) {
+                    continue;
+                }
+
+                $beds = null;
+                if (isset($entry['totalBeds'])) {
+                    $beds = $entry['totalBeds'];
+                } elseif (isset($entry['beds'])) {
+                    $beds = $entry['beds'];
+                } elseif (isset($entry['total'])) {
+                    $beds = $entry['total'];
+                } elseif (isset($entry['capacity'])) {
+                    $beds = $entry['capacity'];
+                }
+
+                if ($beds === null) {
+                    continue;
+                }
+
+                foreach ($this->categoryMap as $name => $id) {
+                    if ((int)$categoryId === (int)$id) {
+                        $quantities[$name] = (int)$beds;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $directMap = [
+            'quota_lager' => 'lager',
+            'quota_betten' => 'betten',
+            'quota_dz' => 'dz',
+            'quota_sonder' => 'sonder',
+            'lager' => 'lager',
+            'betten' => 'betten',
+            'dz' => 'dz',
+            'sonder' => 'sonder'
+        ];
+        foreach ($directMap as $key => $name) {
+            if (isset($quota[$key]) && is_numeric($quota[$key])) {
+                $quantities[$name] = (int)$quota[$key];
+            }
+        }
+
+        return $quantities;
+    }
+
+    private function isQuotaClosed(array $quota) {
+        $modeCandidates = [];
+        foreach (['mode', 'reservationMode', 'status', 'state'] as $key) {
+            if (isset($quota[$key])) {
+                $modeCandidates[] = $quota[$key];
+            }
+        }
+        if (isset($quota['quota']) && is_array($quota['quota'])) {
+            foreach (['mode', 'reservationMode', 'status', 'state'] as $key) {
+                if (isset($quota['quota'][$key])) {
+                    $modeCandidates[] = $quota['quota'][$key];
+                }
+            }
+        }
+        if (isset($quota['closed'])) {
+            if ($quota['closed'] === true || $quota['closed'] === 'true') {
+                return true;
+            }
+        }
+        if (isset($quota['open']) && $quota['open'] === false) {
+            return true;
+        }
+
+        foreach ($modeCandidates as $mode) {
+            if (!is_string($mode)) {
+                continue;
+            }
+            if (strcasecmp($mode, 'CLOSED') === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function refreshLocalQuotaCache(array $dates) {
+        if (empty($dates)) {
+            return null;
+        }
+
+        $minDate = min($dates);
+        $maxDate = max($dates);
+
+        $fromDt = DateTime::createFromFormat('Y-m-d', $minDate) ?: DateTime::createFromFormat('Y-m-d H:i:s', $minDate);
+        $toDt = DateTime::createFromFormat('Y-m-d', $maxDate) ?: DateTime::createFromFormat('Y-m-d H:i:s', $maxDate);
+
+        if (!$fromDt) {
+            $fromDt = new DateTime($minDate);
+        }
+        if (!$toDt) {
+            $toDt = new DateTime($maxDate);
+        }
+
+        $dateFromStr = $fromDt->format('d.m.Y');
+        $dateToStr = $toDt->format('d.m.Y');
+
+        logV3("♻️ V3: Refreshing local quota cache ($dateFromStr → $dateToStr)");
+
+        try {
+            $importer = new HRSQuotaImporter($this->mysqli, $this->hrsLogin, ['silent' => true]);
+            $success = $importer->importQuotas($dateFromStr, $dateToStr);
+            $logs = $importer->getLogs();
+
+            logV3("♻️ V3: Local quota cache refresh " . ($success ? 'successful' : 'failed'));
+
+            return [
+                'success' => $success,
+                'dateFrom' => $dateFromStr,
+                'dateTo' => $dateToStr,
+                'logs' => $logs
+            ];
+        } catch (Exception $e) {
+            logV3("❌ V3: Local quota cache refresh error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'dateFrom' => $dateFromStr,
+                'dateTo' => $dateToStr,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
     
     public function updateQuotas($quotas) {
         try {
             $createdQuotas = [];
+            $preservedQuotas = [];
             $deletedQuotas = [];
-            
-            $dates = array_map(function($q) { return $q['date']; }, $quotas);
-            logV3("📅 V3: Processing " . count($dates) . " dates: " . implode(', ', $dates));
-            
-            // Delete overlapping quotas
-            $deletedQuotas = $this->deleteOverlappingQuotas($dates);
-            logV3("🗑️ V3: Deleted " . count($deletedQuotas) . " overlapping quotas");
-            
-            // Create new quotas
+            $adjustedClosed = [];
+            $blockedDates = [];
+
+            $normalizedDates = [];
+            $quotasByDate = [];
+
             foreach ($quotas as $quota) {
-                $date = $quota['date'];
-
-                $quantities = [];
-                $totalQuantity = 0;
-                foreach ($this->categoryMap as $categoryName => $categoryId) {
-                    $fieldName = 'quota_' . $categoryName;
-                    $quantity = isset($quota[$fieldName]) ? (int)$quota[$fieldName] : 0;
-                    $quantities[$categoryName] = max(0, $quantity);
-                    $totalQuantity += $quantities[$categoryName];
-                }
-
-                if ($totalQuantity <= 0) {
-                    logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
+                if (!isset($quota['date'])) {
+                    logV3('⚠️ V3: Quota ohne Datum ignoriert: ' . json_encode($quota));
                     continue;
                 }
 
-                $quotaId = $this->createQuota($date, $quantities);
-                if ($quotaId) {
-                    $createdQuotas[] = [
-                        'date' => $date,
-                        'quantities' => $quantities,
-                        'id' => $quotaId
-                    ];
-                    logV3(sprintf(
-                        "✅ V3: Created quota ID %s for %s (L=%d, B=%d, DZ=%d, S=%d)",
-                        $quotaId,
-                        $date,
-                        $quantities['lager'],
-                        $quantities['betten'],
-                        $quantities['dz'],
-                        $quantities['sonder']
-                    ));
+                $normalizedDate = $this->normalizeDateString($quota['date']);
+                if (!$normalizedDate) {
+                    logV3("⚠️ V3: Ungültiges Datum in Quota: " . json_encode($quota));
+                    continue;
+                }
+
+                $normalizedDates[] = $normalizedDate;
+                $quotasByDate[$normalizedDate][] = $quota;
+            }
+
+            if (empty($normalizedDates)) {
+                throw new Exception('Keine gültigen Datumswerte in den Quotas');
+            }
+
+            $uniqueDates = array_values(array_unique($normalizedDates));
+            sort($uniqueDates);
+            logV3("📅 V3: Processing " . count($uniqueDates) . " unique dates: " . implode(', ', $uniqueDates));
+
+            $ranges = $this->groupContiguousDateRanges($uniqueDates);
+            $rangeSummary = array_map(function ($range) {
+                if ($range['start'] === $range['end']) {
+                    return $range['start'];
+                }
+                return $range['start'] . '→' . $range['end'];
+            }, $ranges);
+            logV3("🧭 V3: Identified " . count($ranges) . " contiguous range(s): " . implode('; ', $rangeSummary));
+
+            $deletionResult = $this->deleteOverlappingQuotas($uniqueDates, $ranges);
+            $deletedQuotas = $deletionResult['deleted'] ?? [];
+            $preservedQuotas = $deletionResult['splitCreated'] ?? [];
+            $adjustedClosed = $deletionResult['processedClosed'] ?? [];
+            $blockedDates = $deletionResult['blockedDates'] ?? [];
+
+            logV3("🗑️ V3: Deleted " . count($deletedQuotas) . " overlapping quotas");
+            if (!empty($adjustedClosed)) {
+                logV3("🚧 V3: Adjusted " . count($adjustedClosed) . " closed quota(s)");
+            }
+            if (!empty($preservedQuotas)) {
+                logV3("🔁 V3: Recreated " . count($preservedQuotas) . " preserved quota day(s) outside selection");
+            }
+
+            foreach ($ranges as $range) {
+                logV3("➡️ V3: Processing range {$range['start']} → {$range['end']} (" . count($range['dates']) . " day(s))");
+                foreach ($range['dates'] as $date) {
+                    if (isset($blockedDates[$date])) {
+                        $blocked = $blockedDates[$date];
+                        logV3(sprintf(
+                            "⛔ V3: Skipping %s due to closed quota %s (%s-%s)",
+                            $date,
+                            $blocked['id'],
+                            $blocked['from'] ?? '?',
+                            $blocked['to'] ?? '?'
+                        ));
+                        continue;
+                    }
+
+                    if (!isset($quotasByDate[$date])) {
+                        logV3("⚠️ V3: Keine Quota-Daten für $date gefunden (übersprungen)");
+                        continue;
+                    }
+
+                    foreach ($quotasByDate[$date] as $quota) {
+                        $quantities = [];
+                        $totalQuantity = 0;
+                        foreach ($this->categoryMap as $categoryName => $categoryId) {
+                            $fieldName = 'quota_' . $categoryName;
+                            $quantity = isset($quota[$fieldName]) ? (int)$quota[$fieldName] : 0;
+                            $quantities[$categoryName] = max(0, $quantity);
+                            $totalQuantity += $quantities[$categoryName];
+                        }
+
+                        if ($totalQuantity <= 0 && empty($adjustedClosed)) {
+                            logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
+                            continue;
+                        }
+
+                        $quotaCreation = $this->createQuota($date, $quantities, 'SERVICED');
+                        if ($quotaCreation !== false) {
+                            $createdQuotas[] = [
+                                'date' => $date,
+                                'quantities' => $quantities,
+                                'id' => ($quotaCreation === true) ? null : $quotaCreation
+                            ];
+                            logV3(sprintf(
+                                "✅ V3: Created quota ID %s for %s (L=%d, B=%d, DZ=%d, S=%d)",
+                                ($quotaCreation === true ? 'n/a' : $quotaCreation),
+                                $date,
+                                $quantities['lager'],
+                                $quantities['betten'],
+                                $quantities['dz'],
+                                $quantities['sonder']
+                            ));
+                        }
+                    }
                 }
             }
-            
+
+            $localRefresh = $this->refreshLocalQuotaCache($uniqueDates);
+
+            $messageParts = [];
+            $messageParts[] = count($createdQuotas) . ' Quotas erstellt';
+            $messageParts[] = count($deletedQuotas) . ' gelöscht';
+            if (!empty($adjustedClosed)) {
+                $messageParts[] = count($adjustedClosed) . ' geschlossene angepasst';
+            }
+            if (!empty($preservedQuotas)) {
+                $messageParts[] = count($preservedQuotas) . ' Teilbereiche erhalten';
+            }
+            if ($localRefresh && isset($localRefresh['success'])) {
+                $messageParts[] = $localRefresh['success'] ? 'Import aktualisiert' : 'Import fehlgeschlagen';
+            }
+
             return [
                 'success' => true,
                 'createdQuotas' => $createdQuotas,
                 'deletedQuotas' => $deletedQuotas,
-                'message' => count($createdQuotas) . ' Quotas erstellt, ' . count($deletedQuotas) . ' gelöscht'
+                'adjustedClosedQuotas' => array_values($adjustedClosed),
+                'skippedClosedQuotas' => array_values($adjustedClosed),
+                'preservedQuotas' => $preservedQuotas,
+                'blockedDates' => array_values($blockedDates),
+                'localRefresh' => $localRefresh,
+                'createdCount' => count($createdQuotas),
+                'deletedCount' => count($deletedQuotas),
+                'adjustedClosedCount' => count($adjustedClosed),
+                'preservedCount' => count($preservedQuotas),
+                'message' => implode(', ', $messageParts)
             ];
-            
+
         } catch (Exception $e) {
             logV3("❌ V3 Error in updateQuotas: " . $e->getMessage());
             throw $e;
         }
     }
     
-    private function deleteOverlappingQuotas($dates) {
-        $deleted = [];
+    private function deleteOverlappingQuotas(array $dates, array $ranges) {
+        $result = [
+            'deleted' => [],
+            'splitCreated' => [],
+            'processedClosed' => [],
+            'blockedDates' => []
+        ];
+
+        if (empty($dates)) {
+            return $result;
+        }
         
         try {
+            $selectedDateSet = array_fill_keys($dates, true);
             $minDate = min($dates);
             $maxDate = max($dates);
-            
+
             $dateFrom = date('d.m.Y', strtotime($minDate . ' -30 days'));
             $dateTo = date('d.m.Y', strtotime($maxDate . ' +30 days'));
-            
-            logV3("🔍 V3: Searching quotas from $dateFrom to $dateTo");
-            
-            $toDelete = [];
+
+            logV3("🔍 V3: Searching quotas from $dateFrom to $dateTo (" . count($ranges) . " range(s))");
+
+            $toProcess = [];
             $page = 0;
             $maxPages = 25;
             $headers = ['X-XSRF-TOKEN' => $this->hrsLogin->getCsrfToken()];
@@ -175,14 +496,13 @@ class QuotaWriterV3 {
                 if (isset($responseArray['body'])) {
                     logV3("📄 V3: Page {$page} body preview: " . substr($responseArray['body'], 0, 200));
                 }
-                
+
                 if (!$responseArray || !isset($responseArray['body'])) {
                     logV3("❌ V3: No response from HRS API (page {$page})");
                     break;
                 }
 
                 $data = json_decode($responseArray['body'], true);
-                
                 if (!$data) {
                     logV3("❌ V3: Failed to parse HRS API response (page {$page})");
                     break;
@@ -194,18 +514,17 @@ class QuotaWriterV3 {
                 $quotasList = null;
                 if (isset($data['_embedded']['bedCapacityChangeResponseDTOList'])) {
                     $quotasList = $data['_embedded']['bedCapacityChangeResponseDTOList'];
-                } else if (isset($data['content'])) {
+                } elseif (isset($data['content'])) {
                     $quotasList = $data['content'];
-                } else if (isset($data['quotas']) && is_array($data['quotas'])) {
+                } elseif (isset($data['quotas']) && is_array($data['quotas'])) {
                     $quotasList = $data['quotas'];
-                } else if (isset($data['items']) && is_array($data['items'])) {
+                } elseif (isset($data['items']) && is_array($data['items'])) {
                     $quotasList = $data['items'];
-                } else if (is_array($data)) {
+                } elseif (is_array($data)) {
                     $quotasList = $data;
                 }
-                
+
                 $currentCount = is_array($quotasList) ? count($quotasList) : 0;
-                
                 logV3("📄 V3: Page {$page} returned {$currentCount} quotas");
 
                 if (!$quotasList || $currentCount === 0) {
@@ -217,8 +536,8 @@ class QuotaWriterV3 {
                 foreach ($quotasList as $quota) {
                     $beginDateRaw = $this->resolveQuotaField($quota, ['beginDate', 'dateFrom', 'date_from', 'startDate', 'date_from_formatted']);
                     $endDateRaw = $this->resolveQuotaField($quota, ['endDate', 'dateTo', 'date_to', 'endDate', 'date_to_formatted']);
-                    $quotaId = null;
 
+                    $quotaId = null;
                     if (isset($quota['id']) && $quota['id']) {
                         $quotaId = $quota['id'];
                     } elseif (isset($quota['quotaId']) && $quota['quotaId']) {
@@ -234,7 +553,7 @@ class QuotaWriterV3 {
 
                     $quotaStart = $this->parseQuotaDate($beginDateRaw);
                     $quotaEndRaw = $this->parseQuotaDate($endDateRaw);
-                    
+
                     if (!$quotaStart || !$quotaEndRaw) {
                         logV3(sprintf(
                             "⚠️ V3: Could not parse dates for quota %s (begin=%s, end=%s)",
@@ -245,25 +564,22 @@ class QuotaWriterV3 {
                         continue;
                     }
 
-                    // Ensure chronological order
                     if ($quotaEndRaw < $quotaStart) {
                         $quotaEndRaw = clone $quotaStart;
                     }
 
                     $diffDays = (int)$quotaStart->diff($quotaEndRaw)->format('%a');
-
-                    // Default exclusive end
                     $quotaEnd = clone $quotaEndRaw;
 
                     if ($quotaEnd <= $quotaStart) {
-                        // Single-day quota stored without end increment
                         $quotaEnd = (clone $quotaStart)->modify('+1 day');
                     } elseif ($diffDays >= 2) {
-                        // Multi-day quotas often use inclusive end → add one day to make exclusive
                         $quotaEnd = (clone $quotaEndRaw)->modify('+1 day');
+                    } elseif ($diffDays === 0) {
+                        $quotaEnd = (clone $quotaStart)->modify('+1 day');
                     }
-                    
-                     logV3(sprintf(
+
+                    logV3(sprintf(
                         "🧮 V3: Quota %s range %s -> %s (rawEnd=%s, diff=%d)",
                         $quotaId,
                         $quotaStart->format('Y-m-d'),
@@ -272,21 +588,55 @@ class QuotaWriterV3 {
                         $diffDays
                     ));
 
-                    foreach ($dates as $date) {
-                        $checkDate = new DateTime($date);
-                        logV3(sprintf(
-                            "   🔎 Check %s against %s-%s",
-                            $checkDate->format('Y-m-d'),
-                            $quotaStart->format('Y-m-d'),
-                            $quotaEnd->format('Y-m-d')
-                        ));
-                        
-                        if ($checkDate >= $quotaStart && $checkDate < $quotaEnd) {
-                            $toDelete[$quotaId] = $quota;
-                            logV3("   ✅ Overlap detected for quota {$quotaId} on {$checkDate->format('Y-m-d')}");
-                            break;
+                    $daysInQuota = $this->expandDayRange($quotaStart, $quotaEnd);
+                    if (empty($daysInQuota)) {
+                        logV3("⚠️ V3: Quota {$quotaId} produced no day list (skipped)");
+                        continue;
+                    }
+
+                    $intersectionDays = [];
+                    foreach ($daysInQuota as $day) {
+                        if (isset($selectedDateSet[$day])) {
+                            $intersectionDays[] = $day;
                         }
                     }
+
+                    if (empty($intersectionDays)) {
+                        continue;
+                    }
+
+                    $modeRaw = $this->resolveQuotaField($quota, ['mode', 'reservationMode', 'status', 'state']);
+                    $mode = $modeRaw ?: ($quota['mode'] ?? 'SERVICED');
+                    $modeUpper = strtoupper((string)$mode);
+                    $isClosedQuota = $modeUpper === 'CLOSED';
+                    if ($isClosedQuota) {
+                        $closedInfo = [
+                            'id' => $quotaId,
+                            'mode' => $modeUpper,
+                            'from' => $quotaStart->format('Y-m-d'),
+                            'to' => $quotaEnd->format('Y-m-d'),
+                            'affectedDays' => $intersectionDays
+                        ];
+                        $result['processedClosed'][$quotaId] = $closedInfo;
+                        logV3("🚧 V3: Closed quota {$quotaId} overlaps selection – will adjust surrounding closed segments");
+                    }
+
+                    $categoryValues = $this->extractQuotaQuantities($quota);
+
+                    $toProcess[$quotaId] = [
+                        'raw' => $quota,
+                        'mode' => $modeUpper,
+                        'isClosed' => $isClosedQuota,
+                        'start' => clone $quotaStart,
+                        'end' => clone $quotaEnd,
+                        'displayFrom' => $beginDateRaw,
+                        'displayTo' => $endDateRaw,
+                        'days' => $daysInQuota,
+                        'intersections' => $intersectionDays,
+                        'categoryValues' => $categoryValues
+                    ];
+
+                    logV3("   ✅ Overlap detected for quota {$quotaId} (" . implode(', ', $intersectionDays) . ")");
                 }
 
                 $page++;
@@ -302,33 +652,77 @@ class QuotaWriterV3 {
                     $hasMore = $currentCount === 200;
                 }
             } while ($page < $maxPages && $hasMore);
-            
+
             logV3("📊 V3: Fetched {$totalFound} quotas across {$page} pages");
-            logV3("🎯 V3: Found " . count($toDelete) . " overlapping quotas to delete");
-            
-            foreach ($toDelete as $quotaId => $quota) {
-                $beginDate = isset($quota['beginDate']) ? $quota['beginDate'] : $quota['date_from'];
-                $endDate = isset($quota['endDate']) ? $quota['endDate'] : $quota['date_to'];
-                
-                logV3("🗑️ V3: Attempting to delete quota ID $quotaId ($beginDate - $endDate)");
-                
+            logV3("🎯 V3: Found " . count($toProcess) . " overlapping quota(s) to adjust");
+
+            foreach ($toProcess as $quotaId => $info) {
+                $displayFrom = $info['displayFrom'] ?? $info['start']->format('Y-m-d');
+                $displayTo = $info['displayTo'] ?? $info['end']->format('Y-m-d');
+
+                $daysToKeep = array_values(array_diff($info['days'], $info['intersections']));
+                $deleteCompletely = empty($daysToKeep);
+
+                logV3("🗑️ V3: Attempting to delete quota ID $quotaId ($displayFrom - $displayTo) " . ($deleteCompletely ? '[full]' : '[split]'));
+
                 if ($this->deleteQuotaViaAPI($quotaId)) {
-                    $deleted[] = [
+                    $result['deleted'][] = [
                         'id' => $quotaId,
-                        'from' => $beginDate,
-                        'to' => $endDate
+                        'from' => $displayFrom,
+                        'to' => $displayTo,
+                        'mode' => $info['mode'] ?? null,
+                        'action' => $deleteCompletely ? 'full' : 'split'
                     ];
                     logV3("✅ V3: Deleted quota ID $quotaId");
+
+                    if (!$deleteCompletely) {
+                        $categories = $info['categoryValues'];
+                        $categorySum = array_sum($categories);
+                        $preserveMode = $info['mode'] ?? 'SERVICED';
+                        $preserveMode = $preserveMode ? strtoupper($preserveMode) : 'SERVICED';
+                        $forcePreserve = !empty($info['isClosed']);
+
+                        if ($categorySum <= 0 && !$forcePreserve) {
+                            logV3("⚠️ V3: Quota {$quotaId} split but categories sum = 0, skip recreation");
+                            continue;
+                        }
+
+                        $baseTitle = $this->resolveQuotaField($info['raw'], ['title']);
+                        if (!is_string($baseTitle) || $baseTitle === '') {
+                            $baseTitle = 'Timeline Split Quota';
+                        }
+
+                        foreach ($daysToKeep as $keepDay) {
+                            if (isset($selectedDateSet[$keepDay])) {
+                                // Safety check, should not happen
+                                logV3("⚠️ V3: Preserve day {$keepDay} still marked as selected – skipping recreate");
+                                continue;
+                            }
+
+                            logV3("   🔁 Recreating preserved day {$keepDay} from quota {$quotaId}");
+                            $titleForDay = sprintf('%s (Split %s)', $baseTitle, str_replace('-', '', $keepDay));
+                            $newId = $this->createQuota($keepDay, $categories, $preserveMode, $titleForDay, $forcePreserve);
+                            if ($newId) {
+                                $result['splitCreated'][] = [
+                                    'sourceId' => $quotaId,
+                                    'date' => $keepDay,
+                                    'id' => $newId,
+                                    'quantities' => $categories
+                                ];
+                                logV3("   ✅ Preserved quota created with ID {$newId} for {$keepDay}");
+                            }
+                        }
+                    }
                 } else {
                     logV3("⚠️ V3: Failed to delete quota ID $quotaId");
                 }
             }
-            
+
         } catch (Exception $e) {
             logV3("❌ V3 Error in deleteOverlappingQuotas: " . $e->getMessage());
         }
-        
-        return $deleted;
+
+        return $result;
     }
     
     private function deleteQuotaViaAPI($quotaId) {
@@ -411,14 +805,26 @@ class QuotaWriterV3 {
     /**
      * ✅ BEWÄHRTE MANAGEMENT API (wie in hrs_create_quota_batch.php)
      */
-    private function createQuota($date, array $quantities) {
+    private function createQuota($date, array $quantities, $mode = 'SERVICED', $title = null, $forceCreate = false) {
         try {
             $date_from = $date;
             $date_to = date('Y-m-d', strtotime($date . ' +1 day'));
-            
+
+            $normalizedMode = $mode ? strtoupper($mode) : 'SERVICED';
+            $allowedModes = ['SERVICED', 'UNSERVICED', 'CLOSED'];
+            if (!in_array($normalizedMode, $allowedModes, true)) {
+                $normalizedMode = 'SERVICED';
+            }
+            $capacityValue = array_sum($quantities);
+            if (!$forceCreate) {
+                $capacityValue = max(0, $capacityValue);
+            }
+            $title = $title ?: 'Timeline Quota ' . $date;
+
             logV3(sprintf(
-                "📤 V3: Creating quota via Management API: %s (L=%d, B=%d, DZ=%d, S=%d)",
+                "📤 V3: Creating quota via Management API: %s (Mode=%s | L=%d, B=%d, DZ=%d, S=%d)",
                 $date,
+                $normalizedMode,
                 $quantities['lager'],
                 $quantities['betten'],
                 $quantities['dz'],
@@ -427,10 +833,10 @@ class QuotaWriterV3 {
             
             $payload = array(
                 'id' => 0,
-                'title' => 'Timeline Quota ' . $date,
-                'reservationMode' => 'SERVICED',
+                'title' => $title,
+                'reservationMode' => $normalizedMode,
                 'isRecurring' => null,
-                'capacity' => 0,
+                'capacity' => $capacityValue,
                 'languagesDataDTOs' => array(
                     array('language' => 'DE_DE', 'description' => ''),
                     array('language' => 'EN', 'description' => '')
@@ -453,7 +859,7 @@ class QuotaWriterV3 {
                 'seriesBeginDate' => '',
                 'dateFrom' => date('d.m.Y', strtotime($date_from)),
                 'dateTo' => date('d.m.Y', strtotime($date_to)),
-                'canOverbook' => true,
+                'canOverbook' => $normalizedMode === 'CLOSED' ? false : true,
                 'canChangeMode' => false,
                 'allSeries' => false
             );
@@ -524,6 +930,10 @@ class QuotaWriterV3 {
             $response_data = json_decode($response_body, true);
             if ($response_data && isset($response_data['messageId']) && $response_data['messageId'] == 120) {
                 $quotaId = $response_data['param1'] ?? null;
+                if (!$quotaId) {
+                    logV3("✅ V3: Quota created successfully (MessageID: 120, ID unbekannt)");
+                    return true;
+                }
                 logV3("✅ V3: Quota created successfully (MessageID: 120, ID: $quotaId)");
                 return $quotaId;
             } else {

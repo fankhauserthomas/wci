@@ -16,12 +16,16 @@
 // -----------------------------------------------------------------------------
 $isCli = (PHP_SAPI === 'cli');
 $dryRun = false;
+$jsonResponse = false;
 
 // CLI-Flags
 if ($isCli && isset($argv)) {
     foreach ($argv as $arg) {
         if ($arg === '--dry-run') {
             $dryRun = true;
+        }
+        if ($arg === '--json') {
+            $jsonResponse = true;
         }
     }
 }
@@ -34,7 +38,7 @@ if (!$isCli) {
 }
 
 // JSON Response für UI
-$jsonResponse = isset($_GET['json']) && $_GET['json'] == '1';
+$jsonResponse = $jsonResponse || (isset($_GET['json']) && $_GET['json'] == '1');
 
 // Config laden
 $configPath = __DIR__ . '/../config.php';

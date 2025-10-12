@@ -309,21 +309,6 @@
             const dateFromStr = dateFrom.toISOString().split('T')[0];
             const dateToStr = dateTo.toISOString().split('T')[0];
 
-            const confirmed = confirm(
-                `HRS Daten importieren?\n\n` +
-                `Von: ${dateFromStr}\n` +
-                `Bis: ${dateToStr}\n` +
-                `Tage: ${selectedIndices.length}\n\n` +
-                `Dies importiert:\n` +
-                `• Daily Summary (Echtzeit-Fortschritt)\n` +
-                `• Quota (Kapazitäten)\n` +
-                `• Reservierungen\n` +
-                `• AV Capacity Update (für diesen Zeitraum)\n\n` +
-                `Dies kann einige Minuten dauern.`
-            );
-
-            if (!confirmed) return;
-
             // Trigger HRS Import Event (wird von timeline-unified.html verarbeitet)
             const event = new CustomEvent('hrs-import-requested', {
                 detail: { dateFrom: dateFromStr, dateTo: dateToStr, dayCount: selectedIndices.length }

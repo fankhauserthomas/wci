@@ -4768,9 +4768,17 @@ class TimelineUnifiedRenderer {
                         this.histogramTargetActive = true;
                     }
 
-                    // Erhöhe/Erniedrige Zielwert
-                    const delta = e.deltaY > 0 ? -5 : 5; // Invertiert: runter scrollen = erhöhen
-                    this.histogramTargetValue = Math.max(0, this.histogramTargetValue + delta);
+                    // Erhöhe/Erniedrige Zielwert (Standard 5er Schritte, mit STRG 1er Schritte)
+                    const step = e.ctrlKey ? 1 : 5;
+                    const delta = e.deltaY > 0 ? -step : step; // Invertiert: runter scrollen = erhöhen
+                    const nextValue = this.histogramTargetValue + delta;
+
+                    if (!e.ctrlKey) {
+                        const snapped = Math.round(nextValue / 5) * 5;
+                        this.histogramTargetValue = Math.max(0, snapped);
+                    } else {
+                        this.histogramTargetValue = Math.max(0, nextValue);
+                    }
 
                     console.log('🎯 Histogram target value adjusted:', this.histogramTargetValue);
                     this.scheduleRender('histogram_target_adjust');
@@ -10474,12 +10482,16 @@ class TimelineUnifiedRenderer {
         const textColor = histogramTheme.text || '#ecf0f1';
         const fontSize = histogramTheme.fontSize || 9;
 
+        const clipExtension = 12;
+        const clipStartX = Math.max(0, this.sidebarWidth - clipExtension);
+        const clipWidth = Math.max(0, this.canvas.width - clipStartX);
+
         this.ctx.save();
         this.ctx.fillStyle = backgroundColor;
-        this.ctx.fillRect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.fillRect(clipStartX, area.y, clipWidth, area.height);
 
         this.ctx.beginPath();
-        this.ctx.rect(this.sidebarWidth, area.y, this.canvas.width - this.sidebarWidth, area.height);
+        this.ctx.rect(clipStartX, area.y, clipWidth, area.height);
         this.ctx.clip();
 
         const { dailyCounts, dailyDetails, maxGuests } = this.getHistogramData(startDate, endDate);
