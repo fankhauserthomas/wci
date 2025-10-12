@@ -406,10 +406,12 @@ class QuotaWriterV3 {
 
                         logV3("   💯 Total quantity for {$date}: {$totalQuantity}");
 
-                        if ($totalQuantity <= 0 && empty($adjustedClosed)) {
-                            logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
-                            continue;
-                        }
+                        // ✅ WICHTIG: Auch 0-Quotas MÜSSEN geschrieben werden, um korrekte Vakanzen anzuzeigen!
+                        // Wenn keine Quota gesetzt ist, zeigt das System "verfügbar" an - das wäre fatal bei Überbelegung!
+                        // if ($totalQuantity <= 0 && empty($adjustedClosed)) {
+                        //     logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
+                        //     continue;
+                        // }
 
                         $quotaCreation = $this->createQuota($date, $quantities, 'SERVICED');
                         if ($quotaCreation !== false) {

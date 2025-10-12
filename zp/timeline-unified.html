@@ -2924,6 +2924,42 @@
                 }
             }
 
+            const hrsImportQueue = [];
+            let isHRSImportRunning = false;
+
+            async function runNextHRSImport() {
+                if (isHRSImportRunning) return;
+                const job = hrsImportQueue.shift();
+                if (!job) return;
+
+                isHRSImportRunning = true;
+                try {
+                    await executeHRSImport(job.dateFrom, job.dateTo, job.dayCount, job.buttonRef ?? null);
+                    job.resolve?.();
+                } catch (error) {
+                    job.reject?.(error);
+                } finally {
+                    isHRSImportRunning = false;
+                    if (hrsImportQueue.length > 0) {
+                        runNextHRSImport();
+                    }
+                }
+            }
+
+            function enqueueHRSImportJob(job) {
+                return new Promise((resolve, reject) => {
+                    hrsImportQueue.push({ ...job, resolve, reject });
+                    runNextHRSImport();
+                });
+            }
+
+            window.enqueueHRSImport = function (job) {
+                if (!job || !job.dateFrom || !job.dateTo) {
+                    return Promise.reject(new Error('Ungültiger HRS Import Job'));
+                }
+                return enqueueHRSImportJob(job);
+            };
+
             // Calculate visible season (days between closed quotas)
             function calculateVisibleSeason() {
                 const renderer = getTimelineRenderer();
@@ -3166,7 +3202,16 @@
                     newConfirmBtn.addEventListener('click', async () => {
                         modal.hide();
                         // Execute import with season dates
-                        await executeHRSImport(season.dateFrom, season.dateTo, season.dayCount, hrsImportBtn);
+                        try {
+                            await window.enqueueHRSImport({
+                                dateFrom: season.dateFrom,
+                                dateTo: season.dateTo,
+                                dayCount: season.dayCount,
+                                buttonRef: hrsImportBtn
+                            });
+                        } catch (error) {
+                            console.error('❌ HRS Import über Toolbar fehlgeschlagen:', error);
+                        }
                     });
 
                     modal.show();
@@ -3176,7 +3221,11 @@
             // Event Listener für Context Menu HRS Import
             window.addEventListener('hrs-import-requested', async (event) => {
                 const { dateFrom, dateTo, dayCount } = event.detail;
-                await executeHRSImport(dateFrom, dateTo, dayCount, null);
+                try {
+                    await window.enqueueHRSImport({ dateFrom, dateTo, dayCount });
+                } catch (error) {
+                    console.error('❌ HRS Import aus Kontextmenü fehlgeschlagen:', error);
+                }
             });
 
             toolbar.dataset.initialized = 'true';

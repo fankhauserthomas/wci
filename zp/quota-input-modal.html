@@ -174,6 +174,7 @@
             this.statusSummary = null;
             this.statusCloseBtn = null;
             this.statusSteps = [];
+            this.currentSegments = [];
 
             this.initializeEventListeners();
             this.initializeStatusModal();
@@ -547,8 +548,17 @@
          */
         show(selectedDays) {
             console.log('🎯 Modal.show() aufgerufen mit selectedDays:', selectedDays);
-            this.selectedDays = selectedDays;
+            this.selectedDays = this.sanitizeSelectedDays(selectedDays);
             this.lastTargetCapacityFineAdjust = false;
+
+            if (!this.selectedDays.length) {
+                console.warn('⚠️ Keine bearbeitbaren Tage nach Sanitizing vorhanden (alle geschlossen oder ungültig).');
+                alert('⚠️ Die Auswahl enthält nur geschlossene Tage. Bitte wählen Sie andere Tage aus.');
+                return;
+            }
+
+            this.currentSegments = this.getContiguousSegmentsFromDays(this.selectedDays);
+            console.log('🧭 Erkannte Segmente:', this.currentSegments);
 
             // Datum-Bereich anzeigen (YYYY-MM-DD Strings zu lokalen Dates)
             const parseDateString = (dateStr) => {
@@ -559,18 +569,18 @@
                 return parsed;
             };
 
-            const dates = selectedDays.map(parseDateString);
+            const dates = this.selectedDays.map(parseDateString);
             const minDate = new Date(Math.min(...dates));
             const maxDate = new Date(Math.max(...dates));
 
             console.log('📆 Min:', minDate.toLocaleDateString('de-DE'), 'Max:', maxDate.toLocaleDateString('de-DE'));
 
-            const dateRange = selectedDays.length === 1
+            const dateRange = this.selectedDays.length === 1
                 ? minDate.toLocaleDateString('de-DE')
                 : `${minDate.toLocaleDateString('de-DE')} - ${maxDate.toLocaleDateString('de-DE')}`;
 
             console.log('📋 Final dateRange:', dateRange);
-            document.getElementById('quotaDateRange').textContent = dateRange + ` (${selectedDays.length} Tage)`;
+            document.getElementById('quotaDateRange').textContent = dateRange + ` (${this.selectedDays.length} Tage)`;
 
             // Hole aktuellen Histogram-Target-Wert vom Renderer
             if (this.renderer && this.renderer.histogramTargetValue) {
@@ -592,29 +602,140 @@
             this.modal.show();
         }
 
-        triggerAutomaticHRSImportAfterDeploy() {
-            if (!Array.isArray(this.selectedDays) || this.selectedDays.length === 0) {
-                console.log('⏭️ Automatischer HRS Import ausgelassen – keine Selektionsdaten vorhanden.');
-                return false;
+        sanitizeSelectedDays(days) {
+            if (!Array.isArray(days)) return [];
+
+            const uniqueSorted = Array.from(new Set(days.filter(Boolean))).sort();
+            const valid = [];
+            const skipped = [];
+
+            uniqueSorted.forEach(dateStr => {
+                if (this.isDayClosed(dateStr)) {
+                    skipped.push(dateStr);
+                    return;
+                }
+                valid.push(dateStr);
+            });
+
+            if (skipped.length) {
+                console.warn('⛔ Geschlossene Tage aus Auswahl entfernt:', skipped);
             }
 
-            const uniqueDays = Array.from(new Set(this.selectedDays)).sort();
-            const detail = {
-                dateFrom: uniqueDays[0],
-                dateTo: uniqueDays[uniqueDays.length - 1],
-                dayCount: uniqueDays.length
-            };
+            return valid;
+        }
 
-            console.log('🚀 Starte automatischen HRS Import nach Quota-Deployment:', detail);
+        isDayClosed(dateStr) {
+            if (!this.renderer || !dateStr) return false;
 
             try {
-                const event = new CustomEvent('hrs-import-requested', { detail });
-                window.dispatchEvent(event);
-                return true;
+                const { startDate, endDate } = this.renderer.getTimelineDateRange();
+                const histogramData = this.renderer.getHistogramData(startDate, endDate);
+                if (!histogramData || !Array.isArray(histogramData.dailyDetails)) return false;
+
+                const date = new Date(dateStr);
+                if (Number.isNaN(date.getTime())) return false;
+
+                const MS_IN_DAY = 24 * 60 * 60 * 1000;
+                const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+                const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 12, 0, 0, 0);
+                const dayIndex = Math.floor((normalizedDate - normalizedStart) / MS_IN_DAY);
+
+                const detail = histogramData.dailyDetails[dayIndex];
+                if (!detail) return false;
+                const status = typeof detail.hut_status === 'string'
+                    ? detail.hut_status.trim().toUpperCase()
+                    : 'SERVICED';
+
+                return status && status !== 'SERVICED' && status !== 'OPEN';
             } catch (error) {
-                console.error('❌ Automatischer HRS Import konnte nicht gestartet werden:', error);
+                console.warn('⚠️ isDayClosed Fehler für', dateStr, error);
                 return false;
             }
+        }
+
+        getContiguousSegmentsFromDays(days) {
+            if (!Array.isArray(days) || days.length === 0) return [];
+
+            const sortedDays = Array.from(new Set(days)).sort();
+            const MS_IN_DAY = 24 * 60 * 60 * 1000;
+            const parseToUTC = (dateStr) => {
+                const [year, month, day] = dateStr.split('-').map(Number);
+                return Date.UTC(year, month - 1, day);
+            };
+
+            const segments = [];
+            let currentSegment = [];
+            let lastValue = null;
+
+            for (const dateStr of sortedDays) {
+                const currentValue = parseToUTC(dateStr);
+                if (!currentSegment.length) {
+                    currentSegment.push(dateStr);
+                } else if (currentValue === lastValue + MS_IN_DAY) {
+                    currentSegment.push(dateStr);
+                } else {
+                    segments.push({
+                        dates: [...currentSegment],
+                        dateFrom: currentSegment[0],
+                        dateTo: currentSegment[currentSegment.length - 1],
+                        dayCount: currentSegment.length
+                    });
+                    currentSegment = [dateStr];
+                }
+                lastValue = currentValue;
+            }
+
+            if (currentSegment.length) {
+                segments.push({
+                    dates: [...currentSegment],
+                    dateFrom: currentSegment[0],
+                    dateTo: currentSegment[currentSegment.length - 1],
+                    dayCount: currentSegment.length
+                });
+            }
+
+            return segments;
+        }
+
+        async triggerAutomaticHRSImportAfterDeploy(segments = null) {
+            const segmentsToProcess = Array.isArray(segments) && segments.length
+                ? segments
+                : this.getContiguousSegmentsFromDays(this.selectedDays).map(segment => ({
+                    dateFrom: segment.dateFrom,
+                    dateTo: segment.dateTo,
+                    dayCount: segment.dayCount
+                }));
+
+            if (!segmentsToProcess.length) {
+                console.log('⏭️ Automatischer HRS Import ausgelassen – keine verarbeitbaren Segmente.');
+                return false;
+            }
+
+            if (typeof window.enqueueHRSImport === 'function') {
+                for (const segment of segmentsToProcess) {
+                    console.log('🚀 Automatischer HRS Import Segment:', segment);
+                    try {
+                        await window.enqueueHRSImport(segment);
+                    } catch (error) {
+                        console.error('❌ Fehler beim HRS Import Segment:', segment, error);
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            console.warn('⚠️ enqueueHRSImport nicht verfügbar – fallback via Events (ohne Garantien).');
+            segmentsToProcess.forEach((segment, index) => {
+                setTimeout(() => {
+                    try {
+                        const event = new CustomEvent('hrs-import-requested', { detail: segment });
+                        window.dispatchEvent(event);
+                    } catch (error) {
+                        console.error('❌ Fallback-Dispatch fehlgeschlagen:', error);
+                    }
+                }, index * 600);
+            });
+            return false;
         }
 
         /**
@@ -761,9 +882,16 @@
             let hasOverbooking = false;
             const tableData = [];
 
+            const skippedClosedDays = [];
+
             // Sammle Daten für alle Tage
             console.log('🔄 Starte Datensammlung für', this.selectedDays.length, 'Tage...');
             for (const dateStr of this.selectedDays) {
+                if (this.isDayClosed(dateStr)) {
+                    console.log(`⛔ ${dateStr} ist geschlossen – wird übersprungen.`);
+                    skippedClosedDays.push(dateStr);
+                    continue;
+                }
                 console.log('  📅 Verarbeite Tag:', dateStr);
                 // Berechne Quota-Verteilung (diese Funktion holt sich intern die Belegungen)
                 const quotas = await this.calculateQuotaDistribution(targetCapacity, null, dateStr);
@@ -798,6 +926,18 @@
                     totalQuota: quotas.lager + quotas.betten + quotas.dz + quotas.sonder,
                     isOverbooked: availableQuota <= 0
                 });
+            }
+
+            const warning = document.getElementById('overbookingWarning');
+
+            if (tableData.length === 0) {
+                previewContainer.innerHTML = `
+                    <div class="alert alert-info py-2 px-3 mb-0" role="alert">
+                        Keine bearbeitbaren Tage in der Auswahl (alle geschlossen oder ausgefiltert).
+                    </div>
+                `;
+                warning.classList.add('d-none');
+                return;
             }
 
             // Erstelle Excel-Style Tabelle
@@ -847,6 +987,21 @@
                 </div>
             `;
 
+            if (skippedClosedDays.length) {
+                const formattedSkipped = skippedClosedDays
+                    .map(dateStr => {
+                        const [year, month, day] = dateStr.split('-').map(Number);
+                        const display = new Date(year, month - 1, day).toLocaleDateString('de-DE');
+                        return display;
+                    })
+                    .join(', ');
+                html = `
+                    <div class="alert alert-warning py-2 px-3 mb-2" role="alert">
+                        ⚠️ Geschlossene Tage (keine Anpassung möglich): ${formattedSkipped}
+                    </div>
+                ` + html;
+            }
+
             console.log('📊 TableData:', tableData);
             console.log('📝 HTML Length:', html.length);
             console.log('🎯 Setting innerHTML...');
@@ -854,7 +1009,6 @@
             console.log('✅ innerHTML gesetzt! previewContainer.children:', previewContainer.children.length);
 
             // Overbooking Warning
-            const warning = document.getElementById('overbookingWarning');
             if (hasOverbooking) {
                 warning.classList.remove('d-none');
             } else {
@@ -1101,6 +1255,18 @@
         async save() {
             if (!this.validate()) return;
 
+            this.selectedDays = this.sanitizeSelectedDays(this.selectedDays);
+            if (!this.selectedDays.length) {
+                alert('❌ Keine bearbeitbaren Tage (alle geschlossen).');
+                return;
+            }
+
+            const segments = this.getContiguousSegmentsFromDays(this.selectedDays);
+            if (!segments.length) {
+                alert('❌ Keine verarbeitbaren Zeiträume gefunden.');
+                return;
+            }
+
             const saveBtn = document.getElementById('saveQuotaBtn');
             saveBtn.disabled = true;
             saveBtn.innerHTML = '⏳ Speichern...';
@@ -1114,185 +1280,97 @@
             try {
                 const targetCapacity = parseInt(document.getElementById('targetCapacityValue').value) || 0;
 
-                // Berechne für jeden Tag individuell
-                const dailyQuotas = [];
-                for (const dateStr of this.selectedDays) {
-                    // 1. Berechne die neuen Quota-Werte (Q_berechnet)
-                    const calculatedQuotas = await this.calculateQuotaDistribution(targetCapacity, null, dateStr);
-
-                    // 2. Hole bereits gebuchte AV-Gäste pro Kategorie (assigned_guests)
-                    const assignedGuestsAV = await this.getBookedCategoriesForDate(dateStr, true);
-
-                    // 3. WICHTIG: Berechne die zu schreibenden Werte für HRS
-                    // Formel: Q_write = assigned_guests + Q_berechnet
-                    const quotasToWrite = {
-                        lager: assignedGuestsAV.lager + calculatedQuotas.lager,
-                        betten: assignedGuestsAV.betten + calculatedQuotas.betten,
-                        dz: assignedGuestsAV.dz + calculatedQuotas.dz,
-                        sonder: assignedGuestsAV.sonder + calculatedQuotas.sonder
-                    };
-
-                    console.log(`📊 ${dateStr}:`);
-                    console.log(`   Assigned AV: L=${assignedGuestsAV.lager}, B=${assignedGuestsAV.betten}, DZ=${assignedGuestsAV.dz}, S=${assignedGuestsAV.sonder}`);
-                    console.log(`   Calculated Q: L=${calculatedQuotas.lager}, B=${calculatedQuotas.betten}, DZ=${calculatedQuotas.dz}, S=${calculatedQuotas.sonder}`);
-                    console.log(`   → Write to HRS: L=${quotasToWrite.lager}, B=${quotasToWrite.betten}, DZ=${quotasToWrite.dz}, S=${quotasToWrite.sonder}`);
-
-                    dailyQuotas.push({
-                        date: dateStr,
-                        quota_lager: quotasToWrite.lager,
-                        quota_betten: quotasToWrite.betten,
-                        quota_dz: quotasToWrite.dz,
-                        quota_sonder: quotasToWrite.sonder,
-                        targetCapacity: targetCapacity
-                    });
-                }
-
-                // API Call
-                const requestBody = {
-                    quotas: dailyQuotas,
-                    operation: 'update'
+                const aggregated = {
+                    created: 0,
+                    deleted: 0,
+                    adjustedClosed: 0
                 };
-
-                console.log('📤 Sending to HRS API:', requestBody);
-
-                const response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-
-                console.log('📥 Response status:', response.status);
+                const importSegments = [];
+                let processedSegments = 0;
 
                 if (statusEnabled) {
-                    this.setStatusStep(0, response.ok ? 'success' : 'error', `HTTP ${response.status}`);
-                    if (response.ok) {
-                        this.setStatusStep(1, 'active');
+                    this.setStatusStep(1, 'active', `Verarbeite ${segments.length} Segment(e)`);
+                }
+
+                for (let index = 0; index < segments.length; index++) {
+                    const segment = segments[index];
+                    const segmentResult = await this.processQuotaSegment(segment, targetCapacity, statusEnabled, index, segments.length);
+                    if (!segmentResult || segmentResult.skipped) {
+                        continue;
                     }
-                }
 
-                // Read response as text first
-                const responseText = await response.text();
-                console.log('📄 Response body (first 500 chars):', responseText.substring(0, 500));
+                    processedSegments++;
+                    aggregated.created += segmentResult.createdCount;
+                    aggregated.deleted += segmentResult.deletedCount;
+                    aggregated.adjustedClosed += segmentResult.adjustedClosedCount;
 
-                // Check if response is JSON
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('❌ JSON Parse Error:', e.message);
-                    console.error('📄 Full response:', responseText);
-                    throw new Error('Server returned invalid JSON. Response: ' + responseText.substring(0, 200));
-                }
-
-                if (!response.ok) {
-                    console.error('❌ API Error Response:', result);
-                    if (statusEnabled) {
-                        this.failStatusWorkflow(result.error || result.message || `HTTP ${response.status}`);
-                    }
-                    throw new Error(result.error || result.message || 'Unknown server error');
-                }
-
-                if (result.success) {
-                    const createdCount = Number.isFinite(result.createdCount) ? result.createdCount : (Array.isArray(result.createdQuotas) ? result.createdQuotas.length : 0);
-                    const deletedCount = Number.isFinite(result.deletedCount) ? result.deletedCount : (Array.isArray(result.deletedQuotas) ? result.deletedQuotas.length : 0);
-                    const adjustedClosedCount = Number.isFinite(result.adjustedClosedCount) ? result.adjustedClosedCount : (Array.isArray(result.adjustedClosedQuotas) ? result.adjustedClosedQuotas.length : 0);
-                    const importInfo = result.localRefresh || {};
-                    const importHasData = importInfo && Object.keys(importInfo).length > 0;
-                    const importSuccess = importHasData && typeof importInfo.success === 'boolean' ? importInfo.success : true;
+                    importSegments.push({
+                        dateFrom: segment.dateFrom,
+                        dateTo: segment.dateTo,
+                        dayCount: segment.dayCount
+                    });
 
                     if (statusEnabled) {
-                        this.setStatusStep(1, 'success', `${createdCount} erstellt, ${deletedCount} gelöscht${adjustedClosedCount ? `, ${adjustedClosedCount} geschlossen angepasst` : ''}`);
-                        if (this.statusSteps.length >= 3) {
-                            if (importHasData && importInfo.success === false) {
-                                this.setStatusStep(2, 'error', importInfo.error || 'Import fehlgeschlagen');
-                            } else {
-                                let importDetail = 'Kein Import erforderlich';
-                                if (importHasData) {
-                                    if (importInfo.success === true) {
-                                        importDetail = 'Import aktualisiert';
-                                    } else if (Array.isArray(importInfo.logs)) {
-                                        importDetail = `${importInfo.logs.length} Log-Einträge`;
-                                    }
-                                }
-                                this.setStatusStep(2, 'success', importDetail);
-                            }
-                        }
-                        this.completeStatusWorkflow(importSuccess !== false, result.message || 'Fertig.');
-                    } else {
-                        alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${createdCount} Quotas\nGelöscht: ${deletedCount} Quotas`);
+                        const summary = `${aggregated.created} erstellt, ${aggregated.deleted} gelöscht${aggregated.adjustedClosed ? `, ${aggregated.adjustedClosed} geschlossen angepasst` : ''}`;
+                        this.setStatusStep(1, 'success', summary);
                     }
+                }
 
-                    // Timeline neu laden für den betroffenen Zeitbereich
-                    console.log('🔄 Reloading timeline data after quota changes...');
+                if (processedSegments === 0) {
+                    throw new Error('Keine bearbeitbaren Tage gefunden – alle ausgewählten Tage sind geschlossen.');
+                }
 
-                    // Wenn affectedDateRange vorhanden, logge es
-                    if (result.affectedDateRange) {
-                        console.log('📅 Affected date range:', result.affectedDateRange.from, 'to', result.affectedDateRange.to);
+                console.log('⏳ Waiting 800ms for DB commit and import...');
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                const hasReloadFunction = typeof window.reloadTimelineData === 'function';
+                const willAutoImport = importSegments.length > 0;
+
+                if (hasReloadFunction) {
+                    if (statusEnabled) {
+                        this.setStatusStep(2, 'active', 'Timeline aktualisieren...');
                     }
+                    console.log('🔄 Calling window.reloadTimelineData()...');
+                    await window.reloadTimelineData();
+                    console.log('✅ Timeline data reloaded successfully');
 
-                    // Prüfe ob HRS Import erfolgreich war
-                    if (result.localRefresh) {
-                        if (result.localRefresh.success) {
-                            console.log('✅ HRS Import successful - Cache aktualisiert');
-                        } else {
-                            console.warn('⚠️ HRS Import failed:', result.localRefresh.error || 'Unknown error');
-                        }
-                    }
-
-                    // Warte damit DB-Transaktion und Import sicher committed sind
-                    console.log('⏳ Waiting 800ms for DB commit and import...');
-                    await new Promise(resolve => setTimeout(resolve, 800));
-
-                    const hasReloadFunction = typeof window.reloadTimelineData === 'function';
-                    const willAutoImport = typeof window !== 'undefined' &&
-                        typeof window.dispatchEvent === 'function' &&
-                        Array.isArray(this.selectedDays) &&
-                        this.selectedDays.length > 0;
-
-                    // Verwende die globale reloadTimelineData Funktion
-                    if (hasReloadFunction) {
-                        console.log('🔄 Calling window.reloadTimelineData()...');
-                        await window.reloadTimelineData();
-                        console.log('✅ Timeline data reloaded successfully');
-
-                        // Force histogram redraw
-                        if (window.renderer && typeof window.renderer.render === 'function') {
-                            console.log('🎨 Forcing histogram redraw...');
-                            window.renderer.render();
-                            console.log('✅ Histogram redrawn');
-                        }
-                    } else {
-                        console.warn('⚠️ window.reloadTimelineData() not found, trying page reload...');
-                        // Fallback: Page reload
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
-                    }
-
-                    this.modal.hide();
-
-                    if (willAutoImport && hasReloadFunction) {
-                        setTimeout(() => {
-                            try {
-                                const triggered = this.triggerAutomaticHRSImportAfterDeploy();
-                                if (triggered) {
-                                    console.log('✅ Automatischer HRS Import wurde gestartet.');
-                                }
-                            } catch (autoImportError) {
-                                console.error('❌ Fehler beim Start des automatischen HRS Imports:', autoImportError);
-                            }
-                        }, 400);
-                    } else if (willAutoImport) {
-                        console.warn('⚠️ Automatischer HRS Import nicht gestartet: reloadTimelineData() fehlt.');
+                    if (window.renderer && typeof window.renderer.render === 'function') {
+                        console.log('🎨 Forcing histogram redraw...');
+                        window.renderer.render();
+                        console.log('✅ Histogram redrawn');
                     }
                 } else {
+                    console.warn('⚠️ window.reloadTimelineData() not found, trying page reload...');
                     if (statusEnabled) {
-                        this.failStatusWorkflow(result.error || 'Unbekannter Fehler');
-                    } else {
-                        alert(`❌ Fehler beim Speichern:\n\n${result.error}`);
+                        this.setStatusStep(2, 'warn', 'Seitenreload wird durchgeführt…');
                     }
+                    setTimeout(() => window.location.reload(), 500);
+                }
+
+                this.modal.hide();
+
+                if (willAutoImport && hasReloadFunction) {
+                    if (statusEnabled) {
+                        this.setStatusStep(2, 'active', 'Automatischen HRS Import starten…');
+                    }
+                    const importSuccess = await this.triggerAutomaticHRSImportAfterDeploy(importSegments);
+                    if (statusEnabled) {
+                        this.setStatusStep(2, importSuccess ? 'success' : 'warn', importSuccess ? 'Automatischer HRS Import abgeschlossen' : 'HRS Import (Fallback) gestartet');
+                    }
+                } else if (willAutoImport) {
+                    console.warn('⚠️ Automatischer HRS Import nicht gestartet: reloadTimelineData() fehlt.');
+                    if (statusEnabled) {
+                        this.setStatusStep(2, 'warn', 'HRS Import nicht gestartet (Reload nicht verfügbar)');
+                    }
+                } else if (statusEnabled && hasReloadFunction) {
+                    this.setStatusStep(2, 'success', 'Timeline aktualisiert');
+                }
+
+                if (statusEnabled) {
+                    const finalSummary = `${aggregated.created} erstellt, ${aggregated.deleted} gelöscht${aggregated.adjustedClosed ? `, ${aggregated.adjustedClosed} geschlossen angepasst` : ''}`;
+                    this.completeStatusWorkflow(true, finalSummary);
+                } else {
+                    alert(`✅ Erfolg!\n\nErstellt: ${aggregated.created} Quotas\nGelöscht: ${aggregated.deleted} Quotas`);
                 }
 
             } catch (error) {
@@ -1306,6 +1384,130 @@
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '💾 Speichern';
             }
+        }
+
+        async processQuotaSegment(segment, targetCapacity, statusEnabled, segmentIndex, totalSegments) {
+            const label = `Segment ${segmentIndex + 1}/${totalSegments}: ${segment.dateFrom} – ${segment.dateTo}`;
+            if (statusEnabled) {
+                this.setStatusStep(0, 'active', label);
+            }
+
+            const dailyQuotas = [];
+            for (const dateStr of segment.dates) {
+                if (this.isDayClosed(dateStr)) {
+                    console.warn(`⛔ ${dateStr} ist geschlossen – Tag wird übersprungen.`);
+                    continue;
+                }
+
+                const calculatedQuotas = await this.calculateQuotaDistribution(targetCapacity, null, dateStr);
+                const assignedGuestsAV = await this.getBookedCategoriesForDate(dateStr, true);
+
+                const quotasToWrite = {
+                    lager: assignedGuestsAV.lager + calculatedQuotas.lager,
+                    betten: assignedGuestsAV.betten + calculatedQuotas.betten,
+                    dz: assignedGuestsAV.dz + calculatedQuotas.dz,
+                    sonder: assignedGuestsAV.sonder + calculatedQuotas.sonder
+                };
+
+                console.log(`📊 ${dateStr} (${label}):`, quotasToWrite);
+
+                dailyQuotas.push({
+                    date: dateStr,
+                    quota_lager: quotasToWrite.lager,
+                    quota_betten: quotasToWrite.betten,
+                    quota_dz: quotasToWrite.dz,
+                    quota_sonder: quotasToWrite.sonder,
+                    targetCapacity: targetCapacity
+                });
+            }
+
+            if (!dailyQuotas.length) {
+                console.warn('⚠️ Segment enthält keine bearbeitbaren Tage und wird übersprungen:', segment);
+                if (statusEnabled) {
+                    this.setStatusStep(0, 'warn', `${label} (nur geschlossene Tage)`);
+                }
+                return { skipped: true };
+            }
+
+            console.log('📤 Sende Segment an HRS API:', { label, dailyQuotas });
+
+            let response;
+            try {
+                response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        quotas: dailyQuotas,
+                        operation: 'update'
+                    })
+                });
+            } catch (networkError) {
+                if (statusEnabled) {
+                    this.setStatusStep(0, 'error', `${label} – Netzwerkfehler`);
+                }
+                throw networkError;
+            }
+
+            const responseText = await response.text();
+            console.log(`📥 Response (${label}) status:`, response.status);
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError.message);
+                console.error('📄 Full response:', responseText);
+                if (statusEnabled) {
+                    this.setStatusStep(0, 'error', `${label} – Ungültige Server-Antwort`);
+                }
+                throw new Error('Server returned invalid JSON. Response: ' + responseText.substring(0, 200));
+            }
+
+            if (!response.ok || !result.success) {
+                const errorMessage = result?.error || result?.message || `HTTP ${response.status}`;
+                console.error('❌ API Error Response:', result);
+                if (statusEnabled) {
+                    this.setStatusStep(0, 'error', `${label} – ${errorMessage}`);
+                }
+                throw new Error(errorMessage);
+            }
+
+            if (statusEnabled) {
+                this.setStatusStep(0, 'success', `${label} erfolgreich`);
+            }
+
+            const createdCount = Number.isFinite(result.createdCount)
+                ? result.createdCount
+                : (Array.isArray(result.createdQuotas) ? result.createdQuotas.length : 0);
+            const deletedCount = Number.isFinite(result.deletedCount)
+                ? result.deletedCount
+                : (Array.isArray(result.deletedQuotas) ? result.deletedQuotas.length : 0);
+            const adjustedClosedCount = Number.isFinite(result.adjustedClosedCount)
+                ? result.adjustedClosedCount
+                : (Array.isArray(result.adjustedClosedQuotas) ? result.adjustedClosedQuotas.length : 0);
+
+            const importInfo = result.localRefresh || {};
+            if (importInfo && Object.keys(importInfo).length > 0) {
+                if (importInfo.success) {
+                    console.log('✅ Segment-Import erfolgreich aktualisiert');
+                } else {
+                    console.warn('⚠️ Segment-Import meldet Fehler:', importInfo.error || 'Unbekannter Fehler');
+                }
+            }
+
+            if (result.affectedDateRange) {
+                console.log('📅 Segment affected range:', result.affectedDateRange);
+            }
+
+            return {
+                createdCount,
+                deletedCount,
+                adjustedClosedCount,
+                affectedDateRange: result.affectedDateRange || null,
+                importInfo
+            };
         }
     }
 

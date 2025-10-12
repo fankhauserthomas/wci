@@ -6448,93 +6448,57 @@ class TimelineUnifiedRenderer {
     }
 
     handleHistogramDayClick(dayIndex, event) {
-        // Additional check if the day is closed (safety net)
         const dailyDetails = this.histogramCache?.dailyDetails;
-        if (dailyDetails && dailyDetails[dayIndex]) {
-            const detail = dailyDetails[dayIndex];
-            const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
-            if (hutStatus && hutStatus !== 'SERVICED') {
-                // Day is closed (UNSERVICED or CLOSED), ignore click
-                console.log(`⛔ Tag ${dayIndex} ist geschlossen (Status: ${hutStatus}) und kann nicht selektiert werden`);
-                return;
-            }
+
+        const getDayStatus = (index) => {
+            if (!dailyDetails || !dailyDetails[index]) return 'SERVICED';
+            const raw = dailyDetails[index].hut_status;
+            return typeof raw === 'string' ? raw.trim().toUpperCase() : 'SERVICED';
+        };
+
+        const isClosedDay = (index) => {
+            const status = getDayStatus(index);
+            return status && status !== 'SERVICED' && status !== 'OPEN';
+        };
+
+        if (isClosedDay(dayIndex)) {
+            console.warn(`⛔ Tag ${dayIndex} ist geschlossen (Status: ${getDayStatus(dayIndex)}) und kann nicht selektiert werden`);
+            return;
         }
+
+        const addDayIndex = (index) => {
+            if (isClosedDay(index)) {
+                console.warn(`⛔ Tag ${index} wurde übersprungen (Status: ${getDayStatus(index)})`);
+                return false;
+            }
+            this.selectedHistogramDays.add(index);
+            return true;
+        };
 
         const isCtrlClick = event.ctrlKey || event.metaKey; // Ctrl (Windows) or Cmd (Mac)
         const isShiftClick = event.shiftKey;
 
         if (isShiftClick && this.lastSelectedDayIndex !== null) {
-            // Range selection: Select all days between last selected and current
-            // NEUE REGEL: Nur zusammenhängende Bereiche erlaubt (keine Lücken)
+            // Shift-Click: Range selection (alle Tage zwischen last und current)
             const start = Math.min(this.lastSelectedDayIndex, dayIndex);
             const end = Math.max(this.lastSelectedDayIndex, dayIndex);
 
-            // Check for gaps (closed days) in range
-            let hasGap = false;
             for (let i = start; i <= end; i++) {
-                if (dailyDetails && dailyDetails[i]) {
-                    const detail = dailyDetails[i];
-                    const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
-                    if (hutStatus && hutStatus !== 'SERVICED') {
-                        hasGap = true;
-                        break;
-                    }
-                }
+                addDayIndex(i);
             }
-
-            if (hasGap) {
-                // Lücke gefunden - nur bis zur Lücke selektieren
-                console.warn('⚠️ Lücke im Zeitbereich erkannt - Auswahl nur bis zur Lücke');
-                this.selectedHistogramDays.clear();
-
-                // Von lastSelected in Richtung dayIndex gehen bis zur ersten Lücke
-                const direction = dayIndex > this.lastSelectedDayIndex ? 1 : -1;
-                for (let i = this.lastSelectedDayIndex; direction > 0 ? i <= dayIndex : i >= dayIndex; i += direction) {
-                    if (dailyDetails && dailyDetails[i]) {
-                        const detail = dailyDetails[i];
-                        const hutStatus = typeof detail.hut_status === 'string' ? detail.hut_status.trim().toUpperCase() : 'SERVICED';
-                        if (hutStatus && hutStatus !== 'SERVICED') {
-                            break; // Stop bei Lücke
-                        }
-                    }
-                    this.selectedHistogramDays.add(i);
-                }
-            } else {
-                // Keine Lücke - gesamten Bereich selektieren
-                for (let i = start; i <= end; i++) {
-                    this.selectedHistogramDays.add(i);
-                }
-            }
+            this.lastSelectedDayIndex = dayIndex;
         } else if (isCtrlClick) {
-            // NEUE REGEL: Ctrl-Click nur erlaubt wenn direkt angrenzend an Auswahl
-            if (this.selectedHistogramDays.size === 0) {
-                // Erste Auswahl
-                this.selectedHistogramDays.add(dayIndex);
+            // Ctrl-Click: Toggle einzelnen Tag (erlaubt Lücken in der Auswahl!)
+            if (this.selectedHistogramDays.has(dayIndex)) {
+                this.selectedHistogramDays.delete(dayIndex);
             } else {
-                // Prüfe ob angrenzend an bestehende Auswahl
-                const selectedArray = Array.from(this.selectedHistogramDays).sort((a, b) => a - b);
-                const minSelected = selectedArray[0];
-                const maxSelected = selectedArray[selectedArray.length - 1];
-
-                if (dayIndex === minSelected - 1 || dayIndex === maxSelected + 1) {
-                    // Direkt angrenzend - erlaubt
-                    this.selectedHistogramDays.add(dayIndex);
-                } else if (this.selectedHistogramDays.has(dayIndex)) {
-                    // Deselektieren nur am Rand erlaubt
-                    if (dayIndex === minSelected || dayIndex === maxSelected) {
-                        this.selectedHistogramDays.delete(dayIndex);
-                    } else {
-                        console.warn('⚠️ Nur Tage am Rand können abgewählt werden');
-                    }
-                } else {
-                    console.warn('⚠️ Nur direkt angrenzende Tage können hinzugefügt werden');
-                }
+                addDayIndex(dayIndex);
             }
             this.lastSelectedDayIndex = dayIndex;
         } else {
-            // Normal click: Clear selection and select only this day
+            // Normal Click: Neue Auswahl (nur dieser Tag)
             this.selectedHistogramDays.clear();
-            this.selectedHistogramDays.add(dayIndex);
+            addDayIndex(dayIndex);
             this.lastSelectedDayIndex = dayIndex;
         }
 
@@ -6558,7 +6522,7 @@ class TimelineUnifiedRenderer {
             const { startDate } = this.getTimelineDateRange();
             const selectedDates = Array.from(this.selectedHistogramDays).map(idx => {
                 const date = new Date(startDate.getTime() + idx * MS_IN_DAY);
-                return date.toISOString().split('T')[0];
+                return window.formatDateYMDLocal ? window.formatDateYMDLocal(date) : date.toISOString().split('T')[0];
             });
             console.log('📅 Histogram days selected:', selectedDates);
             console.log('🎯 Initial target value:', this.histogramTargetValue);
