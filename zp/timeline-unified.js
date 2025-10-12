@@ -10653,8 +10653,9 @@ class TimelineUnifiedRenderer {
                 freeHeight = (freeCapacity / scaledMax) * availableHeight;
                 if (freeHeight > 0.5) {
                     const freeY = barY - freeHeight;
-                    this.ctx.fillStyle = histogramTheme.freeSegment || 'rgba(56, 189, 248, 0.75)';
-                    this.ctx.globalAlpha = 0.8;
+                    // FR-Segment: 50% mehr Transparenz = 0.8 → 0.4
+                    this.ctx.fillStyle = histogramTheme.freeSegment || 'rgba(56, 189, 248, 0.6)';
+                    this.ctx.globalAlpha = 0.6;
                     this.ctx.fillRect(x, freeY, barWidth, freeHeight);
                     this.ctx.globalAlpha = 1;
                 }
@@ -10918,11 +10919,14 @@ class TimelineUnifiedRenderer {
                 const rectWidth = Math.max(40, blockWidth);
                 const rectHeight = Math.max(40, blockHeight);
 
-                let blockBottom = chartBottomY;
-                let blockTop = blockBottom - rectHeight;
-                if (blockTop < area.y + 2) {
-                    blockTop = area.y + 2;
-                    blockBottom = blockTop + rectHeight;
+                // Info-Box OBEN positionieren (statt unten)
+                let blockTop = area.y + 2; // Oben an der Histogram-Fläche
+                let blockBottom = blockTop + rectHeight;
+
+                // Sicherstellen dass Box nicht aus Histogram-Fläche rausragt
+                if (blockBottom > chartBottomY) {
+                    blockBottom = chartBottomY;
+                    blockTop = blockBottom - rectHeight;
                 }
 
                 this.ctx.save();
@@ -10931,7 +10935,8 @@ class TimelineUnifiedRenderer {
                 this.ctx.fill();
                 this.ctx.restore();
 
-                let textY = blockBottom - blockInnerPadding;
+                // Text-Y Position anpassen: von oben nach unten (statt von unten nach oben)
+                let textY = blockTop + blockInnerPadding + lineHeight; // Start oben
                 infoLines.forEach(line => {
                     this.ctx.font = `${line.bold ? 'bold ' : ''}${currentFontSize}px Arial`;
 
@@ -10940,7 +10945,7 @@ class TimelineUnifiedRenderer {
                         const textWidth = this.ctx.measureText(line.text).width;
                         const bgPadding = 2;
                         const bgHeight = lineHeight - 2;
-                        const bgY = textY - bgHeight + 2;
+                        const bgY = textY - lineHeight + 2;
 
                         this.ctx.fillStyle = line.bgColor;
                         this.ctx.fillRect(
@@ -10953,7 +10958,7 @@ class TimelineUnifiedRenderer {
 
                     this.ctx.fillStyle = line.color || textColor;
                     this.ctx.fillText(line.text, blockLeft + blockInnerPadding, textY);
-                    textY -= lineHeight;
+                    textY += lineHeight; // Nach unten (statt nach oben)
                 });
 
             } catch (error) {
