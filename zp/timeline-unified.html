@@ -1404,6 +1404,36 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
+
+        /* Tooltip Styles */
+        #reservation-tooltip {
+            pointer-events: auto !important;
+        }
+
+        #reservation-tooltip .tooltip-inner {
+            background: linear-gradient(135deg, #2c2c2c 0%, #3d3d3d 100%);
+            color: #e0e0e0;
+            border: 1px solid #555;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+        }
+
+        #reservation-tooltip.bs-tooltip-top .tooltip-arrow::before {
+            border-top-color: #2c2c2c;
+        }
+
+        #reservation-tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+            border-bottom-color: #2c2c2c;
+        }
+
+        .tooltip-email-copy {
+            transition: color 0.2s ease;
+        }
+
+        .tooltip-email-copy:hover {
+            color: #5a9bd4 !important;
+            text-decoration: underline !important;
+        }
     </style>
 </head>
 
@@ -1769,7 +1799,7 @@
     <button id="debug-toggle" class="debug-toggle">Debug Console</button>
 
     <!-- Scripts -->
-    <script src="timeline-unified.js?v=20251009-24"></script>
+    <script src="timeline-unified-f2.js?v=1760299778"></script>
     </script>
     <script>
         if (typeof TimelineUnifiedRenderer === 'undefined') {
@@ -5651,6 +5681,12 @@
                 console.log(`✅ Daten geladen: ${reservations.length} Reservierungen, ${roomDetails.length} Zuweisungen, ${rooms.length} Zimmer`);
 
                 renderTimeline();
+
+                // Stammdaten für Tooltip neu laden
+                if (timelineRenderer && typeof timelineRenderer.loadMasterData === 'function') {
+                    await timelineRenderer.loadMasterData();
+                }
+
                 if (typeof window.DebugConsole !== 'undefined') console.success('Daten aktualisiert.');
 
             } catch (error) {
