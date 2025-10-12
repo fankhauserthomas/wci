@@ -222,7 +222,9 @@ try {
             MIN(qc.date_from) as quota_date_from,
             MAX(qc.date_to) as quota_date_to
         FROM date_range dr
-        LEFT JOIN quota_categories qc ON dr.datum >= qc.date_from AND dr.datum < qc.date_to
+        LEFT JOIN quota_categories qc
+            ON dr.datum >= qc.date_from
+            AND dr.datum <= qc.date_to
         GROUP BY dr.datum
         ORDER BY dr.datum";
 

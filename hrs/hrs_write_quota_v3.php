@@ -368,7 +368,11 @@ class QuotaWriterV3 {
 
             foreach ($ranges as $range) {
                 logV3("➡️ V3: Processing range {$range['start']} → {$range['end']} (" . count($range['dates']) . " day(s))");
+                logV3("   📋 Range dates: " . implode(', ', $range['dates']));
+                
                 foreach ($range['dates'] as $date) {
+                    logV3("   🔍 Processing date: {$date}");
+                    
                     if (isset($blockedDates[$date])) {
                         $blocked = $blockedDates[$date];
                         logV3(sprintf(
@@ -386,7 +390,11 @@ class QuotaWriterV3 {
                         continue;
                     }
 
-                    foreach ($quotasByDate[$date] as $quota) {
+                    logV3("   ✓ Found quota data for {$date}");
+                    
+                    foreach ($quotasByDate[$date] as $quotaIndex => $quota) {
+                        logV3("   📦 Processing quota #{$quotaIndex} for {$date}");
+                        
                         $quantities = [];
                         $totalQuantity = 0;
                         foreach ($this->categoryMap as $categoryName => $categoryId) {
@@ -395,6 +403,8 @@ class QuotaWriterV3 {
                             $quantities[$categoryName] = max(0, $quantity);
                             $totalQuantity += $quantities[$categoryName];
                         }
+
+                        logV3("   💯 Total quantity for {$date}: {$totalQuantity}");
 
                         if ($totalQuantity <= 0 && empty($adjustedClosed)) {
                             logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
@@ -417,6 +427,8 @@ class QuotaWriterV3 {
                                 $quantities['dz'],
                                 $quantities['sonder']
                             ));
+                        } else {
+                            logV3("❌ V3: Failed to create quota for {$date}");
                         }
                     }
                 }
@@ -450,6 +462,10 @@ class QuotaWriterV3 {
                 'deletedCount' => count($deletedQuotas),
                 'adjustedClosedCount' => count($adjustedClosed),
                 'preservedCount' => count($preservedQuotas),
+                'affectedDateRange' => [
+                    'from' => min($uniqueDates),
+                    'to' => max($uniqueDates)
+                ],
                 'message' => implode(', ', $messageParts)
             ];
 
@@ -660,10 +676,22 @@ class QuotaWriterV3 {
                 $displayFrom = $info['displayFrom'] ?? $info['start']->format('Y-m-d');
                 $displayTo = $info['displayTo'] ?? $info['end']->format('Y-m-d');
 
-                $daysToKeep = array_values(array_diff($info['days'], $info['intersections']));
+                // Berechne welche Tage behalten werden sollen
+                // Das sind ALLE Tage der Quota MINUS die tatsächlich selektierten Tage
+                $quotaDays = $info['days'];
+                $intersectionDays = $info['intersections'];
+                
+                // Tage behalten = Quota-Tage die NICHT in der Selektion sind
+                $daysToKeep = array_values(array_diff($quotaDays, $intersectionDays));
+                
+                // Bestimme ob die Quota komplett gelöscht werden muss
                 $deleteCompletely = empty($daysToKeep);
 
                 logV3("🗑️ V3: Attempting to delete quota ID $quotaId ($displayFrom - $displayTo) " . ($deleteCompletely ? '[full]' : '[split]'));
+                if (!$deleteCompletely) {
+                    logV3("   🎯 Selected days to overwrite: " . implode(', ', $intersectionDays));
+                    logV3("   💾 Days to preserve: " . implode(', ', $daysToKeep));
+                }
 
                 if ($this->deleteQuotaViaAPI($quotaId)) {
                     $result['deleted'][] = [
@@ -675,7 +703,7 @@ class QuotaWriterV3 {
                     ];
                     logV3("✅ V3: Deleted quota ID $quotaId");
 
-                    if (!$deleteCompletely) {
+                    if (!$deleteCompletely && !empty($daysToKeep)) {
                         $categories = $info['categoryValues'];
                         $categorySum = array_sum($categories);
                         $preserveMode = $info['mode'] ?? 'SERVICED';
@@ -692,24 +720,51 @@ class QuotaWriterV3 {
                             $baseTitle = 'Timeline Split Quota';
                         }
 
-                        foreach ($daysToKeep as $keepDay) {
-                            if (isset($selectedDateSet[$keepDay])) {
-                                // Safety check, should not happen
-                                logV3("⚠️ V3: Preserve day {$keepDay} still marked as selected – skipping recreate");
-                                continue;
-                            }
-
-                            logV3("   🔁 Recreating preserved day {$keepDay} from quota {$quotaId}");
-                            $titleForDay = sprintf('%s (Split %s)', $baseTitle, str_replace('-', '', $keepDay));
-                            $newId = $this->createQuota($keepDay, $categories, $preserveMode, $titleForDay, $forcePreserve);
-                            if ($newId) {
-                                $result['splitCreated'][] = [
+                        // Gruppiere daysToKeep in zusammenhängende Bereiche
+                        $preserveRanges = $this->groupContiguousDateRanges($daysToKeep);
+                        
+                        logV3("   🔄 Creating " . count($preserveRanges) . " preserved range(s)");
+                        
+                        foreach ($preserveRanges as $rangeIndex => $range) {
+                            try {
+                                $rangeStart = $range['start'];
+                                $rangeEnd = $range['end'];
+                                $rangeDays = $range['dates'];
+                                
+                                logV3("   🔁 Recreating preserved range {$rangeStart} to {$rangeEnd} (" . count($rangeDays) . " days)");
+                                
+                                // HRS API Limit: Max 80 Zeichen für Title
+                                // Kürze den Base-Title falls nötig
+                                $maxBaseLength = 60; // Reserviere 20 Zeichen für " (Split X)"
+                                if (strlen($baseTitle) > $maxBaseLength) {
+                                    $baseTitle = substr($baseTitle, 0, $maxBaseLength);
+                                }
+                                
+                                $titleForRange = sprintf('%s (Split %d)', $baseTitle, $rangeIndex + 1);
+                                
+                                // End-Date: Der letzte Tag der Range (INKLUSIV)
+                                // Die createQuota Funktion erwartet das Ende INKLUSIV
+                                $newId = $this->createQuota($rangeStart, $categories, $preserveMode, $titleForRange, $forcePreserve, $rangeEnd);
+                                
+                                if ($newId) {
+                                    $result['splitCreated'][] = [
+                                        'sourceId' => $quotaId,
+                                        'dateFrom' => $rangeStart,
+                                        'dateTo' => $rangeEnd,
+                                        'id' => $newId,
+                                        'quantities' => $categories
+                                    ];
+                                    logV3("   ✅ Preserved quota created with ID {$newId} for range {$rangeStart} to {$rangeEnd}");
+                                }
+                            } catch (Exception $preserveEx) {
+                                // Log den Fehler aber fahre mit dem nächsten Preserve-Range fort
+                                logV3("   ⚠️ Failed to recreate preserved range {$rangeStart} to {$rangeEnd}: " . $preserveEx->getMessage());
+                                $result['preserveFailed'][] = [
                                     'sourceId' => $quotaId,
-                                    'date' => $keepDay,
-                                    'id' => $newId,
-                                    'quantities' => $categories
+                                    'dateFrom' => $rangeStart,
+                                    'dateTo' => $rangeEnd,
+                                    'error' => $preserveEx->getMessage()
                                 ];
-                                logV3("   ✅ Preserved quota created with ID {$newId} for {$keepDay}");
                             }
                         }
                     }
@@ -805,10 +860,18 @@ class QuotaWriterV3 {
     /**
      * ✅ BEWÄHRTE MANAGEMENT API (wie in hrs_create_quota_batch.php)
      */
-    private function createQuota($date, array $quantities, $mode = 'SERVICED', $title = null, $forceCreate = false) {
+    private function createQuota($date, array $quantities, $mode = 'SERVICED', $title = null, $forceCreate = false, $dateTo = null) {
         try {
             $date_from = $date;
-            $date_to = date('Y-m-d', strtotime($date . ' +1 day'));
+            // Wenn dateTo übergeben wird (INKLUSIV), dann ist das API dateTo = dateTo + 1
+            // Die HRS API erwartet dateTo als exklusiv (letzter Tag + 1)
+            if ($dateTo) {
+                // dateTo ist der letzte Tag INKLUSIV, API braucht +1
+                $date_to = date('Y-m-d', strtotime($dateTo . ' +1 day'));
+            } else {
+                // Single-day quota
+                $date_to = date('Y-m-d', strtotime($date . ' +1 day'));
+            }
 
             $normalizedMode = $mode ? strtoupper($mode) : 'SERVICED';
             $allowedModes = ['SERVICED', 'UNSERVICED', 'CLOSED'];
@@ -822,8 +885,10 @@ class QuotaWriterV3 {
             $title = $title ?: 'Timeline Quota ' . $date;
 
             logV3(sprintf(
-                "📤 V3: Creating quota via Management API: %s (Mode=%s | L=%d, B=%d, DZ=%d, S=%d)",
+                "📤 V3: Creating quota via Management API: %s to %s (API dateTo=%s, Mode=%s | L=%d, B=%d, DZ=%d, S=%d)",
                 $date,
+                $dateTo ? $dateTo : $date,
+                $date_to,
                 $normalizedMode,
                 $quantities['lager'],
                 $quantities['betten'],

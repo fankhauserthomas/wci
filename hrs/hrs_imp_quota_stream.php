@@ -183,7 +183,19 @@ class HRSQuotaImporterSSE {
             
             // Hauptdaten extrahieren (Format von hutQuota API)
             $dateFrom = $this->convertDateToMySQL($quota['dateFrom']);
-            $dateTo = $this->convertDateToMySQL($quota['dateTo']);
+            
+            // ⚠️ WICHTIG: HRS API gibt dateTo als EXCLUSIVE zurück!
+            // Beispiel: dateFrom="22.03.2026", dateTo="23.03.2026" → Nur 22.03 ist gemeint
+            // Für die DB brauchen wir INCLUSIVE → dateTo - 1 Tag
+            $dateToExclusive = $this->convertDateToMySQL($quota['dateTo']);
+            $dateToObj = DateTime::createFromFormat('Y-m-d', $dateToExclusive);
+            if ($dateToObj) {
+                $dateToObj->modify('-1 day');
+                $dateTo = $dateToObj->format('Y-m-d');
+            } else {
+                $dateTo = $dateToExclusive; // Fallback
+            }
+            
             $title = $quota['title'] ?? '';
             $mode = $quota['mode'] ?? 'SERVICED'; // SERVICED, UNSERVICED, CLOSED
             $capacity = $quota['capacity'] ?? 0;

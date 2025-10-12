@@ -125,9 +125,9 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                 <button type="button" class="btn btn-primary" id="saveQuotaBtn">💾 Speichern</button>
-</div>
-</div>
-</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Status Modal -->
@@ -140,13 +140,15 @@
             </div>
             <div class="modal-body">
                 <div class="progress mb-3">
-                    <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100" data-role="quota-status-progress"></div>
+                    <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100"
+                        data-role="quota-status-progress"></div>
                 </div>
                 <ul class="list-group" data-role="quota-status-steps"></ul>
                 <div class="alert mt-3 d-none" role="alert" data-role="quota-status-summary"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-role="quota-status-close" disabled>Schließen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-role="quota-status-close"
+                    disabled>Schließen</button>
             </div>
         </div>
     </div>
@@ -957,21 +959,29 @@
                 return quota;
             }
 
-            const { startDate } = this.renderer.getTimelineDateRange();
-            const date = new Date(dateStr);
-            const dayIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+            const MS_IN_DAY = 24 * 60 * 60 * 1000;
+            const { startDate, endDate } = this.renderer.getTimelineDateRange();
 
-            // Hole Availability-Daten (enthält Quota-Informationen)
-            const histogramData = this.renderer.getHistogramData(startDate, new Date(dateStr));
+            const normalizedStart = new Date(startDate);
+            normalizedStart.setHours(12, 0, 0, 0);
 
-            if (histogramData && histogramData.availabilityData && histogramData.availabilityData[dayIndex]) {
-                const avData = histogramData.availabilityData[dayIndex];
+            const normalizedDate = new Date(dateStr);
+            normalizedDate.setHours(12, 0, 0, 0);
 
-                quota.freePlaces = avData.free_places || 0;
-                quota.sonder = avData.quota_sonder || 0;
-                quota.lager = avData.quota_lager || 0;
-                quota.betten = avData.quota_betten || 0;
-                quota.dz = avData.quota_dz || 0;
+            const dayIndex = Math.floor((normalizedDate - normalizedStart) / MS_IN_DAY);
+
+            // Hole Availability-Daten (enthaelt Quota-Informationen) - Backend ist schon inklusiv!
+            const histogramData = this.renderer.getHistogramData(normalizedStart, endDate);
+
+            if (histogramData && histogramData.dailyDetails && dayIndex >= 0 && dayIndex < histogramData.dailyDetails.length) {
+                const details = histogramData.dailyDetails[dayIndex];
+                const quotaDetails = details.quota || {};
+
+                quota.freePlaces = details.free_capacity || 0;
+                quota.sonder = quotaDetails.sonder || 0;
+                quota.lager = quotaDetails.lager || 0;
+                quota.betten = quotaDetails.betten || 0;
+                quota.dz = quotaDetails.dz || 0;
             }
 
             return quota;
@@ -1189,9 +1199,45 @@
                         alert(`✅ Erfolg!\n\n${result.message}\n\nErstellt: ${createdCount} Quotas\nGelöscht: ${deletedCount} Quotas`);
                     }
 
-                    // Timeline neu laden
-                    if (this.renderer && typeof this.renderer.reloadHistogramData === 'function') {
-                        await this.renderer.reloadHistogramData();
+                    // Timeline neu laden für den betroffenen Zeitbereich
+                    console.log('🔄 Reloading timeline data after quota changes...');
+
+                    // Wenn affectedDateRange vorhanden, logge es
+                    if (result.affectedDateRange) {
+                        console.log('📅 Affected date range:', result.affectedDateRange.from, 'to', result.affectedDateRange.to);
+                    }
+
+                    // Prüfe ob HRS Import erfolgreich war
+                    if (result.localRefresh) {
+                        if (result.localRefresh.success) {
+                            console.log('✅ HRS Import successful - Cache aktualisiert');
+                        } else {
+                            console.warn('⚠️ HRS Import failed:', result.localRefresh.error || 'Unknown error');
+                        }
+                    }
+
+                    // Warte damit DB-Transaktion und Import sicher committed sind
+                    console.log('⏳ Waiting 800ms for DB commit and import...');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    // Verwende die globale reloadTimelineData Funktion
+                    if (typeof window.reloadTimelineData === 'function') {
+                        console.log('🔄 Calling window.reloadTimelineData()...');
+                        await window.reloadTimelineData();
+                        console.log('✅ Timeline data reloaded successfully');
+
+                        // Force histogram redraw
+                        if (window.renderer && typeof window.renderer.render === 'function') {
+                            console.log('🎨 Forcing histogram redraw...');
+                            window.renderer.render();
+                            console.log('✅ Histogram redrawn');
+                        }
+                    } else {
+                        console.warn('⚠️ window.reloadTimelineData() not found, trying page reload...');
+                        // Fallback: Page reload
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
                     }
 
                     this.modal.hide();

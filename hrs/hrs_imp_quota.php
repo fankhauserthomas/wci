@@ -572,10 +572,15 @@ class HRSQuotaImporter {
 
         $diffDays = (int)$normalizedStart->diff($normalizedEnd)->format('%a');
 
+        // ⚠️ WICHTIG: HRS API gibt dateTo als EXCLUSIVE zurück!
+        // Beispiel: dateFrom="22.03.2026", dateTo="25.03.2026" → 22, 23, 24 (3 Tage)
+        // Für die DB brauchen wir INCLUSIVE Ende → dateTo - 1 Tag
         if ($normalizedEnd <= $normalizedStart) {
-            $normalizedEnd = (clone $normalizedStart)->modify('+1 day');
-        } elseif ($diffDays >= 2) {
-            $normalizedEnd = (clone $normalizedEnd)->modify('+1 day');
+            // Same day quota - Ende = Start
+            $normalizedEnd = clone $normalizedStart;
+        } else {
+            // Multi-day quota - Konvertiere exklusiv zu inklusiv
+            $normalizedEnd = (clone $normalizedEnd)->modify('-1 day');
         }
 
         return [$normalizedStart, $normalizedEnd];
