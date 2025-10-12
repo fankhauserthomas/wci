@@ -592,6 +592,31 @@
             this.modal.show();
         }
 
+        triggerAutomaticHRSImportAfterDeploy() {
+            if (!Array.isArray(this.selectedDays) || this.selectedDays.length === 0) {
+                console.log('⏭️ Automatischer HRS Import ausgelassen – keine Selektionsdaten vorhanden.');
+                return false;
+            }
+
+            const uniqueDays = Array.from(new Set(this.selectedDays)).sort();
+            const detail = {
+                dateFrom: uniqueDays[0],
+                dateTo: uniqueDays[uniqueDays.length - 1],
+                dayCount: uniqueDays.length
+            };
+
+            console.log('🚀 Starte automatischen HRS Import nach Quota-Deployment:', detail);
+
+            try {
+                const event = new CustomEvent('hrs-import-requested', { detail });
+                window.dispatchEvent(event);
+                return true;
+            } catch (error) {
+                console.error('❌ Automatischer HRS Import konnte nicht gestartet werden:', error);
+                return false;
+            }
+        }
+
         /**
          * Helper-Funktion: Liest Max-Wert aus Input-Feld
          * @returns {number} Infinity wenn leer, sonst geparster Wert (auch 0!)
@@ -1220,8 +1245,14 @@
                     console.log('⏳ Waiting 800ms for DB commit and import...');
                     await new Promise(resolve => setTimeout(resolve, 800));
 
+                    const hasReloadFunction = typeof window.reloadTimelineData === 'function';
+                    const willAutoImport = typeof window !== 'undefined' &&
+                        typeof window.dispatchEvent === 'function' &&
+                        Array.isArray(this.selectedDays) &&
+                        this.selectedDays.length > 0;
+
                     // Verwende die globale reloadTimelineData Funktion
-                    if (typeof window.reloadTimelineData === 'function') {
+                    if (hasReloadFunction) {
                         console.log('🔄 Calling window.reloadTimelineData()...');
                         await window.reloadTimelineData();
                         console.log('✅ Timeline data reloaded successfully');
@@ -1241,6 +1272,21 @@
                     }
 
                     this.modal.hide();
+
+                    if (willAutoImport && hasReloadFunction) {
+                        setTimeout(() => {
+                            try {
+                                const triggered = this.triggerAutomaticHRSImportAfterDeploy();
+                                if (triggered) {
+                                    console.log('✅ Automatischer HRS Import wurde gestartet.');
+                                }
+                            } catch (autoImportError) {
+                                console.error('❌ Fehler beim Start des automatischen HRS Imports:', autoImportError);
+                            }
+                        }, 400);
+                    } else if (willAutoImport) {
+                        console.warn('⚠️ Automatischer HRS Import nicht gestartet: reloadTimelineData() fehlt.');
+                    }
                 } else {
                     if (statusEnabled) {
                         this.failStatusWorkflow(result.error || 'Unbekannter Fehler');

@@ -16,6 +16,19 @@
 (function () {
     'use strict';
 
+    const formatDateLocal = (date) => {
+        if (typeof window !== 'undefined' && typeof window.formatDateYMDLocal === 'function') {
+            return window.formatDateYMDLocal(date);
+        }
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+            return '';
+        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     /**
      * Erweitert TimelineUnifiedRenderer mit Quota-Management
      */
@@ -306,8 +319,8 @@
             const dateFrom = new Date(startDate.getTime() + minIndex * 24 * 60 * 60 * 1000);
             const dateTo = new Date(startDate.getTime() + maxIndex * 24 * 60 * 60 * 1000);
 
-            const dateFromStr = dateFrom.toISOString().split('T')[0];
-            const dateToStr = dateTo.toISOString().split('T')[0];
+            const dateFromStr = formatDateLocal(dateFrom);
+            const dateToStr = formatDateLocal(dateTo);
 
             // Trigger HRS Import Event (wird von timeline-unified.html verarbeitet)
             const event = new CustomEvent('hrs-import-requested', {

@@ -2092,6 +2092,17 @@
             return JSON.parse(JSON.stringify(config || {}));
         }
 
+        function formatDateYMDLocal(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+                return '';
+            }
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        window.formatDateYMDLocal = formatDateYMDLocal;
+
         function persistTimelineThemeConfig(config) {
             try {
                 const configString = JSON.stringify(config);
@@ -2939,8 +2950,8 @@
                 }
 
                 console.log('calculateVisibleSeason: Date range', {
-                    startDate: startDate.toISOString().split('T')[0],
-                    endDate: endDate.toISOString().split('T')[0],
+                    startDate: formatDateYMDLocal(startDate),
+                    endDate: formatDateYMDLocal(endDate),
                     days
                 });
 
@@ -2995,7 +3006,7 @@
                             currentPeriodStart = i;
                             currentPeriodEnd = i;
                             isCurrentPeriodOpen = true;
-                            console.log('📗 New open period starts:', dayDate.toISOString().split('T')[0]);
+                            console.log('📗 New open period starts:', formatDateYMDLocal(dayDate));
                         } else if (isCurrentPeriodOpen) {
                             // Continue current open period
                             currentPeriodEnd = i;
@@ -3012,7 +3023,7 @@
                             currentPeriodStart = i;
                             currentPeriodEnd = i;
                             isCurrentPeriodOpen = true;
-                            console.log('📗 New open period starts after closed:', dayDate.toISOString().split('T')[0]);
+                            console.log('📗 New open period starts after closed:', formatDateYMDLocal(dayDate));
                         }
                     } else {
                         if (isCurrentPeriodOpen) {
@@ -3023,7 +3034,7 @@
                                 length: currentPeriodEnd - currentPeriodStart + 1,
                                 isOpen: true
                             });
-                            console.log('📕 Closed period starts:', dayDate.toISOString().split('T')[0],
+                            console.log('📕 Closed period starts:', formatDateYMDLocal(dayDate),
                                 'Previous open period:', currentPeriodEnd - currentPeriodStart + 1, 'days');
                             currentPeriodStart = i;
                             currentPeriodEnd = i;
@@ -3074,7 +3085,7 @@
                     // Convert to actual date
                     viewportCenter = new Date(startDate.getTime() + viewportCenterDay * 24 * 60 * 60 * 1000);
 
-                    console.log('calculateVisibleSeason: Visible viewport center:', viewportCenter.toISOString().split('T')[0], 'Day index:', viewportCenterDay);
+                    console.log('calculateVisibleSeason: Visible viewport center:', formatDateYMDLocal(viewportCenter), 'Day index:', viewportCenterDay);
                 } catch (error) {
                     console.warn('calculateVisibleSeason: Could not calculate viewport center, using today', error);
                     viewportCenter = dateRange.now || new Date();
@@ -3090,9 +3101,9 @@
                     const distance = Math.abs(periodCenter - viewportCenterDay);
 
                     console.log('calculateVisibleSeason: Period',
-                        new Date(startDate.getTime() + period.start * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        formatDateYMDLocal(new Date(startDate.getTime() + period.start * 24 * 60 * 60 * 1000)),
                         'to',
-                        new Date(startDate.getTime() + period.end * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        formatDateYMDLocal(new Date(startDate.getTime() + period.end * 24 * 60 * 60 * 1000)),
                         '(' + period.length + ' days)',
                         'Distance:', distance);
 
@@ -3109,8 +3120,8 @@
                 const dateTo = new Date(startDate.getTime() + closestPeriod.end * 24 * 60 * 60 * 1000);
 
                 const result = {
-                    dateFrom: dateFrom.toISOString().split('T')[0],
-                    dateTo: dateTo.toISOString().split('T')[0],
+                    dateFrom: formatDateYMDLocal(dateFrom),
+                    dateTo: formatDateYMDLocal(dateTo),
                     dayCount: closestPeriod.length
                 };
 
@@ -5278,8 +5289,8 @@
                 const startDate = new Date(now.getTime() - (weekRange.past * 7 * MS_IN_DAY)); // Konfigurierbare Wochen zurück
                 const endDate = new Date(now.getTime() + (weekRange.future * 7 * MS_IN_DAY));   // Konfigurierbare Wochen voraus
 
-                const startDateStr = startDate.toISOString().split('T')[0];
-                const endDateStr = endDate.toISOString().split('T')[0];
+                const startDateStr = formatDateYMDLocal(startDate);
+                const endDateStr = formatDateYMDLocal(endDate);
 
                 console.log(`Konfigurierte Zeitspanne: ${weekRange.past} Wochen zurück, ${weekRange.future} Wochen voraus`);
                 console.log(`Lade Zimmerplan-Daten für ${startDateStr} bis ${endDateStr}`);
