@@ -607,6 +607,7 @@ if ($action === 'save') {
             </select>
             <button id="btnConfigSaveAs" class="btn btn-secondary btn-sm" title="Aktuelle Arbeitskopie als neue Konfiguration sichern">Speichern als…</button>
             <button id="btnConfigDelete" class="btn btn-danger btn-sm" title="Ausgewählte Konfiguration löschen">Löschen</button>
+            <button id="btnClose" class="btn btn-secondary btn-sm" title="Fenster schließen">✖ Fenster schließen</button>
             <span id="configInfo" class="config-info ms-2"></span>
         </div>
     </div>
@@ -684,6 +685,7 @@ if ($action === 'save') {
         btnConfigSaveAs: document.getElementById('btnConfigSaveAs'),
         btnConfigDelete: document.getElementById('btnConfigDelete'),
         configInfo: document.getElementById('configInfo'),
+        btnClose: document.getElementById('btnClose'),
     };
 
     function normalizeConfigKey(name){
@@ -1661,6 +1663,7 @@ if ($action === 'save') {
     if(els.configSelect) els.configSelect.addEventListener('change', () => { onConfigSelectChange(); });
     if(els.btnConfigSaveAs) els.btnConfigSaveAs.addEventListener('click', handleConfigSaveAs);
     if(els.btnConfigDelete) els.btnConfigDelete.addEventListener('click', handleConfigDelete);
+    if(els.btnClose) els.btnClose.addEventListener('click', () => { window.close(); });
 
     window.addEventListener('resize', () => { syncPreviewHeight(); redrawCanvas(); });
 
