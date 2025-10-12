@@ -10511,12 +10511,12 @@ class TimelineUnifiedRenderer {
 
         const bottomPadding = Math.max(0, Math.min(4, area.height * 0.02));
         const topPadding = Math.max(14, Math.min(28, area.height * 0.12));
-        
+
         // ✅ WICHTIG: Label-Box-Höhe vorher schätzen, um Balken-Überlappung zu vermeiden
         // Typische Label-Box: 7 Zeilen * ~11px + 8px Padding ≈ 85px
         const estimatedLabelBoxHeight = Math.max(60, Math.min(120, area.height * 0.25));
         const labelClearance = 3; // 3px Abstand unter der Label-Box
-        
+
         // availableHeight reduzieren, damit höchster Balken 3px unter Label-Box endet
         const availableHeight = Math.max(10, area.height - topPadding - bottomPadding - estimatedLabelBoxHeight - labelClearance);
         const chartBottomY = area.y + area.height - bottomPadding;
