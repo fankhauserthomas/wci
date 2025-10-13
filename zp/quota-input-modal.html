@@ -124,45 +124,103 @@
         /* Kleinere Schrift in Tabellen */
     }
 
+    #quotaStatusModal .modal-dialog {
+        max-width: 600px !important;
+    }
+
     #quotaStatusModal .modal-body {
-        padding: 15px !important;
+        padding: 12px !important;
+        max-height: 70vh;
+        overflow-y: auto;
     }
 
     #quotaStatusModal .modal-header {
-        padding: 10px 15px !important;
+        padding: 8px 12px !important;
     }
 
     #quotaStatusModal .modal-footer {
-        padding: 10px 15px !important;
+        padding: 8px 12px !important;
     }
 
     #quotaStatusModal .modal-title {
-        font-size: 1.1rem !important;
+        font-size: 1rem !important;
+    }
+
+    /* Scrollbare Status-Steps Liste */
+    #quotaStatusModal [data-role="quota-status-steps"] {
+        max-height: 250px !important;
+        overflow-y: auto !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 4px;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    #quotaStatusModal [data-role="quota-status-steps"]::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    #quotaStatusModal [data-role="quota-status-steps"]::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+    }
+
+    #quotaStatusModal [data-role="quota-status-steps"]::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+    }
+
+    #quotaStatusModal .list-group-item {
+        font-size: 0.8rem !important;
+        padding: 0.4rem 0.6rem !important;
+        margin-bottom: 2px;
+    }
+
+    #quotaStatusModal .progress {
+        height: 12px !important;
+        margin-bottom: 0.75rem !important;
     }
 
     #quotaStatusModal .quota-status-details {
         background: rgba(15, 23, 42, 0.35);
         border-radius: 8px;
-        padding: 8px 10px;
-        /* Reduziert von 10px 12px */
+        padding: 6px 8px;
+        /* Noch kompakter */
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    #quotaStatusModal .quota-status-details::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    #quotaStatusModal .quota-status-details::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+    }
+
+    #quotaStatusModal .quota-status-details::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
     }
 
     #quotaStatusModal .quota-detail-segment+.quota-detail-segment {
-        margin-top: 8px;
-        /* Reduziert von 10px */
+        margin-top: 6px;
+        /* Noch kompakter */
     }
 
     #quotaStatusModal .quota-detail-item {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 10px;
-        /* Reduziert von 12px */
-        padding: 6px 8px;
-        /* Reduziert von 8px 10px */
-        border-radius: 6px;
+        gap: 8px;
+        /* Noch kompakter */
+        padding: 4px 6px;
+        /* Noch kompakter */
+        border-radius: 4px;
         background: rgba(255, 255, 255, 0.03);
-        transition: background 0.3s ease;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
     }
 
     #quotaStatusModal .quota-detail-item:first-of-type {
@@ -190,23 +248,34 @@
     }
 
     #quotaStatusModal .quota-detail-item.state-pending {
-        background: rgba(148, 163, 184, 0.12);
+        background: rgba(148, 163, 184, 0.08);
+        border-left-color: rgba(148, 163, 184, 0.4);
     }
 
     #quotaStatusModal .quota-detail-item.state-active {
-        background: rgba(129, 140, 248, 0.18);
+        background: rgba(129, 140, 248, 0.08);
+        border-left-color: rgba(129, 140, 248, 0.6);
+        animation: pulse-blue 1.5s infinite;
+    }
+
+    @keyframes pulse-blue {
+        0%, 100% { background: rgba(129, 140, 248, 0.08); }
+        50% { background: rgba(129, 140, 248, 0.15); }
     }
 
     #quotaStatusModal .quota-detail-item.state-success {
-        background: rgba(34, 197, 94, 0.18);
+        background: rgba(34, 197, 94, 0.08);
+        border-left-color: rgba(34, 197, 94, 0.6);
     }
 
     #quotaStatusModal .quota-detail-item.state-warn {
-        background: rgba(234, 179, 8, 0.22);
+        background: rgba(234, 179, 8, 0.08);
+        border-left-color: rgba(234, 179, 8, 0.6);
     }
 
     #quotaStatusModal .quota-detail-item.state-error {
-        background: rgba(248, 113, 113, 0.22);
+        background: rgba(248, 113, 113, 0.08);
+        border-left-color: rgba(248, 113, 113, 0.6);
     }
 </style>
 
@@ -368,6 +437,10 @@
             this.statusSteps = [];
             this.currentSegments = [];
             this.statusDetailEntries = new Map();
+            
+            // SSE Support
+            this.sseSessionId = null;
+            this.eventSource = null;
 
             this.initializeEventListeners();
             this.initializeStatusModal();
@@ -438,6 +511,210 @@
             }
 
             this.statusSteps = [];
+        }
+
+        applyRealTimeQuotaUpdates(segmentId, createdQuotas, dailyQuotas) {
+            console.log(`[${new Date().toISOString()}] 🔄 Applying real-time quota updates for ${createdQuotas.length} quotas`);
+            
+            // Create a map for quick lookup
+            const quotaMap = new Map();
+            createdQuotas.forEach(quota => {
+                if (quota.date) {
+                    quotaMap.set(quota.date, quota);
+                }
+            });
+
+            // Apply updates with staggered delays for visual effect
+            dailyQuotas.forEach((dailyQuota, index) => {
+                const delay = index * 150; // 150ms between each update
+                
+                setTimeout(() => {
+                    const createdQuota = quotaMap.get(dailyQuota.date);
+                    if (createdQuota) {
+                        const quantities = createdQuota.quantities || {
+                            lager: dailyQuota.quota_lager,
+                            betten: dailyQuota.quota_betten,
+                            dz: dailyQuota.quota_dz,
+                            sonder: dailyQuota.quota_sonder
+                        };
+                        
+                        const totalCapacity = Object.values(quantities).reduce((sum, q) => sum + (q || 0), 0);
+                        const quotaDetails = this.formatQuotaQuantities(quantities);
+                        const message = `✅ Quota erstellt: ${quotaDetails} (Gesamt: ${totalCapacity})`;
+                        
+                        console.log(`[${new Date().toISOString()}] ✅ Real-time update for ${dailyQuota.date}: ${message}`);
+                        this.updateStatusDetailEntry(segmentId, dailyQuota.date, 'success', message);
+                    }
+                }, delay);
+            });
+        }
+
+        // SSE Methods
+        generateSSESessionId() {
+            return 'quota_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        startSSEConnection(sessionId) {
+            this.sseSessionId = sessionId;
+            console.log(`[${new Date().toISOString()}] 🔗 Starting SSE connection with session:`, sessionId);
+            
+            try {
+                const sseUrl = `/wci/hrs/quota_sse.php?session_id=${sessionId}`;
+                console.log(`[${new Date().toISOString()}] 🌐 SSE URL:`, sseUrl);
+                
+                this.eventSource = new EventSource(sseUrl);
+                
+                this.eventSource.addEventListener('connected', (event) => {
+                    console.log(`[${new Date().toISOString()}] ✅ SSE Connected:`, JSON.parse(event.data));
+                });
+
+                this.eventSource.addEventListener('quota_processing_started', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 🚀 Processing started:`, data);
+                    this.setStatusStep(0, 'active', data.message);
+                });
+
+                this.eventSource.addEventListener('quota_created', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] ✅ Quota created:`, data);
+                    this.handleSSEQuotaCreated(data);
+                });
+
+                this.eventSource.addEventListener('quota_deleted', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 🗑️ Quota deleted:`, data);
+                    this.handleSSEQuotaDeleted(data);
+                });
+
+                this.eventSource.addEventListener('progress_update', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 📊 Progress update:`, data);
+                    this.handleSSEProgressUpdate(data);
+                });
+
+                this.eventSource.addEventListener('processing_completed', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(`[${new Date().toISOString()}] 🎉 Processing completed:`, data);
+                    this.handleSSEProcessingCompleted(data);
+                });
+
+                this.eventSource.addEventListener('quota_error', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.error(`[${new Date().toISOString()}] ❌ Quota error:`, data);
+                    this.handleSSEQuotaError(data);
+                });
+
+                this.eventSource.onerror = (event) => {
+                    console.error(`[${new Date().toISOString()}] ❌ SSE Error:`, event);
+                    console.error(`[${new Date().toISOString()}] 📊 EventSource state:`, {
+                        readyState: this.eventSource.readyState,
+                        url: this.eventSource.url,
+                        withCredentials: this.eventSource.withCredentials
+                    });
+                };
+
+                return true;
+            } catch (error) {
+                console.error('❌ Failed to start SSE connection:', error);
+                return false;
+            }
+        }
+
+        stopSSEConnection() {
+            if (this.eventSource) {
+                console.log('🔌 Stopping SSE connection');
+                this.eventSource.close();
+                this.eventSource = null;
+            }
+            this.sseSessionId = null;
+        }
+
+        handleSSEQuotaCreated(data) {
+            console.log(`[${new Date().toISOString()}] 🎯 SSE Quota Created - Real-time update:`, data);
+            console.log(`[${new Date().toISOString()}] 📊 Current status detail entries count:`, this.statusDetailEntries.size);
+            
+            // Real-time update of individual quotas in the detail view
+            if (this.statusDetailEntries.size > 0) {
+                let foundEntry = false;
+                
+                // Find the corresponding detail entry and update it immediately
+                for (const [segmentId, segment] of this.statusDetailEntries) {
+                    console.log(`🔍 Checking segment ${segmentId} with ${segment.entries.size} entries`);
+                    console.log(`📅 Available dates in segment:`, Array.from(segment.entries.keys()));
+                    
+                    if (segment.entries.has(data.date)) {
+                        foundEntry = true;
+                        const totalCapacity = Object.values(data.quantities || {}).reduce((sum, q) => sum + (q || 0), 0);
+                        const quotaDetails = this.formatQuotaQuantities(data.quantities || {});
+                        const message = `✅ Quota erstellt: ${quotaDetails} (Gesamt: ${totalCapacity})`;
+                        
+                        console.log(`✅ Found matching entry for ${data.date}, updating with: ${message}`);
+                        
+                        // Immediate visual update
+                        this.updateStatusDetailEntry(segmentId, data.date, 'success', message);
+                        
+                        console.log(`✅ Updated quota detail for ${data.date}: ${message}`);
+                        break;
+                    }
+                }
+                
+                if (!foundEntry) {
+                    console.warn(`⚠️ No matching detail entry found for date ${data.date}`);
+                }
+            } else {
+                console.warn('⚠️ No status detail entries found for SSE update');
+            }
+            
+            // Also update progress if available
+            if (data.result && data.result.current && data.result.total) {
+                console.log('📈 Updating progress:', data.result);
+                this.handleSSEProgressUpdate({
+                    current: data.result.current,
+                    total: data.result.total,
+                    percentage: Math.round((data.result.current / data.result.total) * 100),
+                    message: `Quota ${data.result.current}/${data.result.total} erstellt`
+                });
+            } else if (data.current && data.total) {
+                console.log('📈 Updating progress (direct):', data);
+                this.handleSSEProgressUpdate({
+                    current: data.current,
+                    total: data.total,
+                    percentage: Math.round((data.current / data.total) * 100),
+                    message: `Quota ${data.current}/${data.total} erstellt`
+                });
+            }
+        }
+
+        handleSSEQuotaDeleted(data) {
+            console.log('📝 Quota deleted via SSE:', data);
+            // Could add visual feedback for deletions if needed
+        }
+
+        handleSSEProgressUpdate(data) {
+            if (this.statusProgressBar) {
+                this.statusProgressBar.style.width = `${data.percentage}%`;
+            }
+            
+            // Update current step with progress
+            if (this.statusSteps.length > 0 && data.message) {
+                this.setStatusStep(0, 'active', data.message);
+            }
+        }
+
+        handleSSEQuotaError(data) {
+            if (this.statusDetailEntries.size > 0) {
+                for (const [segmentId, segment] of this.statusDetailEntries) {
+                    if (segment.entries.has(data.date)) {
+                        this.updateStatusDetailEntry(segmentId, data.date, 'error', data.error);
+                        break;
+                    }
+                }
+            }
+        }
+
+        handleSSEProcessingCompleted(data) {
+            this.completeStatusWorkflow(true, data.summary.message);
+            this.stopSSEConnection();
         }
 
         startStatusWorkflow(stepLabels = []) {
@@ -673,6 +950,78 @@
             entry.element.dataset.state = state;
             const isFinal = state === 'success' || state === 'warn' || state === 'error';
             entry.element.dataset.final = isFinal ? '1' : '0';
+
+            // Auto-scroll to show the updated entry
+            this.scrollToDetailEntry(entry.element);
+        }
+
+        scrollToDetailEntry(entryElement) {
+            if (!entryElement) {
+                console.log('[Auto-Scroll] ❌ No entry element provided');
+                return;
+            }
+
+            // Find the scrollable container (the detail body)
+            const container = entryElement.closest('[data-role="quota-status-detail-body"]');
+            if (!container) {
+                console.log('[Auto-Scroll] ❌ No scrollable container found');
+                console.log('[Auto-Scroll] Entry element:', entryElement);
+                console.log('[Auto-Scroll] Searching for: [data-role="quota-status-detail-body"]');
+                return;
+            }
+
+            // Calculate positions
+            const containerRect = container.getBoundingClientRect();
+            const entryRect = entryElement.getBoundingClientRect();
+            
+            console.log('[Auto-Scroll] 📏 Container rect:', {
+                top: containerRect.top,
+                bottom: containerRect.bottom,
+                height: containerRect.height
+            });
+            
+            console.log('[Auto-Scroll] 📏 Entry rect:', {
+                top: entryRect.top,
+                bottom: entryRect.bottom,
+                height: entryRect.height
+            });
+            
+            // Check if entry is visible within container
+            const isVisible = (
+                entryRect.top >= containerRect.top &&
+                entryRect.bottom <= containerRect.bottom
+            );
+
+            console.log('[Auto-Scroll] 👁️ Is visible:', isVisible);
+
+            // Only scroll if entry is not fully visible
+            if (!isVisible) {
+                const containerScrollTop = container.scrollTop;
+                const entryOffsetTop = entryElement.offsetTop;
+                const containerHeight = container.clientHeight;
+                const entryHeight = entryElement.offsetHeight;
+
+                // Calculate scroll position to center the entry
+                const targetScrollTop = entryOffsetTop - (containerHeight / 2) + (entryHeight / 2);
+                
+                console.log('[Auto-Scroll] 🎯 Scroll calculation:', {
+                    containerScrollTop,
+                    entryOffsetTop,
+                    containerHeight,
+                    entryHeight,
+                    targetScrollTop: Math.max(0, targetScrollTop)
+                });
+                
+                // Smooth scroll to the entry
+                container.scrollTo({
+                    top: Math.max(0, targetScrollTop),
+                    behavior: 'smooth'
+                });
+                
+                console.log('[Auto-Scroll] ✅ Scrolling to entry');
+            } else {
+                console.log('[Auto-Scroll] ℹ️ Entry already visible, no scroll needed');
+            }
         }
 
         formatDateForDisplay(dateStr) {
@@ -756,6 +1105,14 @@
 
             dailyQuotas.forEach((quota, index) => {
                 const dateKey = quota.date;
+                
+                // Zuerst zeigen wir "wird bearbeitet" für jede Quota
+                const processDelay = Math.min(100, 25 * index);
+                setTimeout(() => {
+                    this.updateStatusDetailEntry(segmentId, dateKey, 'active', 'Quota wird angelegt...');
+                }, processDelay);
+                
+                // Dann zeigen wir das Ergebnis für jede einzelne Quota
                 const baseQuantities = createdMap.get(dateKey) || {
                     lager: quota.quota_lager,
                     betten: quota.quota_betten,
@@ -763,21 +1120,28 @@
                     sonder: quota.quota_sonder
                 };
 
-                const messageParts = [`Kapazität: ${this.formatQuotaQuantities(baseQuantities)}`];
+                const messageParts = [];
+                
+                // Detaillierte Quota-Info mit Kategorien
+                const quotaDetails = this.formatQuotaQuantities(baseQuantities);
+                messageParts.push(`✓ Erstellt: ${quotaDetails}`);
+                
                 if (Number.isFinite(Number(quota.targetCapacity))) {
-                    messageParts.push(`Ziel ${Number(quota.targetCapacity)}`);
+                    const actualTotal = (baseQuantities.lager || 0) + (baseQuantities.betten || 0) + 
+                                      (baseQuantities.dz || 0) + (baseQuantities.sonder || 0);
+                    messageParts.push(`Gesamt ${actualTotal}/${Number(quota.targetCapacity)}`);
                 }
 
                 const isWarn = warnDates.has(dateKey);
                 if (isWarn) {
-                    messageParts.push('Bestehende Sperre berücksichtigt');
+                    messageParts.push('⚠️ Sperre beachtet');
                 }
 
                 const state = isWarn ? 'warn' : 'success';
-                const delay = Math.min(200, 40 * index);
+                const resultDelay = Math.min(300, 50 * index) + 200; // Etwas später als "wird bearbeitet"
                 setTimeout(() => {
                     this.updateStatusDetailEntry(segmentId, dateKey, state, messageParts.join(' · '));
-                }, delay);
+                }, resultDelay);
             });
         }
 
@@ -1721,6 +2085,13 @@
                 'Import aktualisieren'
             ]);
 
+            // Enable real-time updates using direct callback system
+            let realTimeEnabled = statusEnabled;
+            if (realTimeEnabled) {
+                console.log(`[${new Date().toISOString()}] 🔗 Real-time updates enabled via direct callbacks`);
+                this.enableRealTimeUpdates = true;
+            }
+
             try {
                 const targetCapacity = parseInt(document.getElementById('targetCapacityValue').value) || 0;
 
@@ -1882,15 +2253,23 @@
 
             let response;
             try {
+                // Prepare request data
+                const requestData = {
+                    quotas: dailyQuotas,
+                    operation: 'update'
+                };
+
+                // Add SSE session ID if available
+                if (this.sseSessionId) {
+                    requestData.sse_session = this.sseSessionId;
+                }
+
                 response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        quotas: dailyQuotas,
-                        operation: 'update'
-                    })
+                    body: JSON.stringify(requestData)
                 });
             } catch (networkError) {
                 if (statusEnabled) {
@@ -1932,8 +2311,15 @@
                 throw new Error(errorMessage);
             }
 
+            // Apply real-time updates directly from API response
             if (statusEnabled && detailSegmentId) {
-                this.applySegmentResultToDetails(detailSegmentId, dailyQuotas, result);
+                if (result.createdQuotas && result.createdQuotas.length > 0) {
+                    // Apply each created quota immediately for real-time effect
+                    this.applyRealTimeQuotaUpdates(detailSegmentId, result.createdQuotas, dailyQuotas);
+                } else {
+                    // Fallback to batch update
+                    this.applySegmentResultToDetails(detailSegmentId, dailyQuotas, result);
+                }
             }
 
             if (statusEnabled) {

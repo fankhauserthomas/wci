@@ -35,11 +35,13 @@ if (!defined('HRS_QUOTA_IMPORTER_NO_MAIN')) {
     define('HRS_QUOTA_IMPORTER_NO_MAIN', true);
 }
 require_once __DIR__ . '/hrs_imp_quota.php';
+require_once __DIR__ . '/quota_sse_helper.php';
 
 class QuotaWriterV3 {
     private $mysqli;
     private $hrsLogin;
     private $hutId = 675;
+    private $sseHelper = null;
     
     private $categoryMap = [
         'lager'  => 1958,
@@ -85,9 +87,15 @@ class QuotaWriterV3 {
         return null;
     }
     
-    public function __construct($mysqli, HRSLogin $hrsLogin) {
+    public function __construct($mysqli, HRSLogin $hrsLogin, $sseSessionId = null) {
         $this->mysqli = $mysqli;
         $this->hrsLogin = $hrsLogin;
+        
+        // Initialize SSE Helper if session ID provided
+        if ($sseSessionId) {
+            $this->sseHelper = new QuotaSSEHelper($sseSessionId);
+            logV3("✅ SSE Helper initialized with session: " . $this->sseHelper->getSessionId());
+        }
     }
 
     private function normalizeDateString($value) {
@@ -405,6 +413,14 @@ class QuotaWriterV3 {
             $uniqueDates = array_values(array_unique($normalizedDates));
             sort($uniqueDates);
             logV3("📅 V3: Processing " . count($uniqueDates) . " unique dates: " . implode(', ', $uniqueDates));
+            
+            // SSE: Notify processing started
+            if ($this->sseHelper) {
+                $this->sseHelper->quotaProcessingStarted(count($uniqueDates), [
+                    'dates' => $uniqueDates,
+                    'total_quotas' => count($quotas)
+                ]);
+            }
 
             // ✅ PHASE 1: Gruppiere neue Quotas in zusammenhängende Bereiche
             $contiguousRanges = $this->groupContiguousDateRanges($uniqueDates);
@@ -439,6 +455,9 @@ class QuotaWriterV3 {
             logV3("");
 
             // ✅ PHASE 2: Verarbeite jeden zusammenhängenden Bereich separat
+            $totalQuotasToProcess = count($uniqueDates);
+            $processedQuotasCount = 0;
+            
             foreach ($contiguousRanges as $rangeIndex => $range) {
                 $rangeDates = $range['dates'];
                 logV3("🚀 STARTING RANGE " . ($rangeIndex + 1) . "/" . count($contiguousRanges) . ": {$range['start']} → {$range['end']} (" . count($rangeDates) . " day(s))");
@@ -498,11 +517,23 @@ class QuotaWriterV3 {
                     if (isset($rangeBlockedDates[$date])) {
                         $blocked = $rangeBlockedDates[$date];
                         logV3("      ⛔ SKIPPED: Due to closed quota {$blocked['id']} ({$blocked['from']}-{$blocked['to']})");
+                        
+                        // SSE: Notify skipped quota
+                        $processedQuotasCount++;
+                        if ($this->sseHelper) {
+                            $this->sseHelper->quotaError($date, "Übersprungen: Geschlossene Tage");
+                        }
                         continue;
                     }
 
                     if (!isset($quotasByDate[$date])) {
                         logV3("      ⚠️ SKIPPED: No quota data found for {$date}");
+                        
+                        // SSE: Notify skipped quota
+                        $processedQuotasCount++;
+                        if ($this->sseHelper) {
+                            $this->sseHelper->quotaError($date, "Keine Quota-Daten gefunden");
+                        }
                         continue;
                     }
 
@@ -523,6 +554,16 @@ class QuotaWriterV3 {
                         logV3("      💯 Calculated quotas: L={$quantities['lager']}, B={$quantities['betten']}, DZ={$quantities['dz']}, S={$quantities['sonder']} (Total: {$totalQuantity})");
                         logV3("      🚀 CALLING createQuota() for {$date}...");
 
+                        // SSE: Notify quota creation started
+                        $processedQuotasCount++;
+                        if ($this->sseHelper) {
+                            $this->sseHelper->progressUpdate(
+                                $processedQuotasCount,
+                                $totalQuotasToProcess,
+                                "Erstelle Quota für {$date}... ({$processedQuotasCount}/{$totalQuotasToProcess})"
+                            );
+                        }
+
                         $quotaCreation = $this->createQuota($date, $quantities, 'SERVICED');
                         if ($quotaCreation !== false) {
                             $createdQuotas[] = [
@@ -531,6 +572,25 @@ class QuotaWriterV3 {
                                 'id' => ($quotaCreation === true) ? null : $quotaCreation,
                                 'range' => $rangeIndex + 1
                             ];
+                            
+                                // SSE: Notify successful quota creation with detailed info
+                            if ($this->sseHelper) {
+                                $this->sseHelper->quotaCreated($date, $quantities, [
+                                    'id' => ($quotaCreation === true) ? null : $quotaCreation,
+                                    'total_capacity' => $totalQuantity,
+                                    'current' => $processedQuotasCount,
+                                    'total' => $totalQuotasToProcess,
+                                    'range' => $rangeIndex + 1
+                                ]);
+                                
+                                // Force immediate file write for real-time updates
+                                if (function_exists('fastcgi_finish_request')) {
+                                    fastcgi_finish_request();
+                                }
+                            }
+                            
+                            // Log with timestamp for debugging
+                            logV3("✅ [" . date('H:i:s.u') . "] Quota created for {$date} - SSE event sent");
                             logV3(sprintf(
                                 "      ✅ SUCCESS: Created quota ID %s for %s (L=%d, B=%d, DZ=%d, S=%d) [Range %d]",
                                 ($quotaCreation === true ? 'n/a' : $quotaCreation),
@@ -621,6 +681,17 @@ class QuotaWriterV3 {
             }
             if ($localRefresh && isset($localRefresh['success'])) {
                 $messageParts[] = $localRefresh['success'] ? 'Import aktualisiert' : 'Import fehlgeschlagen';
+            }
+
+            // SSE: Notify processing completed
+            if ($this->sseHelper) {
+                $this->sseHelper->processingCompleted([
+                    'created' => count($createdQuotas),
+                    'deleted' => count($deletedQuotas),
+                    'adjusted_closed' => count($adjustedClosed),
+                    'preserved' => count($preservedQuotas),
+                    'message' => implode(', ', $messageParts)
+                ]);
             }
 
             return [
@@ -952,6 +1023,12 @@ class QuotaWriterV3 {
                 }
 
                 logV3("   🗑️ EXECUTING DELETE for quota ID {$quotaId}...");
+                
+                // SSE: Notify quota deletion started
+                if ($this->sseHelper) {
+                    $this->sseHelper->quotaDeleted($displayFrom . ($displayFrom !== $displayTo ? ' - ' . $displayTo : ''), $quotaId);
+                }
+                
                 if ($this->deleteQuotaViaAPI($quotaId)) {
                     $result['deleted'][] = [
                         'id' => $quotaId,
@@ -1382,9 +1459,17 @@ try {
     
     logV3("✅ V3: HRS Login successful");
     
+    // Check for SSE session ID
+    $sseSessionId = $_GET['sse_session'] ?? $input['sse_session'] ?? null;
+    
     // Process quotas
-    $writer = new QuotaWriterV3($mysqli, $hrsLogin);
+    $writer = new QuotaWriterV3($mysqli, $hrsLogin, $sseSessionId);
     $result = $writer->updateQuotas($input['quotas']);
+    
+    // Add SSE session ID to response
+    if ($sseSessionId) {
+        $result['sse_session'] = $sseSessionId;
+    }
     
     // Send response
     ob_end_clean();
