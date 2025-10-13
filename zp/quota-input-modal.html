@@ -259,8 +259,15 @@
     }
 
     @keyframes pulse-blue {
-        0%, 100% { background: rgba(129, 140, 248, 0.08); }
-        50% { background: rgba(129, 140, 248, 0.15); }
+
+        0%,
+        100% {
+            background: rgba(129, 140, 248, 0.08);
+        }
+
+        50% {
+            background: rgba(129, 140, 248, 0.15);
+        }
     }
 
     #quotaStatusModal .quota-detail-item.state-success {
@@ -437,7 +444,7 @@
             this.statusSteps = [];
             this.currentSegments = [];
             this.statusDetailEntries = new Map();
-            
+
             // SSE Support
             this.sseSessionId = null;
             this.eventSource = null;
@@ -515,7 +522,7 @@
 
         applyRealTimeQuotaUpdates(segmentId, createdQuotas, dailyQuotas) {
             console.log(`[${new Date().toISOString()}] 🔄 Applying real-time quota updates for ${createdQuotas.length} quotas`);
-            
+
             // Create a map for quick lookup
             const quotaMap = new Map();
             createdQuotas.forEach(quota => {
@@ -527,7 +534,7 @@
             // Apply updates with staggered delays for visual effect
             dailyQuotas.forEach((dailyQuota, index) => {
                 const delay = index * 150; // 150ms between each update
-                
+
                 setTimeout(() => {
                     const createdQuota = quotaMap.get(dailyQuota.date);
                     if (createdQuota) {
@@ -537,11 +544,11 @@
                             dz: dailyQuota.quota_dz,
                             sonder: dailyQuota.quota_sonder
                         };
-                        
+
                         const totalCapacity = Object.values(quantities).reduce((sum, q) => sum + (q || 0), 0);
                         const quotaDetails = this.formatQuotaQuantities(quantities);
                         const message = `✅ Quota erstellt: ${quotaDetails} (Gesamt: ${totalCapacity})`;
-                        
+
                         console.log(`[${new Date().toISOString()}] ✅ Real-time update for ${dailyQuota.date}: ${message}`);
                         this.updateStatusDetailEntry(segmentId, dailyQuota.date, 'success', message);
                     }
@@ -557,13 +564,13 @@
         startSSEConnection(sessionId) {
             this.sseSessionId = sessionId;
             console.log(`[${new Date().toISOString()}] 🔗 Starting SSE connection with session:`, sessionId);
-            
+
             try {
                 const sseUrl = `/wci/hrs/quota_sse.php?session_id=${sessionId}`;
                 console.log(`[${new Date().toISOString()}] 🌐 SSE URL:`, sseUrl);
-                
+
                 this.eventSource = new EventSource(sseUrl);
-                
+
                 this.eventSource.addEventListener('connected', (event) => {
                     console.log(`[${new Date().toISOString()}] ✅ SSE Connected:`, JSON.parse(event.data));
                 });
@@ -632,39 +639,39 @@
         handleSSEQuotaCreated(data) {
             console.log(`[${new Date().toISOString()}] 🎯 SSE Quota Created - Real-time update:`, data);
             console.log(`[${new Date().toISOString()}] 📊 Current status detail entries count:`, this.statusDetailEntries.size);
-            
+
             // Real-time update of individual quotas in the detail view
             if (this.statusDetailEntries.size > 0) {
                 let foundEntry = false;
-                
+
                 // Find the corresponding detail entry and update it immediately
                 for (const [segmentId, segment] of this.statusDetailEntries) {
                     console.log(`🔍 Checking segment ${segmentId} with ${segment.entries.size} entries`);
                     console.log(`📅 Available dates in segment:`, Array.from(segment.entries.keys()));
-                    
+
                     if (segment.entries.has(data.date)) {
                         foundEntry = true;
                         const totalCapacity = Object.values(data.quantities || {}).reduce((sum, q) => sum + (q || 0), 0);
                         const quotaDetails = this.formatQuotaQuantities(data.quantities || {});
                         const message = `✅ Quota erstellt: ${quotaDetails} (Gesamt: ${totalCapacity})`;
-                        
+
                         console.log(`✅ Found matching entry for ${data.date}, updating with: ${message}`);
-                        
+
                         // Immediate visual update
                         this.updateStatusDetailEntry(segmentId, data.date, 'success', message);
-                        
+
                         console.log(`✅ Updated quota detail for ${data.date}: ${message}`);
                         break;
                     }
                 }
-                
+
                 if (!foundEntry) {
                     console.warn(`⚠️ No matching detail entry found for date ${data.date}`);
                 }
             } else {
                 console.warn('⚠️ No status detail entries found for SSE update');
             }
-            
+
             // Also update progress if available
             if (data.result && data.result.current && data.result.total) {
                 console.log('📈 Updating progress:', data.result);
@@ -694,7 +701,7 @@
             if (this.statusProgressBar) {
                 this.statusProgressBar.style.width = `${data.percentage}%`;
             }
-            
+
             // Update current step with progress
             if (this.statusSteps.length > 0 && data.message) {
                 this.setStatusStep(0, 'active', data.message);
@@ -973,19 +980,19 @@
             // Calculate positions
             const containerRect = container.getBoundingClientRect();
             const entryRect = entryElement.getBoundingClientRect();
-            
+
             console.log('[Auto-Scroll] 📏 Container rect:', {
                 top: containerRect.top,
                 bottom: containerRect.bottom,
                 height: containerRect.height
             });
-            
+
             console.log('[Auto-Scroll] 📏 Entry rect:', {
                 top: entryRect.top,
                 bottom: entryRect.bottom,
                 height: entryRect.height
             });
-            
+
             // Check if entry is visible within container
             const isVisible = (
                 entryRect.top >= containerRect.top &&
@@ -1003,7 +1010,7 @@
 
                 // Calculate scroll position to center the entry
                 const targetScrollTop = entryOffsetTop - (containerHeight / 2) + (entryHeight / 2);
-                
+
                 console.log('[Auto-Scroll] 🎯 Scroll calculation:', {
                     containerScrollTop,
                     entryOffsetTop,
@@ -1011,13 +1018,13 @@
                     entryHeight,
                     targetScrollTop: Math.max(0, targetScrollTop)
                 });
-                
+
                 // Smooth scroll to the entry
                 container.scrollTo({
                     top: Math.max(0, targetScrollTop),
                     behavior: 'smooth'
                 });
-                
+
                 console.log('[Auto-Scroll] ✅ Scrolling to entry');
             } else {
                 console.log('[Auto-Scroll] ℹ️ Entry already visible, no scroll needed');
@@ -1105,13 +1112,13 @@
 
             dailyQuotas.forEach((quota, index) => {
                 const dateKey = quota.date;
-                
+
                 // Zuerst zeigen wir "wird bearbeitet" für jede Quota
                 const processDelay = Math.min(100, 25 * index);
                 setTimeout(() => {
                     this.updateStatusDetailEntry(segmentId, dateKey, 'active', 'Quota wird angelegt...');
                 }, processDelay);
-                
+
                 // Dann zeigen wir das Ergebnis für jede einzelne Quota
                 const baseQuantities = createdMap.get(dateKey) || {
                     lager: quota.quota_lager,
@@ -1121,14 +1128,14 @@
                 };
 
                 const messageParts = [];
-                
+
                 // Detaillierte Quota-Info mit Kategorien
                 const quotaDetails = this.formatQuotaQuantities(baseQuantities);
                 messageParts.push(`✓ Erstellt: ${quotaDetails}`);
-                
+
                 if (Number.isFinite(Number(quota.targetCapacity))) {
-                    const actualTotal = (baseQuantities.lager || 0) + (baseQuantities.betten || 0) + 
-                                      (baseQuantities.dz || 0) + (baseQuantities.sonder || 0);
+                    const actualTotal = (baseQuantities.lager || 0) + (baseQuantities.betten || 0) +
+                        (baseQuantities.dz || 0) + (baseQuantities.sonder || 0);
                     messageParts.push(`Gesamt ${actualTotal}/${Number(quota.targetCapacity)}`);
                 }
 
@@ -2119,10 +2126,22 @@
                     aggregated.deleted += segmentResult.deletedCount;
                     aggregated.adjustedClosed += segmentResult.adjustedClosedCount;
 
+                    // Use affectedDateRange if available, otherwise fallback to original segment dates
+                    const importDateRange = segmentResult.affectedDateRange || {
+                        from: segment.dateFrom,
+                        to: segment.dateTo
+                    };
+
+                    console.log(`📅 Import Range for Segment ${index + 1}:`, {
+                        originalSegment: { from: segment.dateFrom, to: segment.dateTo },
+                        affectedDateRange: segmentResult.affectedDateRange,
+                        finalImportRange: importDateRange
+                    });
+
                     importSegments.push({
-                        dateFrom: segment.dateFrom,
-                        dateTo: segment.dateTo,
-                        dayCount: segment.dayCount
+                        dateFrom: importDateRange.from,
+                        dateTo: importDateRange.to,
+                        dayCount: segment.dayCount  // Keep original for reference, will be recalculated by HRS import
                     });
 
                     if (statusEnabled) {
