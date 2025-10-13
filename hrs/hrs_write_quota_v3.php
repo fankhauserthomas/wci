@@ -141,13 +141,17 @@ class QuotaWriterV3 {
     }
 
     private function buildSegmentsFromDayList(array $dayList) {
+        logV3("🧩 buildSegmentsFromDayList() called with " . count($dayList) . " days: " . implode(', ', $dayList));
+        
         $segments = [];
         if (empty($dayList)) {
+            logV3("🧩 → Empty dayList, returning 0 segments");
             return $segments;
         }
 
         $normalized = array_values(array_unique($dayList));
         sort($normalized);
+        logV3("🧩 → Normalized/sorted days: " . implode(', ', $normalized));
 
         $currentSegment = [];
         $lastDate = null;
@@ -160,26 +164,40 @@ class QuotaWriterV3 {
             }
 
             $expectedNext = date('Y-m-d', strtotime($lastDate . ' +1 day'));
+            logV3("🧩 → Processing $dateStr: last=$lastDate, expected=$expectedNext, match=" . ($dateStr === $expectedNext ? 'YES' : 'NO'));
+            
             if ($dateStr === $expectedNext) {
                 $currentSegment[] = $dateStr;
                 $lastDate = $dateStr;
+                logV3("🧩 → Added to current segment: " . implode(', ', $currentSegment));
             } else {
-                $segments[] = [
+                $segmentToClose = [
                     'start' => $currentSegment[0],
                     'end' => $currentSegment[count($currentSegment) - 1],
                     'dates' => $currentSegment
                 ];
+                $segments[] = $segmentToClose;
+                logV3("🧩 → Closed segment: {$segmentToClose['start']} → {$segmentToClose['end']} (Days: " . implode(', ', $segmentToClose['dates']) . ")");
+                
                 $currentSegment = [$dateStr];
                 $lastDate = $dateStr;
+                logV3("🧩 → Started new segment with: $dateStr");
             }
         }
 
         if (!empty($currentSegment)) {
-            $segments[] = [
+            $finalSegment = [
                 'start' => $currentSegment[0],
                 'end' => $currentSegment[count($currentSegment) - 1],
                 'dates' => $currentSegment
             ];
+            $segments[] = $finalSegment;
+            logV3("🧩 → Final segment: {$finalSegment['start']} → {$finalSegment['end']} (Days: " . implode(', ', $finalSegment['dates']) . ")");
+        }
+
+        logV3("🧩 → TOTAL SEGMENTS CREATED: " . count($segments));
+        foreach ($segments as $idx => $seg) {
+            logV3("🧩 →   Segment " . ($idx + 1) . ": {$seg['start']} → {$seg['end']} (" . count($seg['dates']) . " days)");
         }
 
         return $segments;
@@ -388,57 +406,110 @@ class QuotaWriterV3 {
             sort($uniqueDates);
             logV3("📅 V3: Processing " . count($uniqueDates) . " unique dates: " . implode(', ', $uniqueDates));
 
-            $ranges = $this->groupContiguousDateRanges($uniqueDates);
+            // ✅ PHASE 1: Gruppiere neue Quotas in zusammenhängende Bereiche
+            $contiguousRanges = $this->groupContiguousDateRanges($uniqueDates);
             $rangeSummary = array_map(function ($range) {
                 if ($range['start'] === $range['end']) {
                     return $range['start'];
                 }
                 return $range['start'] . '→' . $range['end'];
-            }, $ranges);
-            logV3("🧭 V3: Identified " . count($ranges) . " contiguous range(s): " . implode('; ', $rangeSummary));
+            }, $contiguousRanges);
+            logV3("🧭 V3: Identified " . count($contiguousRanges) . " contiguous range(s): " . implode('; ', $rangeSummary));
 
-            $deletionResult = $this->deleteOverlappingQuotas($uniqueDates, $ranges);
-            $deletedQuotas = $deletionResult['deleted'] ?? [];
-            $preservedQuotas = $deletionResult['splitCreated'] ?? [];
-            $adjustedClosed = $deletionResult['processedClosed'] ?? [];
-            $blockedDates = $deletionResult['blockedDates'] ?? [];
-
-            logV3("🗑️ V3: Deleted " . count($deletedQuotas) . " overlapping quotas");
-            if (!empty($adjustedClosed)) {
-                logV3("🚧 V3: Adjusted " . count($adjustedClosed) . " closed quota(s)");
+            // ✅ LOG COMPLETE DEPLOYMENT PLAN
+            logV3("");
+            logV3("================================================================================");
+            logV3("📋 COMPLETE DEPLOYMENT PLAN");
+            logV3("================================================================================");
+            logV3("🎯 USER SELECTED DATES: " . count($uniqueDates) . " total");
+            logV3("   📅 Selected: " . implode(', ', $uniqueDates));
+            logV3("");
+            logV3("🧭 PROCESSING STRATEGY: " . count($contiguousRanges) . " separate range(s)");
+            foreach ($contiguousRanges as $idx => $rng) {
+                $dayCount = count($rng['dates']);
+                logV3("   📦 Range " . ($idx + 1) . ": {$rng['start']} → {$rng['end']} ({$dayCount} day" . ($dayCount > 1 ? 's' : '') . ")");
+                logV3("      📅 Days: " . implode(', ', $rng['dates']));
             }
-            if (!empty($preservedQuotas)) {
-                logV3("🔁 V3: Recreated " . count($preservedQuotas) . " preserved quota day(s) outside selection");
-            }
+            logV3("");
+            logV3("🔄 OPERATION SEQUENCE FOR EACH RANGE:");
+            logV3("   [STEP 1] 🔍 FIND overlapping existing quotas");
+            logV3("   [STEP 2] 🗑️ DELETE overlapping quotas (with segment preservation)");
+            logV3("   [STEP 3] ✅ CREATE new quotas for selected dates");
+            logV3("================================================================================");
+            logV3("");
 
-            foreach ($ranges as $range) {
-                logV3("➡️ V3: Processing range {$range['start']} → {$range['end']} (" . count($range['dates']) . " day(s))");
-                logV3("   📋 Range dates: " . implode(', ', $range['dates']));
+            // ✅ PHASE 2: Verarbeite jeden zusammenhängenden Bereich separat
+            foreach ($contiguousRanges as $rangeIndex => $range) {
+                $rangeDates = $range['dates'];
+                logV3("🚀 STARTING RANGE " . ($rangeIndex + 1) . "/" . count($contiguousRanges) . ": {$range['start']} → {$range['end']} (" . count($rangeDates) . " day(s))");
+                logV3("   � Range will deploy quotas on: " . implode(', ', $rangeDates));
+
+                logV3("");
+                logV3("🔍 [STEP 1] SEARCHING FOR OVERLAPPING QUOTAS IN RANGE " . ($rangeIndex + 1));
+                logV3("   🎯 Target range: {$range['start']} → {$range['end']}");
+                logV3("   🔍 Will search for ANY existing quota that touches these dates...");
                 
-                foreach ($range['dates'] as $date) {
-                    logV3("   🔍 Processing date: {$date}");
+                // ✅ Lösche überlappende Quotas für diesen spezifischen Bereich
+                $deletionResult = $this->deleteOverlappingQuotas($rangeDates, [$range]);
+                $rangeDeletedQuotas = $deletionResult['deleted'] ?? [];
+                $rangePreservedQuotas = $deletionResult['splitCreated'] ?? [];
+                $rangeAdjustedClosed = $deletionResult['processedClosed'] ?? [];
+                $rangeBlockedDates = $deletionResult['blockedDates'] ?? [];
+                
+                logV3("📊 [STEP 1] OVERLAP SEARCH RESULTS:");
+                logV3("   🗑️ Quotas to delete: " . count($rangeDeletedQuotas));
+                logV3("   🔁 Segments to recreate: " . count($rangePreservedQuotas));
+                logV3("   🚧 Closed quotas adjusted: " . count($rangeAdjustedClosed));
+                logV3("   ⛔ Blocked dates: " . count($rangeBlockedDates));
+
+                // Sammle Ergebnisse
+                $deletedQuotas = array_merge($deletedQuotas, $rangeDeletedQuotas);
+                $preservedQuotas = array_merge($preservedQuotas, $rangePreservedQuotas);
+                $adjustedClosed = array_merge($adjustedClosed, $rangeAdjustedClosed);
+                $blockedDates = array_merge($blockedDates, $rangeBlockedDates);
+
+                logV3("");
+                logV3("📋 [STEP 2 COMPLETED] DELETION & PRESERVATION SUMMARY:");
+                logV3("   ✅ Deleted quotas: " . count($rangeDeletedQuotas));
+                foreach ($rangeDeletedQuotas as $del) {
+                    logV3("      🗑️ Deleted ID {$del['id']}: {$del['from']} → {$del['to']} [{$del['action']}]");
+                }
+                if (!empty($rangePreservedQuotas)) {
+                    logV3("   � Preserved segments: " . count($rangePreservedQuotas));
+                    foreach ($rangePreservedQuotas as $pres) {
+                        logV3("      💾 Preserved ID {$pres['id']}: {$pres['dateFrom']} → {$pres['dateTo']} (from source {$pres['sourceId']})");
+                    }
+                }
+                if (!empty($rangeAdjustedClosed)) {
+                    logV3("   � Adjusted closed: " . count($rangeAdjustedClosed));
+                }
+                if (!empty($rangeBlockedDates)) {
+                    logV3("   ⛔ Blocked dates: " . implode(', ', array_keys($rangeBlockedDates)));
+                }
+
+                logV3("");
+                logV3("🚀 [STEP 3] CREATING NEW QUOTAS FOR RANGE " . ($rangeIndex + 1));
+                logV3("   📅 Will create quotas for: " . implode(', ', $rangeDates));
+
+                foreach ($rangeDates as $dateIdx => $date) {
+                    logV3("");
+                    logV3("   � [DATE " . ($dateIdx + 1) . "/" . count($rangeDates) . "] PROCESSING: {$date}");
                     
-                    if (isset($blockedDates[$date])) {
-                        $blocked = $blockedDates[$date];
-                        logV3(sprintf(
-                            "⛔ V3: Skipping %s due to closed quota %s (%s-%s)",
-                            $date,
-                            $blocked['id'],
-                            $blocked['from'] ?? '?',
-                            $blocked['to'] ?? '?'
-                        ));
+                    if (isset($rangeBlockedDates[$date])) {
+                        $blocked = $rangeBlockedDates[$date];
+                        logV3("      ⛔ SKIPPED: Due to closed quota {$blocked['id']} ({$blocked['from']}-{$blocked['to']})");
                         continue;
                     }
 
                     if (!isset($quotasByDate[$date])) {
-                        logV3("⚠️ V3: Keine Quota-Daten für $date gefunden (übersprungen)");
+                        logV3("      ⚠️ SKIPPED: No quota data found for {$date}");
                         continue;
                     }
 
-                    logV3("   ✓ Found quota data for {$date}");
+                    logV3("      ✓ Found quota data for {$date}");
                     
                     foreach ($quotasByDate[$date] as $quotaIndex => $quota) {
-                        logV3("   📦 Processing quota #{$quotaIndex} for {$date}");
+                        logV3("      📦 Processing quota data #{$quotaIndex} for {$date}");
                         
                         $quantities = [];
                         $totalQuantity = 0;
@@ -449,39 +520,95 @@ class QuotaWriterV3 {
                             $totalQuantity += $quantities[$categoryName];
                         }
 
-                        logV3("   💯 Total quantity for {$date}: {$totalQuantity}");
-
-                        // ✅ WICHTIG: Auch 0-Quotas MÜSSEN geschrieben werden, um korrekte Vakanzen anzuzeigen!
-                        // Wenn keine Quota gesetzt ist, zeigt das System "verfügbar" an - das wäre fatal bei Überbelegung!
-                        // if ($totalQuantity <= 0 && empty($adjustedClosed)) {
-                        //     logV3("ℹ️ V3: Skipping quota for $date (all categories = 0)");
-                        //     continue;
-                        // }
+                        logV3("      💯 Calculated quotas: L={$quantities['lager']}, B={$quantities['betten']}, DZ={$quantities['dz']}, S={$quantities['sonder']} (Total: {$totalQuantity})");
+                        logV3("      🚀 CALLING createQuota() for {$date}...");
 
                         $quotaCreation = $this->createQuota($date, $quantities, 'SERVICED');
                         if ($quotaCreation !== false) {
                             $createdQuotas[] = [
                                 'date' => $date,
                                 'quantities' => $quantities,
-                                'id' => ($quotaCreation === true) ? null : $quotaCreation
+                                'id' => ($quotaCreation === true) ? null : $quotaCreation,
+                                'range' => $rangeIndex + 1
                             ];
                             logV3(sprintf(
-                                "✅ V3: Created quota ID %s for %s (L=%d, B=%d, DZ=%d, S=%d)",
+                                "      ✅ SUCCESS: Created quota ID %s for %s (L=%d, B=%d, DZ=%d, S=%d) [Range %d]",
                                 ($quotaCreation === true ? 'n/a' : $quotaCreation),
                                 $date,
                                 $quantities['lager'],
                                 $quantities['betten'],
                                 $quantities['dz'],
-                                $quantities['sonder']
+                                $quantities['sonder'],
+                                $rangeIndex + 1
                             ));
                         } else {
-                            logV3("❌ V3: Failed to create quota for {$date}");
+                            logV3("      ❌ FAILED: Could not create quota for {$date} [Range " . ($rangeIndex + 1) . "]");
                         }
                     }
                 }
             }
 
-            $localRefresh = $this->refreshLocalQuotaCache($uniqueDates);
+            // ✅ ERWEITERTE REIMPORT-BEREICHE für Quota-Splitting
+            // Sammle alle betroffenen Daten: benutzergewählte + gelöschte Quota-Bereiche
+            $allAffectedDates = $uniqueDates; // Start mit benutzergewählten Daten
+            
+            // Füge alle Daten von gelöschten Quotas hinzu (diese können gesplittet worden sein)
+            foreach ($deletedQuotas as $deleted) {
+                if (isset($deleted['from']) && isset($deleted['to'])) {
+                    // Konvertiere HRS-Format (dd.mm.yyyy) zu Y-m-d
+                    $fromParts = explode('.', $deleted['from']);
+                    $toParts = explode('.', $deleted['to']);
+                    
+                    if (count($fromParts) === 3 && count($toParts) === 3) {
+                        $fromDate = $fromParts[2] . '-' . str_pad($fromParts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($fromParts[0], 2, '0', STR_PAD_LEFT);
+                        $toDate = $toParts[2] . '-' . str_pad($toParts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($toParts[0], 2, '0', STR_PAD_LEFT);
+                        
+                        $allAffectedDates[] = $fromDate;
+                        $allAffectedDates[] = $toDate;
+                    }
+                }
+            }
+            
+            // Füge auch alle Daten von erhaltenen Quota-Segmenten hinzu
+            foreach ($preservedQuotas as $preserved) {
+                if (isset($preserved['from']) && isset($preserved['to'])) {
+                    $fromParts = explode('.', $preserved['from']);
+                    $toParts = explode('.', $preserved['to']);
+                    
+                    if (count($fromParts) === 3 && count($toParts) === 3) {
+                        $fromDate = $fromParts[2] . '-' . str_pad($fromParts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($fromParts[0], 2, '0', STR_PAD_LEFT);
+                        $toDate = $toParts[2] . '-' . str_pad($toParts[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($toParts[0], 2, '0', STR_PAD_LEFT);
+                        
+                        $allAffectedDates[] = $fromDate;
+                        $allAffectedDates[] = $toDate;
+                    }
+                }
+            }
+            
+            // Erweitere um +/-1 Tag für Sicherheit (falls Splitting an Rändern)
+            $allAffectedDates = array_unique($allAffectedDates);
+            $expandedDates = [];
+            
+            foreach ($allAffectedDates as $date) {
+                $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+                if ($dateObj) {
+                    // Original-Datum
+                    $expandedDates[] = $dateObj->format('Y-m-d');
+                    // -1 Tag
+                    $expandedDates[] = (clone $dateObj)->modify('-1 day')->format('Y-m-d');
+                    // +1 Tag  
+                    $expandedDates[] = (clone $dateObj)->modify('+1 day')->format('Y-m-d');
+                }
+            }
+            
+            $finalImportDates = array_unique($expandedDates);
+            sort($finalImportDates);
+            
+            logV3("♻️ V3: Expanded import range from " . count($uniqueDates) . " user dates to " . count($finalImportDates) . " total dates (includes splitting buffer)");
+            logV3("   Original user dates: " . implode(', ', $uniqueDates));
+            logV3("   Final import range: " . min($finalImportDates) . " → " . max($finalImportDates) . " (" . count($finalImportDates) . " days)");
+
+            $localRefresh = $this->refreshLocalQuotaCache($finalImportDates);
 
             $messageParts = [];
             $messageParts[] = count($createdQuotas) . ' Quotas erstellt';
@@ -509,9 +636,10 @@ class QuotaWriterV3 {
                 'deletedCount' => count($deletedQuotas),
                 'adjustedClosedCount' => count($adjustedClosed),
                 'preservedCount' => count($preservedQuotas),
+                'processedRanges' => count($contiguousRanges),
                 'affectedDateRange' => [
-                    'from' => min($uniqueDates),
-                    'to' => max($uniqueDates)
+                    'from' => min($finalImportDates),
+                    'to' => max($finalImportDates)
                 ],
                 'message' => implode(', ', $messageParts)
             ];
@@ -539,8 +667,9 @@ class QuotaWriterV3 {
             $minDate = min($dates);
             $maxDate = max($dates);
 
-            $dateFrom = date('d.m.Y', strtotime($minDate . ' -30 days'));
-            $dateTo = date('d.m.Y', strtotime($maxDate . ' +30 days'));
+            // ✅ ERWEITERTE SUCHE: Längere Zeitspanne um auch benachbarte überlappende Quotas zu finden
+            $dateFrom = date('d.m.Y', strtotime($minDate . ' -60 days'));
+            $dateTo = date('d.m.Y', strtotime($maxDate . ' +60 days'));
 
             logV3("🔍 V3: Searching quotas from $dateFrom to $dateTo (" . count($ranges) . " range(s))");
 
@@ -632,15 +761,23 @@ class QuotaWriterV3 {
                     }
 
                     $diffDays = (int)$quotaStart->diff($quotaEndRaw)->format('%a');
-                    $quotaEnd = clone $quotaEndRaw;
-
-                    if ($quotaEnd <= $quotaStart) {
-                        $quotaEnd = (clone $quotaStart)->modify('+1 day');
-                    } elseif ($diffDays >= 2) {
-                        $quotaEnd = (clone $quotaEndRaw)->modify('+1 day');
-                    } elseif ($diffDays === 0) {
-                        $quotaEnd = (clone $quotaStart)->modify('+1 day');
+                    
+                    // ✅ KORREKTUR: HRS API liefert quotaEndRaw als EXKLUSIV
+                    // Für interne Verarbeitung brauchen wir INKLUSIV (letzter echter Tag)
+                    // REGEL: quotaEndRaw ist EXKLUSIV vom HRS API
+                    //        quotaEndInclusive = quotaEndRaw - 1 Tag
+                    $quotaEndInclusive = (clone $quotaEndRaw)->modify('-1 day');
+                    
+                    // Für Day-Range-Expansion verwenden wir INKLUSIVE Grenzen
+                    if ($quotaEndInclusive < $quotaStart) {
+                        // Fallback für beschädigte Daten: mindestens 1 Tag
+                        $quotaEndInclusive = clone $quotaStart;
                     }
+                    
+                    logV3("🔄 V3: Date conversion for quota {$quotaId}: API EXCLUSIVE ({$quotaStart->format('Y-m-d')} → {$quotaEndRaw->format('Y-m-d')}) => INTERNAL INCLUSIVE ({$quotaStart->format('Y-m-d')} → {$quotaEndInclusive->format('Y-m-d')})");
+                    
+                    // Für die weitere Verarbeitung verwenden wir quotaEnd = quotaEndInclusive
+                    $quotaEnd = $quotaEndInclusive;
 
                     logV3(sprintf(
                         "🧮 V3: Quota %s range %s -> %s (rawEnd=%s, diff=%d)",
@@ -651,20 +788,31 @@ class QuotaWriterV3 {
                         $diffDays
                     ));
 
-                    $daysInQuota = $this->expandDayRange($quotaStart, $quotaEnd);
+                    // expandDayRange erwartet EXKLUSIV end, aber $quotaEnd ist jetzt INKLUSIV
+                    // Konvertiere zurück zu EXKLUSIV für expandDayRange
+                    $quotaEndExclusiveForExpansion = (clone $quotaEnd)->modify('+1 day');
+                    $daysInQuota = $this->expandDayRange($quotaStart, $quotaEndExclusiveForExpansion);
                     if (empty($daysInQuota)) {
                         logV3("⚠️ V3: Quota {$quotaId} produced no day list (skipped)");
                         continue;
                     }
 
+                    logV3("🔍 Checking overlap for quota {$quotaId}:");
+                    logV3("   📅 Quota days: " . implode(', ', $daysInQuota));
+                    logV3("   🎯 Selected dates: " . implode(', ', array_keys($selectedDateSet)));
+                    
                     $intersectionDays = [];
                     foreach ($daysInQuota as $day) {
                         if (isset($selectedDateSet[$day])) {
                             $intersectionDays[] = $day;
+                            logV3("   ✅ OVERLAP found: $day");
                         }
                     }
 
+                    logV3("   📊 Total intersections: " . count($intersectionDays) . " (" . implode(', ', $intersectionDays) . ")");
+
                     if (empty($intersectionDays)) {
+                        logV3("   ⏭️ No overlap, skipping quota {$quotaId}");
                         continue;
                     }
 
@@ -718,69 +866,92 @@ class QuotaWriterV3 {
 
             logV3("📊 V3: Fetched {$totalFound} quotas across {$page} pages");
             logV3("🎯 V3: Found " . count($toProcess) . " overlapping quota(s) to adjust");
+            
+            if (empty($toProcess)) {
+                logV3("✅ V3: No overlapping quotas found - nothing to delete");
+                return $result;
+            }
+            
+            logV3("");
+            logV3("📋 OVERLAPPING QUOTAS FOUND:");
+            foreach ($toProcess as $qId => $qInfo) {
+                $qDays = $qInfo['days'];
+                $qIntersect = $qInfo['intersections'];
+                logV3("   📅 Quota ID {$qId}: {$qInfo['displayFrom']} → {$qInfo['displayTo']} ({$qInfo['mode']})");
+                logV3("      🔍 Quota days: " . implode(', ', $qDays));
+                logV3("      ⚡ Intersections: " . implode(', ', $qIntersect));
+            }
 
             foreach ($toProcess as $quotaId => $info) {
                 $displayFrom = $info['displayFrom'] ?? $info['start']->format('Y-m-d');
                 $displayTo = $info['displayTo'] ?? $info['end']->format('Y-m-d');
 
-                // Berechne welche Tage behalten werden sollen
-                // Das sind ALLE Tage der Quota MINUS die tatsächlich selektierten Tage
+                // ✅ PHASE 3: Lückenlose Erhaltung - Alle Tage außer Intersection
                 $quotaDays = $info['days'];
                 $intersectionDays = $info['intersections'];
                 
-                // Rekonstruiere Segmente, die erhalten bleiben sollen (Sequenzen ohne Überschneidung)
-                $segmentsToPreserve = [];
-
-                $intersectionDaysSorted = $intersectionDays;
-                sort($intersectionDaysSorted);
-                $firstIntersection = $intersectionDaysSorted[0];
-                $lastIntersection = $intersectionDaysSorted[count($intersectionDaysSorted) - 1];
-
-                $leftDays = [];
-                $rightDays = [];
+                logV3("🔍 DETAILED ANALYSIS for Quota ID $quotaId:");
+                logV3("   📅 Original quota days: " . implode(', ', $quotaDays));
+                logV3("   ❌ Intersection days (to remove): " . implode(', ', $intersectionDays));
+                
+                // Erstelle Set für schnelle Lookup der zu überschreibenden Tage
+                $intersectionSet = array_fill_keys($intersectionDays, true);
+                logV3("   🔍 Intersection set keys: " . implode(', ', array_keys($intersectionSet)));
+                
+                // Sammle ALLE Tage die behalten werden sollen (alles außer intersections)
+                $daysToPreserve = [];
                 foreach ($quotaDays as $day) {
-                    if ($day < $firstIntersection) {
-                        $leftDays[] = $day;
-                    } elseif ($day > $lastIntersection) {
-                        $rightDays[] = $day;
+                    if (!isset($intersectionSet[$day])) {
+                        $daysToPreserve[] = $day;
+                        logV3("   ✅ PRESERVING day: $day");
+                    } else {
+                        logV3("   ❌ REMOVING day: $day (found in intersection set)");
                     }
                 }
-
-                if (!empty($leftDays)) {
-                    $segmentsToPreserve = array_merge(
-                        $segmentsToPreserve,
-                        $this->buildSegmentsFromDayList($leftDays)
-                    );
+                
+                logV3("   💾 FINAL days to preserve: " . implode(', ', $daysToPreserve));
+                
+                // ✅ Erstelle zusammenhängende Segmente aus allen zu erhaltenden Tagen
+                $segmentsToPreserve = $this->buildSegmentsFromDayList($daysToPreserve);
+                
+                logV3("   🧩 Generated " . count($segmentsToPreserve) . " segments to preserve:");
+                foreach ($segmentsToPreserve as $idx => $seg) {
+                    $segDays = $seg['dates'] ?? [];
+                    logV3("     Segment " . ($idx + 1) . ": {$seg['start']} → {$seg['end']} (Days: " . implode(', ', $segDays) . ")");
                 }
-
-                if (!empty($rightDays)) {
-                    $segmentsToPreserve = array_merge(
-                        $segmentsToPreserve,
-                        $this->buildSegmentsFromDayList($rightDays)
-                    );
-                }
-
-                $remainingDays = array_merge($leftDays, $rightDays);
 
                 $deleteCompletely = empty($segmentsToPreserve);
 
-                logV3("🗑️ V3: Attempting to delete quota ID $quotaId ($displayFrom - $displayTo) " . ($deleteCompletely ? '[full]' : '[split]'));
+                logV3("");
+                logV3("🔄 PROCESSING QUOTA ID {$quotaId} ({$displayFrom} - {$displayTo})");
+                logV3("   📝 Decision: " . ($deleteCompletely ? 'FULL DELETE' : 'SPLIT INTO ' . count($segmentsToPreserve) . ' SEGMENTS'));
+                
                 if (!$deleteCompletely) {
-                    logV3("   🎯 Selected days to overwrite: " . implode(', ', $intersectionDays));
                     $segmentPreview = [];
-                    foreach ($segmentsToPreserve as $previewSegment) {
-                        if (empty($previewSegment['dates'])) {
-                            continue;
-                        }
-                        $segmentStart = $previewSegment['start'];
-                        $segmentEnd = $previewSegment['end'];
-                        $segmentPreview[] = ($segmentStart === $segmentEnd)
-                            ? $segmentStart
-                            : "{$segmentStart}→{$segmentEnd}";
+                    foreach ($segmentsToPreserve as $segment) {
+                        $start = $segment['start'];
+                        $end = $segment['end'];
+                        $segmentPreview[] = ($start === $end) ? $start : "{$start}→{$end}";
                     }
-                    logV3("   💾 Segments to preserve: " . implode('; ', $segmentPreview));
+                    
+                    logV3("   🎯 DETAILED SPLIT ANALYSIS:");
+                    logV3("   � Original range: $displayFrom → $displayTo");
+                    logV3("   📝 Original days (" . count($quotaDays) . "): " . implode(', ', $quotaDays));
+                    logV3("   ❌ Days to remove (" . count($intersectionDays) . "): " . implode(', ', $intersectionDays));
+                    logV3("   💾 Days to preserve (" . count($daysToPreserve) . "): " . implode(', ', $daysToPreserve));
+                    logV3("   🧩 Segments to create (" . count($segmentsToPreserve) . "):");
+                    
+                    foreach ($segmentsToPreserve as $idx => $segment) {
+                        $start = $segment['start'];
+                        $end = $segment['end'];
+                        $segDays = $segment['dates'] ?? [];
+                        $preview = ($start === $end) ? $start : "{$start}→{$end}";
+                        logV3("     → Segment " . ($idx + 1) . ": $preview (Days: " . implode(', ', $segDays) . ")");
+                    }
+                    logV3("   � Days to preserve: " . implode(', ', $daysToPreserve));
                 }
 
+                logV3("   🗑️ EXECUTING DELETE for quota ID {$quotaId}...");
                 if ($this->deleteQuotaViaAPI($quotaId)) {
                     $result['deleted'][] = [
                         'id' => $quotaId,
@@ -789,13 +960,19 @@ class QuotaWriterV3 {
                         'mode' => $info['mode'] ?? null,
                         'action' => $deleteCompletely ? 'full' : 'split'
                     ];
-                    logV3("✅ V3: Deleted quota ID $quotaId");
+                    logV3("   ✅ SUCCESS: Deleted quota ID {$quotaId}");
+                    
+                    // ✅ TIMING FIX: Kurze Pause damit die Löschung committed wird
+                    if (!$deleteCompletely) {
+                        logV3("   ⏱️ Waiting 500ms for deletion to commit before recreating segments...");
+                        usleep(500000); // 500ms Pause
+                    }
 
                     $preservedSuccessDays = [];
 
-                    if (!$deleteCompletely && !empty($segmentsToPreserve)) {
+                    // ✅ Erstelle alle erhaltenen Segmente
+                    if (!$deleteCompletely) {
                         $categories = $info['categoryValues'];
-                        $categorySum = array_sum($categories);
                         $preserveMode = $info['mode'] ?? 'SERVICED';
                         $preserveMode = $preserveMode ? strtoupper($preserveMode) : 'SERVICED';
                         $forcePreserve = !empty($info['isClosed']);
@@ -806,18 +983,28 @@ class QuotaWriterV3 {
                         }
                         $maxBaseLength = 60; // Reserviere 20 Zeichen für " (Split X)"
 
-                        logV3("   🔄 Creating " . count($segmentsToPreserve) . " preserved segment(s)");
+                        logV3("");
+                        logV3("   🔄 CREATING " . count($segmentsToPreserve) . " PRESERVED SEGMENT(S):");
+                        logV3("   📦 Base quota info - Mode: $preserveMode, Force: " . ($forcePreserve ? 'YES' : 'NO'));
+                        logV3("   📦 Categories: L=" . $categories['lager'] . ", B=" . $categories['betten'] . ", DZ=" . $categories['dz'] . ", S=" . $categories['sonder']);
+                        logV3("");
+                        logV3("   📋 SEGMENT CREATION SEQUENCE:");
 
                         foreach ($segmentsToPreserve as $segmentIndex => $segmentInfo) {
                             $segmentDays = $segmentInfo['dates'] ?? [];
                             if (empty($segmentDays)) {
+                                logV3("   ⚠️ SKIPPING empty segment " . ($segmentIndex + 1));
                                 continue;
                             }
 
-                            $rangeStart = $segmentInfo['start'];
-                            $rangeEnd = $segmentInfo['end'];
+                            $segmentStart = $segmentInfo['start'];
+                            $segmentEnd = $segmentInfo['end'];
 
-                            logV3("   🔁 Recreating preserved segment {$rangeStart} to {$rangeEnd} (" . count($segmentDays) . " day(s))");
+                            logV3("   � SEGMENT " . ($segmentIndex + 1) . "/" . count($segmentsToPreserve) . ":");
+                            logV3("      📅 Range: {$segmentStart} → {$segmentEnd}");
+                            logV3("      📝 Days (" . count($segmentDays) . "): " . implode(', ', $segmentDays));
+                            logV3("      🏷️  Title: " . sprintf('%s (Split %d)', $baseTitle, $segmentIndex + 1));
+                            logV3("      🚀 CALLING createQuota() for segment...");
 
                             $trimmedTitle = $baseTitle;
                             if (strlen($trimmedTitle) > $maxBaseLength) {
@@ -827,85 +1014,93 @@ class QuotaWriterV3 {
                             $titleForRange = sprintf('%s (Split %d)', $trimmedTitle, $segmentIndex + 1);
 
                             try {
-                                $newId = $this->createQuota($rangeStart, $categories, $preserveMode, $titleForRange, $forcePreserve, $rangeEnd);
+                                $newId = $this->createQuota(
+                                    $segmentStart, 
+                                    $categories, 
+                                    $preserveMode, 
+                                    $titleForRange,
+                                    $forcePreserve,
+                                    $segmentEnd
+                                );
 
                                 if ($newId) {
                                     $result['splitCreated'][] = [
                                         'sourceId' => $quotaId,
-                                        'dateFrom' => $rangeStart,
-                                        'dateTo' => $rangeEnd,
+                                        'dateFrom' => $segmentStart,
+                                        'dateTo' => $segmentEnd,
                                         'id' => $newId,
                                         'quantities' => $categories,
                                         'days' => $segmentDays
                                     ];
-                                    logV3("   ✅ Preserved quota created with ID {$newId} for segment {$rangeStart} to {$rangeEnd}");
+                                    logV3("     ✅ SUCCESS: Preserved segment created with ID {$newId}");
+                                    logV3("     ✅ Segment covers days: " . implode(', ', $segmentDays));
                                     foreach ($segmentDays as $preservedDay) {
                                         $preservedSuccessDays[$preservedDay] = true;
                                     }
+                                    
+                                    // ✅ SEGMENT SPACING: Kurze Pause zwischen Segment-Erstellungen
+                                    if (($segmentIndex + 1) < count($segmentsToPreserve)) {
+                                        logV3("     ⏱️ Waiting 200ms before creating next segment...");
+                                        usleep(200000); // 200ms zwischen Segmenten
+                                    }
+                                } else {
+                                    logV3("     ❌ FAILED: Could not create preserved segment (returned false/null)");
                                 }
                             } catch (Exception $preserveEx) {
-                                logV3("   ⚠️ Failed to recreate preserved segment {$rangeStart} to {$rangeEnd}: " . $preserveEx->getMessage());
+                                $errorMsg = $preserveEx->getMessage();
+                                logV3("   ⚠️ Failed to recreate preserved segment {$segmentStart} to {$segmentEnd}: " . $errorMsg);
+                                
+                                // ✅ OVERLAP DEBUGGING: Spezielle Behandlung für overlap-Fehler
+                                if (strpos($errorMsg, 'Cannot overlap quotas') !== false || strpos($errorMsg, 'overlap') !== false) {
+                                    logV3("   🚨 OVERLAP ERROR DETECTED! This indicates another quota exists in this range.");
+                                    logV3("   🔍 Segment details: {$segmentStart} → {$segmentEnd}, Days: " . implode(', ', $segmentDays));
+                                    logV3("   💡 Possible causes: Race condition, incomplete deletion, or existing overlapping quota");
+                                    
+                                    // ✅ IMMEDIATE RE-SEARCH für diesen spezifischen Bereich
+                                    logV3("   🔍 IMMEDIATE RE-SEARCH: Looking for quotas in failed range...");
+                                    $debugSearchFrom = date('d.m.Y', strtotime($segmentStart . ' -7 days'));
+                                    $debugSearchTo = date('d.m.Y', strtotime($segmentEnd . ' +7 days'));
+                                    logV3("   🔍 DEBUG SEARCH RANGE: {$debugSearchFrom} → {$debugSearchTo}");
+                                    
+                                    try {
+                                        $debugUrl = "/api/v1/manage/hutQuota?hutId={$this->hutId}&page=0&size=50&sortList=BeginDate&sortOrder=ASC&open=true&dateFrom={$debugSearchFrom}&dateTo={$debugSearchTo}";
+                                        $debugResponse = $this->hrsLogin->makeRequest($debugUrl, 'GET', null, ['X-XSRF-TOKEN' => $this->hrsLogin->getCsrfToken()]);
+                                        
+                                        if ($debugResponse && isset($debugResponse['body'])) {
+                                            $debugData = json_decode($debugResponse['body'], true);
+                                            if ($debugData && isset($debugData['_embedded']['bedCapacityChangeResponseDTOList'])) {
+                                                $debugQuotas = $debugData['_embedded']['bedCapacityChangeResponseDTOList'];
+                                                logV3("   🔍 DEBUG SEARCH FOUND " . count($debugQuotas) . " quota(s) in search range:");
+                                                
+                                                foreach ($debugQuotas as $dq) {
+                                                    $dqId = $dq['id'] ?? 'unknown';
+                                                    $dqFrom = $this->resolveQuotaField($dq, ['beginDate', 'dateFrom']);
+                                                    $dqTo = $this->resolveQuotaField($dq, ['endDate', 'dateTo']);
+                                                    logV3("     🎯 CONFLICTING QUOTA ID {$dqId}: {$dqFrom} → {$dqTo}");
+                                                }
+                                            } else {
+                                                logV3("   🔍 DEBUG SEARCH: No quotas found in range - API issue?");
+                                            }
+                                        } else {
+                                            logV3("   🔍 DEBUG SEARCH FAILED: No response from API");
+                                        }
+                                    } catch (Exception $debugEx) {
+                                        logV3("   🔍 DEBUG SEARCH EXCEPTION: " . $debugEx->getMessage());
+                                    }
+                                }
+                                
                                 $result['preserveFailed'][] = [
                                     'sourceId' => $quotaId,
-                                    'dateFrom' => $rangeStart,
-                                    'dateTo' => $rangeEnd,
-                                    'error' => $preserveEx->getMessage()
+                                    'dateFrom' => $segmentStart,
+                                    'dateTo' => $segmentEnd,
+                                    'error' => $errorMsg,
+                                    'errorType' => (strpos($errorMsg, 'overlap') !== false) ? 'OVERLAP' : 'OTHER'
                                 ];
                             }
                         }
                     }
-                    
-                    if (!empty($remainingDays)) {
-                        $remainingSet = array_fill_keys($remainingDays, true);
-                        $coveredSet = $preservedSuccessDays;
-                        $uncovered = [];
-                        foreach ($remainingSet as $day => $_) {
-                            if (!isset($coveredSet[$day])) {
-                                $uncovered[] = $day;
-                            }
-                        }
-                        if (!empty($uncovered)) {
-                            logV3("   ⚠️ Uncovered preserved days detected: " . implode(', ', $uncovered));
-                            $fallbackSegments = $this->buildSegmentsFromDayList($uncovered);
-                            foreach ($fallbackSegments as $fallbackIndex => $fallbackSegment) {
-                                $fallbackStart = $fallbackSegment['start'];
-                                $fallbackEnd = $fallbackSegment['end'];
-                                $fallbackDays = $fallbackSegment['dates'];
-                                try {
-                                    $fallbackTitleBase = $baseTitle;
-                                    if (strlen($fallbackTitleBase) > $maxBaseLength) {
-                                        $fallbackTitleBase = substr($fallbackTitleBase, 0, $maxBaseLength);
-                                    }
-                                    $fallbackTitle = sprintf('%s (Split F%d)', $fallbackTitleBase, $fallbackIndex + 1);
-                                    $fallbackId = $this->createQuota($fallbackStart, $categories, $preserveMode, $fallbackTitle, $forcePreserve, $fallbackEnd);
-                                    if ($fallbackId) {
-                                        $result['splitCreated'][] = [
-                                            'sourceId' => $quotaId,
-                                            'dateFrom' => $fallbackStart,
-                                            'dateTo' => $fallbackEnd,
-                                            'id' => $fallbackId,
-                                            'quantities' => $categories,
-                                            'days' => $fallbackDays
-                                        ];
-                                        logV3("   ✅ Fallback preserved quota created with ID {$fallbackId} for segment {$fallbackStart} to {$fallbackEnd}");
-                                        foreach ($fallbackDays as $fallbackDay) {
-                                            $preservedSuccessDays[$fallbackDay] = true;
-                                        }
-                                    }
-                                } catch (Exception $fallbackEx) {
-                                    logV3("   ❌ Fallback segment {$fallbackStart} to {$fallbackEnd} failed: " . $fallbackEx->getMessage());
-                                    $result['preserveFailed'][] = [
-                                        'sourceId' => $quotaId,
-                                        'dateFrom' => $fallbackStart,
-                                        'dateTo' => $fallbackEnd,
-                                        'error' => $fallbackEx->getMessage()
-                                    ];
-                                }
-                            }
-                        }
-                    }
                 } else {
-                    logV3("⚠️ V3: Failed to delete quota ID $quotaId");
+                    logV3("   ❌ FAILED: Could not delete quota ID {$quotaId}");
                 }
             }
 
@@ -999,14 +1194,19 @@ class QuotaWriterV3 {
     private function createQuota($date, array $quantities, $mode = 'SERVICED', $title = null, $forceCreate = false, $dateTo = null) {
         try {
             $date_from = $date;
-            // Wenn dateTo übergeben wird (INKLUSIV), dann ist das API dateTo = dateTo + 1
-            // Die HRS API erwartet dateTo als exklusiv (letzter Tag + 1)
+            
+            // ✅ KORREKTUR: Konsistente INKLUSIV→EXKLUSIV Konvertierung
+            // REGEL: Unsere interne Logik arbeitet mit INKLUSIVEN Daten
+            //        HRS API erwartet EXKLUSIVE dateTo (letzter Tag + 1)
             if ($dateTo) {
-                // dateTo ist der letzte Tag INKLUSIV, API braucht +1
+                // dateTo Parameter ist INKLUSIV (letzter Tag der Quota)
+                // API erwartet EXKLUSIV (letzter Tag + 1)
                 $date_to = date('Y-m-d', strtotime($dateTo . ' +1 day'));
+                logV3("📅 V3: Multi-day quota: {$date} → {$dateTo} (INCLUSIVE) => API dateTo: {$date_to} (EXCLUSIVE)");
             } else {
-                // Single-day quota
+                // Single-day quota: API dateTo = date + 1
                 $date_to = date('Y-m-d', strtotime($date . ' +1 day'));
+                logV3("📅 V3: Single-day quota: {$date} => API dateTo: {$date_to} (EXCLUSIVE)");
             }
 
             $normalizedMode = $mode ? strtoupper($mode) : 'SERVICED';
