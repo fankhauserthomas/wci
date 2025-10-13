@@ -554,7 +554,9 @@ class TimelineUnifiedRenderer {
             element: null,
             currentReservation: null,
             isVisible: false,
-            masterDataLookup: {} // Lookup-Tabelle für Stammdaten
+            masterDataLookup: {}, // Lookup-Tabelle für Stammdaten
+            loadingPromise: null,
+            metadata: null
         };
 
         console.log('🎯 Constructor: Initialisiere Tooltip-System...');
@@ -13712,6 +13714,11 @@ class TimelineUnifiedRenderer {
             pointer-events: auto;
         `;
 
+        tooltipEl.style.setProperty('--bs-tooltip-bg', '#0e1724');
+        tooltipEl.style.setProperty('--bs-tooltip-color', '#f7faff');
+        tooltipEl.style.setProperty('--bs-tooltip-max-width', '420px');
+        tooltipEl.style.boxShadow = '0 12px 28px rgba(0, 0, 0, 0.55)';
+
         tooltipEl.innerHTML = `
             <div class="tooltip-arrow"></div>
             <div class="tooltip-inner" style="text-align: left; padding: 12px; max-width: 400px;"></div>
@@ -13753,7 +13760,9 @@ class TimelineUnifiedRenderer {
             if (e.key === 'F2') {
                 console.log('✅ F2 erkannt!');
                 e.preventDefault();
-                this.toggleTooltipAtMouse();
+                this.toggleTooltipAtMouse().catch(err => {
+                    console.error('❌ Fehler beim Umschalten des F2-Tooltips:', err);
+                });
             }
         });
 
@@ -13764,13 +13773,19 @@ class TimelineUnifiedRenderer {
         console.log('🎯 initTooltip() ENDE');
     }
 
-    toggleTooltipAtMouse() {
+    async toggleTooltipAtMouse() {
         console.log('🔍 toggleTooltipAtMouse() aufgerufen, mouseX:', this.mouseX, 'mouseY:', this.mouseY);
 
         if (this.tooltip.isVisible) {
             console.log('❌ Tooltip schließen');
             this.hideTooltip();
             return;
+        }
+
+        try {
+            await this.loadMasterData();
+        } catch (error) {
+            console.warn('⚠️ Stammdaten konnten vor Anzeige nicht vollständig geladen werden:', error);
         }
 
         // Suche Reservierung unter Maus
@@ -13794,98 +13809,365 @@ class TimelineUnifiedRenderer {
         }
     }
 
-    async loadMasterData() {
-        try {
-            // Verwende bereits geladene Reservierungs-Daten
-            this.tooltip.masterDataLookup = {};
+    async loadMasterData(options = {}) {
+        const { forceReload = false, preload = null } = options || {};
 
-            if (typeof reservations !== 'undefined' && Array.isArray(reservations)) {
-                reservations.forEach(reservation => {
-                    // Verschiedene ID-Formate unterstützen
-                    const ids = [
-                        reservation.id,
-                        reservation.res_id,
-                        reservation.reservation_id,
-                        reservation.av_id
-                    ].filter(id => id !== undefined && id !== null);
-
-                    // Erweiterte Daten für Tooltip erstellen
-                    const masterData = {
-                        id: reservation.id || reservation.res_id,
-                        av_id: reservation.av_id || 0,
-                        nachname: reservation.guest_name || reservation.name || 'Unbekannt',
-                        vorname: '', // Aus guest_name extrahieren wenn möglich
-                        email: reservation.email || 'Keine E-Mail',
-                        telefon: reservation.telefon || reservation.phone || 'Keine Telefon',
-                        gruppenname: reservation.group_name || '',
-                        anreise: reservation.start ? new Date(reservation.start).toLocaleDateString('de-DE') : 'Unbekannt',
-                        abreise: reservation.end ? new Date(reservation.end).toLocaleDateString('de-DE') : 'Unbekannt',
-                        arrangement_kbez: reservation.arrangement || 'Nicht zugewiesen',
-                        arrangement_bez: reservation.arrangement || 'Nicht zugewiesen',
-                        herkunft: reservation.origin || reservation.herkunft || 'Keine Angabe',
-                        bemerkung_intern: reservation.notes_internal || reservation.bemerkung_intern || '-',
-                        bemerkung_av: reservation.notes || reservation.bemerkung_av || '-',
-                        hund: reservation.has_dog || reservation.hund || false,
-                        dz: reservation.capacity_dz || 0,
-                        betten: reservation.capacity_betten || 0,
-                        lager: reservation.capacity_lager || 0,
-                        sonder: reservation.capacity_sonder || 0,
-                        total_capacity: reservation.total_capacity || reservation.capacity || 1
-                    };
-
-                    // Name aufteilen wenn möglich
-                    if (masterData.nachname && masterData.nachname.includes(' ') && !masterData.vorname) {
-                        const parts = masterData.nachname.split(' ');
-                        if (parts.length >= 2) {
-                            masterData.nachname = parts[0];
-                            masterData.vorname = parts.slice(1).join(' ');
-                        }
-                    }
-
-                    // In Lookup eintragen mit allen möglichen IDs
-                    ids.forEach(id => {
-                        this.tooltip.masterDataLookup[id] = masterData;
-                    });
-                });
-
-                console.log('✅ Master-Daten aus Reservierungen erstellt:', Object.keys(this.tooltip.masterDataLookup).length, 'Einträge');
-            } else {
-                console.warn('⚠️ Keine reservations Variable gefunden');
-            }
-        } catch (error) {
-            console.error('Fehler beim Erstellen der Master-Daten:', error);
+        // Bereits vorhandene Daten wiederverwenden, sofern kein Reload erzwungen wird
+        if (!forceReload && !preload && this.hasMasterData()) {
+            return this.tooltip.masterDataLookup;
         }
+
+        const preloadedPayload = preload ?? this.getPreloadedMasterDataPayload();
+        if (preloadedPayload && (!forceReload || !this.hasMasterData() || Boolean(preload))) {
+            const overwrite = forceReload || Boolean(preload);
+            const lookup = this.applyMasterDataPayload(preloadedPayload, { fromPreload: true, overwrite });
+            if (lookup && Object.keys(lookup).length > 0 && !forceReload) {
+                console.log('✅ Stammdaten aus Vorab-Cache übernommen:', Object.keys(lookup).length);
+                return lookup;
+            }
+        }
+
+        if (this.tooltip.loadingPromise && !forceReload) {
+            return this.tooltip.loadingPromise;
+        }
+
+        const loader = this.fetchAndCacheMasterData({ forceReload });
+        this.tooltip.loadingPromise = loader;
+
+        try {
+            const lookup = await loader;
+            return lookup;
+        } finally {
+            this.tooltip.loadingPromise = null;
+        }
+    }
+
+    async fetchAndCacheMasterData({ forceReload = false } = {}) {
+        const { startDate, endDate } = this.getTimelineDateRange();
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        const endpointUrl = this.buildMasterDataUrl(startDateStr, endDateStr);
+        console.log('🌐 Lade Stammdaten für Tooltip:', endpointUrl);
+
+        let response;
+        try {
+            response = await fetch(endpointUrl, { cache: 'no-store' });
+        } catch (error) {
+            console.error('❌ Netzwerkfehler beim Laden der Stammdaten:', error);
+            throw error;
+        }
+
+        if (!response.ok) {
+            const message = `HTTP ${response.status}: ${response.statusText}`;
+            console.error('❌ Stammdaten-Request fehlgeschlagen:', message);
+            throw new Error(message);
+        }
+
+        let payload;
+        try {
+            payload = await response.json();
+        } catch (error) {
+            console.error('❌ Stammdaten konnten nicht geparst werden:', error);
+            throw error;
+        }
+
+        if (!payload || payload.success === false || !payload.data) {
+            const message = payload?.error || 'Unbekannte Stammdaten-Antwort';
+            console.error('❌ Stammdaten-Antwort ungültig:', message, payload);
+            throw new Error(message);
+        }
+
+        const lookup = this.buildMasterDataLookup(payload.data);
+        this.tooltip.masterDataLookup = lookup;
+        this.tooltip.metadata = payload.meta || {
+            range: { start: startDateStr, end: endDateStr },
+            fetchedAt: new Date().toISOString()
+        };
+
+        if (typeof window !== 'undefined') {
+            window.timelineMasterData = {
+                data: payload.data,
+                lookup,
+                meta: payload.meta || null,
+                fetchedAt: Date.now(),
+                range: { start: startDateStr, end: endDateStr }
+            };
+            window.timelineMasterDataLookup = lookup;
+            window.timelineMasterDataMeta = payload.meta || null;
+        }
+
+        console.log(`✅ Stammdaten aktualisiert (${Object.keys(lookup).length} Einträge)` + (forceReload ? ' [forceReload]' : ''));
+        return lookup;
+    }
+
+    hasMasterData() {
+        return this.tooltip.masterDataLookup && Object.keys(this.tooltip.masterDataLookup).length > 0;
+    }
+
+    getPreloadedMasterDataPayload() {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+        if (window.timelineMasterData && typeof window.timelineMasterData === 'object') {
+            return window.timelineMasterData;
+        }
+        if (window.timelineMasterDataLookup && typeof window.timelineMasterDataLookup === 'object') {
+            return {
+                lookup: window.timelineMasterDataLookup,
+                meta: window.timelineMasterDataMeta || null
+            };
+        }
+        return null;
+    }
+
+    applyMasterDataPayload(payload, { fromPreload = false, overwrite = false } = {}) {
+        if (!payload) return null;
+
+        let lookup = null;
+        let meta = null;
+
+        if (payload.lookup && typeof payload.lookup === 'object') {
+            lookup = payload.lookup;
+            meta = payload.meta || payload.metadata || null;
+        } else if (payload.data && typeof payload.data === 'object') {
+            lookup = this.buildMasterDataLookup(payload.data);
+            meta = payload.meta || payload.metadata || null;
+            if (fromPreload && typeof payload === 'object') {
+                payload.lookup = lookup;
+            }
+        } else if (typeof payload === 'object') {
+            lookup = this.buildMasterDataLookup(payload);
+        }
+
+        if (!lookup || !Object.keys(lookup).length) {
+            return null;
+        }
+
+        if (overwrite || !this.hasMasterData()) {
+            this.tooltip.masterDataLookup = lookup;
+            this.tooltip.metadata = meta || null;
+        }
+
+        if (typeof window !== 'undefined' && fromPreload) {
+            window.timelineMasterDataLookup = lookup;
+            if (meta) {
+                window.timelineMasterDataMeta = meta;
+            }
+            if (payload && payload.lookup !== lookup) {
+                window.timelineMasterData = Object.assign({}, payload, { lookup });
+            }
+        }
+
+        return lookup;
+    }
+
+    buildMasterDataUrl(startDateStr, endDateStr) {
+        let endpoint = 'getReservationMasterData.php';
+
+        if (this.themeConfig?.tooltip?.masterDataEndpoint) {
+            endpoint = this.themeConfig.tooltip.masterDataEndpoint;
+        }
+
+        if (typeof window !== 'undefined') {
+            if (window.TIMELINE_MASTERDATA_ENDPOINT) {
+                endpoint = window.TIMELINE_MASTERDATA_ENDPOINT;
+            }
+
+            try {
+                const url = new URL(endpoint, window.location.href);
+                url.searchParams.set('start', startDateStr);
+                url.searchParams.set('end', endDateStr);
+                return url.toString();
+            } catch (error) {
+                console.warn('⚠️ Konnte MasterData-URL nicht mittels URL API erstellen, verwende Fallback.', error);
+            }
+        }
+
+        const separator = endpoint.includes('?') ? '&' : '?';
+        return `${endpoint}${separator}start=${encodeURIComponent(startDateStr)}&end=${encodeURIComponent(endDateStr)}`;
+    }
+
+    buildMasterDataLookup(rawRecords) {
+        const lookup = {};
+        if (!rawRecords) {
+            return lookup;
+        }
+
+        const records = Array.isArray(rawRecords) ? rawRecords : Object.values(rawRecords);
+        records.forEach(record => {
+            const normalized = this.normalizeMasterDataRecord(record);
+            if (!normalized) return;
+
+            const keys = this.collectMasterDataKeys(normalized, record);
+            keys.forEach(key => {
+                if (key) {
+                    lookup[key] = normalized;
+                }
+            });
+        });
+
+        return lookup;
+    }
+
+    normalizeMasterDataRecord(record) {
+        if (!record) return null;
+
+        const safeString = (value = '') => {
+            const str = typeof value === 'string' ? value : (value === null || value === undefined ? '' : String(value));
+            return str.trim();
+        };
+
+        const safeInt = (value, fallback = 0) => {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : fallback;
+        };
+
+        const normalized = { ...record };
+
+        normalized.id = record.id !== undefined && record.id !== null ? safeInt(record.id) : undefined;
+        normalized.av_id = record.av_id !== undefined && record.av_id !== null ? safeInt(record.av_id) : undefined;
+        normalized.res_id = record.res_id !== undefined && record.res_id !== null ? safeInt(record.res_id) : normalized.id;
+
+        normalized.nachname = safeString(record.nachname || record.last_name || record.guest_name || record.name);
+        normalized.vorname = safeString(record.vorname || record.first_name || record.forename);
+        normalized.email = safeString(record.email);
+        normalized.telefon = safeString(record.telefon || record.phone || record.handy || record.mobile);
+        normalized.gruppenname = safeString(record.gruppenname || record.group_name || record.gruppe);
+        normalized.anreise = safeString(record.anreise || record.anreise_de || record.anreise_iso || record.start_date || record.start || record.check_in);
+        normalized.abreise = safeString(record.abreise || record.abreise_de || record.abreise_iso || record.end_date || record.end || record.check_out);
+        normalized.arrangement_kbez = safeString(record.arrangement_kbez || record.arrangement_bez || record.arrangement || record.arrangement_label);
+        normalized.arrangement_bez = safeString(record.arrangement_bez || record.arrangement_kbez || record.arrangement || record.arrangement_label);
+        normalized.herkunft = safeString(record.herkunft || record.herkunft_land || record.origin || record.country || record.land_name);
+        normalized.bemerkung_intern = safeString(record.bemerkung_intern || record.bem || record.notes_internal);
+        normalized.bemerkung_av = safeString(record.bemerkung_av || record.notes || record.notes_external);
+        normalized.hund = Boolean(record.hund || record.has_dog || record.dog);
+        normalized.dz = safeInt(record.dz);
+        normalized.betten = safeInt(record.betten);
+        normalized.lager = safeInt(record.lager);
+        normalized.sonder = safeInt(record.sonder);
+        normalized.total_capacity = safeInt(record.total_capacity, normalized.dz + normalized.betten + normalized.lager + normalized.sonder);
+
+        if (!normalized.anreise && record.anreise_iso) {
+            normalized.anreise = safeString(record.anreise_iso);
+        }
+        if (!normalized.abreise && record.abreise_iso) {
+            normalized.abreise = safeString(record.abreise_iso);
+        }
+
+        return normalized;
+    }
+
+    collectMasterDataKeys(normalizedRecord, rawRecord) {
+        const keys = new Set();
+        const addKey = (value) => {
+            if (value === null || value === undefined) return;
+            const str = String(value).trim();
+            if (!str) return;
+            keys.add(str);
+        };
+
+        [
+            normalizedRecord.id,
+            normalizedRecord.res_id,
+            normalizedRecord.av_id,
+            rawRecord?.id,
+            rawRecord?.res_id,
+            rawRecord?.resid,
+            rawRecord?.reservation_id,
+            rawRecord?.reservationId,
+            rawRecord?.av_id,
+            rawRecord?._id
+        ].forEach(addKey);
+
+        return Array.from(keys);
+    }
+
+    getMasterDataForReservation(reservation) {
+        if (!reservation || !this.tooltip.masterDataLookup) {
+            return null;
+        }
+
+        const lookup = this.tooltip.masterDataLookup;
+        const keys = this.collectReservationLookupKeys(reservation);
+
+        for (const key of keys) {
+            if (key && lookup[key] !== undefined) {
+                return lookup[key];
+            }
+        }
+
+        return null;
+    }
+
+    collectReservationLookupKeys(reservation) {
+        const keys = new Set();
+        const addKey = (value) => {
+            if (value === null || value === undefined) return;
+            const str = String(value).trim();
+            if (!str) return;
+            keys.add(str);
+        };
+
+        addKey(reservation.res_id);
+        addKey(reservation.id);
+        addKey(reservation.reservation_id);
+        addKey(reservation.resid);
+        addKey(reservation.av_id);
+
+        if (reservation.data) {
+            addKey(reservation.data.res_id);
+            addKey(reservation.data.id);
+            addKey(reservation.data.av_id);
+        }
+
+        if (reservation.fullData) {
+            addKey(reservation.fullData.res_id);
+            addKey(reservation.fullData.id);
+            addKey(reservation.fullData.av_id);
+        }
+
+        if (reservation.masterReservation) {
+            addKey(reservation.masterReservation.res_id);
+            addKey(reservation.masterReservation.id);
+        }
+
+        return Array.from(keys);
     }
 
     showTooltip(reservation) {
         if (!reservation || !this.tooltip.element) return;
 
-        const resId = reservation.res_id || reservation.id || reservation.av_id;
-        console.log('🔍 showTooltip für resId:', resId, 'reservation:', reservation);
+        const lookupKeys = this.collectReservationLookupKeys(reservation);
+        const masterData = this.getMasterDataForReservation(reservation);
 
-        let masterData = null;
-        if (resId) {
-            masterData = this.tooltip.masterDataLookup[resId];
-            console.log('🔍 Master-Data gefunden:', masterData ? 'JA' : 'NEIN');
-        }
+        console.log('🔍 showTooltip - Lookup Keys:', lookupKeys, 'Treffer:', masterData ? 'JA' : 'NEIN');
 
         // Fallback: Zeige einfaches Tooltip mit verfügbaren Daten
         if (!masterData) {
             console.log('⚠️ Keine Master-Daten, zeige Fallback-Tooltip');
+            const fallbackName = this.escapeHtml(reservation.guest_name || reservation.name || 'Reservierung');
+            const startValue = reservation.start instanceof Date
+                ? reservation.start.toLocaleDateString('de-DE')
+                : (reservation.start || 'Unbekannt');
+            const endValue = reservation.end instanceof Date
+                ? reservation.end.toLocaleDateString('de-DE')
+                : (reservation.end || 'Unbekannt');
+            const roomValue = reservation.room_id ?? reservation.roomId ?? reservation.room ?? 'Unbekannt';
+
             const fallbackContent = `
-                <div style="line-height: 1.5; color: #000;">
-                    <div style="font-weight: bold; font-size: 14px; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 6px;">
-                        ${reservation.guest_name || reservation.name || 'Reservierung'}
+                <div style="line-height:1.5; background:#0e1724; color:#f7faff; padding:14px; border-radius:10px; min-width:240px; max-width:340px; box-shadow:0 16px 28px rgba(9,15,28,0.55); font-family:'Segoe UI', Tahoma, sans-serif;">
+                    <div style="font-weight:600; font-size:15px; margin-bottom:10px; border-bottom:1px solid rgba(140,195,255,0.25); padding-bottom:6px;">
+                        ${fallbackName}
                     </div>
-                    
-                    <div style="margin-bottom: 8px; font-size: 12px;">
-                        <div><strong>Start:</strong> ${reservation.start || 'Unbekannt'}</div>
-                        <div><strong>Ende:</strong> ${reservation.end || 'Unbekannt'}</div>
-                        <div><strong>Zimmer ID:</strong> ${reservation.room_id || 'Unbekannt'}</div>
+                    <div style="margin-bottom:10px; font-size:13px; display:grid; grid-template-columns:110px auto; gap:4px 10px;">
+                        <span style="color:#7f95b9;">Start</span><span style="color:#f7faff;">${this.escapeHtml(startValue)}</span>
+                        <span style="color:#7f95b9;">Ende</span><span style="color:#f7faff;">${this.escapeHtml(endValue)}</span>
+                        <span style="color:#7f95b9;">Zimmer</span><span style="color:#f7faff;">${this.escapeHtml(roomValue)}</span>
                     </div>
-                    
-                    <div style="padding-top: 6px; border-top: 1px solid #ccc; font-size: 11px; color: #666;">
-                        Master-Daten werden geladen... (ResID: ${resId})
+                    <div style="padding-top:8px; border-top:1px solid rgba(140,195,255,0.2); font-size:11px; color:#9bb9dd;">
+                        Stammdaten werden geladen …<br>
+                        Schlüssel: ${this.escapeHtml(lookupKeys.join(', ') || 'n/a')}
                     </div>
                 </div>
             `;
@@ -13914,74 +14196,134 @@ class TimelineUnifiedRenderer {
     }
 
     formatTooltipContent(data) {
-        // === BEREICH 1: Nachname, Vorname, Gruppenname ===
-        const fullName = `${data.nachname}${data.vorname ? ', ' + data.vorname : ''}`;
-        const gruppenname = data.gruppenname || '';
+        const trimValue = (value) => typeof value === 'string' ? value.trim() : (value ?? '');
 
-        // === BEREICH 1: E-Mail, Telefon ===
-        const email = data.email || 'Keine E-Mail';
-        const telefon = data.telefon || 'Keine Telefon';
+        const rawNachname = trimValue(data.nachname);
+        const rawVorname = trimValue(data.vorname);
+        const rawGroup = trimValue(data.gruppenname);
+        const rawEmail = trimValue(data.email);
+        const rawTelefon = trimValue(data.telefon);
+        const rawArrangement = trimValue(data.arrangement_kbez || data.arrangement_bez || data.arrangement);
+        const rawHerkunft = trimValue(data.herkunft) || 'Keine Angabe';
+        const rawBemerkungIntern = trimValue(data.bemerkung_intern);
+        const rawBemerkungAV = trimValue(data.bemerkung_av);
 
-        // === BEREICH 2: Anreise, Abreise, Arrangement ===
-        const arrangement = data.arrangement_kbez || data.arrangement_bez || 'Nicht zugewiesen';
+        const displayName = rawNachname && rawVorname
+            ? `${rawNachname}, ${rawVorname}`
+            : (rawNachname || rawVorname || 'Reservierung');
 
-        // === BEREICH 2: Komplettanzahl (DZ, Betten, Lager, Sonder extra aufgeführt), Hund ===
-        const totalCapacity = data.total_capacity || 0;
-        const capacityParts = [];
-        if (data.dz > 0) capacityParts.push(`DZ: ${data.dz}`);
-        if (data.betten > 0) capacityParts.push(`Betten: ${data.betten}`);
-        if (data.lager > 0) capacityParts.push(`Lager: ${data.lager}`);
-        if (data.sonder > 0) capacityParts.push(`Sonder: ${data.sonder}`);
-        const capacityText = capacityParts.length > 0 ? capacityParts.join(', ') : 'Keine Details';
-        const hund = data.hund ? ' 🐕' : '';
+        const totalCapacity = Number.isFinite(Number(data.total_capacity))
+            ? Number(data.total_capacity)
+            : 0;
+        const totalCapacityLabel = totalCapacity > 0
+            ? `${totalCapacity} Person${totalCapacity === 1 ? '' : 'en'}`
+            : 'Keine Angabe';
 
-        // === BEREICH 3: Herkunft, Bemerkungen ===
-        const herkunft = data.herkunft || 'Keine Angabe';
-        const bemerkungIntern = data.bemerkung_intern || '';
-        const bemerkungAV = data.bemerkung_av || '';
+        const capacityPills = [];
+        if (Number(data.dz) > 0) capacityPills.push(`DZ ${data.dz}`);
+        if (Number(data.betten) > 0) capacityPills.push(`Betten ${data.betten}`);
+        if (Number(data.lager) > 0) capacityPills.push(`Lager ${data.lager}`);
+        if (Number(data.sonder) > 0) capacityPills.push(`Sonder ${data.sonder}`);
 
-        // E-Mail-Funktionalität
-        const resNr = data.av_id > 0 ? `${data.id}/${data.av_id}` : `${data.id}`;
-        const emailSubject = `ihr aufenthalt vom ${data.anreise} - ${data.abreise} (ResNr: ${resNr})`;
-        const emailSubjectEncoded = encodeURIComponent(emailSubject);
+        const capacityDetailsHtml = capacityPills.length
+            ? capacityPills.map(item => `<span style="background:#1c2a40; color:#d5e3ff; padding:2px 10px; border-radius:999px; font-size:12px;">${this.escapeHtml(item)}</span>`).join('')
+            : `<span style="color:#8a94a6;">Keine Details</span>`;
+
+        const hundBadge = data.hund
+            ? `<span style="display:inline-flex; align-items:center; gap:4px; background:#1f2d45; color:#ffd280; padding:2px 10px; border-radius:999px; font-size:12px;">🐕 Hund</span>`
+            : '';
+
+        const resIdForSubject = data.id ?? data.res_id ?? '';
+        const resNr = data.av_id > 0 && resIdForSubject
+            ? `${resIdForSubject}/${data.av_id}`
+            : (resIdForSubject || '-');
+        const emailSubject = `Ihr Aufenthalt vom ${data.anreise || '-'} - ${data.abreise || '-'} (ResNr: ${resNr})`;
+        const emailHref = rawEmail
+            ? `mailto:${encodeURIComponent(rawEmail)}?subject=${encodeURIComponent(emailSubject)}`
+            : '#';
+
+        const emailHtml = rawEmail
+            ? `
+                <span class="tooltip-email-copy" data-email="${this.escapeHtml(rawEmail)}" style="cursor:pointer; color:#8cc3ff; text-decoration:underline; font-weight:500;" title="In Zwischenablage kopieren">${this.escapeHtml(rawEmail)}</span>
+                <a href="${emailHref}" style="text-decoration:none; font-size:16px; color:#ffd280;" title="E-Mail senden">✉️</a>
+            `
+            : `<span style="color:#8a94a6;">Keine E-Mail</span>`;
+
+        const bemerkungInternHtml = rawBemerkungIntern
+            ? `<div><div style="font-size:12px; letter-spacing:0.05em; text-transform:uppercase; color:#7f95b9;">Bemerkung intern</div><div style="margin-top:4px; font-size:13px; line-height:1.4; color:#f7faff; background:#182538; padding:6px 8px; border-radius:6px;">${this.formatMultiline(rawBemerkungIntern)}</div></div>`
+            : '';
+
+        const bemerkungAVHtml = rawBemerkungAV
+            ? `<div><div style="font-size:12px; letter-spacing:0.05em; text-transform:uppercase; color:#7f95b9;">Bemerkung AV</div><div style="margin-top:4px; font-size:13px; line-height:1.4; color:#f7faff; background:#1d2f45; padding:6px 8px; border-radius:6px;">${this.formatMultiline(rawBemerkungAV)}</div></div>`
+            : '';
 
         return `
-            <div style="line-height: 1.6; font-family: Arial, sans-serif; background: #fff; color: #000; padding: 4px;">
-                
-                <!-- BEREICH 1: Nachname, Vorname, Gruppenname -->
-                <div style="font-weight: bold; font-size: 15px; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 6px; color: #000;">
-                    ${fullName}${gruppenname ? `<br><span style="color: #000; font-size: 13px; font-weight: normal;">(${gruppenname})</span>` : ''}
-                </div>
-                
-                <!-- BEREICH 1: E-Mail, Telefon -->
-                <div style="margin-bottom: 10px; font-size: 13px; color: #000;">
-                    <div style="margin-bottom: 4px;">
-                        ${email !== 'Keine E-Mail' ? `
-                            <span class="tooltip-email-copy" data-email="${email}" style="cursor: pointer; color: #0056b3; text-decoration: underline; font-weight: 500;" title="In Zwischenablage kopieren">${email}</span>
-                            <a href="mailto:${email}?subject=${emailSubjectEncoded}" style="text-decoration: none; margin-left: 8px; font-size: 16px;" title="E-Mail senden">✉️</a>
-                        ` : `<span style="color: #000;">${email}</span>`}
+            <div class="f2-tooltip-wrapper" style="background:#0e1724; color:#f7faff; padding:14px; border-radius:10px; min-width:280px; max-width:360px; box-shadow:0 18px 32px rgba(9, 15, 28, 0.65); font-family:'Segoe UI', Tahoma, sans-serif;">
+                <div class="f2-tooltip-section" style="display:flex; gap:12px; margin-bottom:14px;">
+                    <div style="min-width:28px; height:28px; border-radius:8px; background:#1d2840; color:#8cc3ff; font-weight:600; display:flex; align-items:center; justify-content:center; font-size:13px;">1</div>
+                    <div style="flex:1;">
+                        <div style="font-size:16px; font-weight:600; color:#fefefe;">${this.escapeHtml(displayName)}</div>
+                        ${rawGroup ? `<div style="margin-top:4px; font-size:13px; color:#9bb9dd;">${this.escapeHtml(rawGroup)}</div>` : ''}
+                        <div style="margin-top:10px; font-size:13px;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                                <span style="color:#bcd3ff; font-weight:500;">E-Mail</span>
+                                <div style="display:flex; align-items:center; gap:8px;">${emailHtml}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="color:#bcd3ff; font-weight:500;">Telefon</span>
+                                <span style="color:${rawTelefon ? '#f7faff' : '#8a94a6'};">${rawTelefon ? this.escapeHtml(rawTelefon) : 'Keine Telefon'}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style="color: #000; font-weight: 500;">${telefon}</div>
                 </div>
-                
-                <!-- BEREICH 2: Anreise, Abreise, Arrangement -->
-                <div style="margin-bottom: 10px; padding-top: 8px; border-top: 2px solid #ccc; font-size: 13px; color: #000;">
-                    <div style="margin-bottom: 4px;"><strong>Anreise:</strong> ${data.anreise} <strong>|</strong> <strong>Abreise:</strong> ${data.abreise}</div>
-                    <div style="margin-bottom: 6px;"><strong>Arrangement:</strong> ${arrangement}</div>
-                    
-                    <!-- Komplettanzahl (DZ, Betten, Lager, Sonder extra aufgeführt), Hund -->
-                    <div><strong>Gesamt:</strong> ${totalCapacity} Person${totalCapacity !== 1 ? 'en' : ''}${hund}</div>
-                    <div style="margin-left: 20px; color: #000; font-size: 12px;">${capacityText}</div>
+                <div class="f2-tooltip-section" style="display:flex; gap:12px; margin-bottom:14px;">
+                    <div style="min-width:28px; height:28px; border-radius:8px; background:#1d2840; color:#8cc3ff; font-weight:600; display:flex; align-items:center; justify-content:center; font-size:13px;">2</div>
+                    <div style="flex:1;">
+                        <div style="display:grid; grid-template-columns:120px auto; gap:4px 12px; font-size:13px;">
+                            <span style="color:#7f95b9;">Anreise</span><span style="color:#f7faff;">${this.escapeHtml(data.anreise || '-')}</span>
+                            <span style="color:#7f95b9;">Abreise</span><span style="color:#f7faff;">${this.escapeHtml(data.abreise || '-')}</span>
+                            <span style="color:#7f95b9;">Arrangement</span><span style="color:#f7faff;">${this.escapeHtml(rawArrangement || 'Nicht zugewiesen')}</span>
+                        </div>
+                        <div style="margin-top:10px; background:#132033; border:1px solid rgba(140,195,255,0.18); padding:10px 12px; border-radius:8px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px;">
+                                <span style="color:#bcd3ff; font-weight:500;">Komplettanzahl</span>
+                                <span style="color:#fefefe; font-weight:600;">${this.escapeHtml(totalCapacityLabel)}</span>
+                            </div>
+                            <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">
+                                ${capacityDetailsHtml}
+                                ${hundBadge}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- BEREICH 3: Herkunft, Bemerkung intern, Bemerkung AV -->
-                <div style="padding-top: 8px; border-top: 2px solid #ccc; font-size: 13px; color: #000;">
-                    <div style="margin-bottom: 6px;"><strong>Herkunft:</strong> ${herkunft}</div>
-                    ${bemerkungIntern ? `<div style="margin-bottom: 4px;"><strong>Bemerkung intern:</strong><br><span style="font-style: italic; color: #000; background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">${bemerkungIntern}</span></div>` : ''}
-                    ${bemerkungAV ? `<div><strong>Bemerkung AV:</strong><br><span style="font-style: italic; color: #000; background: #f0f8ff; padding: 2px 4px; border-radius: 3px;">${bemerkungAV}</span></div>` : ''}
+                <div class="f2-tooltip-section" style="display:flex; gap:12px;">
+                    <div style="min-width:28px; height:28px; border-radius:8px; background:#1d2840; color:#8cc3ff; font-weight:600; display:flex; align-items:center; justify-content:center; font-size:13px;">3</div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:12px; font-size:13px;">
+                        <div>
+                            <div style="font-size:12px; letter-spacing:0.05em; text-transform:uppercase; color:#7f95b9;">Herkunft</div>
+                            <div style="margin-top:4px; color:#f7faff;">${this.escapeHtml(rawHerkunft)}</div>
+                        </div>
+                        ${bemerkungInternHtml}
+                        ${bemerkungAVHtml}
+                    </div>
                 </div>
             </div>
         `;
+    }
+
+    escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    formatMultiline(value) {
+        if (!value) return '';
+        return this.escapeHtml(value).replace(/\r?\n/g, '<br>');
     }
 
     positionTooltip() {

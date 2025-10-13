@@ -5380,6 +5380,7 @@
                 const roomsFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
                 const arrangementsFetchPromise = fetch('http://192.168.15.14:8080/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
                 const histogramFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
+                const masterDataFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getReservationMasterData.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Master data fetch failed:', error); return error; });
 
                 console.log('Fetching main data...');
                 const dataResponse = await fetch(`http://192.168.15.14:8080/wci/zp/getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
@@ -5579,6 +5580,40 @@
 
                 window.arrangementsCatalog = arrangementsCatalog;
 
+                const masterDataResponse = await masterDataFetchPromise;
+                if (masterDataResponse instanceof Response) {
+                    if (masterDataResponse.ok) {
+                        try {
+                            const masterJson = await masterDataResponse.json();
+                            if (masterJson && masterJson.success && masterJson.data) {
+                                const entryCount = Object.keys(masterJson.data).length;
+                                window.timelineMasterData = {
+                                    data: masterJson.data,
+                                    meta: masterJson.meta || null,
+                                    fetchedAt: Date.now(),
+                                    range: {
+                                        start: startDateStr,
+                                        end: endDateStr
+                                    }
+                                };
+                                window.timelineMasterDataMeta = masterJson.meta || null;
+                                delete window.timelineMasterDataLookup;
+                                console.log(`✅ Stammdaten (Tooltip) geladen: ${entryCount} Einträge`);
+                            } else {
+                                console.warn('❌ Stammdaten-Antwort ungültig:', masterJson);
+                            }
+                        } catch (masterParseError) {
+                            console.warn('❌ Stammdaten konnten nicht geparst werden:', masterParseError);
+                        }
+                    } else {
+                        console.warn('❌ Stammdaten Response nicht OK:', masterDataResponse.status, masterDataResponse.statusText);
+                    }
+                } else if (masterDataResponse instanceof Error) {
+                    console.warn('❌ Stammdaten konnten nicht geladen werden:', masterDataResponse.message);
+                } else if (masterDataResponse !== undefined) {
+                    console.warn('❌ Stammdaten Response unerwartet:', masterDataResponse);
+                }
+
                 let histogramSource = [];
                 let histogramStornoSource = [];
                 let histogramAvailabilitySource = [];
@@ -5682,9 +5717,12 @@
 
                 renderTimeline();
 
-                // Stammdaten für Tooltip neu laden
+                // Stammdaten für Tooltip aktualisieren
                 if (timelineRenderer && typeof timelineRenderer.loadMasterData === 'function') {
-                    await timelineRenderer.loadMasterData();
+                    await timelineRenderer.loadMasterData({
+                        preload: window.timelineMasterData,
+                        forceReload: false
+                    });
                 }
 
                 if (typeof window.DebugConsole !== 'undefined') console.success('Daten aktualisiert.');
