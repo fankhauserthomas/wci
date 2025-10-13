@@ -140,6 +140,51 @@ class QuotaWriterV3 {
         return $days;
     }
 
+    private function buildSegmentsFromDayList(array $dayList) {
+        $segments = [];
+        if (empty($dayList)) {
+            return $segments;
+        }
+
+        $normalized = array_values(array_unique($dayList));
+        sort($normalized);
+
+        $currentSegment = [];
+        $lastDate = null;
+
+        foreach ($normalized as $dateStr) {
+            if (empty($currentSegment)) {
+                $currentSegment[] = $dateStr;
+                $lastDate = $dateStr;
+                continue;
+            }
+
+            $expectedNext = date('Y-m-d', strtotime($lastDate . ' +1 day'));
+            if ($dateStr === $expectedNext) {
+                $currentSegment[] = $dateStr;
+                $lastDate = $dateStr;
+            } else {
+                $segments[] = [
+                    'start' => $currentSegment[0],
+                    'end' => $currentSegment[count($currentSegment) - 1],
+                    'dates' => $currentSegment
+                ];
+                $currentSegment = [$dateStr];
+                $lastDate = $dateStr;
+            }
+        }
+
+        if (!empty($currentSegment)) {
+            $segments[] = [
+                'start' => $currentSegment[0],
+                'end' => $currentSegment[count($currentSegment) - 1],
+                'dates' => $currentSegment
+            ];
+        }
+
+        return $segments;
+    }
+
     private function extractQuotaQuantities(array $quota) {
         $quantities = [
             'lager' => 0,
@@ -683,16 +728,57 @@ class QuotaWriterV3 {
                 $quotaDays = $info['days'];
                 $intersectionDays = $info['intersections'];
                 
-                // Tage behalten = Quota-Tage die NICHT in der Selektion sind
-                $daysToKeep = array_values(array_diff($quotaDays, $intersectionDays));
-                
-                // Bestimme ob die Quota komplett gelöscht werden muss
-                $deleteCompletely = empty($daysToKeep);
+                // Rekonstruiere Segmente, die erhalten bleiben sollen (Sequenzen ohne Überschneidung)
+                $segmentsToPreserve = [];
+
+                $intersectionDaysSorted = $intersectionDays;
+                sort($intersectionDaysSorted);
+                $firstIntersection = $intersectionDaysSorted[0];
+                $lastIntersection = $intersectionDaysSorted[count($intersectionDaysSorted) - 1];
+
+                $leftDays = [];
+                $rightDays = [];
+                foreach ($quotaDays as $day) {
+                    if ($day < $firstIntersection) {
+                        $leftDays[] = $day;
+                    } elseif ($day > $lastIntersection) {
+                        $rightDays[] = $day;
+                    }
+                }
+
+                if (!empty($leftDays)) {
+                    $segmentsToPreserve = array_merge(
+                        $segmentsToPreserve,
+                        $this->buildSegmentsFromDayList($leftDays)
+                    );
+                }
+
+                if (!empty($rightDays)) {
+                    $segmentsToPreserve = array_merge(
+                        $segmentsToPreserve,
+                        $this->buildSegmentsFromDayList($rightDays)
+                    );
+                }
+
+                $remainingDays = array_merge($leftDays, $rightDays);
+
+                $deleteCompletely = empty($segmentsToPreserve);
 
                 logV3("🗑️ V3: Attempting to delete quota ID $quotaId ($displayFrom - $displayTo) " . ($deleteCompletely ? '[full]' : '[split]'));
                 if (!$deleteCompletely) {
                     logV3("   🎯 Selected days to overwrite: " . implode(', ', $intersectionDays));
-                    logV3("   💾 Days to preserve: " . implode(', ', $daysToKeep));
+                    $segmentPreview = [];
+                    foreach ($segmentsToPreserve as $previewSegment) {
+                        if (empty($previewSegment['dates'])) {
+                            continue;
+                        }
+                        $segmentStart = $previewSegment['start'];
+                        $segmentEnd = $previewSegment['end'];
+                        $segmentPreview[] = ($segmentStart === $segmentEnd)
+                            ? $segmentStart
+                            : "{$segmentStart}→{$segmentEnd}";
+                    }
+                    logV3("   💾 Segments to preserve: " . implode('; ', $segmentPreview));
                 }
 
                 if ($this->deleteQuotaViaAPI($quotaId)) {
@@ -705,68 +791,116 @@ class QuotaWriterV3 {
                     ];
                     logV3("✅ V3: Deleted quota ID $quotaId");
 
-                    if (!$deleteCompletely && !empty($daysToKeep)) {
+                    $preservedSuccessDays = [];
+
+                    if (!$deleteCompletely && !empty($segmentsToPreserve)) {
                         $categories = $info['categoryValues'];
                         $categorySum = array_sum($categories);
                         $preserveMode = $info['mode'] ?? 'SERVICED';
                         $preserveMode = $preserveMode ? strtoupper($preserveMode) : 'SERVICED';
                         $forcePreserve = !empty($info['isClosed']);
 
-                        if ($categorySum <= 0 && !$forcePreserve) {
-                            logV3("⚠️ V3: Quota {$quotaId} split but categories sum = 0, skip recreation");
-                            continue;
-                        }
-
                         $baseTitle = $this->resolveQuotaField($info['raw'], ['title']);
                         if (!is_string($baseTitle) || $baseTitle === '') {
                             $baseTitle = 'Timeline Split Quota';
                         }
+                        $maxBaseLength = 60; // Reserviere 20 Zeichen für " (Split X)"
 
-                        // Gruppiere daysToKeep in zusammenhängende Bereiche
-                        $preserveRanges = $this->groupContiguousDateRanges($daysToKeep);
-                        
-                        logV3("   🔄 Creating " . count($preserveRanges) . " preserved range(s)");
-                        
-                        foreach ($preserveRanges as $rangeIndex => $range) {
+                        logV3("   🔄 Creating " . count($segmentsToPreserve) . " preserved segment(s)");
+
+                        foreach ($segmentsToPreserve as $segmentIndex => $segmentInfo) {
+                            $segmentDays = $segmentInfo['dates'] ?? [];
+                            if (empty($segmentDays)) {
+                                continue;
+                            }
+
+                            $rangeStart = $segmentInfo['start'];
+                            $rangeEnd = $segmentInfo['end'];
+
+                            logV3("   🔁 Recreating preserved segment {$rangeStart} to {$rangeEnd} (" . count($segmentDays) . " day(s))");
+
+                            $trimmedTitle = $baseTitle;
+                            if (strlen($trimmedTitle) > $maxBaseLength) {
+                                $trimmedTitle = substr($trimmedTitle, 0, $maxBaseLength);
+                            }
+
+                            $titleForRange = sprintf('%s (Split %d)', $trimmedTitle, $segmentIndex + 1);
+
                             try {
-                                $rangeStart = $range['start'];
-                                $rangeEnd = $range['end'];
-                                $rangeDays = $range['dates'];
-                                
-                                logV3("   🔁 Recreating preserved range {$rangeStart} to {$rangeEnd} (" . count($rangeDays) . " days)");
-                                
-                                // HRS API Limit: Max 80 Zeichen für Title
-                                // Kürze den Base-Title falls nötig
-                                $maxBaseLength = 60; // Reserviere 20 Zeichen für " (Split X)"
-                                if (strlen($baseTitle) > $maxBaseLength) {
-                                    $baseTitle = substr($baseTitle, 0, $maxBaseLength);
-                                }
-                                
-                                $titleForRange = sprintf('%s (Split %d)', $baseTitle, $rangeIndex + 1);
-                                
-                                // End-Date: Der letzte Tag der Range (INKLUSIV)
-                                // Die createQuota Funktion erwartet das Ende INKLUSIV
                                 $newId = $this->createQuota($rangeStart, $categories, $preserveMode, $titleForRange, $forcePreserve, $rangeEnd);
-                                
+
                                 if ($newId) {
                                     $result['splitCreated'][] = [
                                         'sourceId' => $quotaId,
                                         'dateFrom' => $rangeStart,
                                         'dateTo' => $rangeEnd,
                                         'id' => $newId,
-                                        'quantities' => $categories
+                                        'quantities' => $categories,
+                                        'days' => $segmentDays
                                     ];
-                                    logV3("   ✅ Preserved quota created with ID {$newId} for range {$rangeStart} to {$rangeEnd}");
+                                    logV3("   ✅ Preserved quota created with ID {$newId} for segment {$rangeStart} to {$rangeEnd}");
+                                    foreach ($segmentDays as $preservedDay) {
+                                        $preservedSuccessDays[$preservedDay] = true;
+                                    }
                                 }
                             } catch (Exception $preserveEx) {
-                                // Log den Fehler aber fahre mit dem nächsten Preserve-Range fort
-                                logV3("   ⚠️ Failed to recreate preserved range {$rangeStart} to {$rangeEnd}: " . $preserveEx->getMessage());
+                                logV3("   ⚠️ Failed to recreate preserved segment {$rangeStart} to {$rangeEnd}: " . $preserveEx->getMessage());
                                 $result['preserveFailed'][] = [
                                     'sourceId' => $quotaId,
                                     'dateFrom' => $rangeStart,
                                     'dateTo' => $rangeEnd,
                                     'error' => $preserveEx->getMessage()
                                 ];
+                            }
+                        }
+                    }
+                    
+                    if (!empty($remainingDays)) {
+                        $remainingSet = array_fill_keys($remainingDays, true);
+                        $coveredSet = $preservedSuccessDays;
+                        $uncovered = [];
+                        foreach ($remainingSet as $day => $_) {
+                            if (!isset($coveredSet[$day])) {
+                                $uncovered[] = $day;
+                            }
+                        }
+                        if (!empty($uncovered)) {
+                            logV3("   ⚠️ Uncovered preserved days detected: " . implode(', ', $uncovered));
+                            $fallbackSegments = $this->buildSegmentsFromDayList($uncovered);
+                            foreach ($fallbackSegments as $fallbackIndex => $fallbackSegment) {
+                                $fallbackStart = $fallbackSegment['start'];
+                                $fallbackEnd = $fallbackSegment['end'];
+                                $fallbackDays = $fallbackSegment['dates'];
+                                try {
+                                    $fallbackTitleBase = $baseTitle;
+                                    if (strlen($fallbackTitleBase) > $maxBaseLength) {
+                                        $fallbackTitleBase = substr($fallbackTitleBase, 0, $maxBaseLength);
+                                    }
+                                    $fallbackTitle = sprintf('%s (Split F%d)', $fallbackTitleBase, $fallbackIndex + 1);
+                                    $fallbackId = $this->createQuota($fallbackStart, $categories, $preserveMode, $fallbackTitle, $forcePreserve, $fallbackEnd);
+                                    if ($fallbackId) {
+                                        $result['splitCreated'][] = [
+                                            'sourceId' => $quotaId,
+                                            'dateFrom' => $fallbackStart,
+                                            'dateTo' => $fallbackEnd,
+                                            'id' => $fallbackId,
+                                            'quantities' => $categories,
+                                            'days' => $fallbackDays
+                                        ];
+                                        logV3("   ✅ Fallback preserved quota created with ID {$fallbackId} for segment {$fallbackStart} to {$fallbackEnd}");
+                                        foreach ($fallbackDays as $fallbackDay) {
+                                            $preservedSuccessDays[$fallbackDay] = true;
+                                        }
+                                    }
+                                } catch (Exception $fallbackEx) {
+                                    logV3("   ❌ Fallback segment {$fallbackStart} to {$fallbackEnd} failed: " . $fallbackEx->getMessage());
+                                    $result['preserveFailed'][] = [
+                                        'sourceId' => $quotaId,
+                                        'dateFrom' => $fallbackStart,
+                                        'dateTo' => $fallbackEnd,
+                                        'error' => $fallbackEx->getMessage()
+                                    ];
+                                }
                             }
                         }
                     }

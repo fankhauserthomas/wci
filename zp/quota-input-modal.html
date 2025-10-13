@@ -22,6 +22,66 @@
         width: 100%;
         white-space: nowrap;
     }
+
+    #quotaStatusModal .quota-status-details {
+        background: rgba(15, 23, 42, 0.35);
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
+
+    #quotaStatusModal .quota-detail-segment + .quota-detail-segment {
+        margin-top: 10px;
+    }
+
+    #quotaStatusModal .quota-detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        transition: background 0.3s ease;
+    }
+
+    #quotaStatusModal .quota-detail-item:first-of-type {
+        margin-top: 0;
+    }
+
+    #quotaStatusModal .quota-detail-item .quota-detail-date {
+        font-weight: 600;
+        color: #e5edff;
+    }
+
+    #quotaStatusModal .quota-detail-item .quota-detail-message {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 2px;
+    }
+
+    #quotaStatusModal .quota-detail-item .quota-detail-badge {
+        align-self: center;
+    }
+
+    #quotaStatusModal .quota-detail-item.state-pending {
+        background: rgba(148, 163, 184, 0.12);
+    }
+
+    #quotaStatusModal .quota-detail-item.state-active {
+        background: rgba(129, 140, 248, 0.18);
+    }
+
+    #quotaStatusModal .quota-detail-item.state-success {
+        background: rgba(34, 197, 94, 0.18);
+    }
+
+    #quotaStatusModal .quota-detail-item.state-warn {
+        background: rgba(234, 179, 8, 0.22);
+    }
+
+    #quotaStatusModal .quota-detail-item.state-error {
+        background: rgba(248, 113, 113, 0.22);
+    }
 </style>
 
 <div class="modal fade" id="quotaInputModal" tabindex="-1" aria-labelledby="quotaInputModalLabel" aria-hidden="true">
@@ -144,6 +204,10 @@
                         data-role="quota-status-progress"></div>
                 </div>
                 <ul class="list-group" data-role="quota-status-steps"></ul>
+                <div class="quota-status-details mt-3 d-none" data-role="quota-status-detail">
+                    <div class="text-muted text-uppercase small mb-1">Details</div>
+                    <div data-role="quota-status-detail-body"></div>
+                </div>
                 <div class="alert mt-3 d-none" role="alert" data-role="quota-status-summary"></div>
             </div>
             <div class="modal-footer">
@@ -173,8 +237,11 @@
             this.statusStepsContainer = null;
             this.statusSummary = null;
             this.statusCloseBtn = null;
+            this.statusDetailContainer = null;
+            this.statusDetailBody = null;
             this.statusSteps = [];
             this.currentSegments = [];
+            this.statusDetailEntries = new Map();
 
             this.initializeEventListeners();
             this.initializeStatusModal();
@@ -203,6 +270,8 @@
             this.statusStepsContainer = this.statusModal.querySelector('[data-role="quota-status-steps"]');
             this.statusSummary = this.statusModal.querySelector('[data-role="quota-status-summary"]');
             this.statusCloseBtn = this.statusModal.querySelector('[data-role="quota-status-close"]');
+            this.statusDetailContainer = this.statusModal.querySelector('[data-role="quota-status-detail"]');
+            this.statusDetailBody = this.statusModal.querySelector('[data-role="quota-status-detail-body"]');
 
             this.statusModal.addEventListener('hidden.bs.modal', () => {
                 this.resetStatusModal();
@@ -227,6 +296,16 @@
                 this.statusSummary.classList.add('d-none');
                 this.statusSummary.classList.remove('alert-success', 'alert-warning', 'alert-danger');
             }
+
+            if (this.statusDetailBody) {
+                this.statusDetailBody.innerHTML = '';
+            }
+
+            if (this.statusDetailContainer) {
+                this.statusDetailContainer.classList.add('d-none');
+            }
+
+            this.statusDetailEntries.clear();
 
             if (this.statusCloseBtn) {
                 this.statusCloseBtn.disabled = true;
@@ -351,6 +430,245 @@
             }
 
             this.updateStatusProgress();
+        }
+
+        createStatusDetailSegment(label, dailyQuotas) {
+            if (!this.statusDetailContainer || !this.statusDetailBody) {
+                return null;
+            }
+
+            this.statusDetailContainer.classList.remove('d-none');
+
+            const segmentId = `segment-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'quota-detail-segment';
+
+            const header = document.createElement('div');
+            header.className = 'd-flex justify-content-between align-items-center mb-1';
+            const titleSpan = document.createElement('span');
+            titleSpan.style.color = '#e5edff';
+            titleSpan.style.fontWeight = '600';
+            titleSpan.textContent = label;
+            const badgeSpan = document.createElement('span');
+            badgeSpan.className = 'badge bg-secondary';
+            badgeSpan.textContent = `${dailyQuotas.length} ${dailyQuotas.length === 1 ? 'Tag' : 'Tage'}`;
+            header.appendChild(titleSpan);
+            header.appendChild(badgeSpan);
+            wrapper.appendChild(header);
+
+            const list = document.createElement('div');
+            list.setAttribute('data-role', 'quota-detail-list');
+            wrapper.appendChild(list);
+
+            const entries = new Map();
+
+            dailyQuotas.forEach((quota) => {
+                const item = document.createElement('div');
+                item.className = 'quota-detail-item state-pending';
+                item.dataset.date = quota.date;
+                item.dataset.state = 'pending';
+                item.dataset.final = '0';
+
+                const leftCol = document.createElement('div');
+                const dateEl = document.createElement('div');
+                dateEl.className = 'quota-detail-date';
+                dateEl.textContent = this.formatDateForDisplay(quota.date);
+                const messageEl = document.createElement('div');
+                messageEl.className = 'quota-detail-message';
+                messageEl.textContent = 'Wird vorbereitet…';
+                leftCol.appendChild(dateEl);
+                leftCol.appendChild(messageEl);
+
+                const badge = document.createElement('span');
+                badge.className = 'badge quota-detail-badge bg-secondary';
+                badge.textContent = 'Wartet';
+
+                item.appendChild(leftCol);
+                item.appendChild(badge);
+                list.appendChild(item);
+
+                entries.set(quota.date, {
+                    element: item,
+                    badge,
+                    messageEl,
+                    state: 'pending'
+                });
+            });
+
+            this.statusDetailBody.appendChild(wrapper);
+            this.statusDetailEntries.set(segmentId, {
+                wrapper,
+                entries
+            });
+
+            if (dailyQuotas.length > 0) {
+                this.updateStatusDetailEntry(segmentId, dailyQuotas[0].date, 'active', 'Übertragung läuft…');
+                for (let i = 1; i < dailyQuotas.length; i++) {
+                    this.updateStatusDetailEntry(segmentId, dailyQuotas[i].date, 'pending', 'Wartet auf Übertragung…');
+                }
+            }
+
+            return segmentId;
+        }
+
+        updateStatusDetailEntry(segmentId, date, state = 'pending', message = '') {
+            const segment = this.statusDetailEntries.get(segmentId);
+            if (!segment) return;
+            const entry = segment.entries.get(date);
+            if (!entry) return;
+
+            const item = entry.element;
+            const badge = entry.badge;
+            const messageEl = entry.messageEl;
+
+            const stateClasses = ['state-pending', 'state-active', 'state-success', 'state-warn', 'state-error'];
+            stateClasses.forEach(cls => item.classList.remove(cls));
+
+            const configMap = {
+                pending: { badgeClass: 'bg-secondary', badgeText: 'Wartet', messageColor: '#94a3b8' },
+                active: { badgeClass: 'bg-info', badgeText: 'Läuft', messageColor: '#a5b4fc' },
+                success: { badgeClass: 'bg-success', badgeText: 'Fertig', messageColor: '#4ade80' },
+                warn: { badgeClass: 'bg-warning text-dark', badgeText: 'Hinweis', messageColor: '#facc15' },
+                error: { badgeClass: 'bg-danger', badgeText: 'Fehler', messageColor: '#f87171' }
+            };
+
+            const config = configMap[state] || configMap.pending;
+            item.classList.add(`state-${state}`);
+            badge.className = 'badge quota-detail-badge';
+            config.badgeClass.split(' ').forEach(cls => badge.classList.add(cls));
+            badge.textContent = config.badgeText;
+
+            if (message) {
+                messageEl.textContent = message;
+            }
+            messageEl.style.color = config.messageColor;
+
+            entry.state = state;
+            entry.element.dataset.state = state;
+            const isFinal = state === 'success' || state === 'warn' || state === 'error';
+            entry.element.dataset.final = isFinal ? '1' : '0';
+        }
+
+        formatDateForDisplay(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return dateStr || '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                const [year, month, day] = dateStr.split('-');
+                return `${day}.${month}.${year}`;
+            }
+            return dateStr;
+        }
+
+        formatQuotaQuantities(quantities) {
+            if (!quantities || typeof quantities !== 'object') {
+                return '-';
+            }
+
+            const mapping = [
+                ['lager', 'L'],
+                ['betten', 'B'],
+                ['dz', 'DZ'],
+                ['sonder', 'S']
+            ];
+
+            const parts = [];
+            mapping.forEach(([key, label]) => {
+                const value = Number.isFinite(Number(quantities[key])) ? Number(quantities[key]) : 0;
+                parts.push(`${label} ${value}`);
+            });
+
+            return parts.join(' · ');
+        }
+
+        applySegmentResultToDetails(segmentId, dailyQuotas, result) {
+            if (!segmentId || !this.statusDetailEntries.has(segmentId)) {
+                return;
+            }
+
+            const createdMap = new Map();
+            if (result && Array.isArray(result.createdQuotas)) {
+                result.createdQuotas.forEach(entry => {
+                    if (entry && typeof entry === 'object') {
+                        const dateKey = entry.date || entry.day || null;
+                        if (!dateKey) return;
+                        const quantities = entry.quantities || {
+                            lager: entry.lager ?? entry.quota_lager ?? 0,
+                            betten: entry.betten ?? entry.quota_betten ?? 0,
+                            dz: entry.dz ?? entry.quota_dz ?? 0,
+                            sonder: entry.sonder ?? entry.quota_sonder ?? 0
+                        };
+                        createdMap.set(dateKey, quantities);
+                    }
+                });
+            }
+
+            const warnDates = new Set();
+            if (result && Array.isArray(result.adjustedClosedQuotas)) {
+                result.adjustedClosedQuotas.forEach(entry => {
+                    if (!entry) return;
+                    if (Array.isArray(entry.affectedDays)) {
+                        entry.affectedDays.forEach(day => warnDates.add(day));
+                    } else if (Array.isArray(entry.days)) {
+                        entry.days.forEach(day => warnDates.add(day));
+                    } else if (entry.date) {
+                        warnDates.add(entry.date);
+                    }
+                });
+            }
+
+            if (result && Array.isArray(result.blockedDates)) {
+                result.blockedDates.forEach(entry => {
+                    if (!entry) return;
+                    if (Array.isArray(entry.affectedDays)) {
+                        entry.affectedDays.forEach(day => warnDates.add(day));
+                    } else if (entry.date) {
+                        warnDates.add(entry.date);
+                    } else if (entry.selectedDate) {
+                        warnDates.add(entry.selectedDate);
+                    }
+                });
+            }
+
+            dailyQuotas.forEach((quota, index) => {
+                const dateKey = quota.date;
+                const baseQuantities = createdMap.get(dateKey) || {
+                    lager: quota.quota_lager,
+                    betten: quota.quota_betten,
+                    dz: quota.quota_dz,
+                    sonder: quota.quota_sonder
+                };
+
+                const messageParts = [`Kapazität: ${this.formatQuotaQuantities(baseQuantities)}`];
+                if (Number.isFinite(Number(quota.targetCapacity))) {
+                    messageParts.push(`Ziel ${Number(quota.targetCapacity)}`);
+                }
+
+                const isWarn = warnDates.has(dateKey);
+                if (isWarn) {
+                    messageParts.push('Bestehende Sperre berücksichtigt');
+                }
+
+                const state = isWarn ? 'warn' : 'success';
+                const delay = Math.min(200, 40 * index);
+                setTimeout(() => {
+                    this.updateStatusDetailEntry(segmentId, dateKey, state, messageParts.join(' · '));
+                }, delay);
+            });
+        }
+
+        markStatusDetailSegmentError(segmentId, dailyQuotas, message) {
+            if (!segmentId || !this.statusDetailEntries.has(segmentId)) {
+                return;
+            }
+            let errorText = (message || 'Fehler beim Schreiben').toString();
+            if (errorText.length > 160) {
+                errorText = `${errorText.slice(0, 157)}…`;
+            }
+            dailyQuotas.forEach((quota, index) => {
+                const delay = Math.min(200, 40 * index);
+                setTimeout(() => {
+                    this.updateStatusDetailEntry(segmentId, quota.date, 'error', errorText);
+                }, delay);
+            });
         }
 
         completeStatusWorkflow(success, summaryText, autoClose = true) {
@@ -1431,6 +1749,11 @@
 
             console.log('📤 Sende Segment an HRS API:', { label, dailyQuotas });
 
+            let detailSegmentId = null;
+            if (statusEnabled) {
+                detailSegmentId = this.createStatusDetailSegment(label, dailyQuotas);
+            }
+
             let response;
             try {
                 response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
@@ -1445,6 +1768,9 @@
                 });
             } catch (networkError) {
                 if (statusEnabled) {
+                    if (detailSegmentId) {
+                        this.markStatusDetailSegmentError(detailSegmentId, dailyQuotas, networkError.message || 'Netzwerkfehler');
+                    }
                     this.setStatusStep(0, 'error', `${label} – Netzwerkfehler`);
                 }
                 throw networkError;
@@ -1460,6 +1786,9 @@
                 console.error('❌ JSON Parse Error:', parseError.message);
                 console.error('📄 Full response:', responseText);
                 if (statusEnabled) {
+                    if (detailSegmentId) {
+                        this.markStatusDetailSegmentError(detailSegmentId, dailyQuotas, 'Ungültige Server-Antwort');
+                    }
                     this.setStatusStep(0, 'error', `${label} – Ungültige Server-Antwort`);
                 }
                 throw new Error('Server returned invalid JSON. Response: ' + responseText.substring(0, 200));
@@ -1469,9 +1798,16 @@
                 const errorMessage = result?.error || result?.message || `HTTP ${response.status}`;
                 console.error('❌ API Error Response:', result);
                 if (statusEnabled) {
+                    if (detailSegmentId) {
+                        this.markStatusDetailSegmentError(detailSegmentId, dailyQuotas, errorMessage);
+                    }
                     this.setStatusStep(0, 'error', `${label} – ${errorMessage}`);
                 }
                 throw new Error(errorMessage);
+            }
+
+            if (statusEnabled && detailSegmentId) {
+                this.applySegmentResultToDetails(detailSegmentId, dailyQuotas, result);
             }
 
             if (statusEnabled) {

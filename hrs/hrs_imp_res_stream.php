@@ -65,41 +65,57 @@ class HRSReservationImporterSSE {
             // Schritt 1: Reservierungen von HRS abrufen
             sendSSE('log', ['level' => 'info', 'message' => 'Rufe Reservierungen von HRS ab...']);
             $reservations = $this->fetchAllReservations($dateFrom, $dateTo);
-            
-            if (!$reservations) {
+
+            if ($reservations === false) {
                 sendSSE('error', ['message' => 'Keine Reservierungen von HRS erhalten']);
+                return false;
+            }
+
+            if (!is_array($reservations)) {
+                sendSSE('error', ['message' => 'Ungültiges Reservierungsformat von HRS erhalten']);
                 return false;
             }
             
             $totalRes = count($reservations);
             sendSSE('total', ['count' => $totalRes]);
-            sendSSE('log', ['level' => 'info', 'message' => "$totalRes Reservierungen erhalten"]);
-            
+
+            if ($totalRes === 0) {
+                sendSSE('log', ['level' => 'info', 'message' => 'Keine Reservierungen im gewählten Zeitraum gefunden (OK)']);
+            } else {
+                sendSSE('log', ['level' => 'info', 'message' => "$totalRes Reservierungen erhalten"]);
+            }
+
             // Schritt 2: Reservierungen importieren
             $importedCount = 0;
-            foreach ($reservations as $index => $res) {
-                $percent = round((($index + 1) / $totalRes) * 100);
-                
-                sendSSE('progress', [
-                    'current' => $index + 1,
-                    'total' => $totalRes,
-                    'percent' => $percent,
-                    'res_id' => $res['id'] ?? 'unknown'
-                ]);
-                
-                if ($this->processReservation($res)) {
-                    $importedCount++;
-                    sendSSE('log', ['level' => 'success', 'message' => "✓ Reservierung " . ($res['id'] ?? 'unknown') . " importiert"]);
-                } else {
-                    sendSSE('log', ['level' => 'error', 'message' => "✗ Fehler bei Reservierung " . ($res['id'] ?? 'unknown')]);
+            if ($totalRes > 0) {
+                foreach ($reservations as $index => $res) {
+                    $percent = round((($index + 1) / $totalRes) * 100);
+                    
+                    sendSSE('progress', [
+                        'current' => $index + 1,
+                        'total' => $totalRes,
+                        'percent' => $percent,
+                        'res_id' => $res['id'] ?? 'unknown'
+                    ]);
+                    
+                    if ($this->processReservation($res)) {
+                        $importedCount++;
+                        sendSSE('log', ['level' => 'success', 'message' => "✓ Reservierung " . ($res['id'] ?? 'unknown') . " importiert"]);
+                    } else {
+                        sendSSE('log', ['level' => 'error', 'message' => "✗ Fehler bei Reservierung " . ($res['id'] ?? 'unknown')]);
+                    }
+                    
+                    usleep(20000); // 20ms
                 }
-                
-                usleep(20000); // 20ms
             }
             
+            $completionMessage = $totalRes > 0
+                ? "Import abgeschlossen: $importedCount von $totalRes Reservierungen importiert"
+                : 'Keine Reservierungen im gewählten Zeitraum zu importieren';
+
             sendSSE('complete', [
                 'step' => 'res',
-                'message' => "Import abgeschlossen: $importedCount von $totalRes Reservierungen importiert",
+                'message' => $completionMessage,
                 'totalProcessed' => $totalRes,
                 'totalInserted' => $importedCount
             ]);
@@ -189,6 +205,9 @@ class HRSReservationImporterSSE {
             
             if (!$response || $response['status'] != 200) {
                 sendSSE('log', ['level' => 'error', 'message' => "API-Fehler bei Seite $page: HTTP " . ($response['status'] ?? 'unknown')]);
+                if (empty($allReservations)) {
+                    return false;
+                }
                 break;
             }
             

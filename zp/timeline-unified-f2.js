@@ -4016,6 +4016,20 @@ class TimelineUnifiedRenderer {
         navCanvas.addEventListener('pointerup', this.navPointerHandlers.up);
         navCanvas.addEventListener('pointercancel', this.navPointerHandlers.up);
 
+        navCanvas.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return false;
+        }, { capture: true });
+
+        navCanvas.oncontextmenu = (event) => {
+            if (event) {
+                event.preventDefault();
+            }
+            return false;
+        };
+
         if (typeof ResizeObserver !== 'undefined') {
             this.navResizeObserver = new ResizeObserver(() => this.resizeNavigationCanvas());
             const parent = navCanvas.parentElement || navCanvas;
@@ -4920,6 +4934,35 @@ class TimelineUnifiedRenderer {
             e.preventDefault();
             return false;
         };
+
+        if (this.container) {
+            const canvasContainer = this.container.querySelector('.canvas-container');
+            if (canvasContainer) {
+                canvasContainer.addEventListener('contextmenu', (event) => {
+                    if (!this.canvas) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.stopImmediatePropagation();
+                        return false;
+                    }
+
+                    if (event.target === this.canvas) {
+                        return;
+                    }
+
+                    if (event.target && typeof event.target.closest === 'function') {
+                        if (event.target.closest('.timeline-topbar') || event.target.closest('.timeline-topbar-menu')) {
+                            return;
+                        }
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                    return false;
+                }, { capture: true });
+            }
+        }
 
         document.addEventListener('click', (event) => {
             // Close radial menu if open and click outside
