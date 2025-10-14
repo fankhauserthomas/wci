@@ -84,11 +84,11 @@ class HRSLogin {
     
     /**
      * HRS Authentication Credentials
-     * @var string $username Franzsennhütte Office Email
-     * @var string $password Franzsennhütte Office Password
+     * @var string $username HRS Username (loaded from config)
+     * @var string $password HRS Password (loaded from config)
      */
-    private $username = 'office@franzsennhuette.at';
-    private $password = 'Fsh2147m!3';
+    private $username;
+    private $password;
     
     /**
      * Konstruktor - Initialisiert Standard-Headers und Debug-System
@@ -100,6 +100,10 @@ class HRSLogin {
      * - User-Agent exakt wie in erfolgreicher hrs_login_debug.php
      */
     public function __construct() {
+        // Load credentials from config if available
+        $this->username = defined('HRS_USERNAME') ? HRS_USERNAME : 'office@franzsennhuette.at';
+        $this->password = defined('HRS_PASSWORD') ? HRS_PASSWORD : 'Fsh2147m!3';
+        
         $this->defaultHeaders = array(
             'Accept: application/json, text/plain, */*',
             'Accept-Encoding: gzip, deflate, br, zstd',

@@ -8,8 +8,14 @@ class HRSDebugger {
     private $baseUrl = 'https://www.hut-reservation.org';
     private $cookies = array();
     private $csrfToken;
-    private $username = 'office@franzsennhuette.at';
-    private $password = 'Fsh2147m!3';
+    private $username;
+    private $password;
+    
+    public function __construct() {
+        // Load credentials from config if available
+        $this->username = defined('HRS_USERNAME') ? HRS_USERNAME : 'office@franzsennhuette.at';
+        $this->password = defined('HRS_PASSWORD') ? HRS_PASSWORD : 'Fsh2147m!3';
+    }
     
     private function makeRequest($url, $method = 'GET', $data = null, $customHeaders = array()) {
         $fullUrl = $this->baseUrl . $url;
@@ -102,7 +108,7 @@ class HRSDebugger {
         $this->quickLogin();
         
         $params = array(
-            'hutId' => 675, 
+            'hutId' => defined('HUT_ID') ? HUT_ID : 675, 
             'sortList' => 'ArrivalDate', 
             'sortOrder' => 'ASC', 
             'dateFrom' => '20.08.2025', 

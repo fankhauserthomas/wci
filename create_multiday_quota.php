@@ -56,7 +56,7 @@ $postData = array(
             'description' => ''
         )
     ),
-    'hutId' => 675,
+    'hutId' => defined('HUT_ID') ? HUT_ID : 675,
     'canChangeMode' => false,
     'canOverbook' => false,
     'isRecurring' => false,
@@ -77,7 +77,8 @@ $headers = array(
 echo "Creating multi-day quota: 25.12.2025 to 01.01.2026 (7 days) with 12 beds\n";
 echo "POST Data: " . json_encode($postData, JSON_PRETTY_PRINT) . "\n";
 
-$response = $hrsLogin->makeRequest('/api/v1/manage/hutQuota/675', 'POST', json_encode($postData), $headers);
+$hutId = defined('HUT_ID') ? HUT_ID : 675;
+$response = $hrsLogin->makeRequest("/api/v1/manage/hutQuota/{$hutId}", 'POST', json_encode($postData), $headers);
 
 if (!$response) {
     echo "ERROR: No response from API\n";

@@ -1799,11 +1799,35 @@
     <button id="debug-toggle" class="debug-toggle">Debug Console</button>
 
     <!-- Scripts -->
+    <script src="wci-config.js"></script>
     <script src="timeline-unified-f2.js?v=1760299778"></script>
     </script>
     <script>
         if (typeof TimelineUnifiedRenderer === 'undefined') {
             console.error('FEHLER: TimelineUnifiedRenderer wurde nicht geladen!');
+        }
+
+        // ===== WCI CONFIG FETCH HELPER =====
+        /**
+         * Konfigurationsbewusste fetch-Funktion
+         * Ersetzt hardcodierte URLs durch dynamische Konfiguration
+         */
+        async function wciFetch(urlOrEndpoint, options = {}) {
+            await WCIConfig.init();
+            
+            let url = urlOrEndpoint;
+            
+            // Wenn es eine relative URL ist, baue die volle URL
+            if (urlOrEndpoint.startsWith('/wci/')) {
+                const baseUrl = WCIConfig.get('urls.base', 'http://192.168.15.14:8080');
+                url = `${baseUrl}${urlOrEndpoint}`;
+            }
+            // Wenn es ein bekannter Endpoint-Name ist
+            else if (!urlOrEndpoint.startsWith('http')) {
+                url = WCIConfig.getEndpoint(urlOrEndpoint);
+            }
+            
+            return fetch(url, options);
         }
 
         // ===== MODAL HELPER (Bootstrap 5) =====
@@ -2848,7 +2872,8 @@
 
                     await new Promise((resolve, reject) => {
                         let avCapSuccess = false;
-                        const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=675&von=${dateFromStr}&bis=${dateToStr}`);
+                        const hutId = WCIConfig.get('hut.id', 675);
+                        const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=${hutId}&von=${dateFromStr}&bis=${dateToStr}`);
 
                         eventSource.onmessage = (event) => {
                             try {
@@ -3643,7 +3668,7 @@
 
                 try {
                     // Tagesbasierte Verfügbarkeit: relevante Zahl ist die Belegung am Anreisetag (start)
-                    const response = await fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?calc=day&day=${startStr}`);
+                    const response = await wciFetch(`/wci/zp/getRooms.php?calc=day&day=${startStr}`);
                     if (response.ok) {
                         const data = await response.json();
                         if (data.success && Array.isArray(data.data)) {
@@ -3740,7 +3765,7 @@
                 const days = listDays(start, end);
                 if (days.length === 0) return perDayMap;
                 try {
-                    const requests = days.map(dayStr => fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?calc=day&day=${dayStr}`)
+                    const requests = days.map(dayStr => wciFetch(`/wci/zp/getRooms.php?calc=day&day=${dayStr}`)
                         .then(r => r.ok ? r.json() : null)
                         .catch(() => null));
                     const results = await Promise.all(requests);
@@ -4270,7 +4295,7 @@
                     assignments: current.draft
                 };
                 try {
-                    const resp = await fetch('http://192.168.15.14:8080/wci/zp/assignRoomsToReservation.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const resp = await wciFetch('/wci/zp/assignRoomsToReservation.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     const data = await resp.json().catch(() => ({ success: false, error: 'Invalid JSON' }));
                     if (!resp.ok || !data.success) { throw new Error(data.error || (`HTTP ${resp.status}`)); }
                     console.success('Zuweisungen gespeichert.');
@@ -4641,7 +4666,7 @@
 
                 try {
                     // Lade AV_Res Daten von der API
-                    const response = await fetch(`http://192.168.15.14:8080/wci/zp/getAVReservationData.php?av_res_id=${avResId}`);
+                    const response = await wciFetch(`/wci/zp/getAVReservationData.php?av_res_id=${avResId}`);
 
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -4761,7 +4786,7 @@
 
                     async function loadArrangementDropdown(selectedValue) {
                         try {
-                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getArrangements.php');
+                            const response = await wciFetch('/wci/zp/getArrangements.php');
                             const arrangements = await response.json();
                             const select = document.getElementById('dataset-arr');
                             select.innerHTML = '<option value="">Kein Arrangement</option>';
@@ -4783,7 +4808,7 @@
 
                     async function loadOriginDropdown(selectedValue) {
                         try {
-                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getOrigins.php');
+                            const response = await wciFetch('/wci/zp/getOrigins.php');
                             const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
 
@@ -5002,7 +5027,7 @@
 
                     async function loadOriginDropdown(selectedValue) {
                         try {
-                            const response = await fetch('http://192.168.15.14:8080/wci/zp/getOrigins.php');
+                            const response = await wciFetch('/wci/zp/getOrigins.php');
                             const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
                             select.innerHTML = '<option value="">Keine Herkunft</option>';
@@ -5143,7 +5168,7 @@
                 const result = await showDatasetModal(detail);
                 if (result) {
                     // Update AV_Res data via API
-                    const response = await fetch('http://192.168.15.14:8080/wci/zp/updateReservationMasterData.php', {
+                    const response = await wciFetch('/wci/zp/updateReservationMasterData.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -5191,7 +5216,7 @@
                     hund: hundStatus ? 1 : 0
                 };
 
-                const response = await fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetailAttributes.php', {
+                const response = await wciFetch('/wci/zp/updateRoomDetailAttributes.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5377,13 +5402,13 @@
                 // Cache-Buster für Quota-Feature
                 const cacheBuster = `?cb=${Date.now()}`;
 
-                const roomsFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
-                const arrangementsFetchPromise = fetch('http://192.168.15.14:8080/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
-                const histogramFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
-                const masterDataFetchPromise = fetch(`http://192.168.15.14:8080/wci/zp/getReservationMasterData.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Master data fetch failed:', error); return error; });
+                const roomsFetchPromise = wciFetch(`/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
+                const arrangementsFetchPromise = wciFetch('/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
+                const histogramFetchPromise = wciFetch(`/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
+                const masterDataFetchPromise = wciFetch(`/wci/zp/getReservationMasterData.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Master data fetch failed:', error); return error; });
 
                 console.log('Fetching main data...');
-                const dataResponse = await fetch(`http://192.168.15.14:8080/wci/zp/getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
+                const dataResponse = await wciFetch(`/wci/zp/getZimmerplanData.php?start=${startDateStr}&end=${endDateStr}`);
                 console.log('Main data response:', dataResponse.status, dataResponse.statusText);
 
                 if (!dataResponse.ok) {
@@ -5975,7 +6000,7 @@
     <!-- Quota Management System -->
     <script>
         // Lade Modal-HTML dynamisch (V3.0 - Management API)
-        fetch('/wci/zp/quota-input-modal.html?v=36')
+        wciFetch('/wci/zp/quota-input-modal.html?v=36')
             .then(response => response.text())
             .then(html => {
                 const div = document.createElement('div');

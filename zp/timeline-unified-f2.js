@@ -1,4 +1,36 @@
 // TIMELINE UNIFIED RENDERER - Canvas-basierte Timeline
+
+// ===== WCI CONFIGURATION INTEGRATION =====
+/**
+ * Konfigurationsbewusste fetch-Funktion für timeline-unified-f2.js
+ */
+async function timelineFetch(urlOrEndpoint, options = {}) {
+    // Warte auf Konfiguration falls WCIConfig verfügbar ist
+    if (typeof WCIConfig !== 'undefined') {
+        await WCIConfig.init();
+        
+        let url = urlOrEndpoint;
+        
+        // Wenn es eine relative URL ist, baue die volle URL
+        if (urlOrEndpoint.startsWith('/wci/')) {
+            const baseUrl = WCIConfig.get('urls.base', 'http://192.168.15.14:8080');
+            url = `${baseUrl}${urlOrEndpoint}`;
+        }
+        // Wenn es ein bekannter Endpoint-Name ist
+        else if (!urlOrEndpoint.startsWith('http')) {
+            url = WCIConfig.getEndpoint(urlOrEndpoint);
+        }
+        
+        return fetch(url, options);
+    } else {
+        // Fallback ohne Konfiguration - verwende direkt die URL
+        if (urlOrEndpoint.startsWith('/wci/')) {
+            return fetch(`http://192.168.15.14:8080${urlOrEndpoint}`, options);
+        }
+        return fetch(urlOrEndpoint, options);
+    }
+}
+
 let reservations = [];
 let roomDetails = [];
 let rooms = [];
@@ -2576,7 +2608,7 @@ class TimelineUnifiedRenderer {
                 this._cautionImageLoaded = true;
                 this.scheduleRender('caution_icon_loaded');
             };
-            this._cautionImage.src = 'http://192.168.15.14:8080/wci/pic/caution.svg';
+            this._cautionImage.src = '/wci/pic/caution.svg';
         }
 
         if (this._cautionImageLoaded || (this._cautionImage.complete && this._cautionImage.naturalWidth > 0)) {
@@ -2727,7 +2759,7 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetail.php', {
+        timelineFetch('/wci/zp/updateRoomDetail.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2807,7 +2839,7 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetailAttributes.php', {
+        timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -7342,7 +7374,7 @@ class TimelineUnifiedRenderer {
 
             // Update database with new note
             try {
-                const response = await fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetailAttributes.php', {
+                const response = await timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -7440,7 +7472,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende Split-Request:', requestData);
 
-        fetch('http://192.168.15.14:8080/wci/reservierungen/api/splitReservationDetail.php', {
+        timelineFetch('/wci/reservierungen/api/splitReservationDetail.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7523,7 +7555,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende Split-By-Date-Request:', requestData);
 
-        fetch('http://192.168.15.14:8080/wci/reservierungen/api/splitReservationByDate.php', {
+        timelineFetch('/wci/reservierungen/api/splitReservationByDate.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7730,7 +7762,7 @@ class TimelineUnifiedRenderer {
             }
 
             // AJAX-Aufruf zur API für das Löschen aus der Datenbank
-            fetch('http://192.168.15.14:8080/wci/reservierungen/api/deleteReservationDetail.php', {
+            timelineFetch('/wci/reservierungen/api/deleteReservationDetail.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -7793,7 +7825,7 @@ class TimelineUnifiedRenderer {
             }
 
             // AJAX-Aufruf zur API für das Löschen aller Details aus der Datenbank
-            fetch('http://192.168.15.14:8080/wci/reservierungen/api/deleteReservationAllDetails.php', {
+            timelineFetch('/wci/reservierungen/api/deleteReservationAllDetails.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -7875,7 +7907,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende API-Request:', requestData);
 
-        fetch('http://192.168.15.14:8080/wci/reservierungen/api/updateReservationDesignation.php', {
+        timelineFetch('/wci/reservierungen/api/updateReservationDesignation.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -8172,7 +8204,7 @@ class TimelineUnifiedRenderer {
             this.render();
 
             // API-Aufruf für Dataset-Update
-            fetch('http://192.168.15.14:8080/wci/zp/updateReservationMasterData.php', {
+            timelineFetch('/wci/zp/updateReservationMasterData.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -12669,7 +12701,7 @@ class TimelineUnifiedRenderer {
             if (!this._dogSvgImage) {
                 this._dogSvgImage = new Image();
                 this._dogSvgImage.onload = () => this.render();
-                this._dogSvgImage.src = 'http://192.168.15.14:8080/wci/pic/DogProfile.svg';
+                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
             }
 
             if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
@@ -13134,7 +13166,7 @@ class TimelineUnifiedRenderer {
             if (!this._dogSvgImage) {
                 this._dogSvgImage = new Image();
                 this._dogSvgImage.onload = () => this.render();
-                this._dogSvgImage.src = 'http://192.168.15.14:8080/wci/pic/DogProfile.svg';
+                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
             }
 
             if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
@@ -13818,7 +13850,7 @@ class TimelineUnifiedRenderer {
 
         try {
             // Save to database
-            const response = await fetch('http://192.168.15.14:8080/wci/zp/updateRoomDetailAttributes.php', {
+            const response = await timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

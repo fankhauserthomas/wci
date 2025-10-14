@@ -40,7 +40,7 @@ require_once __DIR__ . '/quota_sse_helper.php';
 class QuotaWriterV3 {
     private $mysqli;
     private $hrsLogin;
-    private $hutId = 675;
+    private $hutId;
     private $sseHelper = null;
     
     private $categoryMap = [
@@ -90,6 +90,9 @@ class QuotaWriterV3 {
     public function __construct($mysqli, HRSLogin $hrsLogin, $sseSessionId = null) {
         $this->mysqli = $mysqli;
         $this->hrsLogin = $hrsLogin;
+        
+        // Load hutId from config
+        $this->hutId = defined('HUT_ID') ? HUT_ID : 675; // Fallback to 675 if not defined
         
         // Initialize SSE Helper if session ID provided
         if ($sseSessionId) {
