@@ -558,7 +558,9 @@ class TimelineUnifiedRenderer {
             loadingPromise: null,
             metadata: null,
             hoverTimer: null, // Timer für automatische Tooltip-Anzeige nach 200ms
-            lastHoveredReservation: null // Letzte Reservierung über die gehovered wurde
+            hideTimer: null, // Timer für verzögertes Ausblenden (200ms)
+            lastHoveredReservation: null, // Letzte Reservierung über die gehovered wurde
+            fixedPosition: null // Fixierte Position für Master-Bar Tooltips
         };
 
         console.log('🎯 Constructor: Initialisiere Tooltip-System...');
@@ -5086,7 +5088,14 @@ class TimelineUnifiedRenderer {
 
             // Normale Hover-Logik nur wenn nicht gedraggt wird
             const oldHovered = this.hoveredReservation;
-            this.checkHover();
+
+            // Prüfe ob Maus über Tooltip ist - wenn ja, keine Hover-Changes
+            const isOverTooltip = this.isMouseOverTooltip(e.clientX, e.clientY);
+
+            if (!isOverTooltip) {
+                this.checkHover();
+            }
+
             this.updateCursor();
 
             // Nur rendern wenn sich Hover-Status geändert hat
@@ -5132,6 +5141,15 @@ class TimelineUnifiedRenderer {
             // Globale Mausposition für Tooltip-Checks speichern
             this.lastGlobalMouseX = e.clientX;
             this.lastGlobalMouseY = e.clientY;
+
+            // Tooltip-Management: Wenn Maus über Tooltip, Hide-Timer abbrechen
+            if (this.tooltip.isVisible && this.tooltip.hideTimer) {
+                const isOverTooltip = this.isMouseOverTooltip(e.clientX, e.clientY);
+                if (isOverTooltip) {
+                    clearTimeout(this.tooltip.hideTimer);
+                    this.tooltip.hideTimer = null;
+                }
+            }
 
             // Optimiertes Throttling für alle Drag-Operationen
             const now = Date.now();
@@ -12419,11 +12437,28 @@ class TimelineUnifiedRenderer {
                         this.showTooltip(reservation);
                     }
                     this.tooltip.hoverTimer = null;
-                }, 200); // 200ms Verzögerung nur für Master-Bereich
+                }, 1000); // 1000ms Verzögerung für Master-Bereich
             }
-            // Tooltip ausblenden wenn keine Reservierung mehr gehovered wird
+            // Verzögertes Ausblenden wenn keine Reservierung mehr gehovered wird
             else if (!reservation && this.tooltip.isVisible) {
-                this.hideTooltip();
+                // Hide-Timer löschen falls vorhanden
+                if (this.tooltip.hideTimer) {
+                    clearTimeout(this.tooltip.hideTimer);
+                }
+
+                // 200ms Verzögerung vor dem Ausblenden
+                this.tooltip.hideTimer = setTimeout(() => {
+                    // Nochmal prüfen ob noch keine Reservierung gehovered wird UND nicht über Tooltip
+                    if (!this.tooltip.lastHoveredReservation && !this.isMouseOverTooltip()) {
+                        this.hideTooltip();
+                    }
+                    this.tooltip.hideTimer = null;
+                }, 200);
+            }
+            // Hide-Timer abbrechen wenn wieder über Reservierung gehovered wird
+            else if (reservation && this.tooltip.hideTimer) {
+                clearTimeout(this.tooltip.hideTimer);
+                this.tooltip.hideTimer = null;
             }
         }
     }
@@ -13866,9 +13901,10 @@ class TimelineUnifiedRenderer {
 
         console.log('✅ Tooltip-Element erstellt');
 
-        // Event-Listener für E-Mail-Kopieren
+        // Event-Listener für Tooltip-Interaktionen
         document.body.addEventListener('click', (e) => {
             if (e.target.classList.contains('tooltip-email-copy')) {
+                // E-Mail in Zwischenablage kopieren
                 const email = e.target.getAttribute('data-email');
                 if (email) {
                     navigator.clipboard.writeText(email).then(() => {
@@ -13877,11 +13913,73 @@ class TimelineUnifiedRenderer {
                         e.target.style.color = '#28a745';
                         setTimeout(() => {
                             e.target.textContent = originalText;
-                            e.target.style.color = '#0066cc';
+                            e.target.style.color = '#8cc3ff';
                         }, 1500);
                     }).catch(err => {
-                        console.error('Fehler beim Kopieren:', err);
+                        console.error('Fehler beim Kopieren der E-Mail:', err);
+                        alert('Fehler beim Kopieren der E-Mail-Adresse');
                     });
+                }
+                e.stopPropagation();
+            } else if (e.target.classList.contains('tooltip-open-modal')) {
+                // Datensatz-Modal öffnen
+                const reservationData = e.target.getAttribute('data-reservation');
+                if (reservationData) {
+                    try {
+                        const reservation = JSON.parse(reservationData);
+                        console.log('📋 Öffne AV-Res Stammdaten Modal für:', reservation);
+
+                        // Direkt das AV-Res Stammdaten Modal aufrufen
+                        if (typeof window.showDatasetModal === 'function') {
+                            window.showDatasetModal(reservation);
+                        } else if (typeof parent.showDatasetModal === 'function') {
+                            parent.showDatasetModal(reservation);
+                        } else if (typeof window.openAVResStammdatenModal === 'function') {
+                            window.openAVResStammdatenModal(reservation);
+                        } else if (typeof window.showAVResDetails === 'function') {
+                            window.showAVResDetails(reservation);
+                        } else if (typeof window.editAVResData === 'function') {
+                            window.editAVResData(reservation);
+                        } else if (typeof window.openReservationModal === 'function') {
+                            // Fallback auf generisches Reservierungs-Modal
+                            window.openReservationModal(reservation);
+                        } else {
+                            // Letzter Fallback - einfache Alert mit Reservierungs-IDs
+                            alert(`📋 AV-Res Stammdaten bearbeiten\n\nReservierung:\nID: ${reservation.id || reservation.res_id}\nAV-ID: ${reservation.av_id || 'N/A'}\n\nHinweis: Modal-Funktion nicht verfügbar.`);
+                        }
+
+                        // Tooltip nach Modal-Öffnung ausblenden
+                        this.hideTooltip();
+                    } catch (error) {
+                        console.error('Fehler beim Parsen der Reservierungsdaten:', error);
+                        alert('Fehler beim Öffnen des Datensatz-Modals');
+                    }
+                }
+                e.stopPropagation();
+            } else if (e.target.classList.contains('tooltip-room-assign')) {
+                // Zimmerzuweisungs-Modal öffnen
+                const reservationData = e.target.getAttribute('data-reservation');
+                if (reservationData) {
+                    try {
+                        const detail = JSON.parse(reservationData);
+                        console.log('🛏️ Öffne Zimmerzuweisungs-Modal für:', detail);
+
+                        // Zimmerzuweisungs-Modal aufrufen - gleiche Struktur wie Kontextmenü
+                        if (typeof window.openRoomAssignModal === 'function') {
+                            window.openRoomAssignModal(detail);
+                        } else if (typeof parent.openRoomAssignModal === 'function') {
+                            parent.openRoomAssignModal(detail);
+                        } else {
+                            // Fallback - einfache Alert
+                            alert(`🛏️ Zimmer zuweisen\n\nReservierung:\nID: ${detail.res_id || detail.id}\nAV-ID: ${detail.data?.av_id || 'N/A'}\n\nHinweis: Zimmerzuweisungs-Modal nicht verfügbar.`);
+                        }
+
+                        // Tooltip nach Modal-Öffnung ausblenden
+                        this.hideTooltip();
+                    } catch (error) {
+                        console.error('Fehler beim Parsen der Reservierungsdaten für Zimmerzuweisung:', error);
+                        alert('Fehler beim Öffnen des Zimmerzuweisungs-Modals');
+                    }
                 }
                 e.stopPropagation();
             } else if (this.tooltip.isVisible && !tooltipEl.contains(e.target)) {
@@ -14310,11 +14408,36 @@ class TimelineUnifiedRenderer {
             `;
             this.tooltip.element.querySelector('.tooltip-inner').innerHTML = fallbackContent;
         } else {
-            const content = this.formatTooltipContent(masterData);
+            const content = this.formatTooltipContent(masterData, reservation);
             this.tooltip.element.querySelector('.tooltip-inner').innerHTML = content;
         }
 
-        this.positionTooltip();
+        // Prüfe ob es ein Master-Bar Tooltip ist für fixierte Position
+        const isInMasterArea = this.mouseY >= this.areas.master.y &&
+            this.mouseY <= this.areas.master.y + this.areas.master.height;
+
+        if (isInMasterArea) {
+            // Position nur beim ersten Anzeigen oder bei Reservierungswechsel fixieren
+            if (!this.tooltip.fixedPosition || this.tooltip.currentReservation !== reservation) {
+                this.positionTooltip();
+                // Aktuelle Position als fixiert speichern
+                this.tooltip.fixedPosition = {
+                    left: this.tooltip.element.style.left,
+                    top: this.tooltip.element.style.top,
+                    className: this.tooltip.element.className
+                };
+            } else {
+                // Fixierte Position wiederherstellen
+                this.tooltip.element.style.left = this.tooltip.fixedPosition.left;
+                this.tooltip.element.style.top = this.tooltip.fixedPosition.top;
+                this.tooltip.element.className = this.tooltip.fixedPosition.className;
+            }
+        } else {
+            // Normale Positionierung für F2-Tooltips
+            this.positionTooltip();
+            this.tooltip.fixedPosition = null;
+        }
+
         this.tooltip.element.style.display = 'block';
         this.tooltip.element.classList.add('show');
         this.tooltip.isVisible = true;
@@ -14324,10 +14447,14 @@ class TimelineUnifiedRenderer {
     hideTooltip() {
         if (!this.tooltip.isVisible) return;
 
-        // Timer löschen falls noch aktiv
+        // Alle Timer löschen falls noch aktiv
         if (this.tooltip.hoverTimer) {
             clearTimeout(this.tooltip.hoverTimer);
             this.tooltip.hoverTimer = null;
+        }
+        if (this.tooltip.hideTimer) {
+            clearTimeout(this.tooltip.hideTimer);
+            this.tooltip.hideTimer = null;
         }
 
         this.tooltip.element.classList.remove('show');
@@ -14337,9 +14464,10 @@ class TimelineUnifiedRenderer {
         this.tooltip.isVisible = false;
         this.tooltip.currentReservation = null;
         this.tooltip.lastHoveredReservation = null;
+        this.tooltip.fixedPosition = null; // Fixierte Position zurücksetzen
     }
 
-    formatTooltipContent(data) {
+    formatTooltipContent(data, originalReservation) {
         const trimValue = (value) => typeof value === 'string' ? value.trim() : (value ?? '');
 
         const rawNachname = trimValue(data.nachname);
@@ -14449,10 +14577,123 @@ class TimelineUnifiedRenderer {
                         </div>
                         ${bemerkungInternHtml}
                         ${bemerkungAVHtml}
+                        <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(140,195,255,0.15); display:flex; gap:8px;">
+                            <button class="tooltip-open-modal" data-reservation='${JSON.stringify({ id: data.id, av_id: data.av_id, res_id: data.res_id })}' 
+                                style="flex:1; background:#1e3a5f; border:1px solid #2d4f7a; color:#8cc3ff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;" 
+                                onmouseover="this.style.background='#2d4f7a'; this.style.color='#b8d7ff';" 
+                                onmouseout="this.style.background='#1e3a5f'; this.style.color='#8cc3ff';" 
+                                title="AV-Res Stammdaten Modal öffnen">
+                                Stammdaten
+                            </button>
+                            <button class="tooltip-room-assign" data-reservation='${originalReservation ? JSON.stringify(this.createOriginalDetailObject(originalReservation)) : JSON.stringify(this.createDetailObject(data))}' 
+                                style="flex:1; background:#1e3a5f; border:1px solid #2d4f7a; color:#8cc3ff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;" 
+                                onmouseover="this.style.background='#2d4f7a'; this.style.color='#b8d7ff';" 
+                                onmouseout="this.style.background='#1e3a5f'; this.style.color='#8cc3ff';" 
+                                title="Zimmerzuweisung Modal öffnen">
+                                Zimmer
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    createDetailObject(data) {
+        // Erstelle ein Detail-Objekt, das der Struktur entspricht, die das Kontextmenü verwendet
+        const avResId = data.id || data.res_id || data.reservation_id || data.resid;
+
+        const detail = {
+            // Standard Reservation Properties
+            id: data.id || `res_${avResId}`,
+            res_id: avResId,
+            reservation_id: avResId,
+            resid: avResId,
+            name: data.nachname || data.vorname || data.gruppenname || 'Unbekannt',
+
+            // Data object (was das Modal erwartet)
+            data: {
+                id: avResId,
+                av_id: data.av_id || 0,
+                res_id: avResId,
+                guest_name: data.nachname || data.vorname || data.gruppenname || 'Unbekannt',
+                nachname: data.nachname || '',
+                vorname: data.vorname || '',
+                email: data.email || '',
+                telefon: data.telefon || '',
+                anreise: data.anreise || '',
+                abreise: data.abreise || '',
+                bemerkung: data.bemerkung_intern || '',
+                bemerkung_av: data.bemerkung_av || '',
+                arrangement: data.arrangement || '',
+                herkunft: data.herkunft || '',
+                hund: data.hund || 0,
+                storno: data.storno || 0
+            },
+
+            // FullData object (Backup-Daten)
+            fullData: {
+                id: avResId,
+                av_id: data.av_id || 0,
+                res_id: avResId,
+                guest_name: data.nachname || data.vorname || data.gruppenname || 'Unbekannt',
+                nachname: data.nachname || '',
+                vorname: data.vorname || '',
+                email: data.email || '',
+                telefon: data.telefon || '',
+                anreise: data.anreise || '',
+                abreise: data.abreise || '',
+                bemerkung: data.bemerkung_intern || '',
+                bemerkung_av: data.bemerkung_av || '',
+                arrangement: data.arrangement || '',
+                herkunft: data.herkunft || '',
+                hund: data.hund || 0,
+                storno: data.storno || 0
+            }
+        };
+
+        return detail;
+    }
+
+    createOriginalDetailObject(reservation) {
+        // Verwende die originale Reservation-Struktur wie beim Kontextmenü
+        // Das ist EXAKT der gleiche Code wie in findMasterReservationAt()
+
+        let avResId = undefined;
+        const fd = reservation.fullData || reservation.data || {};
+        if (fd && (fd.id !== undefined && fd.id !== null)) {
+            avResId = fd.id;
+        }
+        // Fallbacks: direct props or parse from string id like "res_123"
+        if (avResId === undefined || avResId === null) {
+            avResId = reservation.res_id ?? reservation.reservation_id ?? reservation.resid ?? null;
+        }
+        if ((avResId === undefined || avResId === null) && typeof reservation.id === 'string') {
+            const m = reservation.id.match(/res_(\d+)/);
+            if (m) avResId = Number(m[1]);
+        }
+
+        // Normalize to number when possible
+        const avResIdNum = (avResId !== undefined && avResId !== null && !Number.isNaN(Number(avResId)))
+            ? Number(avResId)
+            : avResId;
+
+        // Build a shallow copy and attach res_id in expected places
+        const enriched = { ...reservation };
+        // Top-level aliases expected by existing flows
+        if (avResIdNum !== undefined && avResIdNum !== null) {
+            enriched.res_id = avResIdNum;
+            enriched.reservation_id = enriched.reservation_id ?? avResIdNum;
+            enriched.resid = enriched.resid ?? avResIdNum;
+        }
+        // Also expose a data object (modal checks detail.data?.res_id)
+        const dataObj = { ...(reservation.fullData || reservation.data || {}) };
+        if (avResIdNum !== undefined && avResIdNum !== null) {
+            dataObj.res_id = avResIdNum;
+        }
+        enriched.data = dataObj;
+
+        return enriched;
     }
 
     escapeHtml(value) {
@@ -14492,9 +14733,9 @@ class TimelineUnifiedRenderer {
         let left, top, tooltipClass;
 
         if (isInMasterArea) {
-            // DIREKT UNTER dem Balken positionieren für nahtlose UX
+            // DIREKT AN der Mausposition ohne Abstand
             const masterBarHeight = this.MASTER_BAR_HEIGHT || 14;
-            const balkenBottom = rect.top + this.mouseY + (masterBarHeight / 2) + 5; // 5px Abstand zum Balken
+            const balkenBottom = rect.top + this.mouseY; // 0px Abstand zum Balken
 
             // Horizontal zentriert über dem Balken
             left = mouseScreenX - (tooltipRect.width / 2);
@@ -14504,7 +14745,7 @@ class TimelineUnifiedRenderer {
             // Prüfe ob genug Platz unten ist
             if (top + tooltipRect.height > window.innerHeight - padding) {
                 // Kein Platz unten - über dem Balken anzeigen
-                top = rect.top + this.mouseY - (masterBarHeight / 2) - tooltipRect.height - 5;
+                top = rect.top + this.mouseY - tooltipRect.height;
                 tooltipClass = 'tooltip bs-tooltip-top fade show';
 
                 // Falls auch oben kein Platz - seitlich
@@ -14514,10 +14755,10 @@ class TimelineUnifiedRenderer {
                     const leftSpace = mouseScreenX - padding;
 
                     if (rightSpace >= tooltipRect.width + 20) {
-                        left = mouseScreenX + 15;
+                        left = mouseScreenX;
                         tooltipClass = 'tooltip bs-tooltip-end fade show';
                     } else if (leftSpace >= tooltipRect.width + 20) {
-                        left = mouseScreenX - tooltipRect.width - 15;
+                        left = mouseScreenX - tooltipRect.width;
                         tooltipClass = 'tooltip bs-tooltip-start fade show';
                     }
                 }
@@ -14528,13 +14769,13 @@ class TimelineUnifiedRenderer {
             const spaceBottom = window.innerHeight - mouseScreenY - padding;
 
             if (spaceTop >= tooltipRect.height + 20) {
-                // Oben anzeigen
-                top = mouseScreenY - tooltipRect.height - 15;
+                // Oben anzeigen - Y-Abstand 0
+                top = mouseScreenY - tooltipRect.height;
                 left = mouseScreenX - (tooltipRect.width / 2);
                 tooltipClass = 'tooltip bs-tooltip-top fade show';
             } else if (spaceBottom >= tooltipRect.height + 20) {
-                // Unten anzeigen
-                top = mouseScreenY + 15;
+                // Unten anzeigen - Y-Abstand 0
+                top = mouseScreenY;
                 left = mouseScreenX - (tooltipRect.width / 2);
                 tooltipClass = 'tooltip bs-tooltip-bottom fade show';
             } else {
@@ -14543,11 +14784,11 @@ class TimelineUnifiedRenderer {
                 const leftSpace = mouseScreenX - padding;
 
                 if (rightSpace >= tooltipRect.width + 20) {
-                    left = mouseScreenX + 15;
+                    left = mouseScreenX;
                     top = mouseScreenY - (tooltipRect.height / 2);
                     tooltipClass = 'tooltip bs-tooltip-end fade show';
                 } else if (leftSpace >= tooltipRect.width + 20) {
-                    left = mouseScreenX - tooltipRect.width - 15;
+                    left = mouseScreenX - tooltipRect.width;
                     top = mouseScreenY - (tooltipRect.height / 2);
                     tooltipClass = 'tooltip bs-tooltip-start fade show';
                 } else {
