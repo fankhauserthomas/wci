@@ -48,41 +48,41 @@ class WCIConfigManager {
     async _loadConfig() {
         try {
             console.log('🔧 WCIConfig: Loading configuration from server...');
-            
+
             // Try to determine base path dynamically
             const currentPath = window.location.pathname;
-            const wciPath = currentPath.includes('/wci/') ? 
-                currentPath.substring(0, currentPath.indexOf('/wci/') + 4) : 
+            const wciPath = currentPath.includes('/wci/') ?
+                currentPath.substring(0, currentPath.indexOf('/wci/') + 4) :
                 '/wci';
-            
+
             const configUrl = `${wciPath}/zp/getConfig.php`;
-            
+
             const response = await fetch(configUrl);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            
+
             if (!data.success) {
                 throw new Error(data.error || 'Configuration load failed');
             }
 
             this.config = data.config;
             this.initialized = true;
-            
+
             console.log('✅ WCIConfig: Configuration loaded successfully', this.config);
             return true;
 
         } catch (error) {
             console.error('❌ WCIConfig: Failed to load configuration:', error);
-            
+
             // Fallback configuration for development
             console.warn('🔄 WCIConfig: Using fallback configuration');
             this.config = this._getFallbackConfig();
             this.initialized = true;
-            
+
             return false;
         }
     }
@@ -100,10 +100,21 @@ class WCIConfigManager {
             },
             urls: {
                 base: 'http://192.168.15.14:8080',
+                fallback: 'http://192.168.15.14:8080',
                 wci: 'http://192.168.15.14:8080/wci',
                 zp: 'http://192.168.15.14:8080/wci/zp',
                 reservations: 'http://192.168.15.14:8080/wci/reservierungen',
-                pictures: 'http://192.168.15.14:8080/wci/pic'
+                pictures: 'http://192.168.15.14:8080/wci/pic',
+                hrs: 'http://192.168.15.14:8080/wci/hrs',
+                api: 'http://192.168.15.14:8080/wci/api'
+            },
+            paths: {
+                wci: '/wci',
+                zp: '/wci/zp',
+                reservations: '/wci/reservierungen',
+                pictures: '/wci/pic',
+                hrs: '/wci/hrs',
+                api: '/wci/api'
             },
             hrs: {
                 base_url: 'https://www.hut-reservation.org',
@@ -118,22 +129,71 @@ class WCIConfigManager {
                 default_timeline_days: 30
             },
             endpoints: {
+                // Standard API-Endpunkte
                 rooms: '/wci/zp/getRooms.php',
                 av_reservation_data: '/wci/zp/getAVReservationData.php',
                 arrangements: '/wci/zp/getArrangements.php',
                 origins: '/wci/zp/getOrigins.php',
                 countries: '/wci/zp/getCountries.php',
-                update_room_detail: '/wci/zp/updateRoomDetail.php',
-                update_room_detail_attributes: '/wci/zp/updateRoomDetailAttributes.php',
-                update_reservation_master_data: '/wci/zp/updateReservationMasterData.php',
-                assign_rooms: '/wci/zp/assignRoomsToReservation.php',
-                split_reservation_detail: '/wci/reservierungen/api/splitReservationDetail.php',
-                split_reservation_by_date: '/wci/reservierungen/api/splitReservationByDate.php',
-                delete_reservation_detail: '/wci/reservierungen/api/deleteReservationDetail.php',
-                delete_reservation_all_details: '/wci/reservierungen/api/deleteReservationAllDetails.php',
-                update_reservation_designation: '/wci/reservierungen/api/updateReservationDesignation.php'
+
+                // Timeline-Endpunkte
+                updateRoomDetail: '/wci/zp/updateRoomDetail.php',
+                updateRoomDetailAttributes: '/wci/zp/updateRoomDetailAttributes.php',
+                updateReservationMasterData: '/wci/zp/updateReservationMasterData.php',
+                getReservationMasterData: '/wci/zp/getReservationMasterData.php',
+                assignRoomsToReservation: '/wci/zp/assignRoomsToReservation.php',
+                quotaInputModal: '/wci/zp/quota-input-modal.html',
+                getArrangementsRoot: '/wci/get-arrangements.php',
+
+                // Reservierungen API-Endpunkte  
+                splitReservationDetail: '/wci/reservierungen/api/splitReservationDetail.php',
+                splitReservationByDate: '/wci/reservierungen/api/splitReservationByDate.php',
+                deleteReservationDetail: '/wci/reservierungen/api/deleteReservationDetail.php',
+                deleteReservationAllDetails: '/wci/reservierungen/api/deleteReservationAllDetails.php',
+                updateReservationDesignation: '/wci/reservierungen/api/updateReservationDesignation.php',
+
+                // HRS Import-Endpunkte
+                hrsImportDaily: '/wci/hrs/hrs_imp_daily_stream.php',
+                hrsImportQuota: '/wci/hrs/hrs_imp_quota_stream.php',
+                hrsImportReservations: '/wci/hrs/hrs_imp_res_stream.php',
+                hrsWriteQuota: '/wci/hrs/hrs_write_quota_v3.php',
+
+                // AV API-Endpunkte
+                avCapacityRange: '/wci/api/imps/get_av_cap_range_stream.php',
+
+                // Assets/Bilder
+                cautionIcon: '/wci/pic/caution.svg',
+                dogIcon: '/wci/pic/DogProfile.svg',
+                dogProfile: '/wci/pic/dog.svg',
+                leaveIcon: '/wci/pic/leave.png',
+                dogPng: '/wci/pic/DogProfile.png'
             }
         };
+    }
+
+    /**
+     * Ruft API-Endpunkt-URL ab (kombiniert base URL mit Endpunkt-Pfad)
+     * @param {string} endpointName - Name des Endpunkts
+     * @param {Object} params - Query-Parameter als Objekt
+     * @returns {string} Vollständige URL zum Endpunkt
+     */
+    getEndpoint(endpointName, params = {}) {
+        const endpointPath = this.get(`endpoints.${endpointName}`);
+        if (!endpointPath) {
+            console.warn(`Endpunkt '${endpointName}' nicht gefunden`);
+            return null;
+        }
+
+        const baseUrl = this.get('urls.base');
+        let url = baseUrl + endpointPath;
+
+        // Query-Parameter hinzufügen
+        if (Object.keys(params).length > 0) {
+            const queryString = new URLSearchParams(params).toString();
+            url += (url.includes('?') ? '&' : '?') + queryString;
+        }
+
+        return url;
     }
 
     /**
@@ -171,7 +231,7 @@ class WCIConfigManager {
     getEndpoint(endpointName, params = {}) {
         const baseUrl = this.get('urls.base', '');
         const endpointPath = this.get(`endpoints.${endpointName}`);
-        
+
         if (!endpointPath) {
             console.warn(`🔄 WCIConfig: Endpoint '${endpointName}' not found`);
             return `${baseUrl}/wci/api/${endpointName}.php`;
@@ -202,7 +262,7 @@ class WCIConfigManager {
         // Ensure hutId is always included
         const allParams = { hutId, ...params };
         const urlParams = new URLSearchParams(allParams);
-        
+
         return `${baseUrl}${apiBase}${path}?${urlParams.toString()}`;
     }
 

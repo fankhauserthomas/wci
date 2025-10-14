@@ -52,7 +52,7 @@
         async function testQuotaData() {
             try {
                 // 1. API Check
-                const response = await fetch('http://192.168.15.14:8080/wci/zp/getHistogramSource.php?start=2026-03-01&end=2026-03-05');
+                const response = await fetch((WCIConfig?.get('urls.base') || WCIConfig?.get('urls.fallback') || 'http://192.168.15.14:8080') + '/wci/zp/getHistogramSource.php?start=2026-03-01&end=2026-03-05');
                 const data = await response.json();
 
                 const apiDiv = document.getElementById('api-check');

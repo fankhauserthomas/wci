@@ -2283,7 +2283,7 @@
                     requestData.sse_session = this.sseSessionId;
                 }
 
-                response = await fetch('/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
+                response = await fetch((typeof WCIConfig !== 'undefined' ? WCIConfig.getEndpoint('hrsWriteQuota', { v: '20251011_v3' }) : null) || '/wci/hrs/hrs_write_quota_v3.php?v=20251011_v3', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

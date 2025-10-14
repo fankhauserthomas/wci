@@ -1814,19 +1814,19 @@
          */
         async function wciFetch(urlOrEndpoint, options = {}) {
             await WCIConfig.init();
-            
+
             let url = urlOrEndpoint;
-            
+
             // Wenn es eine relative URL ist, baue die volle URL
             if (urlOrEndpoint.startsWith('/wci/')) {
-                const baseUrl = WCIConfig.get('urls.base', 'http://192.168.15.14:8080');
+                const baseUrl = WCIConfig.get('urls.base', WCIConfig.get('urls.fallback', 'http://192.168.15.14:8080'));
                 url = `${baseUrl}${urlOrEndpoint}`;
             }
             // Wenn es ein bekannter Endpoint-Name ist
             else if (!urlOrEndpoint.startsWith('http')) {
                 url = WCIConfig.getEndpoint(urlOrEndpoint);
             }
-            
+
             return fetch(url, options);
         }
 
@@ -2628,7 +2628,7 @@
 
                     // Use SSE for Daily Summary
                     await new Promise((resolve, reject) => {
-                        const eventSource = new EventSource(`../hrs/hrs_imp_daily_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+                        const eventSource = new EventSource(`${WCIConfig.get('paths.hrs', '/wci/hrs')}/hrs_imp_daily_stream.php?from=${dateFromStr}&to=${dateToStr}`);
                         let dailySuccess = false;
 
                         eventSource.onmessage = (event) => {
@@ -2712,7 +2712,7 @@
 
                     await new Promise((resolve, reject) => {
                         let quotaSuccess = false;
-                        const eventSource = new EventSource(`../hrs/hrs_imp_quota_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+                        const eventSource = new EventSource(`${WCIConfig.get("paths.hrs", "/wci/hrs")}/hrs_imp_quota_stream.php?from=${dateFromStr}&to=${dateToStr}`);
 
                         eventSource.onmessage = (event) => {
                             try {
@@ -2792,7 +2792,7 @@
 
                     await new Promise((resolve, reject) => {
                         let resSuccess = false;
-                        const eventSource = new EventSource(`../hrs/hrs_imp_res_stream.php?from=${dateFromStr}&to=${dateToStr}`);
+                        const eventSource = new EventSource(`${WCIConfig.get("paths.hrs", "/wci/hrs")}/hrs_imp_res_stream.php?from=${dateFromStr}&to=${dateToStr}`);
 
                         eventSource.onmessage = (event) => {
                             try {
@@ -2873,7 +2873,7 @@
                     await new Promise((resolve, reject) => {
                         let avCapSuccess = false;
                         const hutId = WCIConfig.get('hut.id', 675);
-                        const eventSource = new EventSource(`../api/imps/get_av_cap_range_stream.php?hutID=${hutId}&von=${dateFromStr}&bis=${dateToStr}`);
+                        const eventSource = new EventSource(`${WCIConfig.get("paths.api", "/wci/api")}/imps/get_av_cap_range_stream.php?hutID=${hutId}&von=${dateFromStr}&bis=${dateToStr}`);
 
                         eventSource.onmessage = (event) => {
                             try {
@@ -4295,7 +4295,7 @@
                     assignments: current.draft
                 };
                 try {
-                    const resp = await wciFetch('/wci/zp/assignRoomsToReservation.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const resp = await wciFetch(WCIConfig.getEndpoint('assignRoomsToReservation') || '/wci/zp/assignRoomsToReservation.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     const data = await resp.json().catch(() => ({ success: false, error: 'Invalid JSON' }));
                     if (!resp.ok || !data.success) { throw new Error(data.error || (`HTTP ${resp.status}`)); }
                     console.success('Zuweisungen gespeichert.');
@@ -4786,7 +4786,7 @@
 
                     async function loadArrangementDropdown(selectedValue) {
                         try {
-                            const response = await wciFetch('/wci/zp/getArrangements.php');
+                            const response = await wciFetch('" + (WCIConfig.getEndpoint("getArrangements") || "/wci/zp/getArrangements.php") + "');
                             const arrangements = await response.json();
                             const select = document.getElementById('dataset-arr');
                             select.innerHTML = '<option value="">Kein Arrangement</option>';
@@ -4808,7 +4808,7 @@
 
                     async function loadOriginDropdown(selectedValue) {
                         try {
-                            const response = await wciFetch('/wci/zp/getOrigins.php');
+                            const response = await wciFetch(WCIConfig.getEndpoint('getOrigins') || '/wci/zp/getOrigins.php');
                             const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
 
@@ -5027,7 +5027,7 @@
 
                     async function loadOriginDropdown(selectedValue) {
                         try {
-                            const response = await wciFetch('/wci/zp/getOrigins.php');
+                            const response = await wciFetch(WCIConfig.getEndpoint('getOrigins') || '/wci/zp/getOrigins.php');
                             const origins = await response.json();
                             const select = document.getElementById('dataset-origin');
                             select.innerHTML = '<option value="">Keine Herkunft</option>';
@@ -5168,7 +5168,7 @@
                 const result = await showDatasetModal(detail);
                 if (result) {
                     // Update AV_Res data via API
-                    const response = await wciFetch('/wci/zp/updateReservationMasterData.php', {
+                    const response = await wciFetch(WCIConfig.getEndpoint('updateReservationMasterData') || '/wci/zp/updateReservationMasterData.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -5216,7 +5216,7 @@
                     hund: hundStatus ? 1 : 0
                 };
 
-                const response = await wciFetch('/wci/zp/updateRoomDetailAttributes.php', {
+                const response = await wciFetch(WCIConfig.getEndpoint('updateRoomDetailAttributes') || '/wci/zp/updateRoomDetailAttributes.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5403,7 +5403,7 @@
                 const cacheBuster = `?cb=${Date.now()}`;
 
                 const roomsFetchPromise = wciFetch(`/wci/zp/getRooms.php?start=${startDateStr}&end=${endDateStr}`).catch(error => { console.error('Rooms fetch failed:', error); return error; });
-                const arrangementsFetchPromise = wciFetch('/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
+                const arrangementsFetchPromise = wciFetch(WCIConfig.getEndpoint('getArrangementsRoot') || '/wci/get-arrangements.php').catch(error => { console.error('Arrangements fetch failed:', error); return error; });
                 const histogramFetchPromise = wciFetch(`/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Histogram fetch failed:', error); return error; });
                 const masterDataFetchPromise = wciFetch(`/wci/zp/getReservationMasterData.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`).catch(error => { console.error('Master data fetch failed:', error); return error; });
 
@@ -6000,7 +6000,7 @@
     <!-- Quota Management System -->
     <script>
         // Lade Modal-HTML dynamisch (V3.0 - Management API)
-        wciFetch('/wci/zp/quota-input-modal.html?v=36')
+        wciFetch((WCIConfig.getEndpoint('quotaInputModal') || '/wci/zp/quota-input-modal.html') + '?v=36')
             .then(response => response.text())
             .then(html => {
                 const div = document.createElement('div');

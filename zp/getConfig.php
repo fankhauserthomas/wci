@@ -24,10 +24,23 @@ try {
         // URL-Konfiguration
         'urls' => [
             'base' => BASE_URL,
+            'fallback' => FALLBACK_BASE_URL,
             'wci' => API_BASE_URL,
             'zp' => BASE_URL . ZP_PATH,
             'reservations' => BASE_URL . RESERVATIONS_PATH,
-            'pictures' => BASE_URL . PIC_PATH
+            'pictures' => BASE_URL . PIC_PATH,
+            'hrs' => BASE_URL . HRS_PATH,
+            'api' => BASE_URL . API_PATH
+        ],
+        
+        // Pfade (relativ ohne Domain)
+        'paths' => [
+            'wci' => WCI_PATH,
+            'zp' => ZP_PATH,
+            'reservations' => RESERVATIONS_PATH,
+            'pictures' => PIC_PATH,
+            'hrs' => HRS_PATH,
+            'api' => API_PATH
         ],
         
         // HRS-Konfiguration (ohne Passwörter!)
@@ -46,23 +59,16 @@ try {
             'default_timeline_days' => DEFAULT_TIMELINE_DAYS
         ],
         
-        // API-Endpunkte (relativ zu base URL)
-        'endpoints' => [
-            'rooms' => ZP_PATH . '/getRooms.php',
-            'av_reservation_data' => ZP_PATH . '/getAVReservationData.php',
-            'arrangements' => ZP_PATH . '/getArrangements.php',
-            'origins' => ZP_PATH . '/getOrigins.php',
-            'countries' => ZP_PATH . '/getCountries.php',
-            'update_room_detail' => ZP_PATH . '/updateRoomDetail.php',
-            'update_room_detail_attributes' => ZP_PATH . '/updateRoomDetailAttributes.php',
-            'update_reservation_master_data' => ZP_PATH . '/updateReservationMasterData.php',
-            'assign_rooms' => ZP_PATH . '/assignRoomsToReservation.php',
-            'split_reservation_detail' => RESERVATIONS_PATH . '/api/splitReservationDetail.php',
-            'split_reservation_by_date' => RESERVATIONS_PATH . '/api/splitReservationByDate.php',
-            'delete_reservation_detail' => RESERVATIONS_PATH . '/api/deleteReservationDetail.php',
-            'delete_reservation_all_details' => RESERVATIONS_PATH . '/api/deleteReservationAllDetails.php',
-            'update_reservation_designation' => RESERVATIONS_PATH . '/api/updateReservationDesignation.php'
-        ]
+        // API-Endpunkte (alle verfügbaren Endpunkte)
+        'endpoints' => array_merge(
+            TIMELINE_ENDPOINTS,
+            [
+                'rooms' => ZP_PATH . '/getRooms.php',
+                'av_reservation_data' => ZP_PATH . '/getAVReservationData.php',
+                'update_room_detail' => ZP_PATH . '/updateRoomDetail.php',
+                'assign_rooms' => ZP_PATH . '/assignRoomsToReservation.php'
+            ]
+        )
     ];
     
     // Erfolgreiche Antwort

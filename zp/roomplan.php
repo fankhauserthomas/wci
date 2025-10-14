@@ -514,7 +514,7 @@ try {
         $infoFontPt = 6.0;
         $statusFontPt = 6.0;
 
-        $dogIconPath = __DIR__ . '/../pic/DogProfile.png';
+        $dogIconPath = dirname(__DIR__) . PIC_PATH . '/DogProfile.png';
         $dogIconAvailable = is_file($dogIconPath);
         $dogIconRatio = 1.0;
         if ($dogIconAvailable) {
@@ -529,7 +529,7 @@ try {
         $dogIconWidthMm = $dogIconHeightMm * $dogIconRatio;
         $dogIconBaselineAdjust = ptToMm($detailFontPt) * 0.35;
 
-        $leaveIconPath = __DIR__ . '/../pic/leave.png';
+        $leaveIconPath = dirname(__DIR__) . PIC_PATH . '/leave.png';
         $leaveIconAvailable = is_file($leaveIconPath);
         $leaveIconRatio = 1.0;
         if ($leaveIconAvailable) {

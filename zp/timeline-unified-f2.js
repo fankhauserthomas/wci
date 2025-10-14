@@ -8,24 +8,27 @@ async function timelineFetch(urlOrEndpoint, options = {}) {
     // Warte auf Konfiguration falls WCIConfig verfügbar ist
     if (typeof WCIConfig !== 'undefined') {
         await WCIConfig.init();
-        
+
         let url = urlOrEndpoint;
-        
+
         // Wenn es eine relative URL ist, baue die volle URL
         if (urlOrEndpoint.startsWith('/wci/')) {
-            const baseUrl = WCIConfig.get('urls.base', 'http://192.168.15.14:8080');
+            const baseUrl = WCIConfig.get('urls.base', WCIConfig.get('urls.fallback'));
             url = `${baseUrl}${urlOrEndpoint}`;
         }
         // Wenn es ein bekannter Endpoint-Name ist
         else if (!urlOrEndpoint.startsWith('http')) {
             url = WCIConfig.getEndpoint(urlOrEndpoint);
         }
-        
+
         return fetch(url, options);
     } else {
-        // Fallback ohne Konfiguration - verwende direkt die URL
+        // Fallback ohne Konfiguration - verwende Basis-URL Fallback  
         if (urlOrEndpoint.startsWith('/wci/')) {
-            return fetch(`http://192.168.15.14:8080${urlOrEndpoint}`, options);
+            const baseUrl = (typeof WCIConfig !== 'undefined' && WCIConfig.get)
+                ? WCIConfig.get('urls.fallback', WCIConfig.get('urls.base', 'http://192.168.15.14:8080'))
+                : 'http://192.168.15.14:8080';
+            return fetch(`${baseUrl}${urlOrEndpoint}`, options);
         }
         return fetch(urlOrEndpoint, options);
     }
@@ -2608,7 +2611,7 @@ class TimelineUnifiedRenderer {
                 this._cautionImageLoaded = true;
                 this.scheduleRender('caution_icon_loaded');
             };
-            this._cautionImage.src = '/wci/pic/caution.svg';
+            this._cautionImage.src = WCIConfig.getEndpoint('cautionIcon') || '/wci/pic/caution.svg';
         }
 
         if (this._cautionImageLoaded || (this._cautionImage.complete && this._cautionImage.naturalWidth > 0)) {
@@ -2759,7 +2762,7 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        timelineFetch('/wci/zp/updateRoomDetail.php', {
+        timelineFetch(WCIConfig.getEndpoint('updateRoomDetail') || '/wci/zp/updateRoomDetail.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2839,7 +2842,7 @@ class TimelineUnifiedRenderer {
             return;
         }
 
-        timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
+        timelineFetch(WCIConfig.getEndpoint('updateRoomDetailAttributes') || '/wci/zp/updateRoomDetailAttributes.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -7374,7 +7377,7 @@ class TimelineUnifiedRenderer {
 
             // Update database with new note
             try {
-                const response = await timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
+                const response = await timelineFetch(WCIConfig.getEndpoint('updateRoomDetailAttributes') || '/wci/zp/updateRoomDetailAttributes.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -7472,7 +7475,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende Split-Request:', requestData);
 
-        timelineFetch('/wci/reservierungen/api/splitReservationDetail.php', {
+        timelineFetch(WCIConfig.getEndpoint('splitReservationDetail') || '/wci/reservierungen/api/splitReservationDetail.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7555,7 +7558,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende Split-By-Date-Request:', requestData);
 
-        timelineFetch('/wci/reservierungen/api/splitReservationByDate.php', {
+        timelineFetch(WCIConfig.getEndpoint('splitReservationByDate') || '/wci/reservierungen/api/splitReservationByDate.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -7762,7 +7765,7 @@ class TimelineUnifiedRenderer {
             }
 
             // AJAX-Aufruf zur API für das Löschen aus der Datenbank
-            timelineFetch('/wci/reservierungen/api/deleteReservationDetail.php', {
+            timelineFetch(WCIConfig.getEndpoint('deleteReservationDetail') || '/wci/reservierungen/api/deleteReservationDetail.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -7825,7 +7828,7 @@ class TimelineUnifiedRenderer {
             }
 
             // AJAX-Aufruf zur API für das Löschen aller Details aus der Datenbank
-            timelineFetch('/wci/reservierungen/api/deleteReservationAllDetails.php', {
+            timelineFetch(WCIConfig.getEndpoint('deleteReservationAllDetails') || '/wci/reservierungen/api/deleteReservationAllDetails.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -7907,7 +7910,7 @@ class TimelineUnifiedRenderer {
 
         console.log('Sende API-Request:', requestData);
 
-        timelineFetch('/wci/reservierungen/api/updateReservationDesignation.php', {
+        timelineFetch(WCIConfig.getEndpoint('updateReservationDesignation') || '/wci/reservierungen/api/updateReservationDesignation.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -8204,7 +8207,7 @@ class TimelineUnifiedRenderer {
             this.render();
 
             // API-Aufruf für Dataset-Update
-            timelineFetch('/wci/zp/updateReservationMasterData.php', {
+            timelineFetch(WCIConfig.getEndpoint('updateReservationMasterData') || '/wci/zp/updateReservationMasterData.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -12701,7 +12704,7 @@ class TimelineUnifiedRenderer {
             if (!this._dogSvgImage) {
                 this._dogSvgImage = new Image();
                 this._dogSvgImage.onload = () => this.render();
-                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
+                this._dogSvgImage.src = WCIConfig.getEndpoint('dogIcon') || '/wci/pic/DogProfile.svg';
             }
 
             if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
@@ -13166,7 +13169,7 @@ class TimelineUnifiedRenderer {
             if (!this._dogSvgImage) {
                 this._dogSvgImage = new Image();
                 this._dogSvgImage.onload = () => this.render();
-                this._dogSvgImage.src = '/wci/pic/DogProfile.svg';
+                this._dogSvgImage.src = WCIConfig.getEndpoint('dogIcon') || '/wci/pic/DogProfile.svg';
             }
 
             if (this._dogSvgImage.complete && this._dogSvgImage.naturalWidth > 0) {
@@ -13850,7 +13853,7 @@ class TimelineUnifiedRenderer {
 
         try {
             // Save to database
-            const response = await timelineFetch('/wci/zp/updateRoomDetailAttributes.php', {
+            const response = await timelineFetch(WCIConfig.getEndpoint('updateRoomDetailAttributes') || '/wci/zp/updateRoomDetailAttributes.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

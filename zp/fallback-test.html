@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Fallback Test System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .config-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .fallback-log {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        #log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 URL Fallback Test System</h1>
+
+    <div class="test-container">
+        <h3>1. Konfigurationsstatus</h3>
+        <div id="configStatus"></div>
+        <div id="configDisplay" class="config-display"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>2. Fallback Test Controls</h3>
+        <button onclick="testNormalConfig()">✅ Test Normal Config</button>
+        <button onclick="simulateConfigFailure()">⚠️ Simuliere Config-Ausfall</button>
+        <button onclick="testFallbackUrls()">🔄 Test Fallback URLs</button>
+        <button onclick="clearLog()">🧹 Log leeren</button>
+    </div>
+
+    <div class="test-container">
+        <h3>3. Test Ergebnisse & Fallback Log</h3>
+        <div id="log"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>4. Live URL Monitor</h3>
+        <p>Überwacht alle ausgehenden fetch() Aufrufe und zeigt verwendete URLs:</p>
+        <div id="urlMonitor"></div>
+    </div>
+
+    <!-- Include WCI Configuration System -->
+    <script src="wci-config.js"></script>
+
+    <script>
+        // Fallback Detection System
+        let fallbackLog = [];
+        let originalFetch = window.fetch;
+        let configBackup = null;
+
+        // Überwache alle fetch() Aufrufe
+        window.fetch = function (...args) {
+            const url = args[0];
+            const isFallback = typeof url === 'string' && url.includes('192.168.15.14:8080');
+
+            if (isFallback) {
+                logFallback(`🚨 FALLBACK AUSGELÖST: ${url}`, 'warning');
+            } else {
+                logFallback(`✅ Normal: ${url}`, 'success');
+            }
+
+            updateUrlMonitor(url, isFallback);
+            return originalFetch.apply(this, args);
+        };
+
+        function logFallback(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            fallbackLog.push({ timestamp, message, type });
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = fallbackLog.slice(-20).map(entry =>
+                `<div class="status ${entry.type}">[${entry.timestamp}] ${entry.message}</div>`
+            ).join('');
+        }
+
+        function updateUrlMonitor(url, isFallback) {
+            const monitor = document.getElementById('urlMonitor');
+            const className = isFallback ? 'warning' : 'success';
+            const icon = isFallback ? '⚠️' : '✅';
+            monitor.innerHTML = `<div class="status ${className}">${icon} Letzte URL: ${url}</div>`;
+        }
+
+        function clearLog() {
+            fallbackLog = [];
+            updateLogDisplay();
+            document.getElementById('urlMonitor').innerHTML = '<div class="status info">Warte auf fetch() Aufrufe...</div>';
+        }
+
+        async function testNormalConfig() {
+            logFallback('🔄 Teste normale Konfiguration...', 'info');
+
+            try {
+                await WCIConfig.init();
+                const baseUrl = WCIConfig.get('urls.base');
+                const fallbackUrl = WCIConfig.get('urls.fallback');
+
+                logFallback(`✅ Config geladen: base=${baseUrl}, fallback=${fallbackUrl}`, 'success');
+
+                // Test API call
+                const testUrl = WCIConfig.getEndpoint('getArrangements') || '/wci/zp/getArrangements.php';
+                logFallback(`🧪 Teste API Call: ${testUrl}`, 'info');
+
+                await fetch(testUrl).catch(err => {
+                    logFallback(`❌ API Test fehlgeschlagen: ${err.message}`, 'error');
+                });
+
+            } catch (error) {
+                logFallback(`❌ Config-Test fehlgeschlagen: ${error.message}`, 'error');
+            }
+        }
+
+        async function simulateConfigFailure() {
+            logFallback('⚠️ Simuliere Konfigurationsausfall...', 'warning');
+
+            // Backup der aktuellen Config
+            configBackup = { ...WCIConfig.config };
+
+            // Config "kaputt machen"
+            WCIConfig.config = null;
+            WCIConfig.initialized = false;
+
+            logFallback('💀 Konfiguration deaktiviert - nächste Calls sollten Fallback verwenden', 'warning');
+
+            // Test fetch mit kaputt Config
+            try {
+                if (typeof timelineFetch === 'function') {
+                    await timelineFetch('/wci/zp/getArrangements.php');
+                } else {
+                    await fetch('/wci/zp/getArrangements.php');
+                }
+            } catch (error) {
+                logFallback(`⚠️ Fallback-Test Fehler: ${error.message}`, 'warning');
+            }
+
+            // Config wiederherstellen nach 3 Sekunden
+            setTimeout(() => {
+                if (configBackup) {
+                    WCIConfig.config = configBackup;
+                    WCIConfig.initialized = true;
+                    configBackup = null;
+                    logFallback('♻️ Konfiguration wiederhergestellt', 'success');
+                    updateConfigDisplay();
+                }
+            }, 3000);
+        }
+
+        async function testFallbackUrls() {
+            logFallback('🧪 Teste verschiedene Fallback-Szenarien...', 'info');
+
+            const testUrls = [
+                '/wci/zp/getArrangements.php',
+                '/wci/zp/getOrigins.php',
+                '/wci/hrs/hrs_write_quota_v3.php',
+                '/wci/pic/caution.svg'
+            ];
+
+            for (const url of testUrls) {
+                try {
+                    logFallback(`🔄 Teste: ${url}`, 'info');
+                    await fetch(url).catch(() => { }); // Ignore errors, we just want to see the URL
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay
+                } catch (error) {
+                    logFallback(`⚠️ Test-Error: ${error.message}`, 'warning');
+                }
+            }
+
+            logFallback('✅ Fallback-Tests abgeschlossen', 'success');
+        }
+
+        function updateConfigDisplay() {
+            const statusDiv = document.getElementById('configStatus');
+            const displayDiv = document.getElementById('configDisplay');
+
+            if (WCIConfig && WCIConfig.initialized && WCIConfig.config) {
+                statusDiv.innerHTML = '<div class="status success">✅ WCIConfig verfügbar und initialisiert</div>';
+                displayDiv.textContent = JSON.stringify({
+                    base: WCIConfig.get('urls.base'),
+                    fallback: WCIConfig.get('urls.fallback'),
+                    endpoints_count: Object.keys(WCIConfig.get('endpoints') || {}).length,
+                    initialized: WCIConfig.initialized
+                }, null, 2);
+            } else {
+                statusDiv.innerHTML = '<div class="status error">❌ WCIConfig nicht verfügbar oder nicht initialisiert</div>';
+                displayDiv.textContent = 'Konfiguration nicht verfügbar';
+            }
+        }
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', async () => {
+            logFallback('🚀 Fallback-Test-System gestartet', 'info');
+            updateConfigDisplay();
+
+            // Auto-update config display every 2 seconds
+            setInterval(updateConfigDisplay, 2000);
+        });
+    </script>
+</body>
+
+</html>
