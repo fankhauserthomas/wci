@@ -556,7 +556,9 @@ class TimelineUnifiedRenderer {
             isVisible: false,
             masterDataLookup: {}, // Lookup-Tabelle für Stammdaten
             loadingPromise: null,
-            metadata: null
+            metadata: null,
+            hoverTimer: null, // Timer für automatische Tooltip-Anzeige nach 200ms
+            lastHoveredReservation: null // Letzte Reservierung über die gehovered wurde
         };
 
         console.log('🎯 Constructor: Initialisiere Tooltip-System...');
@@ -4360,11 +4362,20 @@ class TimelineUnifiedRenderer {
 
         const capacity = this.extractNumericCapacity(source);
 
-        if (capacity <= 2) return baseColor;
-        if (capacity <= 5) return '#2ecc71';
-        if (capacity <= 10) return '#f39c12';
-        if (capacity <= 20) return '#e74c3c';
-        return '#9b59b6';
+        // Neue Farblogik basierend auf Gästeanzahl:
+        // 1-2 Gäste: Hellgrün (kleine Gruppe)
+        if (capacity >= 1 && capacity <= 2) return '#90EE90'; // LightGreen
+        // 3-4 Gäste: Grau (kleine bis mittlere Gruppe)  
+        if (capacity >= 3 && capacity <= 4) return '#808080'; // Gray
+        // 5-10 Gäste: Gelb (mittlere Gruppe)
+        if (capacity >= 5 && capacity <= 10) return '#FFFF00'; // Yellow
+        // 11-25 Gäste: Orange (größere Gruppe)
+        if (capacity >= 11 && capacity <= 25) return '#FFA500'; // Orange
+        // 26+ Gäste: Rot (sehr große Gruppe)
+        if (capacity >= 26) return '#FF0000'; // Red
+
+        // Fallback für capacity = 0 oder ungültige Werte
+        return baseColor;
     }
 
     updateNavigationOverview() {
@@ -5096,8 +5107,32 @@ class TimelineUnifiedRenderer {
             this.handleMouseUp(e);
         });
 
+        this.canvas.addEventListener('mouseleave', () => {
+            // Timer löschen und Tooltip ausblenden wenn Maus Canvas verlässt
+            if (this.tooltip.hoverTimer) {
+                clearTimeout(this.tooltip.hoverTimer);
+                this.tooltip.hoverTimer = null;
+            }
+
+            this.hoveredReservation = null;
+            this.tooltip.lastHoveredReservation = null;
+
+            // Tooltip nur ausblenden wenn nicht über Tooltip gehovered wird
+            setTimeout(() => {
+                if (this.tooltip.isVisible && !this.isMouseOverTooltip()) {
+                    this.hideTooltip();
+                }
+            }, 100);
+
+            this.scheduleRender('mouse_leave');
+        });
+
         // Global mouse events für besseres Drag & Drop - nur ein Handler
         document.addEventListener('mousemove', (e) => {
+            // Globale Mausposition für Tooltip-Checks speichern
+            this.lastGlobalMouseX = e.clientX;
+            this.lastGlobalMouseY = e.clientY;
+
             // Optimiertes Throttling für alle Drag-Operationen
             const now = Date.now();
             // Disable throttling for sticky note dragging for live feedback
@@ -12343,13 +12378,72 @@ class TimelineUnifiedRenderer {
 
     // Hilfsmethoden
     checkHover() {
-        // Nur im Rooms-Bereich nach Reservierungen suchen
-        if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
-            const reservation = this.findReservationAt(this.mouseX, this.mouseY);
-            this.hoveredReservation = reservation;
-        } else {
-            this.hoveredReservation = null;
+        let reservation = null;
+        let isInMasterArea = false;
+
+        // Prüfe Master-Bereich
+        if (this.mouseY >= this.areas.master.y && this.mouseY <= this.areas.master.y + this.areas.master.height) {
+            reservation = this.findMasterReservationAt(this.mouseX, this.mouseY);
+            isInMasterArea = true;
         }
+        // Prüfe Rooms-Bereich falls keine Master-Reservierung gefunden
+        else if (this.mouseY >= this.areas.rooms.y && this.mouseY <= this.areas.rooms.y + this.areas.rooms.height) {
+            reservation = this.findReservationAt(this.mouseX, this.mouseY);
+            isInMasterArea = false;
+        }
+
+        // Hover-Timer Management NUR für Master-Bereich (Room-Bereich hat Drag & Drop Konflikte)
+        const prevHovered = this.tooltip.lastHoveredReservation;
+        this.hoveredReservation = reservation;
+
+        // Wenn Reservierung sich geändert hat
+        if (reservation !== prevHovered) {
+            // Timer zurücksetzen
+            if (this.tooltip.hoverTimer) {
+                clearTimeout(this.tooltip.hoverTimer);
+                this.tooltip.hoverTimer = null;
+            }
+
+            this.tooltip.lastHoveredReservation = reservation;
+
+            // Sofortiger Wechsel wenn bereits Tooltip sichtbar und neue Master-Reservierung
+            if (reservation && isInMasterArea && this.tooltip.isVisible) {
+                // Sofort neue Info anzeigen ohne Timer
+                this.showTooltip(reservation);
+            }
+            // Neuen Timer starten NUR wenn über Master-Bereich Reservierung gehovered wird und noch kein Tooltip sichtbar
+            else if (reservation && isInMasterArea && !this.tooltip.isVisible) {
+                this.tooltip.hoverTimer = setTimeout(() => {
+                    // Prüfe ob noch über derselben Reservierung
+                    if (this.tooltip.lastHoveredReservation === reservation && !this.tooltip.isVisible) {
+                        this.showTooltip(reservation);
+                    }
+                    this.tooltip.hoverTimer = null;
+                }, 200); // 200ms Verzögerung nur für Master-Bereich
+            }
+            // Tooltip ausblenden wenn keine Reservierung mehr gehovered wird
+            else if (!reservation && this.tooltip.isVisible) {
+                this.hideTooltip();
+            }
+        }
+    }
+
+    isMouseOverTooltip(clientX = null, clientY = null) {
+        if (!this.tooltip.element || !this.tooltip.isVisible) {
+            return false;
+        }
+
+        // Verwende aktuelle Mausposition wenn keine Parameter übergeben
+        const mouseX = clientX !== null ? clientX : (this.lastGlobalMouseX || 0);
+        const mouseY = clientY !== null ? clientY : (this.lastGlobalMouseY || 0);
+
+        const tooltipRect = this.tooltip.element.getBoundingClientRect();
+        return (
+            mouseX >= tooltipRect.left &&
+            mouseX <= tooltipRect.right &&
+            mouseY >= tooltipRect.top &&
+            mouseY <= tooltipRect.bottom
+        );
     }
 
     isReservationHovered(x, y, width, height) {
@@ -14230,12 +14324,19 @@ class TimelineUnifiedRenderer {
     hideTooltip() {
         if (!this.tooltip.isVisible) return;
 
+        // Timer löschen falls noch aktiv
+        if (this.tooltip.hoverTimer) {
+            clearTimeout(this.tooltip.hoverTimer);
+            this.tooltip.hoverTimer = null;
+        }
+
         this.tooltip.element.classList.remove('show');
         setTimeout(() => {
             this.tooltip.element.style.display = 'none';
         }, 150);
         this.tooltip.isVisible = false;
         this.tooltip.currentReservation = null;
+        this.tooltip.lastHoveredReservation = null;
     }
 
     formatTooltipContent(data) {
@@ -14372,27 +14473,102 @@ class TimelineUnifiedRenderer {
     positionTooltip() {
         const rect = this.canvas.getBoundingClientRect();
         const tooltipEl = this.tooltip.element;
+
+        // Tooltip sichtbar machen um Dimensionen zu messen
+        tooltipEl.style.display = 'block';
+        tooltipEl.style.visibility = 'hidden'; // Unsichtbar aber messbar
+
         const tooltipRect = tooltipEl.getBoundingClientRect();
+        const padding = 15;
 
-        let left = rect.left + this.mouseX - (tooltipRect.width / 2);
-        let top = rect.top + this.mouseY - tooltipRect.height - 15;
+        // Mausposition auf Bildschirm
+        const mouseScreenX = rect.left + this.mouseX;
+        const mouseScreenY = rect.top + this.mouseY;
 
-        const padding = 10;
+        // Prüfe ob wir im Master-Bereich sind für spezielle Positionierung
+        const isInMasterArea = this.mouseY >= this.areas.master.y &&
+            this.mouseY <= this.areas.master.y + this.areas.master.height;
 
-        if (left < padding) {
-            left = padding;
-        } else if (left + tooltipRect.width > window.innerWidth - padding) {
-            left = window.innerWidth - tooltipRect.width - padding;
-        }
-        if (top < padding) {
-            top = rect.top + this.mouseY + 15;
-            tooltipEl.className = 'tooltip bs-tooltip-bottom fade show';
+        let left, top, tooltipClass;
+
+        if (isInMasterArea) {
+            // DIREKT UNTER dem Balken positionieren für nahtlose UX
+            const masterBarHeight = this.MASTER_BAR_HEIGHT || 14;
+            const balkenBottom = rect.top + this.mouseY + (masterBarHeight / 2) + 5; // 5px Abstand zum Balken
+
+            // Horizontal zentriert über dem Balken
+            left = mouseScreenX - (tooltipRect.width / 2);
+            top = balkenBottom;
+            tooltipClass = 'tooltip bs-tooltip-bottom fade show';
+
+            // Prüfe ob genug Platz unten ist
+            if (top + tooltipRect.height > window.innerHeight - padding) {
+                // Kein Platz unten - über dem Balken anzeigen
+                top = rect.top + this.mouseY - (masterBarHeight / 2) - tooltipRect.height - 5;
+                tooltipClass = 'tooltip bs-tooltip-top fade show';
+
+                // Falls auch oben kein Platz - seitlich
+                if (top < padding) {
+                    top = mouseScreenY - (tooltipRect.height / 2);
+                    const rightSpace = window.innerWidth - mouseScreenX - padding;
+                    const leftSpace = mouseScreenX - padding;
+
+                    if (rightSpace >= tooltipRect.width + 20) {
+                        left = mouseScreenX + 15;
+                        tooltipClass = 'tooltip bs-tooltip-end fade show';
+                    } else if (leftSpace >= tooltipRect.width + 20) {
+                        left = mouseScreenX - tooltipRect.width - 15;
+                        tooltipClass = 'tooltip bs-tooltip-start fade show';
+                    }
+                }
+            }
         } else {
-            tooltipEl.className = 'tooltip bs-tooltip-top fade show';
+            // Standard F2-Positionierung für andere Bereiche
+            const spaceTop = mouseScreenY - padding;
+            const spaceBottom = window.innerHeight - mouseScreenY - padding;
+
+            if (spaceTop >= tooltipRect.height + 20) {
+                // Oben anzeigen
+                top = mouseScreenY - tooltipRect.height - 15;
+                left = mouseScreenX - (tooltipRect.width / 2);
+                tooltipClass = 'tooltip bs-tooltip-top fade show';
+            } else if (spaceBottom >= tooltipRect.height + 20) {
+                // Unten anzeigen
+                top = mouseScreenY + 15;
+                left = mouseScreenX - (tooltipRect.width / 2);
+                tooltipClass = 'tooltip bs-tooltip-bottom fade show';
+            } else {
+                // Seitlich oder zentriert
+                const rightSpace = window.innerWidth - mouseScreenX - padding;
+                const leftSpace = mouseScreenX - padding;
+
+                if (rightSpace >= tooltipRect.width + 20) {
+                    left = mouseScreenX + 15;
+                    top = mouseScreenY - (tooltipRect.height / 2);
+                    tooltipClass = 'tooltip bs-tooltip-end fade show';
+                } else if (leftSpace >= tooltipRect.width + 20) {
+                    left = mouseScreenX - tooltipRect.width - 15;
+                    top = mouseScreenY - (tooltipRect.height / 2);
+                    tooltipClass = 'tooltip bs-tooltip-start fade show';
+                } else {
+                    left = (window.innerWidth - tooltipRect.width) / 2;
+                    top = (window.innerHeight - tooltipRect.height) / 2;
+                    tooltipClass = 'tooltip bs-tooltip-top fade show';
+                }
+            }
         }
 
+        // ABSOLUTE Sicherstellung: Tooltip muss KOMPLETT im Viewport bleiben
+        left = Math.max(padding, left);
+        left = Math.min(left, window.innerWidth - tooltipRect.width - padding);
+        top = Math.max(padding, top);
+        top = Math.min(top, window.innerHeight - tooltipRect.height - padding);
+
+        // Finale Anwendung
+        tooltipEl.className = tooltipClass;
         tooltipEl.style.left = `${left}px`;
         tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.visibility = 'visible'; // Wieder sichtbar machen
     }
 }
 
