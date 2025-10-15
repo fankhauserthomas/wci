@@ -114,6 +114,12 @@
                 this.openQuotaModal();
                 menu.remove();
             };
+            // Verhindere Kontextmenü auf Button
+            quotaButton.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
 
             menu.appendChild(quotaButton);
 
@@ -136,6 +142,12 @@
                 this.openHRSImportDialog();
                 menu.remove();
             };
+            // Verhindere Kontextmenü auf Button
+            hrsImportButton.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
 
             menu.appendChild(hrsImportButton);
 
@@ -155,10 +167,32 @@
                 this.scheduleRender('clear_selection');
                 menu.remove();
             };
+            // Verhindere Kontextmenü auf Button
+            clearButton.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
 
             menu.appendChild(clearButton);
 
             document.body.appendChild(menu);
+
+            // WICHTIG: Verhindere Browser-Kontextmenü auf dem Menu selbst
+            menu.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+
+            // Verhindere auch mouseup Events, die zum Browser-Kontextmenü führen könnten
+            menu.addEventListener('mouseup', (e) => {
+                if (e.button === 2) { // Rechtsklick
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            });
 
             // Positioniere Menu innerhalb des Viewports
             const menuRect = menu.getBoundingClientRect();
@@ -194,10 +228,14 @@
                 if (!menu.contains(e.target)) {
                     menu.remove();
                     document.removeEventListener('click', closeMenu);
+                    document.removeEventListener('contextmenu', closeMenu);
                 }
             };
 
-            setTimeout(() => document.addEventListener('click', closeMenu), 10);
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+                document.addEventListener('contextmenu', closeMenu);
+            }, 10);
         };
 
         /**
