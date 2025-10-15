@@ -178,9 +178,14 @@ class WCIConfigManager {
      * @returns {string} Vollständige URL zum Endpunkt
      */
     getEndpoint(endpointName, params = {}) {
+        if (!this.initialized) {
+            console.warn(`🔄 WCIConfig: Configuration not initialized – cannot resolve endpoint '${endpointName}'`);
+            return null;
+        }
+
         const endpointPath = this.get(`endpoints.${endpointName}`);
         if (!endpointPath) {
-            console.warn(`Endpunkt '${endpointName}' nicht gefunden`);
+            console.warn(`🔄 WCIConfig: Endpoint '${endpointName}' not found`);
             return null;
         }
 
@@ -229,12 +234,17 @@ class WCIConfigManager {
      * @returns {string} Vollständige URL
      */
     getEndpoint(endpointName, params = {}) {
+        if (!this.initialized) {
+            console.warn(`🔄 WCIConfig: Configuration not initialized – cannot resolve endpoint '${endpointName}'`);
+            return null;
+        }
+
         const baseUrl = this.get('urls.base', '');
         const endpointPath = this.get(`endpoints.${endpointName}`);
 
         if (!endpointPath) {
             console.warn(`🔄 WCIConfig: Endpoint '${endpointName}' not found`);
-            return `${baseUrl}/wci/api/${endpointName}.php`;
+            return null;
         }
 
         let url = `${baseUrl}${endpointPath}`;

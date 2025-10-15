@@ -6000,15 +6000,26 @@
     <!-- Quota Management System -->
     <script>
         // Lade Modal-HTML dynamisch (V3.0 - Management API)
-        wciFetch((WCIConfig.getEndpoint('quotaInputModal') || '/wci/zp/quota-input-modal.html') + '?v=36')
-            .then(response => response.text())
-            .then(html => {
-                const div = document.createElement('div');
-                div.innerHTML = html;
+        (async () => {
+            try {
+                await WCIConfig.init();
+
+                const configuredUrl = WCIConfig.getEndpoint('quotaInputModal', { v: 36 });
+                const fallbackUrl = '/wci/zp/quota-input-modal.html?v=36';
+                const modalUrl = configuredUrl || fallbackUrl;
+
+                const response = await wciFetch(modalUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const html = await response.text();
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html;
 
                 // Extrahiere und führe Script-Tags manuell aus
-                const scripts = div.querySelectorAll('script');
-                document.body.appendChild(div);
+                const scripts = wrapper.querySelectorAll('script');
+                document.body.appendChild(wrapper);
                 console.log('✅ Quota Modal geladen');
 
                 // Führe Scripts aus
@@ -6023,8 +6034,10 @@
                 });
 
                 console.log(`🚀 ${scripts.length} Script(s) ausgeführt`);
-            })
-            .catch(error => console.error('❌ Fehler beim Laden des Quota Modals:', error));
+            } catch (error) {
+                console.error('❌ Fehler beim Laden des Quota Modals:', error);
+            }
+        })();
     </script>
     <script src="quota-management-integration.js?v=29"></script>
 </body>
