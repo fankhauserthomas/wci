@@ -55,7 +55,60 @@ class HRSReservationImporterSSE {
     public function __construct($mysqli, HRSLogin $hrsLogin) {
         $this->mysqli = $mysqli;
         $this->hrsLogin = $hrsLogin;
+        
+                // Set charset für utf8mb3_general_ci Kompatibilität
+        if (!$this->mysqli->set_charset('utf8')) {
+            throw new Exception('Failed to set charset');
+        }
+        
+        // Set SQL mode to handle invalid dates gracefully
+        $this->mysqli->query("SET sql_mode = 'ALLOW_INVALID_DATES'");
+        
+        sendSSE('log', ['level' => 'info', 'message' => 'MySQL charset set to utf8 (utf8mb3_general_ci compatible)']);
+        
         sendSSE('log', ['level' => 'info', 'message' => 'HRS Reservation Importer initialized']);
+    }
+    
+    /**
+     * Sanitizes UTF-8 strings to be compatible with utf8mb3 collation
+     * Removes 4-byte UTF-8 characters (emojis, etc.) that cause collation conflicts
+     */
+    private function sanitizeUtf8String($string) {
+        if (empty($string)) return $string;
+        
+        // Remove 4-byte UTF-8 characters (emojis, etc.)
+        $sanitized = preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', $string);
+        
+        // Ensure proper encoding
+        if (!mb_check_encoding($sanitized, 'UTF-8')) {
+            $sanitized = mb_convert_encoding($sanitized, 'UTF-8', 'UTF-8');
+        }
+        
+        return trim($sanitized);
+    }
+    
+    /**
+     * Count records in AV-Res-webImp table
+     */
+    private function countWebimpRecords() {
+        $result = $this->mysqli->query("SELECT COUNT(*) as count FROM `AV-Res-webImp`");
+        return $result ? (int)$result->fetch_assoc()['count'] : 0;
+    }
+    
+    /**
+     * Count unique records in AV-Res-webImp table (by av_id)
+     */
+    private function countUniqueWebimpRecords() {
+        $result = $this->mysqli->query("SELECT COUNT(DISTINCT av_id) as count FROM `AV-Res-webImp`");
+        return $result ? (int)$result->fetch_assoc()['count'] : 0;
+    }
+    
+    /**
+     * Count records in AV-Res production table
+     */
+    private function countProductionRecords() {
+        $result = $this->mysqli->query("SELECT COUNT(*) as count FROM `AV-Res`");
+        return $result ? (int)$result->fetch_assoc()['count'] : 0;
     }
     
     public function importReservations($dateFrom, $dateTo) {
@@ -124,7 +177,20 @@ class HRSReservationImporterSSE {
             sendSSE('phase', ['step' => 'transfer', 'name' => 'Transfer', 'message' => 'Übertrage in Production-Tabelle...']);
             sendSSE('log', ['level' => 'info', 'message' => 'Starte Transfer von AV-Res-webImp nach AV-Res...']);
             
+            // Debug: Count records before transfer
+            $webimpCount = $this->countWebimpRecords();
+            $webimpUniqueCount = $this->countUniqueWebimpRecords();
+            $productionCountBefore = $this->countProductionRecords();
+            sendSSE('log', ['level' => 'debug', 'message' => 
+                "Vor Transfer: WebImp=$webimpCount (unique: $webimpUniqueCount), Production=$productionCountBefore"]);
+            
             if ($this->transferWebImpToProduction()) {
+                // Debug: Count records after transfer
+                $productionCountAfter = $this->countProductionRecords();
+                $transferred = $productionCountAfter - $productionCountBefore;
+                sendSSE('log', ['level' => 'debug', 'message' => 
+                    "Nach Transfer: Production=$productionCountAfter (Transfer-Delta: $transferred)"]);
+                
                 sendSSE('log', ['level' => 'success', 'message' => '✓ Transfer erfolgreich abgeschlossen']);
             } else {
                 sendSSE('log', ['level' => 'warning', 'message' => '⚠ Transfer mit Warnungen abgeschlossen']);
@@ -143,21 +209,57 @@ class HRSReservationImporterSSE {
      * Nutzt die bewährte Import-Logik aus import_webimp.php
      */
     private function transferWebImpToProduction() {
+        // Clean up duplicates before transfer
+        $this->cleanupDuplicates();
+        
+        // Analyze skipped records before transfer
+        $this->analyzeSkippedRecords();
+        
         $result = transferWebImpToProduction($this->mysqli, function ($level, $message) {
             sendSSE('log', ['level' => $level, 'message' => $message]);
         });
 
         if ($result['success']) {
             $stats = $result['stats'];
+            $totalTransferred = $stats['inserted'] + $stats['updated'] + $stats['unchanged'];
+            $webimpCount = $this->countWebimpRecords();
+            $skipped = max(0, $webimpCount - $totalTransferred); // Prevent negative values
+            
+            // Enhanced debugging for the 378 vs 357 discrepancy
+            sendSSE('log', ['level' => 'debug', 'message' => "🔍 Transfer Math: WebImp=$webimpCount, Transferred=$totalTransferred (neu:{$stats['inserted']}, upd:{$stats['updated']}, unv:{$stats['unchanged']})"]);
+            
             sendSSE('log', [
                 'level' => 'info',
                 'message' => sprintf(
-                    'Transfer-Statistik: %d neu, %d aktualisiert, %d unverändert',
+                    'Transfer-Statistik: %d neu, %d aktualisiert, %d unverändert (Übersprungen: %d)',
                     $stats['inserted'],
                     $stats['updated'],
-                    $stats['unchanged']
+                    $stats['unchanged'],
+                    $skipped
                 )
             ]);
+            
+            // Check for mathematical discrepancy
+            $mathDiscrepancy = $webimpCount - $totalTransferred;
+            if ($mathDiscrepancy != $skipped) {
+                sendSSE('log', ['level' => 'warning', 'message' => "⚠ Mathematik-Problem: WebImp($webimpCount) - Transferred($totalTransferred) = $mathDiscrepancy, aber Skipped=$skipped"]);
+            }
+            
+            if ($skipped > 0) {
+                sendSSE('log', ['level' => 'warning', 'message' => "⚠ $skipped Reservierungen wurden übersprungen"]);
+                $this->logSkippedRecords();
+            } elseif ($mathDiscrepancy > 0) {
+                // Even if skipped = 0, check if there's a real discrepancy
+                sendSSE('log', ['level' => 'warning', 'message' => "⚠ $mathDiscrepancy Reservierungen nicht transferiert (versteckte Filter?)"]);
+                $this->logSkippedRecords();
+            }
+            
+            // Additional check: Are some of the "unchanged" records actually new?
+            if ($stats['unchanged'] > 0 && $stats['inserted'] == 0) {
+                sendSSE('log', ['level' => 'info', 'message' => "🤔 Alle {$stats['unchanged']} Reservierungen als 'unverändert' klassifiziert - prüfe auf bereits existierende Records"]);
+                $this->analyzeUnchangedRecords();
+            }
+            
             return true;
         }
 
@@ -168,6 +270,156 @@ class HRSReservationImporterSSE {
         sendSSE('log', ['level' => 'error', 'message' => 'Transfer fehlgeschlagen: ' . $details]);
 
         return false;
+    }
+    
+    /**
+     * Clean up duplicate records in WebImp table
+     */
+    private function cleanupDuplicates() {
+        // Remove duplicates, keeping the latest timestamp
+        $deleteDuplicates = "
+            DELETE w1 FROM `AV-Res-webImp` w1
+            INNER JOIN `AV-Res-webImp` w2 
+            WHERE w1.av_id = w2.av_id 
+            AND w1.timestamp < w2.timestamp
+        ";
+        
+        $result = $this->mysqli->query($deleteDuplicates);
+        if ($result) {
+            $deletedCount = $this->mysqli->affected_rows;
+            if ($deletedCount > 0) {
+                sendSSE('log', ['level' => 'info', 'message' => "🧹 $deletedCount Duplikate aus WebImp entfernt"]);
+            }
+        }
+        
+        // Update counts after cleanup
+        $webimpCount = $this->countWebimpRecords();
+        $uniqueCount = $this->countUniqueWebimpRecords();
+        sendSSE('log', ['level' => 'debug', 'message' => "Nach Cleanup: WebImp=$webimpCount (unique: $uniqueCount)"]);
+    }
+
+    /**
+     * Analyze "unchanged" records to see if they were actually new
+     */
+    private function analyzeUnchangedRecords() {
+        // Check recent WebImp records that match Production records
+        $unchangedQuery = "
+            SELECT w.av_id, w.timestamp, p.timestamp as prod_timestamp
+            FROM `AV-Res-webImp` w
+            INNER JOIN `AV-Res` p ON w.av_id = p.av_id
+            WHERE w.timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+            ORDER BY w.av_id
+            LIMIT 10
+        ";
+        
+        $result = $this->mysqli->query($unchangedQuery);
+        if ($result && $result->num_rows > 0) {
+            sendSSE('log', ['level' => 'debug', 'message' => 'Beispiele "unveränderte" Records (WebImp vs Production):']);
+            while ($row = $result->fetch_assoc()) {
+                $webimpTime = $row['timestamp'] ?? 'NULL';
+                $prodTime = $row['prod_timestamp'] ?? 'NULL';
+                sendSSE('log', ['level' => 'debug', 'message' => 
+                    "AV-ID {$row['av_id']}: WebImp=$webimpTime, Prod=$prodTime"]);
+            }
+        }
+        
+        // Count how many WebImp records from this session already exist in Production
+        $existingQuery = "
+            SELECT COUNT(*) as count 
+            FROM `AV-Res-webImp` w
+            INNER JOIN `AV-Res` p ON w.av_id = p.av_id
+            WHERE w.timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        ";
+        
+        $existingResult = $this->mysqli->query($existingQuery);
+        if ($existingResult) {
+            $existingCount = $existingResult->fetch_assoc()['count'];
+            sendSSE('log', ['level' => 'info', 'message' => "📊 $existingCount von {$this->countWebimpRecords()} WebImp-Records existieren bereits in Production"]);
+        }
+    }
+
+    /**
+     * Analyze which records might be skipped during transfer
+     */
+    private function analyzeSkippedRecords() {
+        // Check for records with invalid dates
+        $invalidDates = $this->mysqli->query("
+            SELECT COUNT(*) as count FROM `AV-Res-webImp` 
+            WHERE anreise = '0000-00-00' OR abreise = '0000-00-00' 
+               OR anreise IS NULL OR abreise IS NULL
+               OR anreise > abreise
+        ");
+        
+        if ($invalidDates && $invalidDates->fetch_assoc()['count'] > 0) {
+            $count = $invalidDates->fetch_assoc()['count'];
+            sendSSE('log', ['level' => 'warning', 'message' => "⚠ $count Reservierungen mit ungültigen Daten gefunden"]);
+        }
+        
+        // Check for records with zero capacity
+        $zeroCapacity = $this->mysqli->query("
+            SELECT COUNT(*) as count FROM `AV-Res-webImp` 
+            WHERE (lager + betten + dz + sonder) = 0
+        ");
+        
+        if ($zeroCapacity && $zeroCapacity->fetch_assoc()['count'] > 0) {
+            $count = $zeroCapacity->fetch_assoc()['count'];
+            sendSSE('log', ['level' => 'info', 'message' => "ℹ $count Reservierungen ohne Kapazität (möglicherweise storniert)"]);
+        }
+    }
+    
+    /**
+     * Log details of skipped records
+     */
+    private function logSkippedRecords() {
+        // Find records that exist in webImp but not in production
+        $skippedQuery = "
+            SELECT w.av_id, w.anreise, w.abreise, w.lager, w.betten, w.dz, w.sonder, w.vorgang, w.timestamp
+            FROM `AV-Res-webImp` w
+            LEFT JOIN `AV-Res` p ON w.av_id = p.av_id
+            WHERE p.av_id IS NULL
+            ORDER BY w.av_id
+            LIMIT 25
+        ";
+        
+        $result = $this->mysqli->query($skippedQuery);
+        if ($result && $result->num_rows > 0) {
+            sendSSE('log', ['level' => 'debug', 'message' => 'Nicht transferierte Reservierungen:']);
+            $count = 0;
+            while ($row = $result->fetch_assoc()) {
+                $count++;
+                $capacity = $row['lager'] + $row['betten'] + $row['dz'] + $row['sonder'];
+                $anreise = $row['anreise'] ?: 'NULL';
+                $abreise = $row['abreise'] ?: 'NULL';
+                sendSSE('log', ['level' => 'debug', 'message' => 
+                    "$count. AV-ID {$row['av_id']}: $anreise → $abreise, Kap: $capacity, Status: {$row['vorgang']}"]);
+            }
+        }
+        
+        // Also check for records with invalid data
+        $invalidQuery = "
+            SELECT COUNT(*) as count FROM `AV-Res-webImp` 
+            WHERE anreise IS NULL OR abreise IS NULL OR anreise = '0000-00-00' OR abreise = '0000-00-00'
+        ";
+        $invalidResult = $this->mysqli->query($invalidQuery);
+        if ($invalidResult) {
+            $invalidCount = $invalidResult->fetch_assoc()['count'];
+            if ($invalidCount > 0) {
+                sendSSE('log', ['level' => 'warning', 'message' => "⚠ $invalidCount Reservierungen mit ungültigen Daten gefunden"]);
+            }
+        }
+        
+        // Check date range restrictions
+        $dateRangeQuery = "
+            SELECT COUNT(*) as count FROM `AV-Res-webImp` 
+            WHERE anreise < '2025-01-01' OR anreise > '2025-12-31'
+        ";
+        $dateRangeResult = $this->mysqli->query($dateRangeQuery);
+        if ($dateRangeResult) {
+            $dateRangeCount = $dateRangeResult->fetch_assoc()['count'];
+            if ($dateRangeCount > 0) {
+                sendSSE('log', ['level' => 'info', 'message' => "📅 $dateRangeCount Reservierungen außerhalb 2025 (möglicherweise gefiltert)"]);
+            }
+        }
     }
     
     /**
@@ -182,7 +434,7 @@ class HRSReservationImporterSSE {
     private function fetchAllReservations($dateFrom, $dateTo) {
         $allReservations = [];
         $page = 0;
-        $size = 100;
+        $size = 1000;
         
         do {
             $params = [
@@ -213,9 +465,15 @@ class HRSReservationImporterSSE {
             
             $data = json_decode($response['body'], true);
             
-            // Debug: Log full response for first page
+            // Debug: Log pagination info for first page
             if ($page === 0) {
                 sendSSE('log', ['level' => 'debug', 'message' => 'API Response Keys: ' . implode(', ', array_keys($data ?? []))]);
+                if (isset($data['page'])) {
+                    $pageInfo = $data['page'];
+                    sendSSE('log', ['level' => 'info', 'message' => 
+                        "Pagination: Seite {$pageInfo['number']}/{$pageInfo['totalPages']}, " .
+                        "Einträge: {$pageInfo['size']}, Gesamt: {$pageInfo['totalElements']}"]);
+                }
             }
             
             // Wichtig: HRS API gibt reservationsDataModelDTOList zurück, nicht reservationResponseDTOList!
@@ -243,7 +501,17 @@ class HRSReservationImporterSSE {
             
             sendSSE('log', ['level' => 'info', 'message' => "Seite " . ($page + 1) . ": " . count($pageReservations) . " Reservierungen"]);
             
-            $isLast = $data['last'] ?? true;
+            // Korrekte Pagination-Prüfung basierend auf page-Struktur
+            $pageInfo = $data['page'] ?? null;
+            $currentPage = $pageInfo['number'] ?? $page;
+            $totalPages = $pageInfo['totalPages'] ?? 1;
+            
+            // Fallback zu 'last' wenn page-Info nicht verfügbar
+            $isLastByFlag = $data['last'] ?? true;
+            $isLastByPage = ($currentPage + 1) >= $totalPages;
+            
+            $isLast = $pageInfo ? $isLastByPage : $isLastByFlag;
+            
             $page++;
             
         } while (!$isLast && count($pageReservations) > 0);
@@ -268,10 +536,10 @@ class HRSReservationImporterSSE {
             $av_id = (int)$av_id;
             
             // Gast-Name aufteilen
-            $guestName = $header['guestName'] ?? '';
+            $guestName = $this->sanitizeUtf8String($header['guestName'] ?? '');
             $nameParts = explode(' ', $guestName, 2);
-            $nachname = $nameParts[0] ?? '';
-            $vorname = $nameParts[1] ?? '';
+            $nachname = $this->sanitizeUtf8String($nameParts[0] ?? '');
+            $vorname = $this->sanitizeUtf8String($nameParts[1] ?? '');
             
             // Kategorie-Zuordnung verarbeiten
             $lager = 0; $betten = 0; $dz = 0; $sonder = 0;
@@ -299,22 +567,22 @@ class HRSReservationImporterSSE {
             $abreise = date('Y-m-d', strtotime($header['departureDate']));
             $hp = ($header['halfPension'] ?? false) ? 1 : 0;
             $vegi = $header['numberOfVegetarians'] ?? 0;
-            $gruppe = $header['groupName'] ?? '';
-            $vorgang = $header['status'] ?? 'UNKNOWN';
+            $gruppe = $this->sanitizeUtf8String($header['groupName'] ?? '');
+            $vorgang = $this->sanitizeUtf8String($header['status'] ?? 'UNKNOWN');
             
             // Kontakt-Daten und Kommentare aus body.leftList extrahieren
             $handy = '';
             $bem_av = '';
-            $email = $reservation['guestEmail'] ?? '';
+            $email = $this->sanitizeUtf8String($reservation['guestEmail'] ?? '');
             $email_date = null;
             
             if (isset($body['leftList']) && is_array($body['leftList'])) {
                 foreach ($body['leftList'] as $item) {
                     if (isset($item['label'])) {
                         if ($item['label'] === 'configureReservationListPage.phone') {
-                            $handy = $item['value'] ?? '';
+                            $handy = $this->sanitizeUtf8String($item['value'] ?? '');
                         } elseif ($item['label'] === 'configureReservationListPage.comments') {
-                            $bem_av = $item['value'] ?? '';
+                            $bem_av = $this->sanitizeUtf8String($item['value'] ?? '');
                         } elseif ($item['label'] === 'configureReservationListPage.reservationDate') {
                             $reservationDateStr = $item['value'] ?? '';
                             if ($reservationDateStr) {
@@ -335,40 +603,67 @@ class HRSReservationImporterSSE {
             
             $timestamp = date('Y-m-d H:i:s');
             
-            // INSERT nur in WebImp-Tabelle (nicht direkt in Production)
-            $insertSql = "INSERT INTO `AV-Res-webImp` (
-                av_id, anreise, abreise, lager, betten, dz, sonder, hp, vegi,
-                gruppe, nachname, vorname, handy, email, vorgang, email_date, bem_av, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                anreise = VALUES(anreise),
-                abreise = VALUES(abreise),
-                lager = VALUES(lager),
-                betten = VALUES(betten),
-                dz = VALUES(dz),
-                sonder = VALUES(sonder),
-                hp = VALUES(hp),
-                vegi = VALUES(vegi),
-                gruppe = VALUES(gruppe),
-                nachname = VALUES(nachname),
-                vorname = VALUES(vorname),
-                handy = VALUES(handy),
-                email = VALUES(email),
-                vorgang = VALUES(vorgang),
-                email_date = VALUES(email_date),
-                bem_av = VALUES(bem_av),
-                timestamp = VALUES(timestamp)";
-            
-            $insertStmt = $this->mysqli->prepare($insertSql);
-            if (!$insertStmt) {
-                sendSSE('log', ['level' => 'error', 'message' => 'Prepare failed: ' . $this->mysqli->error]);
-                return false;
+            // Fix invalid dates that cause MySQL errors
+            if (empty($anreise) || $anreise === '0000-00-00' || $anreise === '0000-00-00 00:00:00') {
+                $anreise = NULL;
             }
+            if (empty($abreise) || $abreise === '0000-00-00' || $abreise === '0000-00-00 00:00:00') {
+                $abreise = NULL;
+            }
+
+            // Check if record already exists (prevent duplicates)
+            $checkSql = "SELECT COUNT(*) as count FROM `AV-Res-webImp` WHERE av_id = ?";
+            $checkStmt = $this->mysqli->prepare($checkSql);
+            $checkStmt->bind_param("i", $av_id);
+            $checkStmt->execute();
+            $result = $checkStmt->get_result();
+            $exists = $result->fetch_assoc()['count'] > 0;
+            $checkStmt->close();
             
-            $insertStmt->bind_param("issiiiiiisssssssss", 
-                $av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder, $hp, $vegi,
-                $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date, $bem_av, $timestamp
-            );
+            // Debug: Log duplicate detection
+            if ($exists) {
+                sendSSE('log', ['level' => 'debug', 'message' => "📋 Reservierung $av_id bereits vorhanden - Update"]);
+            } else {
+                sendSSE('log', ['level' => 'debug', 'message' => "➕ Reservierung $av_id neu - Insert"]);
+            }
+
+            if ($exists) {
+                // UPDATE existing record to prevent duplicates
+                $updateSql = "UPDATE `AV-Res-webImp` SET 
+                    anreise = ?, abreise = ?, lager = ?, betten = ?, dz = ?, sonder = ?, hp = ?, vegi = ?,
+                    gruppe = ?, nachname = ?, vorname = ?, handy = ?, email = ?, vorgang = ?, 
+                    email_date = ?, bem_av = ?, timestamp = ?
+                    WHERE av_id = ?";
+                
+                $insertStmt = $this->mysqli->prepare($updateSql);
+                if (!$insertStmt) {
+                    sendSSE('log', ['level' => 'error', 'message' => 'Update prepare failed: ' . $this->mysqli->error]);
+                    return false;
+                }
+                
+                $insertStmt->bind_param("ssiiiiiisssssssssi", 
+                    $anreise, $abreise, $lager, $betten, $dz, $sonder, $hp, $vegi,
+                    $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date, $bem_av, $timestamp, $av_id
+                );
+                
+            } else {
+                // INSERT new record
+                $insertSql = "INSERT INTO `AV-Res-webImp` (
+                    av_id, anreise, abreise, lager, betten, dz, sonder, hp, vegi,
+                    gruppe, nachname, vorname, handy, email, vorgang, email_date, bem_av, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                
+                $insertStmt = $this->mysqli->prepare($insertSql);
+                if (!$insertStmt) {
+                    sendSSE('log', ['level' => 'error', 'message' => 'Insert prepare failed: ' . $this->mysqli->error]);
+                    return false;
+                }
+                
+                $insertStmt->bind_param("issiiiiiisssssssss", 
+                    $av_id, $anreise, $abreise, $lager, $betten, $dz, $sonder, $hp, $vegi,
+                    $gruppe, $nachname, $vorname, $handy, $email, $vorgang, $email_date, $bem_av, $timestamp
+                );
+            }
             
             if ($insertStmt->execute()) {
                 $insertStmt->close();

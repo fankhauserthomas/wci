@@ -1554,6 +1554,181 @@
         }
 
         /**
+         * Selektiver HRS Import für Quota-Daten + AV Capacity (verwendet EventSource wie der manuelle Import)
+         * 
+         * Importiert:
+         * 1. HRS Quotas (hrs_imp_quota_stream.php)
+         * 2. AV Capacity (get_av_cap_range_stream.php)
+         * 
+         * @param {Array} segments - Zu importierende Segmente
+         * @returns {boolean} Erfolg des Imports
+         */
+        async triggerSelectiveQuotaImport(segments = null) {
+            const segmentsToProcess = Array.isArray(segments) && segments.length
+                ? segments
+                : this.getContiguousSegmentsFromDays(this.selectedDays).map(segment => ({
+                    dateFrom: segment.dateFrom,
+                    dateTo: segment.dateTo,
+                    dayCount: segment.dayCount
+                }));
+
+            if (!segmentsToProcess.length) {
+                console.log('⏭️ Selektiver Quota-Import ausgelassen – keine verarbeitbaren Segmente.');
+                return false;
+            }
+
+            try {
+                console.log('🎯 Starte EventSource-basierten Quota+AV Import für Segmente:', segmentsToProcess);
+
+                for (const segment of segmentsToProcess) {
+                    console.log(`🔄 Importiere Quota+AV-Daten für ${segment.dateFrom} bis ${segment.dateTo}...`);
+
+                    // EventSource-basierter Import (wie im manuellen HRS-Import)
+                    await new Promise((resolve, reject) => {
+                        const hrsPath = (typeof WCIConfig !== 'undefined' && WCIConfig.get)
+                            ? WCIConfig.get('paths.hrs', '/wci/hrs')
+                            : '/wci/hrs';
+
+                        const cacheBuster = Date.now();
+                        const eventSource = new EventSource(`${hrsPath}/hrs_imp_quota_stream.php?from=${segment.dateFrom}&to=${segment.dateTo}&cb=${cacheBuster}`);
+
+                        let hasCompleted = false;
+                        let hasError = false;
+
+                        eventSource.onmessage = function (event) {
+                            try {
+                                const data = JSON.parse(event.data);
+                                console.log(`📊 Quota-Import Update:`, data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        console.log(`📡 Start Quota-Import: ${data.message}`);
+                                        break;
+                                    case 'progress':
+                                        console.log(`⏳ Quota-Import Progress: ${data.message}`);
+                                        break;
+                                    case 'complete':
+                                        console.log(`✅ Quota-Import Complete: ${data.message}`);
+                                        hasCompleted = true;
+                                        eventSource.close();
+                                        // Kurze Verzögerung für DB-Commit
+                                        setTimeout(() => resolve(true), 500);
+                                        break;
+                                    case 'error':
+                                        console.error(`❌ Quota-Import Error: ${data.message}`);
+                                        hasError = true;
+                                        eventSource.close();
+                                        reject(new Error(data.message || 'Quota-Import fehlgeschlagen'));
+                                        break;
+                                }
+                            } catch (parseError) {
+                                console.error('❌ EventSource Parse Error:', parseError);
+                            }
+                        };
+
+                        eventSource.onerror = function (event) {
+                            console.error('❌ EventSource Error:', event);
+                            if (!hasCompleted && !hasError) {
+                                eventSource.close();
+                                reject(new Error('EventSource-Verbindung fehlgeschlagen'));
+                            }
+                        };
+
+                        // Timeout nach 2 Minuten
+                        setTimeout(() => {
+                            if (!hasCompleted && !hasError) {
+                                eventSource.close();
+                                reject(new Error('Quota-Import Timeout nach 2 Minuten'));
+                            }
+                        }, 120000);
+                    });
+
+                    console.log(`✅ Quota-Import erfolgreich für ${segment.dateFrom} bis ${segment.dateTo}`);
+
+                    // **NEU: AV Capacity Import für das gleiche Segment**
+                    console.log(`🔄 Starte AV Capacity Import für ${segment.dateFrom} bis ${segment.dateTo}...`);
+
+                    await new Promise((resolve, reject) => {
+                        const apiPath = (typeof WCIConfig !== 'undefined' && WCIConfig.get)
+                            ? WCIConfig.get('paths.api', '/wci/api')
+                            : '/wci/api';
+
+                        const hutId = (typeof WCIConfig !== 'undefined' && WCIConfig.get)
+                            ? WCIConfig.get('hut.id', 675)
+                            : 675;
+
+                        const cacheBuster = Date.now();
+                        const eventSource = new EventSource(`${apiPath}/imps/get_av_cap_range_stream.php?hutID=${hutId}&von=${segment.dateFrom}&bis=${segment.dateTo}&cb=${cacheBuster}`);
+
+                        let hasCompleted = false;
+                        let hasError = false;
+
+                        eventSource.onmessage = function (event) {
+                            try {
+                                const data = JSON.parse(event.data);
+                                console.log(`📊 AV Capacity-Import Update:`, data);
+
+                                switch (data.type) {
+                                    case 'start':
+                                        console.log(`📡 Start AV Capacity-Import: ${data.message}`);
+                                        break;
+                                    case 'progress':
+                                        console.log(`⏳ AV Capacity-Import Progress: ${data.message}`);
+                                        break;
+                                    case 'complete':
+                                        console.log(`✅ AV Capacity-Import Complete: ${data.message}`);
+                                        hasCompleted = true;
+                                        eventSource.close();
+                                        setTimeout(() => resolve(true), 200);
+                                        break;
+                                    case 'finish':
+                                        console.log(`🎉 AV Capacity-Import Finished: ${data.message}`);
+                                        hasCompleted = true;
+                                        eventSource.close();
+                                        setTimeout(() => resolve(true), 200);
+                                        break;
+                                    case 'error':
+                                        console.error(`❌ AV Capacity-Import Error: ${data.message}`);
+                                        hasError = true;
+                                        eventSource.close();
+                                        reject(new Error(data.message || 'AV Capacity-Import fehlgeschlagen'));
+                                        break;
+                                }
+                            } catch (parseError) {
+                                console.error('❌ AV Capacity EventSource Parse Error:', parseError);
+                            }
+                        };
+
+                        eventSource.onerror = function (event) {
+                            console.error('❌ AV Capacity EventSource Error:', event);
+                            if (!hasCompleted && !hasError) {
+                                eventSource.close();
+                                reject(new Error('AV Capacity EventSource-Verbindung fehlgeschlagen'));
+                            }
+                        };
+
+                        // Timeout nach 2 Minuten
+                        setTimeout(() => {
+                            if (!hasCompleted && !hasError) {
+                                eventSource.close();
+                                reject(new Error('AV Capacity-Import Timeout nach 2 Minuten'));
+                            }
+                        }, 120000);
+                    });
+
+                    console.log(`✅ AV Capacity-Import erfolgreich für ${segment.dateFrom} bis ${segment.dateTo}`);
+                }
+
+                console.log('✅ Selektiver Quota-Import (mit AV Capacity) abgeschlossen');
+                return true;
+
+            } catch (error) {
+                console.error('❌ Fehler beim EventSource Quota-Import:', error);
+                return false;
+            }
+        }
+
+        /**
          * Helper-Funktion: Liest Max-Wert aus Input-Feld
          * @returns {number} Infinity wenn leer, sonst geparster Wert (auch 0!)
          */
@@ -2154,17 +2329,67 @@
                     throw new Error('Keine bearbeitbaren Tage gefunden – alle ausgewählten Tage sind geschlossen.');
                 }
 
-                console.log('⏳ Waiting 800ms for DB commit and import...');
-                await new Promise(resolve => setTimeout(resolve, 800));
+                console.log('⏳ Waiting 2 seconds for HRS upload to complete...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
-                const hasReloadFunction = typeof window.reloadTimelineData === 'function';
+                const hasQuotaOnlyReload = typeof window.reloadQuotaDataOnly === 'function';
+                const hasFullReloadFunction = typeof window.reloadTimelineData === 'function';
                 const willAutoImport = importSegments.length > 0;
 
-                if (hasReloadFunction) {
+                // **WICHTIG: HRS Upload ist abgeschlossen - jetzt HRS-Import starten um die hochgeladenen Quotas zu importieren**
+                if (willAutoImport && hasQuotaOnlyReload) {
+                    // Bei Quota-Only: Erst HRS-Import (um die gerade hochgeladenen Quotas zu importieren), dann lokaler Reload
                     if (statusEnabled) {
-                        this.setStatusStep(2, 'active', 'Timeline aktualisieren...');
+                        this.setStatusStep(2, 'active', 'HRS Quota+AV-Import (nach Upload)...');
                     }
-                    console.log('🔄 Calling window.reloadTimelineData()...');
+                    console.log('🎯 Starte HRS Quota+AV-Import für gerade hochgeladene Quotas...');
+
+                    // **WICHTIG: Zusätzliche Wartezeit damit HRS die hochgeladenen Quotas verarbeitet hat**
+                    console.log('⏳ Warte 3 Sekunden damit HRS die hochgeladenen Quotas verarbeitet...');
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    const quotaImportSuccess = await this.triggerSelectiveQuotaImport(importSegments);
+
+                    if (quotaImportSuccess) {
+                        // **WICHTIG: Warten bis Import-DB-Commit abgeschlossen ist**
+                        console.log('⏳ Warte 2 Sekunden bis Import-DB-Commits abgeschlossen sind...');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+
+                        if (statusEnabled) {
+                            this.setStatusStep(2, 'active', 'Quota-Daten lokal aktualisieren...');
+                        }
+                        console.log('🔄 Nach HRS-Import + Wartezeit: Calling window.reloadQuotaDataOnly()...');
+                        await window.reloadQuotaDataOnly();
+                        console.log('✅ Quota-Daten erfolgreich aktualisiert (nach HRS-Import + DB-Sync)');
+
+                        if (window.renderer && typeof window.renderer.render === 'function') {
+                            console.log('🎨 Forcing histogram redraw...');
+                            window.renderer.render();
+                            console.log('✅ Histogram redrawn');
+                        }
+                    } else {
+                        console.warn('⚠️ HRS Quota-Import fehlgeschlagen, verwende lokale Daten');
+                        await window.reloadQuotaDataOnly();
+                    }
+                } else if (hasQuotaOnlyReload && !willAutoImport) {
+                    // Nur lokaler Reload ohne HRS-Import
+                    if (statusEnabled) {
+                        this.setStatusStep(2, 'active', 'Quota-Daten aktualisieren...');
+                    }
+                    console.log('🔄 Calling window.reloadQuotaDataOnly() (ohne HRS-Import)...');
+                    await window.reloadQuotaDataOnly();
+                    console.log('✅ Quota-Daten erfolgreich aktualisiert (ohne HRS-Import)');
+
+                    if (window.renderer && typeof window.renderer.render === 'function') {
+                        console.log('🎨 Forcing histogram redraw...');
+                        window.renderer.render();
+                        console.log('✅ Histogram redrawn');
+                    }
+                } else if (hasFullReloadFunction) {
+                    if (statusEnabled) {
+                        this.setStatusStep(2, 'active', 'Timeline aktualisieren (Fallback)...');
+                    }
+                    console.log('🔄 Calling window.reloadTimelineData() (Fallback - Vollreload)...');
                     await window.reloadTimelineData();
                     console.log('✅ Timeline data reloaded successfully');
 
@@ -2174,7 +2399,7 @@
                         console.log('✅ Histogram redrawn');
                     }
                 } else {
-                    console.warn('⚠️ window.reloadTimelineData() not found, trying page reload...');
+                    console.warn('⚠️ Weder window.reloadQuotaDataOnly() noch window.reloadTimelineData() verfügbar, verwende Seitenreload...');
                     if (statusEnabled) {
                         this.setStatusStep(2, 'warn', 'Seitenreload wird durchgeführt…');
                     }
@@ -2183,7 +2408,9 @@
 
                 this.modal.hide();
 
-                if (willAutoImport && hasReloadFunction) {
+                // **HRS Import (falls nicht bereits in der optimierten Variante oben gemacht)**
+                if (willAutoImport && !hasQuotaOnlyReload && hasFullReloadFunction) {
+                    // Nur bei Vollreload automatischen HRS Import starten (wenn nicht schon bei Quota-Only gemacht)
                     if (statusEnabled) {
                         this.setStatusStep(2, 'active', 'Automatischen HRS Import starten…');
                     }
@@ -2191,13 +2418,13 @@
                     if (statusEnabled) {
                         this.setStatusStep(2, importSuccess ? 'success' : 'warn', importSuccess ? 'Automatischer HRS Import abgeschlossen' : 'HRS Import (Fallback) gestartet');
                     }
-                } else if (willAutoImport) {
-                    console.warn('⚠️ Automatischer HRS Import nicht gestartet: reloadTimelineData() fehlt.');
+                } else if (willAutoImport && !hasQuotaOnlyReload) {
+                    console.warn('⚠️ Automatischer HRS Import nicht gestartet: Reload-Funktionen fehlen.');
                     if (statusEnabled) {
                         this.setStatusStep(2, 'warn', 'HRS Import nicht gestartet (Reload nicht verfügbar)');
                     }
-                } else if (statusEnabled && hasReloadFunction) {
-                    this.setStatusStep(2, 'success', 'Timeline aktualisiert');
+                } else if (statusEnabled && (hasQuotaOnlyReload || hasFullReloadFunction) && !willAutoImport) {
+                    this.setStatusStep(2, 'success', hasQuotaOnlyReload ? 'Quota-Daten aktualisiert' : 'Timeline aktualisiert');
                 }
 
                 if (statusEnabled) {

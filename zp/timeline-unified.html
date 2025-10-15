@@ -3273,6 +3273,117 @@
                 });
             }
 
+            // Reservierungen Import Button Handler - Only Reservations for Season
+            const reservationsImportBtn = document.getElementById('timeline-reservations-import-btn');
+            if (reservationsImportBtn) {
+                reservationsImportBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Calculate visible season
+                    const season = calculateVisibleSeason();
+
+                    if (!season) {
+                        await ModalHelper.alert('Keine sichtbare Saison erkannt. Bitte stellen Sie sicher, dass Quota-Daten geladen sind.');
+                        return;
+                    }
+
+                    // Show confirmation dialog
+                    const confirmed = await ModalHelper.confirm(
+                        `Nur Reservierungen für die gesamte Saison importieren?\n\n` +
+                        `Zeitbereich: ${season.dateFrom} - ${season.dateTo} (${season.dayCount} Tage)\n\n` +
+                        `Hinweis: Es werden NUR Reservierungen importiert, keine Daily Summaries oder Quotas.`,
+                        'Reservierungen Import'
+                    );
+
+                    if (!confirmed) return;
+
+                    // Execute reservations-only import
+                    try {
+                        reservationsImportBtn.disabled = true;
+                        reservationsImportBtn.innerHTML = '⏳ Importiere Reservierungen...';
+
+                        // Create progress modal for reservations import
+                        const progressModal = createImportProgressModal(season.dateFrom, season.dateTo, season.dayCount);
+                        progressModal.show();
+
+                        // Execute only reservations import using existing HRS stream
+                        await new Promise((resolve, reject) => {
+                            let success = false;
+                            const eventSource = new EventSource(`${WCIConfig.get("paths.hrs", "/wci/hrs")}/hrs_imp_res_stream.php?from=${season.dateFrom}&to=${season.dateTo}`);
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+
+                                    switch (data.type) {
+                                        case 'start':
+                                            updateImportProgress(progressModal, 'res', 'running', data.message);
+                                            break;
+
+                                        case 'phase':
+                                            updateImportProgress(progressModal, 'res', 'running', data.message);
+                                            break;
+
+                                        case 'complete':
+                                            updateImportProgress(progressModal, 'res', 'success', data.message);
+                                            success = true;
+                                            eventSource.close();
+                                            resolve();
+                                            break;
+
+                                        case 'error':
+                                            updateImportProgress(progressModal, 'res', 'error', data.message);
+                                            eventSource.close();
+                                            reject(new Error(data.message));
+                                            break;
+                                    }
+                                } catch (parseError) {
+                                    console.error('Parse error:', parseError);
+                                }
+                            };
+
+                            eventSource.onerror = (error) => {
+                                if (!success) {
+                                    eventSource.close();
+                                    reject(new Error('EventSource connection error'));
+                                }
+                            };
+
+                            // Timeout after 5 minutes
+                            setTimeout(() => {
+                                if (!success) {
+                                    eventSource.close();
+                                    reject(new Error('Reservierungen Import timeout'));
+                                }
+                            }, 300000);
+                        });
+
+                        // Show success and reload
+                        updateImportProgress(progressModal, 'complete', 'success', 'Reservierungen erfolgreich importiert!');
+
+                        // Wait 2 seconds before reload
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+
+                        progressModal.hide();
+
+                        // Reload timeline data
+                        if (typeof window.reloadTimelineData === 'function') {
+                            await window.reloadTimelineData();
+                        } else {
+                            window.location.reload();
+                        }
+
+                    } catch (error) {
+                        console.error('❌ Reservierungen Import fehlgeschlagen:', error);
+                        await ModalHelper.alert(`Fehler beim Reservierungen Import: ${error.message}`);
+                    } finally {
+                        reservationsImportBtn.disabled = false;
+                        reservationsImportBtn.innerHTML = '🏨 Nur Reservierungen importieren';
+                    }
+                });
+            }
+
             // Event Listener für Context Menu HRS Import
             window.addEventListener('hrs-import-requested', async (event) => {
                 const { dateFrom, dateTo, dayCount } = event.detail;
@@ -5773,6 +5884,136 @@
         // Globale Reload-Funktion für externe Aufrufe (z.B. nach Speichern der Zuweisungen)
         window.reloadTimelineData = async function () {
             try { await loadRealData(); } catch (e) { console.error('Reload failed', e); }
+        };
+
+        // NEUE: Spezielle Quota-Only Reload-Funktion
+        window.reloadQuotaDataOnly = async function () {
+            try {
+                console.log('🔄 Reimportiere nur Quota-Daten...');
+
+                const MS_IN_DAY = 24 * 60 * 60 * 1000;
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+
+                // Verwende gespeicherte Wochenwerte aus Toolbar-/Cookie-Konfiguration
+                const weekRange = getConfiguredWeeksRange();
+                const startDate = new Date(now.getTime() - (weekRange.past * 7 * MS_IN_DAY));
+                const endDate = new Date(now.getTime() + (weekRange.future * 7 * MS_IN_DAY));
+
+                const startDateStr = formatDateYMDLocal(startDate);
+                const endDateStr = formatDateYMDLocal(endDate);
+
+                // Cache-Buster für frische Quota-Daten
+                const cacheBuster = `?cb=${Date.now()}`;
+
+                console.log(`📊 Lade nur Histogramm-Daten (Quotas) für ${startDateStr} bis ${endDateStr}`);
+
+                // **NUR** Histogram-Daten (Quotas + Availability) laden
+                const histogramResponse = await wciFetch(`/wci/zp/getHistogramSource.php?start=${startDateStr}&end=${endDateStr}${cacheBuster.replace('?', '&')}`);
+                console.log('📊 Quota-Histogramm Response:', histogramResponse.status);
+
+                if (!histogramResponse.ok) {
+                    throw new Error(`Quota-Daten HTTP ${histogramResponse.status}: ${histogramResponse.statusText}`);
+                }
+
+                const histogramJson = await histogramResponse.json();
+                console.log('📊 Quota-Histogramm JSON:', histogramJson);
+
+                let histogramSource = [];
+                let histogramStornoSource = [];
+                let histogramAvailabilitySource = [];
+
+                if (histogramJson && histogramJson.success && histogramJson.data) {
+                    // Verarbeite Quota-Histogramm
+                    if (Array.isArray(histogramJson.data.histogram)) {
+                        histogramSource = histogramJson.data.histogram.map(entry => {
+                            const capacityDetails = entry.capacity_details || {};
+                            const dz = Number(capacityDetails.dz) || 0;
+                            const betten = Number(capacityDetails.betten) || 0;
+                            const lager = Number(capacityDetails.lager) || 0;
+                            const sonder = Number(capacityDetails.sonder) || 0;
+                            const total = dz + betten + lager + sonder;
+
+                            return {
+                                id: Number(entry.id),
+                                av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
+                                start: entry.start,
+                                end: entry.end,
+                                guest_name: entry.guest_name || '',
+                                capacity_details: {
+                                    dz: dz,
+                                    betten: betten,
+                                    lager: lager,
+                                    sonder: sonder,
+                                    total: total
+                                }
+                            };
+                        });
+                        console.log(`✅ ${histogramSource.length} Quota-Histogramm-Einträge aktualisiert`);
+                    }
+
+                    // Verarbeite Availability-Daten (für Quota-basierte Kapazitätsanzeige)
+                    if (Array.isArray(histogramJson.data.availability)) {
+                        histogramAvailabilitySource = histogramJson.data.availability.map(entry => ({
+                            datum: entry.datum,
+                            free_places: Number(entry.free_places ?? entry.free_place ?? 0),
+                            hut_status: entry.hut_status || '',
+                            // Quota-Daten nach Kategorien
+                            quota_dz: Number(entry.quota_dz ?? 0),
+                            quota_betten: Number(entry.quota_betten ?? 0),
+                            quota_lager: Number(entry.quota_lager ?? 0),
+                            quota_sonder: Number(entry.quota_sonder ?? 0),
+                            quota_is_multi_day: Boolean(entry.quota_is_multi_day)
+                        }));
+                        console.log(`✅ ${histogramAvailabilitySource.length} Quota-Verfügbarkeits-Einträge aktualisiert`);
+                    }
+
+                    // Verarbeite Storno-Daten
+                    if (Array.isArray(histogramJson.data.storno)) {
+                        histogramStornoSource = histogramJson.data.storno.map(entry => ({
+                            id: Number(entry.id),
+                            av_id: entry.av_id !== undefined && entry.av_id !== null ? Number(entry.av_id) : null,
+                            start: entry.start,
+                            end: entry.end,
+                            guest_name: entry.guest_name || '',
+                            capacity_details: entry.capacity_details || {},
+                            storno: true
+                        }));
+                        console.log(`✅ ${histogramStornoSource.length} Storno-Einträge aktualisiert`);
+                    }
+                }
+
+                // Aktualisiere globale Variablen
+                window.histogramSource = histogramSource;
+                window.histogramStornoSource = histogramStornoSource;
+                window.histogramAvailability = histogramAvailabilitySource;
+
+                histogramSourceData = window.histogramSource;
+                histogramStornoSourceData = window.histogramStornoSource;
+                histogramAvailabilityData = window.histogramAvailability;
+
+                // **NUR** Histogram-Daten im Renderer aktualisieren (keine komplette Timeline-Neuerstellung)
+                if (timelineRenderer && typeof timelineRenderer.setHistogramSource === 'function') {
+                    timelineRenderer.setHistogramSource(
+                        window.histogramSource,
+                        window.histogramStornoSource,
+                        window.histogramAvailability
+                    );
+
+                    // Trigger Re-render der Histogram-Bereiche
+                    if (typeof timelineRenderer.scheduleRender === 'function') {
+                        timelineRenderer.scheduleRender('quota_data_update');
+                    } else if (typeof timelineRenderer.render === 'function') {
+                        timelineRenderer.render();
+                    }
+                }
+
+                console.log('✅ Quota-Daten erfolgreich aktualisiert (ohne Reservierungen/Zimmer)');
+
+            } catch (error) {
+                console.error('❌ Fehler beim Quota-Only Reload:', error);
+                throw error;
+            }
         };
 
         // API-Datum-Parser (kompatibel mit getZimmerplanData.php)
