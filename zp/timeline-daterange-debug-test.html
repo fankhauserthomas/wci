@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Date Range Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2c2c2c;
+            color: white;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .test-button:hover {
+            background: #0056b3;
+        }
+
+        .test-info {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .date-debug {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .success {
+            color: #51cf66;
+        }
+
+        .warning {
+            color: #ffd43b;
+        }
+
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .debug-output {
+            background: #0f0f0f;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <h1>🔧 Timeline Date Range Debug Test</h1>
+
+        <div class="test-info">
+            <h3>Problem-Beschreibung:</h3>
+            <p>Die Datumswerte <strong>18.9.2025</strong> und <strong>12.10.2026</strong> scheinen hardcodiert zu sein,
+                anstatt dynamisch basierend auf den konfigurierten Wochen-Werten berechnet zu werden.</p>
+        </div>
+
+        <div class="test-info">
+            <h3>Erwartetes Verhalten:</h3>
+            <ul>
+                <li>✅ Start-Datum = Heute - (weeksPast * 7 Tage)</li>
+                <li>✅ End-Datum = Heute + (weeksFuture * 7 Tage)</li>
+                <li>✅ Cache-Invalidierung bei Wochen-Änderung</li>
+                <li>✅ Korrekte Theme-Config-Verwendung</li>
+            </ul>
+        </div>
+
+        <div id="current-debug" class="date-debug">
+            <strong>Aktuelles Datum:</strong> <span id="today-date"></span><br>
+            <strong>Standard-Config:</strong> 2 Wochen zurück, 104 Wochen voraus<br>
+            <strong>Erwartetes Start-Datum:</strong> <span id="expected-start"></span><br>
+            <strong>Erwartetes End-Datum:</strong> <span id="expected-end"></span>
+        </div>
+
+        <button class="test-button" onclick="loadTimeline()">📊 Timeline laden</button>
+        <button class="test-button" onclick="debugDateRange()">🔍 Date Range Debug</button>
+        <button class="test-button" onclick="testWeekChange()">🔄 Wochen-Test (8/52)</button>
+        <button class="test-button" onclick="testWeekChange2()">📅 Wochen-Test (1/26)</button>
+        <button class="test-button" onclick="resetWeeks()">↩️ Reset (2/104)</button>
+
+        <div id="debug-output" class="debug-output"></div>
+
+        <div id="timeline-container"></div>
+    </div>
+
+    <script>
+        function updateCurrentDebug() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const startDate = new Date(today.getTime() - (2 * 7 * 24 * 60 * 60 * 1000));
+            const endDate = new Date(today.getTime() + (104 * 7 * 24 * 60 * 60 * 1000));
+
+            document.getElementById('today-date').textContent = today.toLocaleDateString('de-DE');
+            document.getElementById('expected-start').textContent = startDate.toLocaleDateString('de-DE');
+            document.getElementById('expected-end').textContent = endDate.toLocaleDateString('de-DE');
+        }
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('debug-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            output.innerHTML += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function loadTimeline() {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '<iframe src="timeline-unified.html" id="timeline-frame"></iframe>';
+            log('📊 Timeline geladen');
+        }
+
+        function debugDateRange() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                // Debug-Code an Timeline senden
+                frame.contentWindow.postMessage({
+                    type: 'debug-date-range'
+                }, '*');
+                log('🔍 Date Range Debug gesendet');
+            } else {
+                log('⚠️ Timeline muss zuerst geladen werden!', 'warning');
+            }
+        }
+
+        function testWeekChange() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                log('🔄 Teste Wochen-Änderung: 8 Vergangenheit, 52 Zukunft');
+
+                frame.contentWindow.postMessage({
+                    type: 'updateMetric',
+                    metric: 'weeks-past',
+                    value: 8
+                }, '*');
+
+                setTimeout(() => {
+                    frame.contentWindow.postMessage({
+                        type: 'updateMetric',
+                        metric: 'weeks-future',
+                        value: 52
+                    }, '*');
+                }, 100);
+
+                // Nach Änderung Debug ausführen
+                setTimeout(() => {
+                    debugDateRange();
+                }, 500);
+            } else {
+                log('⚠️ Timeline muss zuerst geladen werden!', 'warning');
+            }
+        }
+
+        function testWeekChange2() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                log('📅 Teste Wochen-Änderung: 1 Vergangenheit, 26 Zukunft');
+
+                frame.contentWindow.postMessage({
+                    type: 'updateMetric',
+                    metric: 'weeks-past',
+                    value: 1
+                }, '*');
+
+                setTimeout(() => {
+                    frame.contentWindow.postMessage({
+                        type: 'updateMetric',
+                        metric: 'weeks-future',
+                        value: 26
+                    }, '*');
+                }, 100);
+
+                // Nach Änderung Debug ausführen
+                setTimeout(() => {
+                    debugDateRange();
+                }, 500);
+            } else {
+                log('⚠️ Timeline muss zuerst geladen werden!', 'warning');
+            }
+        }
+
+        function resetWeeks() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                log('↩️ Zurücksetzen auf: 2 Vergangenheit, 104 Zukunft');
+
+                frame.contentWindow.postMessage({
+                    type: 'updateMetric',
+                    metric: 'weeks-past',
+                    value: 2
+                }, '*');
+
+                setTimeout(() => {
+                    frame.contentWindow.postMessage({
+                        type: 'updateMetric',
+                        metric: 'weeks-future',
+                        value: 104
+                    }, '*');
+                }, 100);
+
+                // Nach Reset Debug ausführen
+                setTimeout(() => {
+                    debugDateRange();
+                }, 500);
+            } else {
+                log('⚠️ Timeline muss zuerst geladen werden!', 'warning');
+            }
+        }
+
+        // Debug-Nachrichten von der Timeline abfangen
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'date-range-debug') {
+                const data = event.data.data;
+                log(`📊 Timeline Date Range Debug:`);
+                log(`  Now: ${data.now}`);
+                log(`  Start: ${data.startDate} (${data.weeksPast} Wochen zurück)`);
+                log(`  End: ${data.endDate} (${data.weeksFuture} Wochen voraus)`);
+                log(`  Cache Status: ${data.cacheStatus}`);
+                log(`  Theme Config: weeksPast=${data.themeConfigWeeksPast}, weeksFuture=${data.themeConfigWeeksFuture}`);
+
+                // Prüfe auf hardcodierte Werte
+                if (data.startDate.includes('18.09.2025') || data.endDate.includes('12.10.2026')) {
+                    log(`❌ FEHLER: Hardcodierte Datumswerte gefunden!`, 'error');
+                } else {
+                    log(`✅ SUCCESS: Keine hardcodierten Datumswerte gefunden`, 'success');
+                }
+            }
+        });
+
+        // Initial debug info aktualisieren
+        updateCurrentDebug();
+
+        // Täglich aktualisieren
+        setInterval(updateCurrentDebug, 1000 * 60 * 60); // Jede Stunde
+    </script>
+</body>
+
+</html>

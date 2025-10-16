@@ -368,32 +368,46 @@
         };
 
         /**
-         * Helper: Ermittelt Zeitraum
-         */
-        /**
-         * Helper: Get Timeline Date Range (cached)
+         * Helper: Get Timeline Date Range (cached, uses theme config)
          */
         proto.getTimelineDateRange = function () {
-            // Verwende gecachte Werte falls vorhanden
-            if (this.cachedDateRange) {
+            // Verwende gecachte Werte falls vorhanden UND sie noch aktuell sind
+            if (this.cachedDateRange && !this.cachedDateRangeInvalid) {
                 return this.cachedDateRange;
             }
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const weekRange = this.weekRange || { past: 4, future: 52 };
+            // Verwende themeConfig-Werte falls verfügbar, sonst weekRange-Fallback
+            const weeksPast = this.themeConfig?.weeksPast ?? this.weekRange?.past ?? 2;
+            const weeksFuture = this.themeConfig?.weeksFuture ?? this.weekRange?.future ?? 104;
 
             const startDate = new Date(today);
-            startDate.setDate(startDate.getDate() - (weekRange.past * 7));
+            startDate.setDate(startDate.getDate() - (weeksPast * 7));
 
             const endDate = new Date(today);
-            endDate.setDate(endDate.getDate() + (weekRange.future * 7));
+            endDate.setDate(endDate.getDate() + (weeksFuture * 7));
 
             // Cache für konsistente Abfragen
-            this.cachedDateRange = { startDate, endDate };
+            this.cachedDateRange = {
+                now: today,
+                startDate,
+                endDate,
+                weeksPast,
+                weeksFuture
+            };
+            this.cachedDateRangeInvalid = false;
 
-            return { startDate, endDate };
+            return this.cachedDateRange;
+        };
+
+        /**
+         * Helper: Invalidate cached date range when theme config changes
+         */
+        proto.invalidateDateRangeCache = function () {
+            this.cachedDateRange = null;
+            this.cachedDateRangeInvalid = true;
         };
 
         console.log('✅ Timeline erweitert mit Quota-Management');

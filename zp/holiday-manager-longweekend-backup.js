@@ -1,11 +1,11 @@
 /**
- * Holiday Manager for Timeline - SIMPLE VERSION
- * ============================================
+ * Holiday Manager for Timeline
+ * ============================
  * 
- * Lädt nur Feiertage aus der Nager.Date API für DE, AT, IT, CH
+ * Lädt Feiertage und Ferien aus der Nager.Date API für DE, AT, IT, CH
  * und integriert sie in die Timeline-Tagesanzeige.
  * 
- * KEINE Long Weekends - nur Public Holidays!
+ * API Documentation: https://date.nager.at/
  */
 
 (function () {
@@ -14,6 +14,7 @@
     class HolidayManager {
         constructor() {
             this.holidayCache = new Map(); // countryCode_year -> holidays array
+            this.schoolHolidayCache = new Map(); // countryCode_year -> school holidays
             this.enabledCountries = ['AT', 'DE', 'CH', 'IT'];
             this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 Stunden
             this.lastCacheTime = new Map();
@@ -40,6 +41,91 @@
         }
 
         /**
+         * Lädt lange Wochenenden für ein Land und Jahr (optional, falls API verfügbar)
+         */
+        async loadLongWeekends(countryCode, year) {
+            const cacheKey = `longweekend_${countryCode}_${year}`;
+
+            // Prüfe Cache
+            if (this.isCacheValid(cacheKey) && this.holidayCache.has(cacheKey)) {
+                console.log(`📅 Lange Wochenenden für ${countryCode} ${year} aus Cache geladen`);
+                return this.holidayCache.get(cacheKey);
+            }
+
+            try {
+                const response = await fetch(`/wci/zp/api-proxy.php?url=${encodeURIComponent(`https://date.nager.at/api/v3/LongWeekend/${year}/${countryCode}?availableBridgeDays=1`)}`);
+
+                if (!response.ok) {
+                    // Fallback: Direkte API-Anfrage ohne Proxy (kann CORS-Probleme geben)
+                    console.log(`⚠️ Proxy failed, trying direct API for ${countryCode} ${year}...`);
+                    const directResponse = await fetch(`https://date.nager.at/api/v3/LongWeekend/${year}/${countryCode}?availableBridgeDays=1`, {
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
+
+                    if (!directResponse.ok) {
+                        console.warn(`⚠️ Long Weekend API fehler für ${countryCode} ${year}: ${directResponse.status}, verwende Fallback`);
+
+                        // Verwende Fallback Long Weekends
+                        const fallbackLongWeekends = this.getFallbackLongWeekends(countryCode, year);
+                        return this.processLongWeekends(fallbackLongWeekends, countryCode, cacheKey);
+                    }
+
+                    const longWeekends = await directResponse.json();
+                    return this.processLongWeekends(longWeekends, countryCode, cacheKey);
+                }
+
+                const longWeekends = await response.json();
+                return this.processLongWeekends(longWeekends, countryCode, cacheKey);
+
+                return this.processLongWeekends(longWeekends, countryCode, cacheKey);
+
+            } catch (error) {
+                console.log(`ℹ️ Long Weekend API nicht erreichbar für ${countryCode} ${year}, verwende Fallback-Daten`);
+
+                // Verwende Fallback Long Weekends
+                const fallbackLongWeekends = this.getFallbackLongWeekends(countryCode, year);
+                const convertedFallback = this.processLongWeekends(fallbackLongWeekends, countryCode, cacheKey);
+
+                return convertedFallback;
+            }
+        }
+
+        /**
+         * Verarbeitet Long Weekend API Response
+         */
+        processLongWeekends(longWeekends, countryCode, cacheKey) {
+            // Konvertiere zu Holiday-Format für einheitliche Behandlung
+            const convertedWeekends = longWeekends.map(weekend => {
+                const bridgeInfo = weekend.needBridgeDay ? ` (${weekend.bridgeDays.length} Brückentag${weekend.bridgeDays.length > 1 ? 'e' : ''})` : '';
+                const localName = `Langes Wochenende${bridgeInfo}`;
+
+                return {
+                    date: weekend.startDate,
+                    localName: localName,
+                    name: `Long Weekend (${weekend.dayCount} days)`,
+                    country: countryCode,
+                    global: true,
+                    type: 'longweekend',
+                    holidayType: 'longweekend',
+                    dayCount: weekend.dayCount,
+                    endDate: weekend.endDate,
+                    needBridgeDay: weekend.needBridgeDay,
+                    bridgeDays: weekend.bridgeDays || []
+                };
+            });
+
+            // Cache speichern
+            this.holidayCache.set(cacheKey, convertedWeekends);
+            this.lastCacheTime.set(cacheKey, Date.now());
+
+            console.log(`✅ ${convertedWeekends.length} lange Wochenenden für ${countryCode} geladen`);
+            return convertedWeekends;
+        }
+
+        /**
          * Lädt Feiertage für ein Land und Jahr
          */
         async loadPublicHolidays(countryCode, year) {
@@ -54,14 +140,21 @@
             try {
                 console.log(`📅 Lade Feiertage für ${countryCode} ${year}...`);
 
-                // Direct API call
-                const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Accept': 'application/json',
-                    }
-                });
+                // Use our wciFetch if available for better CORS handling
+                let response;
+                if (typeof wciFetch === 'function') {
+                    // Proxy über eigenen Server falls wciFetch verfügbar
+                    response = await wciFetch(`/wci/api-proxy.php?url=https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`);
+                } else {
+                    // Direct API call
+                    response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json',
+                        }
+                    });
+                }
 
                 if (!response.ok) {
                     console.warn(`❌ Feiertage für ${countryCode} ${year} nicht verfügbar: ${response.status}`);
@@ -138,6 +231,37 @@
         }
 
         /**
+         * Fallback Long Weekends für Test-Zwecke
+         */
+        getFallbackLongWeekends(countryCode, year) {
+            // Einige Test-Long-Weekends für Demo
+            const testLongWeekends = {
+                'AT': [
+                    { startDate: `${year}-05-30`, endDate: `${year}-06-02`, dayCount: 4, needBridgeDay: true, bridgeDays: [`${year}-05-31`] },
+                    { startDate: `${year}-12-23`, endDate: `${year}-12-26`, dayCount: 4, needBridgeDay: false, bridgeDays: [] }
+                ],
+                'DE': [
+                    { startDate: `${year}-05-30`, endDate: `${year}-06-02`, dayCount: 4, needBridgeDay: true, bridgeDays: [`${year}-05-31`] },
+                    { startDate: `${year}-10-31`, endDate: `${year}-11-03`, dayCount: 4, needBridgeDay: true, bridgeDays: [`${year}-11-01`] }
+                ],
+                'CH': [
+                    { startDate: `${year}-08-01`, endDate: `${year}-08-04`, dayCount: 4, needBridgeDay: false, bridgeDays: [] }
+                ],
+                'IT': [
+                    { startDate: `${year}-04-25`, endDate: `${year}-04-28`, dayCount: 4, needBridgeDay: true, bridgeDays: [`${year}-04-26`] }
+                ]
+            };
+
+            return (testLongWeekends[countryCode] || []).map(weekend => ({
+                startDate: weekend.startDate,
+                endDate: weekend.endDate,
+                dayCount: weekend.dayCount,
+                needBridgeDay: weekend.needBridgeDay,
+                bridgeDays: weekend.bridgeDays
+            }));
+        }
+
+        /**
          * Lädt Feiertage für alle aktivierten Länder für den gegebenen Datumsbereich
          */
         async loadHolidaysForDateRange(startDate, endDate) {
@@ -189,6 +313,57 @@
         getHolidayInfo(date, holidaysMap) {
             const dateKey = this.formatDate(date);
             return holidaysMap.get(dateKey) || [];
+        }
+
+        /**
+         * Erstellt HTML für Feiertags-Badge
+         */
+        createHolidayBadge(holidayInfo) {
+            if (!holidayInfo || holidayInfo.length === 0) return '';
+
+            const flagEmojis = {
+                'AT': 'AT',
+                'DE': 'DE',
+                'CH': 'CH',
+                'IT': 'IT'
+            };
+
+            // Gruppiere nach Ländern
+            const byCountry = {};
+            holidayInfo.forEach(holiday => {
+                if (!byCountry[holiday.country]) {
+                    byCountry[holiday.country] = [];
+                }
+                byCountry[holiday.country].push(holiday);
+            });
+
+            const badges = [];
+
+            // Prioritäts-Reihenfolge: AT, DE, CH, IT
+            const countryPriority = ['AT', 'DE', 'CH', 'IT'];
+
+            countryPriority.forEach(country => {
+                const holidays = byCountry[country];
+                if (!holidays) return;
+
+                const flag = flagEmojis[country] || '🏳️';
+                const mainHoliday = holidays[0]; // Nimm den ersten/wichtigsten
+
+                const isGlobal = mainHoliday.global;
+                const opacity = isGlobal ? '1.0' : '0.7'; // Regional weniger prominent
+
+                // Detaillierte Tooltip-Info
+                const tooltipText = holidays.map(h =>
+                    `${flag} ${h.localName || h.name}${h.global ? '' : ' (regional)'}`
+                ).join('\n');
+
+                badges.push(`<span class="holiday-badge" 
+                    style="opacity: ${opacity};" 
+                    title="${tooltipText}"
+                >${flag}</span>`);
+            });
+
+            return badges.join('');
         }
 
         /**
@@ -251,6 +426,6 @@
         }, 500);
     };
 
-    console.log('🚀 Holiday Manager initialisiert - NUR FEIERTAGE');
+    console.log('🚀 Holiday Manager initialisiert');
 
 })();

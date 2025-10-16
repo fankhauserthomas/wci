@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Scrollbar Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2c2c2c;
+            color: white;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .test-button:hover {
+            background: #0056b3;
+        }
+
+        .test-info {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .scrollbar-info {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <h1>🔧 Timeline Scrollbar & Navigation Fix Test</h1>
+
+        <div class="test-info">
+            <h3>Test-Schritte:</h3>
+            <ol>
+                <li><strong>Basis-Timeline laden:</strong> Klicke "Timeline laden" um die normale Timeline zu öffnen
+                </li>
+                <li><strong>Menü öffnen:</strong> Klicke auf "Einstellungen" in der Timeline-Topbar</li>
+                <li><strong>Wochen-Range ändern:</strong>
+                    <ul>
+                        <li>Ändere "Wochen in der Vergangenheit" von 2 auf 8</li>
+                        <li>Ändere "Wochen in der Zukunft" von 104 auf 52</li>
+                    </ul>
+                </li>
+                <li><strong>Scrollbar prüfen:</strong> Vergewissere dich, dass:
+                    <ul>
+                        <li>Der horizontale Scrollbar sich an die neue Timeline-Breite anpasst</li>
+                        <li>Die Navigation-Übersicht oben sich entsprechend verkleinert/vergrößert</li>
+                        <li>Der Scroll-Bereich korrekt funktioniert</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="test-info">
+            <h3>Erwartetes Verhalten:</h3>
+            <ul>
+                <li>✅ <strong>Scrollbar-Anpassung:</strong> Nach Wochen-Änderung passt sich die Scrollbar-Länge
+                    automatisch an</li>
+                <li>✅ <strong>Navigation-Übersicht:</strong> Die kleine Navigation oben zeigt den korrekten Zeitbereich
+                </li>
+                <li>✅ <strong>Scroll-Funktion:</strong> Horizontales Scrollen funktioniert über die gesamte neue
+                    Timeline-Breite</li>
+            </ul>
+        </div>
+
+        <div class="test-info">
+            <h3>Technische Details:</h3>
+            <div class="scrollbar-info">
+                <strong>Fix implementiert in:</strong><br>
+                • timeline-unified.html: renderTimeline() + handleViewportResize() call<br>
+                • timeline-unified-f2.js: updateData() + resizeCanvas() + updateNavigationOverview()
+            </div>
+            <div class="scrollbar-info">
+                <strong>Auslöser:</strong><br>
+                1. Wochen-Range Änderung → updateTimelineWeekRange()<br>
+                2. loadRealData() → renderTimeline()<br>
+                3. handleViewportResize('data_range_change')<br>
+                4. resizeCanvas() + updateNavigationOverview()
+            </div>
+        </div>
+
+        <button class="test-button" onclick="loadTimeline()">📊 Timeline laden</button>
+        <button class="test-button" onclick="simulateWeekChange()">🔄 Wochen-Test (8 Vergangenheit, 52 Zukunft)</button>
+        <button class="test-button" onclick="resetWeeks()">↩️ Wochen zurücksetzen (2/104)</button>
+
+        <div id="timeline-container"></div>
+    </div>
+
+    <script>
+        function loadTimeline() {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '<iframe src="timeline-unified.html" id="timeline-frame"></iframe>';
+        }
+
+        function simulateWeekChange() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                // Simuliere Wochen-Änderung über postMessage
+                frame.contentWindow.postMessage({
+                    type: 'updateMetric',
+                    metric: 'weeks-past',
+                    value: 8
+                }, '*');
+
+                setTimeout(() => {
+                    frame.contentWindow.postMessage({
+                        type: 'updateMetric',
+                        metric: 'weeks-future',
+                        value: 52
+                    }, '*');
+                }, 100);
+
+                console.log('🔄 Wochen-Test gesendet: 8 Vergangenheit, 52 Zukunft');
+            } else {
+                alert('⚠️ Timeline muss zuerst geladen werden!');
+            }
+        }
+
+        function resetWeeks() {
+            const frame = document.getElementById('timeline-frame');
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.postMessage({
+                    type: 'updateMetric',
+                    metric: 'weeks-past',
+                    value: 2
+                }, '*');
+
+                setTimeout(() => {
+                    frame.contentWindow.postMessage({
+                        type: 'updateMetric',
+                        metric: 'weeks-future',
+                        value: 104
+                    }, '*');
+                }, 100);
+
+                console.log('↩️ Wochen zurückgesetzt: 2 Vergangenheit, 104 Zukunft');
+            } else {
+                alert('⚠️ Timeline muss zuerst geladen werden!');
+            }
+        }
+
+        // Debug-Nachrichten von der Timeline abfangen
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'timeline-debug') {
+                console.log('📊 Timeline Debug:', event.data.message);
+            }
+        });
+    </script>
+</body>
+
+</html>

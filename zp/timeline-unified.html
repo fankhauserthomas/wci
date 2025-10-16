@@ -1445,7 +1445,7 @@
             padding: 1px 4px !important;
             border-radius: 3px !important;
             margin-left: 3px !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
             transition: opacity 0.2s ease !important;
             cursor: help !important;
             vertical-align: top !important;
@@ -1454,7 +1454,7 @@
         .holiday-badge:hover {
             opacity: 1 !important;
             transform: scale(1.1);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
         }
 
         /* Spezielle Farben für verschiedene Länder */
@@ -1488,6 +1488,7 @@
                 opacity: 0;
                 transform: scale(0.8);
             }
+
             to {
                 opacity: 1;
                 transform: scale(1);
@@ -5553,12 +5554,12 @@
             showHolidayDebug() {
                 this.show();
                 this.clear();
-                
+
                 if (window.holidayManager) {
                     this.log('info', '🎉 Holiday Manager Debug Info');
                     this.log('info', `Cache Entries: ${window.holidayManager.holidayCache.size}`);
                     this.log('info', `Enabled Countries: ${window.holidayManager.enabledCountries.join(', ')}`);
-                    
+
                     // Show cache content
                     for (const [key, holidays] of window.holidayManager.holidayCache.entries()) {
                         this.log('info', `${key}: ${holidays.length} holidays`);
@@ -5569,7 +5570,7 @@
                             this.log('info', `  ... and ${holidays.length - 3} more`);
                         }
                     }
-                    
+
                     // Test today's holidays
                     const today = new Date();
                     if (window.timelineRenderer && window.timelineRenderer.holidaysData) {
@@ -5580,7 +5581,7 @@
                             this.log('info', `Today (${today.toLocaleDateString()}): No holidays`);
                         }
                     }
-                    
+
                     // Trigger reload button
                     const reloadBtn = document.createElement('button');
                     reloadBtn.textContent = '🔄 Reload Holidays';
@@ -5594,10 +5595,10 @@
                             this.log('error', '❌ Failed to reload holidays: ' + error.message);
                         }
                     };
-                    
+
                     const content = document.getElementById('debug-console-content');
                     content.appendChild(reloadBtn);
-                    
+
                 } else {
                     this.log('error', '❌ Holiday Manager not found');
                 }
@@ -6181,6 +6182,15 @@
                 timelineRenderer.setArrangementsCatalog(arrangementsCatalog);
                 timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource, window.histogramAvailability);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
+
+                // WICHTIG: Nach Daten-Update auch Scrollbar und Navigation anpassen
+                // Dies ist notwendig wenn sich der Zeitbereich (Wochen-Range) ändert
+                if (typeof timelineRenderer.handleViewportResize === 'function') {
+                    setTimeout(() => {
+                        timelineRenderer.handleViewportResize('data_range_change');
+                    }, 50);
+                }
+
                 initializeTimelineToolbar();
             } else {
                 console.debug('Erzeuge neue Timeline-Instanz.');
@@ -6190,7 +6200,7 @@
                 timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource, window.histogramAvailability);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
                 initializeTimelineToolbar();
-                
+
                 // Lade Holiday-Daten nach Timeline-Initialisierung (EINMALIG)
                 if (window.holidayManager && timelineRenderer.loadHolidaysForCurrentRange && !window.holidaysLoadingStarted) {
                     window.holidaysLoadingStarted = true;
@@ -6334,6 +6344,38 @@
                             timelineRenderer.updateTopbarVisuals?.();
                         }
                         updateTimelineToolbarValues();
+                    }
+                } else if (event.data && event.data.type === 'debug-date-range') {
+                    // Debug Date Range Request
+                    console.log('🔍 Date Range Debug angefordert');
+
+                    if (timelineRenderer && typeof timelineRenderer.getTimelineDateRange === 'function') {
+                        const dateRange = timelineRenderer.getTimelineDateRange();
+                        const themeConfig = timelineRenderer.themeConfig || {};
+
+                        const debugData = {
+                            now: dateRange.now ? dateRange.now.toLocaleDateString('de-DE') : 'N/A',
+                            startDate: dateRange.startDate ? dateRange.startDate.toLocaleDateString('de-DE') : 'N/A',
+                            endDate: dateRange.endDate ? dateRange.endDate.toLocaleDateString('de-DE') : 'N/A',
+                            weeksPast: dateRange.weeksPast || 'N/A',
+                            weeksFuture: dateRange.weeksFuture || 'N/A',
+                            themeConfigWeeksPast: themeConfig.weeksPast || 'N/A',
+                            themeConfigWeeksFuture: themeConfig.weeksFuture || 'N/A',
+                            cacheStatus: timelineRenderer.currentRange ? 'Cached' : 'Fresh',
+                            cachedDateRange: timelineRenderer.cachedDateRange ? 'Present' : 'None'
+                        };
+
+                        console.log('📊 Debug Data:', debugData);
+
+                        // Send debug data back to parent
+                        if (event.source) {
+                            event.source.postMessage({
+                                type: 'date-range-debug',
+                                data: debugData
+                            }, '*');
+                        }
+                    } else {
+                        console.warn('❌ Timeline Renderer nicht verfügbar für Debug');
                     }
                 }
             });

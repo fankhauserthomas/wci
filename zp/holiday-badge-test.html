@@ -1,34 +1,60 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Holiday Badge Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #canvas { border: 1px solid #ccc; display: block; margin: 20px 0; }
-        .controls { margin: 10px 0; }
-        .log { background: #f8f9fa; padding: 10px; border-radius: 4px; margin: 10px 0; max-height: 200px; overflow-y: auto; }
-        button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #canvas {
+            border: 1px solid #ccc;
+            display: block;
+            margin: 20px 0;
+        }
+
+        .controls {
+            margin: 10px 0;
+        }
+
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
+
 <body>
     <h1>Holiday Badge Test</h1>
-    
+
     <div class="controls">
         <button onclick="testHolidayBadges()">Test Holiday Badges</button>
         <button onclick="clearCanvas()">Clear Canvas</button>
         <button onclick="testHolidayData()">Test Holiday Data</button>
     </div>
-    
+
     <canvas id="canvas" width="800" height="200"></canvas>
-    
+
     <div class="log" id="log"></div>
-    
+
     <script src="holiday-manager.js"></script>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let holidayManager;
-        
+
         // Initialize Holiday Manager
         async function initHolidayManager() {
             try {
@@ -38,7 +64,7 @@
                 log('❌ Holiday Manager Fehler: ' + error.message);
             }
         }
-        
+
         function log(message) {
             const logDiv = document.getElementById('log');
             const timestamp = new Date().toLocaleTimeString();
@@ -46,49 +72,49 @@
             logDiv.scrollTop = logDiv.scrollHeight;
             console.log(message);
         }
-        
+
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             log('🧹 Canvas geleert');
         }
-        
+
         async function testHolidayData() {
             if (!holidayManager) {
                 log('❌ Holiday Manager nicht initialisiert');
                 return;
             }
-            
+
             try {
                 const startDate = new Date('2024-12-01');
                 const endDate = new Date('2024-12-31');
-                
+
                 log(`📅 Lade Feiertage für Dezember 2024...`);
                 const holidays = await holidayManager.loadHolidaysForDateRange(startDate, endDate, 'DE');
-                
+
                 log(`🎄 ${holidays.length} deutsche Feiertage gefunden:`);
                 holidays.forEach(holiday => {
                     log(`  • ${holiday.date}: ${holiday.localName}`);
                 });
-                
+
             } catch (error) {
                 log('❌ Fehler beim Laden der Feiertage: ' + error.message);
             }
         }
-        
+
         async function testHolidayBadges() {
             clearCanvas();
-            
+
             if (!holidayManager) {
                 log('❌ Holiday Manager nicht initialisiert');
                 return;
             }
-            
+
             try {
                 // Test mit December 2024 (Weihnachten)
                 const testDate = new Date('2024-12-25'); // Weihnachten
-                
+
                 log('🎨 Teste Holiday Badge Rendering...');
-                
+
                 // Simuliere Holiday-Daten
                 const mockHoliday = {
                     date: '2024-12-25',
@@ -96,60 +122,60 @@
                     name: 'Christmas Day',
                     countryCode: 'DE'
                 };
-                
+
                 // Render Badge direkt auf Canvas
                 renderTestHolidayBadge(100, mockHoliday, 'DE');
                 renderTestHolidayBadge(150, { ...mockHoliday, countryCode: 'AT' }, 'AT');
                 renderTestHolidayBadge(200, { ...mockHoliday, countryCode: 'IT' }, 'IT');
-                
+
                 // Header-Text
                 ctx.fillStyle = '#333';
                 ctx.font = '16px Arial';
                 ctx.fillText('Holiday Badge Test - Weihnachten 2024', 10, 30);
-                
+
                 log('✅ Holiday Badges gerendert');
-                
+
             } catch (error) {
                 log('❌ Fehler beim Rendern: ' + error.message);
             }
         }
-        
+
         function renderTestHolidayBadge(x, holiday, country) {
             // Flag Emoji für das Land
             const flags = { 'DE': '🇩🇪', 'AT': '🇦🇹', 'IT': '🇮🇹' };
             const flag = flags[country] || '🏁';
-            
+
             // Badge Position
             const badgeX = x;
             const badgeY = 50;
             const badgeWidth = 30;
             const badgeHeight = 20;
-            
+
             // Roten Hintergrund zeichnen
             ctx.fillStyle = '#dc3545';
             ctx.fillRect(badgeX, badgeY, badgeWidth, badgeHeight);
-            
+
             // Weißer Rand
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 1;
             ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
-            
+
             // Flag Emoji rendern
             ctx.fillStyle = 'white';
             ctx.font = '12px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(flag, badgeX + badgeWidth/2, badgeY + 14);
-            
+            ctx.fillText(flag, badgeX + badgeWidth / 2, badgeY + 14);
+
             // Label unter dem Badge
             ctx.fillStyle = '#333';
             ctx.font = '10px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(`${country}`, badgeX + badgeWidth/2, badgeY + 35);
-            ctx.fillText(`${holiday.localName}`, badgeX + badgeWidth/2, badgeY + 48);
-            
+            ctx.fillText(`${country}`, badgeX + badgeWidth / 2, badgeY + 35);
+            ctx.fillText(`${holiday.localName}`, badgeX + badgeWidth / 2, badgeY + 48);
+
             log(`🏆 Badge gerendert: ${flag} für ${country} bei X=${badgeX}`);
         }
-        
+
         // Auto-initialize
         window.onload = () => {
             initHolidayManager();
@@ -157,4 +183,5 @@
         };
     </script>
 </body>
+
 </html>
