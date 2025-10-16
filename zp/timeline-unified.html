@@ -1434,6 +1434,69 @@
             color: #5a9bd4 !important;
             text-decoration: underline !important;
         }
+
+        /* Holiday Badge Styles */
+        .holiday-badge {
+            display: inline-block !important;
+            background: linear-gradient(135deg, #dc3545, #bd2130) !important;
+            color: white !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+            padding: 1px 4px !important;
+            border-radius: 3px !important;
+            margin-left: 3px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+            transition: opacity 0.2s ease !important;
+            cursor: help !important;
+            vertical-align: top !important;
+        }
+
+        .holiday-badge:hover {
+            opacity: 1 !important;
+            transform: scale(1.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+        }
+
+        /* Spezielle Farben für verschiedene Länder */
+        .holiday-badge[title*="🇩🇪"] {
+            background: linear-gradient(135deg, #000000, #dd0000) !important;
+            border: 1px solid #ffce00;
+        }
+
+        .holiday-badge[title*="🇦🇹"] {
+            background: linear-gradient(135deg, #ed2939, #ffffff) !important;
+            color: #ed2939 !important;
+            border: 1px solid #ed2939;
+        }
+
+        .holiday-badge[title*="🇮🇹"] {
+            background: linear-gradient(135deg, #009246, #ce2b37) !important;
+            border: 1px solid #ffffff;
+        }
+
+        /* Zusätzliches Styling für bessere Sichtbarkeit in der Timeline */
+        .timeline-day-header .holiday-badge {
+            font-size: 9px !important;
+            padding: 1px 3px !important;
+            margin-left: 2px !important;
+            vertical-align: middle !important;
+        }
+
+        /* Animation für neue Holiday-Badges */
+        @keyframes holidayBadgeAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .holiday-badge {
+            animation: holidayBadgeAppear 0.3s ease-out;
+        }
     </style>
 </head>
 
@@ -1787,6 +1850,7 @@
             <div class="debug-console-controls">
                 <button id="debug-clear" class="debug-console-btn">Clear</button>
                 <button id="debug-export" class="debug-console-btn">Export</button>
+                <button id="debug-holidays" class="debug-console-btn">🎉 Holidays</button>
                 <button id="debug-close" class="debug-console-btn">✕</button>
             </div>
         </div>
@@ -5361,11 +5425,13 @@
                 const console = document.getElementById('debug-console');
                 const clearBtn = document.getElementById('debug-clear');
                 const exportBtn = document.getElementById('debug-export');
+                const holidaysBtn = document.getElementById('debug-holidays');
                 const closeBtn = document.getElementById('debug-close');
 
                 toggle.addEventListener('click', () => this.toggle());
                 clearBtn.addEventListener('click', () => this.clear());
                 exportBtn.addEventListener('click', () => this.export());
+                holidaysBtn.addEventListener('click', () => this.showHolidayDebug());
                 closeBtn.addEventListener('click', () => this.hide());
 
                 // Intercept console methods
@@ -5482,6 +5548,59 @@
                     originalMethods.log(...args);
                     this.log('success', ...args);
                 };
+            },
+
+            showHolidayDebug() {
+                this.show();
+                this.clear();
+                
+                if (window.holidayManager) {
+                    this.log('info', '🎉 Holiday Manager Debug Info');
+                    this.log('info', `Cache Entries: ${window.holidayManager.holidayCache.size}`);
+                    this.log('info', `Enabled Countries: ${window.holidayManager.enabledCountries.join(', ')}`);
+                    
+                    // Show cache content
+                    for (const [key, holidays] of window.holidayManager.holidayCache.entries()) {
+                        this.log('info', `${key}: ${holidays.length} holidays`);
+                        holidays.slice(0, 3).forEach(h => {
+                            this.log('info', `  - ${h.date}: ${h.localName || h.name}`);
+                        });
+                        if (holidays.length > 3) {
+                            this.log('info', `  ... and ${holidays.length - 3} more`);
+                        }
+                    }
+                    
+                    // Test today's holidays
+                    const today = new Date();
+                    if (window.timelineRenderer && window.timelineRenderer.holidaysData) {
+                        const todayHolidays = window.holidayManager.getHolidayInfo(today, window.timelineRenderer.holidaysData);
+                        if (todayHolidays.length > 0) {
+                            this.log('success', `Today (${today.toLocaleDateString()}): ${todayHolidays.map(h => h.localName).join(', ')}`);
+                        } else {
+                            this.log('info', `Today (${today.toLocaleDateString()}): No holidays`);
+                        }
+                    }
+                    
+                    // Trigger reload button
+                    const reloadBtn = document.createElement('button');
+                    reloadBtn.textContent = '🔄 Reload Holidays';
+                    reloadBtn.style.cssText = 'margin: 5px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;';
+                    reloadBtn.onclick = async () => {
+                        this.log('info', '🔄 Reloading holidays...');
+                        try {
+                            await window.holidayManager.triggerHolidayReload();
+                            this.log('success', '✅ Holidays reloaded successfully');
+                        } catch (error) {
+                            this.log('error', '❌ Failed to reload holidays: ' + error.message);
+                        }
+                    };
+                    
+                    const content = document.getElementById('debug-console-content');
+                    content.appendChild(reloadBtn);
+                    
+                } else {
+                    this.log('error', '❌ Holiday Manager not found');
+                }
             }
         };
 
@@ -6071,6 +6190,14 @@
                 timelineRenderer.setHistogramSource(window.histogramSource, window.histogramStornoSource, window.histogramAvailability);
                 timelineRenderer.updateData(reservations, roomDetails, rooms);
                 initializeTimelineToolbar();
+                
+                // Lade Holiday-Daten nach Timeline-Initialisierung (EINMALIG)
+                if (window.holidayManager && timelineRenderer.loadHolidaysForCurrentRange && !window.holidaysLoadingStarted) {
+                    window.holidaysLoadingStarted = true;
+                    setTimeout(() => {
+                        timelineRenderer.loadHolidaysForCurrentRange();
+                    }, 500);
+                }
             }
         }
 
@@ -6281,6 +6408,7 @@
         })();
     </script>
     <script src="quota-management-integration.js?v=29"></script>
+    <script src="holiday-manager.js?v=1"></script>
 </body>
 
 </html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Triangle Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .canvas-container {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        canvas {
+            display: block;
+            background: #fff;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .day-header {
+            display: inline-block;
+            width: 90px;
+            height: 40px;
+            border: 1px solid #ccc;
+            margin: 2px;
+            text-align: center;
+            line-height: 40px;
+            position: relative;
+            background: #f9f9f9;
+        }
+        
+        .holiday-triangle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 15px 15px 0;
+            border-color: transparent #dc3545 transparent transparent;
+            cursor: pointer;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔺 Holiday Triangle Test</h1>
+    
+    <div class="test-container">
+        <h3>1. Canvas Triangle Rendering Test</h3>
+        <div class="info">
+            Test der Canvas-basierten Dreieck-Darstellung mit Hover-Tooltips
+        </div>
+        
+        <button class="btn" onclick="testCanvasTriangles()">Test Canvas Dreiecke</button>
+        <button class="btn" onclick="clearCanvas()">Canvas leeren</button>
+        
+        <div class="canvas-container">
+            <canvas id="triangleCanvas" width="800" height="100"></canvas>
+        </div>
+        
+        <div id="canvasLog"></div>
+    </div>
+    
+    <div class="test-container">
+        <h3>2. CSS Triangle Rendering Test</h3>
+        <div class="info">
+            Zum Vergleich: CSS-basierte Dreiecke mit HTML-Tooltips
+        </div>
+        
+        <div id="cssTriangles">
+            <div class="day-header">
+                Mo 14.10
+                <div class="holiday-triangle" title="🇩🇪 Tag der Deutschen Einheit"></div>
+            </div>
+            <div class="day-header">
+                Di 15.10
+            </div>
+            <div class="day-header">
+                Mi 16.10
+            </div>
+            <div class="day-header">
+                Do 17.10
+                <div class="holiday-triangle" title="🇦🇹 Nationalfeiertag"></div>
+            </div>
+            <div class="day-header">
+                Fr 18.10
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Holiday Manager laden
+        const script = document.createElement('script');
+        script.src = 'holiday-manager.js';
+        document.head.appendChild(script);
+        
+        let canvas, ctx, holidayRegions = [];
+        
+        window.addEventListener('load', () => {
+            canvas = document.getElementById('triangleCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Mouse-Events für Canvas
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseleave', hideTooltip);
+        });
+        
+        function testCanvasTriangles() {
+            if (!canvas || !ctx) return;
+            
+            // Canvas leeren
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            holidayRegions = [];
+            
+            // Tage-Header zeichnen
+            const dayWidth = 90;
+            const headerHeight = 40;
+            
+            const testDays = [
+                { date: '2025-10-03', name: 'Tag der Deutschen Einheit', country: 'DE' },
+                { date: '2025-10-26', name: 'Nationalfeiertag', country: 'AT' },
+                { date: '2025-11-01', name: 'Ognissanti', country: 'IT' }
+            ];
+            
+            for (let i = 0; i < 7; i++) {
+                const x = i * dayWidth;
+                
+                // Tag-Header Hintergrund
+                ctx.fillStyle = '#f9f9f9';
+                ctx.fillRect(x, 0, dayWidth - 2, headerHeight);
+                
+                // Tag-Header Border
+                ctx.strokeStyle = '#ccc';
+                ctx.strokeRect(x, 0, dayWidth - 2, headerHeight);
+                
+                // Datum Text
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                const dayLabel = `${i + 14}.10`;
+                ctx.fillText(dayLabel, x + dayWidth/2, headerHeight/2 + 4);
+                
+                // Holiday-Dreieck für bestimmte Tage
+                if (i === 0 || i === 3 || i === 6) {
+                    const holiday = testDays[Math.floor(i/2)] || testDays[0];
+                    renderHolidayTriangle(x, 0, dayWidth, holiday);
+                }
+            }
+            
+            updateLog(`✅ ${holidayRegions.length} Holiday-Dreiecke gerendert`);
+        }
+        
+        function renderHolidayTriangle(dayX, dayY, dayWidth, holiday) {
+            const triangleSize = 15;
+            const triangleX = dayX + dayWidth - triangleSize - 2;
+            const triangleY = dayY + 2;
+            
+            // Rotes Dreieck zeichnen
+            ctx.fillStyle = '#dc3545';
+            ctx.beginPath();
+            ctx.moveTo(triangleX, triangleY); // Linke obere Ecke
+            ctx.lineTo(triangleX + triangleSize, triangleY); // Rechte obere Ecke
+            ctx.lineTo(triangleX + triangleSize, triangleY + triangleSize); // Rechte untere Ecke
+            ctx.closePath();
+            ctx.fill();
+            
+            // Region für Hover-Detection speichern
+            holidayRegions.push({
+                x: triangleX,
+                y: triangleY,
+                width: triangleSize,
+                height: triangleSize,
+                holiday: holiday
+            });
+            
+            console.log(`🔺 Dreieck gerendert: ${triangleX},${triangleY} für ${holiday.name}`);
+        }
+        
+        function handleCanvasMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            
+            // Prüfe Hover über Holiday-Dreieck
+            const hoveredRegion = holidayRegions.find(region =>
+                mouseX >= region.x && mouseX <= region.x + region.width &&
+                mouseY >= region.y && mouseY <= region.y + region.height
+            );
+            
+            if (hoveredRegion) {
+                showTooltip(event, hoveredRegion.holiday);
+                canvas.style.cursor = 'pointer';
+            } else {
+                hideTooltip();
+                canvas.style.cursor = 'default';
+            }
+        }
+        
+        function showTooltip(event, holiday) {
+            let tooltip = document.getElementById('canvas-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'canvas-tooltip';
+                tooltip.style.cssText = `
+                    position: absolute;
+                    background: #333;
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    pointer-events: none;
+                    z-index: 9999;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    max-width: 200px;
+                `;
+                document.body.appendChild(tooltip);
+            }
+            
+            const flags = { 'DE': '🇩🇪', 'AT': '🇦🇹', 'IT': '🇮🇹' };
+            const flag = flags[holiday.country] || '🏁';
+            
+            tooltip.innerHTML = `
+                <div style="font-weight: bold;">${flag} ${holiday.name}</div>
+                <div style="font-size: 11px; color: #ccc;">${holiday.date}</div>
+            `;
+            
+            tooltip.style.left = (event.clientX + 10) + 'px';
+            tooltip.style.top = (event.clientY - 30) + 'px';
+            tooltip.style.display = 'block';
+        }
+        
+        function hideTooltip() {
+            const tooltip = document.getElementById('canvas-tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+        
+        function clearCanvas() {
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                holidayRegions = [];
+                updateLog('Canvas geleert');
+            }
+        }
+        
+        function updateLog(message) {
+            const log = document.getElementById('canvasLog');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML = `<div style="margin: 5px 0; padding: 5px; background: #f0f0f0; border-radius: 3px;">
+                ${time}: ${message}
+            </div>` + log.innerHTML;
+        }
+    </script>
+</body>
+</html>

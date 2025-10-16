@@ -6771,8 +6771,10 @@ class TimelineUnifiedRenderer {
 
     formatDateLabel(date) {
         if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+        let label = '';
+        
         try {
-            return date.toLocaleDateString('de-DE', {
+            label = date.toLocaleDateString('de-DE', {
                 weekday: 'short',
                 day: '2-digit',
                 month: '2-digit',
@@ -6780,8 +6782,19 @@ class TimelineUnifiedRenderer {
             });
         } catch (err) {
             console.warn('Locale formatting failed, falling back to ISO:', err);
-            return this.formatDateISO(date);
+            label = this.formatDateISO(date);
         }
+
+        // Füge Feiertags-Badge hinzu
+        if (this.holidaysData && typeof window !== 'undefined' && window.holidayManager) {
+            const holidayInfo = window.holidayManager.getHolidayInfo(date, this.holidaysData);
+            const holidayBadge = window.holidayManager.createHolidayBadge(holidayInfo);
+            if (holidayBadge) {
+                label += holidayBadge;
+            }
+        }
+
+        return label;
     }
 
     ensureDateContextMenu() {
@@ -10142,6 +10155,11 @@ class TimelineUnifiedRenderer {
         this.performanceStats.contextSwitches = this.renderPipeline.contextSwitches;
 
         this.updateNavigationOverview();
+
+        // Render Holiday-Badges nach dem Haupt-Rendering
+        if (typeof this.renderHolidayBadges === 'function') {
+            setTimeout(() => this.renderHolidayBadges(), 10);
+        }
     }
 
     // Pre-calculate room heights to ensure correct scrollbar sizing
@@ -10481,6 +10499,9 @@ class TimelineUnifiedRenderer {
     renderHeaderOptimized(startDate, endDate) {
         const area = this.areas.header;
         const startX = this.sidebarWidth - this.scrollX;
+        
+        // Reset Holiday-Regionen für neue Render-Durchgang
+        this.holidayRegions = [];
 
         // Render header immediately (not batched) to fix clipping issues
         this.ctx.save();
@@ -10515,6 +10536,44 @@ class TimelineUnifiedRenderer {
 
                 const dateStr = currentDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
                 this.ctx.fillText(dateStr, x, area.y + 30);
+
+                // Holiday-Dreieck direkt hier rendern
+                if (this.holidaysData && window.holidayManager) {
+                    const holidayInfo = window.holidayManager.getHolidayInfo(currentDate, this.holidaysData);
+                    if (holidayInfo && holidayInfo.length > 0) {
+                        // Zeichne rotes Dreieck in der rechten oberen Ecke des Tages
+                        const triangleSize = 15;
+                        const dayLeft = startX + (dayIndex * this.DAY_WIDTH);
+                        const triangleX = dayLeft + this.DAY_WIDTH - triangleSize;
+                        const triangleY = area.y + 2;
+                        
+                        this.ctx.save(); // Canvas-State speichern
+                        this.ctx.fillStyle = '#dc3545';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(triangleX, triangleY); // Links oben
+                        this.ctx.lineTo(triangleX + triangleSize, triangleY); // Rechts oben
+                        this.ctx.lineTo(triangleX + triangleSize, triangleY + triangleSize); // Rechts unten
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        this.ctx.restore(); // Canvas-State wiederherstellen
+                        
+                        // Holiday-Region für Tooltip speichern
+                        if (!this.holidayRegions) this.holidayRegions = [];
+                        this.holidayRegions.push({
+                            x: triangleX,
+                            y: triangleY,
+                            width: triangleSize,
+                            height: triangleSize,
+                            holidays: holidayInfo, // Alle Feiertage für diesen Tag
+                            date: currentDate.toISOString().split('T')[0]
+                        });
+                        
+                        // Debug nur bei erstem Dreieck
+                        if (this.holidayRegions.length === 1) {
+                            console.log(`🔺 Holiday-Dreiecke werden gerendert`);
+                        }
+                    }
+                }
             }
 
             currentDate.setDate(currentDate.getDate() + 1);
@@ -13708,6 +13767,9 @@ class TimelineUnifiedRenderer {
         this.startDate = startDate;
         this.endDate = endDate;
 
+        // Holiday-Laden wird nur EINMAL beim ersten Laden in der HTML gemacht
+        // Hier NICHT mehr laden um Duplikate zu vermeiden
+
         this.render();
     }
 
@@ -14853,8 +14915,348 @@ class TimelineUnifiedRenderer {
         tooltipEl.style.top = `${top}px`;
         tooltipEl.style.visibility = 'visible'; // Wieder sichtbar machen
     }
+    // ===== HOLIDAY MANAGER INTEGRATION =====
+    
+    // Holiday Overlay erstellen
+    createHolidayOverlay() {
+        if (this.holidayOverlay) return this.holidayOverlay;
+        
+        this.holidayOverlay = document.createElement('div');
+        this.holidayOverlay.id = 'timeline-holiday-overlay';
+        this.holidayOverlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        `;
+        
+        // Füge Overlay zum Container hinzu
+        if (this.canvas && this.canvas.parentElement) {
+            this.canvas.parentElement.appendChild(this.holidayOverlay);
+        }
+        
+        return this.holidayOverlay;
+    }
+    
+    // Holiday-Badges direkt in Canvas rendern
+    renderHolidayBadges() {
+        if (!this.holidaysData || !window.holidayManager) return;
+        
+        const startDate = this.getStartDate();
+        const endDate = this.getEndDate();
+        if (!startDate || !endDate) return;
+        
+        // Verwende Header-Bereich falls verfügbar
+        const headerArea = this.areas && this.areas.header ? this.areas.header : { y: 30 };
+        
+        const currentDate = new Date(startDate);
+        const startX = this.sidebarWidth || 150;
+        let dayIndex = 0;
+        
+        this.ctx.save();
+        this.ctx.font = '12px Arial'; // Größere Emojis
+        this.ctx.textAlign = 'center';
+        
+        while (currentDate <= endDate) {
+            const x = startX + (dayIndex * (this.DAY_WIDTH || 20)) + ((this.DAY_WIDTH || 20) / 2);
+            
+            // Nur rendern wenn im sichtbaren Bereich
+            if (x >= (this.sidebarWidth || 150) - 50 && x <= this.canvas.width + 50) {
+                const holidayInfo = window.holidayManager.getHolidayInfo(currentDate, this.holidaysData);
+                if (holidayInfo && holidayInfo.length > 0) {
+                    // Rendere Flaggen-Emojis
+                    let flagText = '';
+                    const flags = { 'DE': '🇩🇪', 'AT': '🇦🇹', 'IT': '🇮🇹' };
+                    
+                    holidayInfo.forEach(holiday => {
+                        if (flags[holiday.country] && flagText.indexOf(flags[holiday.country]) === -1) {
+                            flagText += flags[holiday.country];
+                        }
+                    });
+                    
+                    if (flagText) {
+                        this.ctx.fillStyle = '#333';
+                        this.ctx.fillText(flagText, x, headerArea.y + 35);
+                    }
+                }
+            }
+            
+            currentDate.setDate(currentDate.getDate() + 1);
+            dayIndex++;
+        }
+        
+        this.ctx.restore();
+    }
+    
+    // Hilfsmethoden für Holiday Manager
+    getStartDate() {
+        return this.startDate || (typeof this.getTimelineDateRange === 'function' ? this.getTimelineDateRange().startDate : null);
+    }
+    
+    getEndDate() {
+        return this.endDate || (typeof this.getTimelineDateRange === 'function' ? this.getTimelineDateRange().endDate : null);
+    }
+
+    // Hook für Holiday-Daten laden
+    async loadHolidaysForCurrentRange() {
+        try {
+            if (!window.holidayManager) return;
+            
+            // Globaler Schutz vor parallelen Aufrufen
+            if (window.holidayLoadingInProgress) {
+                console.log('🔒 Holiday-Laden bereits im Gang, überspringe...');
+                return;
+            }
+            
+            // Prüfe ob bereits geladen
+            if (this.holidaysLoaded) {
+                console.log('📅 Holiday-Daten bereits geladen, überspringe');
+                return;
+            }
+            
+            window.holidayLoadingInProgress = true;
+            
+            const startDate = this.getStartDate();
+            const endDate = this.getEndDate();
+            
+            if (!startDate || !endDate) {
+                window.holidayLoadingInProgress = false;
+                return;
+            }
+            
+            // Erweitere Bereich um 1 Monat für besseres Caching
+            const extendedStart = new Date(startDate);
+            extendedStart.setMonth(extendedStart.getMonth() - 1);
+            const extendedEnd = new Date(endDate);
+            extendedEnd.setMonth(extendedEnd.getMonth() + 1);
+            
+            console.log(`📅 Lade Feiertage für Timeline-Zeitraum: ${extendedStart.toLocaleDateString()} - ${extendedEnd.toLocaleDateString()}`);
+            this.holidaysData = await window.holidayManager.loadHolidaysForDateRange(extendedStart, extendedEnd);
+            this.holidaysLoaded = true;
+            
+            console.log('🔄 Holiday-Daten geladen, Timeline neu rendern...');
+            // Vollständiges Repaint der Timeline
+            this.render();
+            
+        } catch (error) {
+            console.error('❌ Fehler beim Laden der Feiertage für Timeline:', error);
+        } finally {
+            // Flag immer zurücksetzen
+            window.holidayLoadingInProgress = false;
+        }
+    }
+    
+    // Render Holiday Badges auf dem Canvas - LEGACY (wird jetzt in renderHeaderOptimized gemacht)
+    renderHolidayBadges() {
+        // Holiday-Regionen werden jetzt direkt in renderHeaderOptimized erstellt
+        // Nur noch Event-Handler einrichten
+        this.setupHolidayHoverEvents();
+    }
+    
+    // Render einzelnen Holiday Badge als rotes Dreieck
+    renderHolidayBadge(x, holiday, country) {
+        const ctx = this.ctx;
+        
+        // Dreieck Position (rechte obere Ecke des Tages)
+        const triangleSize = 15;
+        const dayWidth = this.DAY_WIDTH || 90; // Verwende Timeline DAY_WIDTH
+        
+        const triangleX = x + dayWidth - triangleSize;
+        const triangleY = 2; // Oben im Header
+        
+        // Rotes Dreieck zeichnen
+        ctx.fillStyle = '#dc3545';
+        ctx.beginPath();
+        ctx.moveTo(triangleX, triangleY); // Linke obere Ecke
+        ctx.lineTo(triangleX + triangleSize, triangleY); // Rechte obere Ecke
+        ctx.lineTo(triangleX + triangleSize, triangleY + triangleSize); // Rechte untere Ecke
+        ctx.closePath();
+        ctx.fill();
+        
+        // Holiday-Info für Tooltip speichern
+        if (!this.holidayRegions) this.holidayRegions = [];
+        this.holidayRegions.push({
+            x: triangleX,
+            y: triangleY,
+            width: triangleSize,
+            height: triangleSize,
+            holiday: holiday,
+            country: country,
+            date: holiday.date
+        });
+        
+        console.log(`🔺 Holiday Dreieck gerendert bei X=${triangleX}, Y=${triangleY} für ${holiday.localName}`);
+    }
+    
+    // Berechne Canvas X-Position für ein Datum
+    getCanvasXForDate(date) {
+        // Verwende das gleiche Koordinatensystem wie die Timeline
+        const startX = this.sidebarWidth - this.scrollX;
+        
+        // Berechne Tag-Index relativ zum Timeline-Start
+        const timelineStartDate = this.currentDate; // Oder andere Referenz-Date
+        if (!timelineStartDate) return -1;
+        
+        const daysDiff = Math.floor((date - timelineStartDate) / (1000 * 60 * 60 * 24));
+        
+        // X-Position basierend auf Timeline-Logik
+        const x = startX + (daysDiff * this.DAY_WIDTH);
+        
+        return x;
+    }
+    
+    // Holiday Hover-Events einrichten
+    setupHolidayHoverEvents() {
+        if (!this.canvas || !this.holidayRegions) return;
+        
+        // Event-Listener nur einmal hinzufügen
+        if (this.holidayEventsSetup) return;
+        this.holidayEventsSetup = true;
+        
+        // Mouse-Move Handler für Hover-Detection
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Prüfe ob Maus über einem Holiday-Dreieck ist
+            const hoveredHoliday = this.holidayRegions.find(region => 
+                mouseX >= region.x && mouseX <= region.x + region.width &&
+                mouseY >= region.y && mouseY <= region.y + region.height
+            );
+            
+            if (hoveredHoliday) {
+                this.showHolidayTooltip(e, hoveredHoliday);
+                this.canvas.style.cursor = 'pointer';
+            } else {
+                this.hideHolidayTooltip();
+                this.canvas.style.cursor = 'default';
+            }
+        });
+        
+        // Mouse-Leave Handler
+        this.canvas.addEventListener('mouseleave', () => {
+            this.hideHolidayTooltip();
+        });
+    }
+    
+    // Holiday Tooltip anzeigen
+    showHolidayTooltip(event, holidayData) {
+        // Tooltip erstellen oder aktualisieren
+        let tooltip = document.getElementById('holiday-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'holiday-tooltip';
+            tooltip.style.cssText = `
+                position: absolute;
+                background: #333;
+                color: white;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                pointer-events: none;
+                z-index: 9999;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                max-width: 250px;
+                word-wrap: break-word;
+                line-height: 1.4;
+            `;
+            document.body.appendChild(tooltip);
+        }
+        
+        // Mehrere Feiertage intelligent gruppieren
+        const flags = { 'DE': '🇩🇪', 'AT': '🇦🇹', 'IT': '🇮🇹' };
+        const holidays = holidayData.holidays || [holidayData.holiday];
+        const date = new Date(holidayData.date);
+        
+        // Intelligente Gruppierung: Gleiche Feiertage erkennen
+        const groupedHolidays = {};
+        const holidayAliases = {
+            // Neujahr-Varianten
+            'Neujahr': ['Neujahr', 'Capodanno', "New Year's Day"],
+            // Weihnachten-Varianten  
+            '1. Weihnachtstag': ['1. Weihnachtstag', 'Christtag', 'Natale', 'Christmas Day'],
+            '2. Weihnachtstag': ['2. Weihnachtstag', 'Stefanitag', 'Santo Stefano', 'Boxing Day'],
+            // Dreikönigstag-Varianten
+            'Heilige Drei Könige': ['Heilige Drei Könige', 'Dreikönigstag', 'Epifania'],
+            // Mariä Himmelfahrt
+            'Mariä Himmelfahrt': ['Mariä Himmelfahrt', 'Assunzione di Maria'],
+            // Allerheiligen  
+            'Allerheiligen': ['Allerheiligen', 'Ognissanti', 'All Saints Day'],
+            // Nationalfeiertage (getrennt)
+            'Tag der Deutschen Einheit': ['Tag der Deutschen Einheit'],
+            'Nationalfeiertag': ['Nationalfeiertag']
+        };
+        
+        // Finde Hauptgruppe für jeden Feiertag
+        holidays.forEach(holiday => {
+            const name = holiday.localName;
+            let mainGroup = name; // Default: Originalname
+            
+            // Suche passende Alias-Gruppe
+            for (const [mainName, aliases] of Object.entries(holidayAliases)) {
+                if (aliases.includes(name)) {
+                    mainGroup = mainName;
+                    break;
+                }
+            }
+            
+            if (!groupedHolidays[mainGroup]) {
+                groupedHolidays[mainGroup] = {
+                    countries: [],
+                    names: []
+                };
+            }
+            
+            groupedHolidays[mainGroup].countries.push(holiday.country);
+            if (!groupedHolidays[mainGroup].names.includes(name)) {
+                groupedHolidays[mainGroup].names.push(name);
+            }
+        });
+        
+        let content = `<div style="font-size: 11px; color: #ccc; margin-bottom: 4px;">${date.toLocaleDateString('de-DE')}</div>`;
+        
+        Object.keys(groupedHolidays).forEach(mainName => {
+            const group = groupedHolidays[mainName];
+            const flagsText = group.countries.map(c => flags[c]).join(' '); // Mit Leerzeichen zwischen Flags
+            const countriesText = group.countries.join(', ');
+            
+            // Zeige Hauptname, bei mehreren Namen zeige Alternative
+            let displayName = mainName;
+            if (group.names.length > 1) {
+                const alternatives = group.names.filter(n => n !== mainName);
+                if (alternatives.length > 0) {
+                    displayName += ` / ${alternatives[0]}`;
+                }
+            }
+            
+            // Zeige nur Flags und Name - Länder-Kürzel sind redundant da Flags aussagekräftig sind
+            content += `<div style="font-weight: bold; margin-bottom: 4px;">${flagsText} ${displayName}</div>`;
+        });
+        
+        tooltip.innerHTML = content;
+        
+        // Tooltip-Position
+        tooltip.style.left = (event.clientX + 10) + 'px';
+        tooltip.style.top = (event.clientY - 30) + 'px';
+        tooltip.style.display = 'block';
+    }
+    
+    // Holiday Tooltip verstecken
+    hideHolidayTooltip() {
+        const tooltip = document.getElementById('holiday-tooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    }
 }
 
 // Export
 window.TimelineUnifiedRenderer = TimelineUnifiedRenderer;
+
+// Holiday Manager Integration Hook - ENTFERNT (wird jetzt direkt in Timeline gemacht)
+
 // Cache Buster Sat Sep 20 07:45:50 PM CEST 2025
