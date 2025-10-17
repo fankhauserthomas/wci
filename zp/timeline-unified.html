@@ -283,45 +283,56 @@
             top: calc(100% + 6px);
             left: 0;
             right: auto;
-            min-width: 260px;
-            max-width: min(360px, calc(100vw - 24px));
+            min-width: 300px;
+            max-width: min(400px, calc(100vw - 24px));
             background: var(--topbar-menu-bg, rgba(30, 30, 30, 0.96));
             border: 1px solid var(--topbar-border, rgba(255, 255, 255, 0.18));
             border-radius: 8px;
-            padding: 12px;
+            padding: 16px;
             box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
             display: none;
             pointer-events: auto;
         }
 
         .timeline-topbar-menu[data-open="true"] {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            display: grid;
+            gap: 16px;
         }
 
         .topbar-menu-section {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 12px;
+            align-items: center;
+        }
+
+        /* Button-only sections should span full width */
+        .topbar-menu-section:has(button):not(:has(label)),
+        .topbar-menu-section:has(a.topbar-button-action):not(:has(label)),
+        .topbar-menu-section.topbar-button-section {
+            grid-template-columns: 1fr;
+            justify-items: stretch;
         }
 
         .topbar-menu-section label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--topbar-muted, rgba(255, 255, 255, 0.6));
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
+            color: var(--topbar-fg, #ffffff);
+            margin: 0;
+            white-space: nowrap;
         }
 
         .topbar-select,
         .topbar-menu input[type="number"] {
-            width: 100%;
             background: rgba(0, 0, 0, 0.25);
             color: var(--topbar-fg, #f5f5f5);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 4px;
-            padding: 6px 8px;
+            padding: 4px 6px;
             font-size: 12px;
+            min-height: 22px;
         }
 
         .topbar-menu input[type="number"]:focus,
@@ -332,22 +343,47 @@
         }
 
         .topbar-control-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .topbar-control-row input[type="range"] {
-            flex: 1;
+            min-width: 0;
+        }
+
+        .topbar-control-row span {
+            font-size: 11px;
+            color: var(--topbar-muted, rgba(255, 255, 255, 0.8));
+            white-space: nowrap;
+            min-width: 45px;
+            text-align: right;
         }
 
         .topbar-menu-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            grid-template-columns: auto 1fr auto 1fr;
+            gap: 8px 12px;
+            align-items: center;
+        }
+
+        .topbar-field {
+            display: contents;
+        }
+
+        .topbar-field label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: normal;
+            color: var(--topbar-fg, #ffffff);
+            margin: 0;
+            white-space: nowrap;
         }
 
         .topbar-field input[type="number"] {
+            min-width: 0;
             width: 100%;
         }
 
@@ -356,11 +392,18 @@
             justify-content: flex-end;
         }
 
+        .topbar-hint {
+            font-size: 10px;
+            color: var(--topbar-muted, rgba(255, 255, 255, 0.7));
+            margin: 2px 0 0;
+            grid-column: 1 / -1;
+        }
+
         .topbar-link {
             color: var(--topbar-fg, #f5f5f5);
             font-size: 12px;
             text-decoration: none;
-            padding: 4px 8px;
+            padding: 6px 12px;
             border-radius: 4px;
             border: 1px solid rgba(255, 255, 255, 0.12);
             transition: background 0.2s ease, border-color 0.2s ease;
@@ -369,6 +412,52 @@
         .topbar-link:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--topbar-accent, #4facfe);
+        }
+
+        .topbar-button-action {
+            appearance: none;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            text-align: center;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .topbar-button-action:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: linear-gradient(135deg, #5568d3 0%, #653a8c 100%);
+        }
+
+        .topbar-button-action:active {
+            transform: translateY(0);
+        }
+
+        .topbar-button-secondary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .topbar-button-secondary:hover {
+            background: linear-gradient(135deg, #218838 0%, #1ba085 100%);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .topbar-button-tertiary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .topbar-button-tertiary:hover {
+            background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
         }
 
         /* Modal Dialog Styles */

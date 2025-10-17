@@ -3775,7 +3775,7 @@ class TimelineUnifiedRenderer {
                     ">
                         <div id="timeline-toolbar" class="timeline-topbar">
                             <div class="timeline-topbar-actions">
-                                <button id="timeline-settings-toggle" class="timeline-topbar-button" type="button">⚙️ Menü</button>
+                                <button id="timeline-settings-toggle" class="timeline-topbar-button" type="button">Menü</button>
                                 <div id="timeline-settings-menu" class="timeline-topbar-menu" data-open="false">
                                     <div class="topbar-menu-section">
                                         <label for="timeline-preset-select">Preset</label>
@@ -3789,7 +3789,6 @@ class TimelineUnifiedRenderer {
                                             <option value="earth">Earth</option>
                                             <option value="rainbow">Rainbow</option>
                                             <option value="grayscale">Grayscale</option>
-                                            <option value="custom">Benutzerdefiniert</option>
                                         </select>
                                     </div>
                                     <div class="topbar-menu-section">
@@ -3815,24 +3814,21 @@ class TimelineUnifiedRenderer {
                                             <input type="number" id="timeline-histogram-max" min="10" max="2000" step="10" placeholder="Auto">
                                             <span id="timeline-histogram-max-display">Auto</span>
                                         </div>
-                                        <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Leer lassen für automatischen Modus</p>
+
                                     </div>
-                                    <div class="topbar-menu-section">
-                                        <label>HRS Import für selektierte Tage</label>
-                                        <button id="timeline-hrs-import-btn" class="topbar-link" style="width: 100%; text-align: center; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 4px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;">
-                                            📥 HRS Daten importieren
+                                    <div class="topbar-menu-section topbar-button-section">
+                                        <button id="timeline-hrs-import-btn" class="topbar-button-action">
+                                            HRS Import
                                         </button>
-                                        <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Importiert Daily, Quota & Res für selektierte Tage</p>
                                     </div>
-                                    <div class="topbar-menu-section">
-                                        <label>Reservierungen Import für Saison</label>
-                                        <button id="timeline-reservations-import-btn" class="topbar-link" style="width: 100%; text-align: center; padding: 8px 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; border-radius: 4px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;">
-                                            🏨 Nur Reservierungen importieren
+                                    <div class="topbar-menu-section topbar-button-section">
+                                        <button id="timeline-reservations-import-btn" class="topbar-button-action topbar-button-secondary">
+                                            Reservierungen Import
                                         </button>
-                                        <p class="topbar-hint" style="margin: 4px 0 0; font-size: 11px; color: var(--topbar-muted);">Importiert nur Reservierungen für die gesamte sichtbare Saison</p>
+
                                     </div>
-                                    <div class="topbar-menu-section topbar-menu-links">
-                                        <a id="timeline-room-editor-link" class="topbar-link" href="zimmereditor/index.php" target="_blank" rel="noopener">🛏️ Zimmereditor</a>
+                                    <div class="topbar-menu-section topbar-button-section">
+                                        <a id="timeline-room-editor-link" class="topbar-button-action topbar-button-tertiary" href="zimmereditor/index.php" target="_blank" rel="noopener">Zimmereditor</a>
                                     </div>
                                 </div>
                             </div>
